@@ -122,7 +122,7 @@ A few general opcode rules are proved locally in `UsdtVerify/Local/` while they 
 
 ## What is not covered yet
 
-- Completeness of the deprecated paths, and the invariant for the deprecated functions other than `destroyBlackFunds`.
+- The supply invariant over every deprecated call, beyond `destroyBlackFunds`.
 - Runs with less gas than the stated bounds, and forks outside the stated range.
 
 ## Related work
