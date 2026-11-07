@@ -21,6 +21,7 @@ import UsdtVerify.Functions.IssueSpec
 import UsdtVerify.Functions.SetParamsSpec
 import UsdtVerify.Functions.AddrWriteSpec
 import UsdtVerify.Functions.Destroy
+import UsdtVerify.Functions.DestroySpec
 import UsdtVerify.Functions.Deprecated
 import UsdtVerify.Functions.DeprecatedBalance
 
@@ -150,3 +151,6 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.AddrWriteSpec.transferOwnership_effects
 #print axioms UsdtVerify.Destroy.spec_notOwner
 #print axioms UsdtVerify.Destroy.spec_notListed
+#print axioms UsdtVerify.DestroySpec.spec
+#print axioms UsdtVerify.DestroySpec.runFrame_spec
+#print axioms UsdtVerify.DestroySpec.destroy_effects

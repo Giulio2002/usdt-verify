@@ -28,5 +28,6 @@ import UsdtVerify.Functions.IssueSpec
 import UsdtVerify.Functions.SetParamsSpec
 import UsdtVerify.Functions.AddrWriteSpec
 import UsdtVerify.Functions.Destroy
+import UsdtVerify.Functions.DestroySpec
 import UsdtVerify.Test.Axioms
 import UsdtVerify.Summary

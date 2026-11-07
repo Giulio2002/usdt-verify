@@ -12,6 +12,9 @@ The path of a call with selector 0x70a08231, no value, and the contract not depr
 - At 9810, the lookup writes the key word at 0 and the word 2 at 32, hashes those 64 bytes, and
   reads the slot at that hash.
 - At 4928, the code returns to 1511, which returns the word.
+
+`toLookup`, `lookup` and `back` hold for any words below the getter's own and (for `lookup`) any
+memory of 96 bytes: destroyBlackFunds calls the same getter from 7999 (return address 8008).
 -/
 
 namespace UsdtVerify.BalanceOf
@@ -59,10 +62,12 @@ theorem entry (hv : message.value = 0) {x : U256} {gas : Nat} (hg : 74 ≤ gas) 
   step jumpR
   exact (repc (by decide)).seq (reshape rfl rfl (by gas_ok))
 
-/-- From 4919, the code calls the lookup at 9810 with return address 4928. -/
-theorem toLookup {a r1 x : U256} {gas : Nat} (hg : 18 ≤ gas) :
-    Hoare fork (At CODE message 4919 [0, a, r1, x] MEM0 gas state substate)
-      (At CODE message 9810 [a, 0x1340, 0, a, r1, x] MEM0 (gas - 18) state substate) := by
+/-- From 4919, the code calls the lookup at 9810 with return address 4928. The words below the
+getter's own (`a` and its return address `r1`) are any `rest`. -/
+theorem toLookup {a r1 : U256} {rest : List U256} (hrest : rest.length ≤ 900) {M : ByteArray}
+    {gas : Nat} (hg : 18 ≤ gas) :
+    Hoare fork (At CODE message 4919 (0 :: a :: r1 :: rest) M gas state substate)
+      (At CODE message 9810 (a :: 0x1340 :: 0 :: a :: r1 :: rest) M (gas - 18) state substate) := by
   step jumpdestR
   step pushR 2 (0x1340 : U256)
   step dupR 2
@@ -85,29 +90,42 @@ theorem mload_MEM1 (a : U256) : loadWord (memoryReadBytes (MEM1 a) 64 32) 0 32 =
     memoryReadBytes_memoryWrite_of_disjoint, mload_MEM0] <;>
     simp [size_memoryWrite, size_MEM0, size_wordBytes]
 
-/-- The lookup at 9810: it reads the slot at the hash of the key word and the word 2. -/
-theorem lookup (hfork : .berlin ≤ fork) {a r1 x : U256} {cB : Bool}
+/-- The memory after the lookup from a memory `M`: the key word at 0 and the word 2 at 32. -/
+abbrev lookMem (M : ByteArray) (a : U256) : ByteArray :=
+  memoryWrite (memoryWrite M 0 (wordBytes (key a))) 32 (wordBytes 2)
+
+theorem MEM1_eq (a : U256) : MEM1 a = lookMem MEM0 a := rfl
+
+theorem size_lookMem {M : ByteArray} (hM : M.size = 96) (a : U256) : (lookMem M a).size = 96 := by
+  rw [lookMem, size_memoryWrite, size_memoryWrite] <;>
+    simp [size_memoryWrite, hM, size_wordBytes]
+
+/-- The lookup at 9810: it reads the slot at the hash of the key word and the word 2. The memory
+`M` is any memory of 96 bytes and the words below the getter's own are any `rest`. -/
+theorem lookup (hfork : .berlin ≤ fork) {a r1 : U256} {rest : List U256}
+    (hrest : rest.length ≤ 900) {M : ByteArray} (hM : M.size = 96) {cB : Bool}
     (hcB : coldIn substate message.currentTarget (mapSlot (key a) 2) = cB) {gas : Nat}
     (hg : 118 + slotCost cB ≤ gas) :
-    Hoare fork (At CODE message 9810 [a, 0x1340, 0, a, r1, x] MEM0 gas state substate)
-      (At CODE message 4928 [storageAt state message.currentTarget (mapSlot (key a) 2), 0, a, r1, x]
-        (MEM1 a) (gas - (118 + slotCost cB))
+    Hoare fork (At CODE message 9810 (a :: 0x1340 :: 0 :: a :: r1 :: rest) M gas state substate)
+      (At CODE message 4928 (storageAt state message.currentTarget (mapSlot (key a) 2) :: 0 :: a ::
+          r1 :: rest)
+        (lookMem M a) (gas - (118 + slotCost cB))
         (readSlot state message.currentTarget (mapSlot (key a) 2))
         (accessSlot substate message.currentTarget (mapSlot (key a) 2))) := by
-  have hs1 : (memoryWrite MEM0 0 (wordBytes (key a))).size = 96 := by
-    rw [size_memoryWrite] <;> simp [size_MEM0, size_wordBytes]
-  have hext1 : extendMemory MEM0.size [((0 : U256), (32 : U256))] = ⟨0, 0⟩ := by
-    rw [size_MEM0]; decide
-  have hext2 : extendMemory (memoryWrite MEM0 0 (wordBytes (key a))).size
+  have hs1 : (memoryWrite M 0 (wordBytes (key a))).size = 96 := by
+    rw [size_memoryWrite] <;> simp [hM, size_wordBytes]
+  have hext1 : extendMemory M.size [((0 : U256), (32 : U256))] = ⟨0, 0⟩ := by
+    rw [hM]; decide
+  have hext2 : extendMemory (memoryWrite M 0 (wordBytes (key a))).size
       [((0x20 : U256), (32 : U256))] = ⟨0, 0⟩ := by
     rw [hs1]; decide
-  have hext3 : extendMemory (MEM1 a).size [((0 : U256), (0x40 : U256))] = ⟨0, 0⟩ := by
-    rw [size_MEM1]; decide
+  have hext3 : extendMemory (lookMem M a).size [((0 : U256), (0x40 : U256))] = ⟨0, 0⟩ := by
+    rw [size_lookMem hM]; decide
   have hk : keccak256Cost (0x40 : U256) = 42 := by decide
-  have hread : memoryReadBytes (MEM1 a) 0 64 = wordBytes (key a) ++ wordBytes 2 := by
-    have h := memoryReadBytes_memoryWrite_memoryWrite (memory := MEM0) (a := wordBytes (key a))
-      (b := wordBytes 2) (s := 0) (by simp [size_MEM0, size_wordBytes])
-    simpa [size_wordBytes, MEM1] using h
+  have hread : memoryReadBytes (lookMem M a) 0 64 = wordBytes (key a) ++ wordBytes 2 := by
+    have h := memoryReadBytes_memoryWrite_memoryWrite (memory := M) (a := wordBytes (key a))
+      (b := wordBytes 2) (s := 0) (by simp [hM, size_wordBytes])
+    simpa [size_wordBytes, lookMem] using h
   step jumpdestR
   step pushR 1 (0 : U256)
   step pushR 1 (0x02 : U256)
@@ -119,22 +137,22 @@ theorem lookup (hfork : .berlin ≤ fork) {a r1 x : U256} {cB : Bool}
   step binR 0x16 Local.instruction_and
   step dupR 1
   step mstore (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
-  step reshape (m' := memoryWrite MEM0 0 (wordBytes (key a))) rfl
+  step reshape (m' := memoryWrite M 0 (wordBytes (key a))) rfl
     (by rw [hext1, memoryExtend_zero]; rfl) (by rw [hext1] <;> gas_ok)
   step pushR 1 (0x20 : U256)
   step binR 0x01 instruction_add
   step swapR 0
   norm
   step dupR 1
-  step reshape (s' := [0x20, 2, 0x20, 0, a, 0x1340, 0, a, r1, x]) rfl rfl rfl
+  step reshape (s' := (0x20 : U256) :: 2 :: 0x20 :: 0 :: a :: 0x1340 :: 0 :: a :: r1 :: rest) rfl rfl rfl
   step mstore (by code_fact) (by code_fact) (by rw [hext2]; gas_ok)
-  step reshape (m' := MEM1 a) rfl (by rw [hext2, memoryExtend_zero]; rfl) (by rw [hext2] <;> gas_ok)
+  step reshape (m' := lookMem M a) rfl (by rw [hext2, memoryExtend_zero]; rfl) (by rw [hext2] <;> gas_ok)
   step pushR 1 (0x20 : U256)
   step binR 0x01 instruction_add
   step pushR 1 (0 : U256)
-  step reshape (s' := [0, 0x40, 0, a, 0x1340, 0, a, r1, x]) rfl rfl rfl
+  step reshape (s' := (0 : U256) :: 0x40 :: 0 :: a :: 0x1340 :: 0 :: a :: r1 :: rest) rfl rfl rfl
   step keccak256 (by code_fact) (by code_fact) (by rw [hk, hext3]; gas_ok)
-  step reshape (s' := [mapSlot (key a) 2, 0, a, 0x1340, 0, a, r1, x]) (m' := MEM1 a)
+  step reshape (s' := mapSlot (key a) 2 :: 0 :: a :: 0x1340 :: 0 :: a :: r1 :: rest) (m' := lookMem M a)
     (by rw [hext3, memoryExtend_zero, show (0 : U256).toNat = 0 from rfl,
       show (0x40 : U256).toNat = 64 from rfl, hread]; rfl)
     (by rw [hext3, memoryExtend_zero]) (by rw [hext3, hk] <;> gas_ok)
@@ -150,22 +168,26 @@ theorem lookup (hfork : .berlin ≤ fork) {a r1 x : U256} {cB : Bool}
   step jumpR
   exact (repc (by decide)).seq (reshape rfl rfl (by gas_ok))
 
-/-- From 4928, the code returns the word to 1511. -/
-theorem back {b a x : U256} {gas : Nat} (hg : 23 ≤ gas) {M : ByteArray} :
-    Hoare fork (At CODE message 4928 [b, 0, a, 0x05e7, x] M gas state substate)
-      (At CODE message 1511 [b, x] M (gas - 23) state substate) := by
-  step jumpdestR
-  step swapR 0
-  norm
-  step popR
-  step jumpdestR
-  step swapR 1
-  norm
-  step swapR 0
-  norm
-  step popR
-  step jumpR
-  exact (repc (by decide)).seq (reshape rfl rfl (by gas_ok))
+/-- From 4928, the getter returns the word to its return address: 1511 (balanceOf) or 8008
+(destroyBlackFunds), with any `rest` below. -/
+theorem back {p : Nat} (hp : p = 1511 ∨ p = 8008) {b a : U256} {rest : List U256}
+    {gas : Nat} (hg : 23 ≤ gas) {M : ByteArray} :
+    Hoare fork (At CODE message 4928 (b :: 0 :: a :: BitVec.ofNat 256 p :: rest) M gas state substate)
+      (At CODE message p (b :: rest) M (gas - 23) state substate) := by
+  rcases hp with rfl | rfl
+  all_goals
+    step jumpdestR
+    step swapR 0
+    norm
+    step popR
+    step jumpdestR
+    step swapR 1
+    norm
+    step swapR 0
+    norm
+    step popR
+    step jumpR
+    exact (repc (by decide)).seq (reshape rfl rfl (by gas_ok))
 
 /-- The slot of the balance of the address in argument word 0: mapping base slot 2. -/
 abbrev balanceSlot (data : ByteArray) : U256 := mapSlot (addrArg data 0) 2
@@ -214,37 +236,37 @@ theorem spec (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
   rw [ht, hb] at h1
   have h2 := entry (state := state) (substate := substate) hv
     (x := BitVec.ofNat 256 (selector message.data)) (gas := gas - 62 - 22 * 17) (by gas_ok)
-  have h3 := depCheck (substate := substate) (M := MEM0) hfork (Or.inr ⟨rfl, rfl⟩)
+  have h3 := depCheck (substate := substate) (M := MEM0) hfork (Or.inr (Or.inl ⟨rfl, rfl⟩))
     (rest := [addrArg message.data 0, 0x05e7, BitVec.ofNat 256 (selector message.data)])
     (by simp) hdep hc10 (gas := gas - 62 - 22 * 17 - 74) (by gas_ok)
   have h4 := toLookup (message := message) (state := readSlot state message.currentTarget 10)
     (substate := accessSlot substate message.currentTarget 10)
-    (a := addrArg message.data 0) (r1 := 0x05e7) (x := BitVec.ofNat 256 (selector message.data))
-    (gas := gas - 62 - 22 * 17 - 74 - (109 + slotCost c10)) (by gas_ok)
+    (a := addrArg message.data 0) (r1 := 0x05e7) (rest := [BitVec.ofNat 256 (selector message.data)])
+    (by simp) (M := MEM0) (gas := gas - 62 - 22 * 17 - 74 - (109 + slotCost c10)) (by gas_ok)
   have h5 := lookup (message := message) (state := readSlot state message.currentTarget 10)
     (substate := accessSlot substate message.currentTarget 10) hfork
-    (a := addrArg message.data 0) (r1 := 0x05e7) (x := BitVec.ofNat 256 (selector message.data))
-    (cB := cB) (by rw [hkey]; exact hcB)
+    (a := addrArg message.data 0) (r1 := 0x05e7) (rest := [BitVec.ofNat 256 (selector message.data)])
+    (by simp) size_MEM0 (cB := cB) (by rw [hkey]; exact hcB)
     (gas := gas - 62 - 22 * 17 - 74 - (109 + slotCost c10) - 18) (by gas_ok)
-  rw [hkey, storageAt_readSlot] at h5
-  have h6 := back (message := message)
+  rw [hkey, storageAt_readSlot, ← MEM1_eq] at h5
+  have h6 := back (message := message) (p := 1511) (Or.inl rfl)
     (state := readSlot (readSlot state message.currentTarget 10) message.currentTarget
       (balanceSlot message.data))
     (substate := accessSlot (accessSlot substate message.currentTarget 10) message.currentTarget
       (balanceSlot message.data))
     (b := storageAt state message.currentTarget (balanceSlot message.data))
-    (a := addrArg message.data 0) (x := BitVec.ofNat 256 (selector message.data))
+    (a := addrArg message.data 0) (rest := [BitVec.ofNat 256 (selector message.data)])
     (M := MEM1 (addrArg message.data 0))
     (gas := gas - 62 - 22 * 17 - 74 - (109 + slotCost c10) - 18 - (118 + slotCost cB))
     (by gas_ok)
-  have h7 := ret (message := message) (p := 1511) (Or.inr rfl)
+  have h7 := ret (message := message) (p := 1511) (by decide)
     (state := readSlot (readSlot state message.currentTarget 10) message.currentTarget
       (balanceSlot message.data))
     (substate := accessSlot (accessSlot substate message.currentTarget 10) message.currentTarget
       (balanceSlot message.data))
     (size_MEM1 (addrArg message.data 0)) (mload_MEM1 (addrArg message.data 0))
     (v := storageAt state message.currentTarget (balanceSlot message.data))
-    (x := BitVec.ofNat 256 (selector message.data))
+    (rest := [BitVec.ofNat 256 (selector message.data)]) (by simp)
     (gas := gas - 62 - 22 * 17 - 74 - (109 + slotCost c10) - 18 - (118 + slotCost cB) - 23)
     (by gas_ok)
   refine Spec.seq (h1.seq (h2.seq (h3.seq (h4.seq (h5.seq h6))))) (h7.consequence (fun _ h => h) ?_)

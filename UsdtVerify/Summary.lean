@@ -21,6 +21,7 @@ import UsdtVerify.Functions.IssueSpec
 import UsdtVerify.Functions.SetParamsSpec
 import UsdtVerify.Functions.AddrWriteSpec
 import UsdtVerify.Functions.Destroy
+import UsdtVerify.Functions.DestroySpec
 
 /-!
 # Summary: what is proved about the deployed USDT bytecode
@@ -220,6 +221,20 @@ From round 7 on, the `runFrame` form of a `Spec` is EthLib's `Spec.runFrame` (as
   `transferOwnership` (owner, `a ≠ 0`): STOP; slot 0 := `withAddr w0 a`; no log.
   `transferOwnership_effects`: the owner is `a`, `paused` is kept, other slots unchanged.
 
+## destroyBlackFunds(a) 0xf3bdc228 (Destroy.lean, DestroySpec.lean)
+`a` = argument word 0 masked to 160 bits; `B = keccak(a ++ 2)` (`balSlot`), `d` its word
+(`dirty`); `T` = slot 1.
+- `destroyBlackFunds_notOwner`: caller ≠ owner ⇒ REVERT. `destroyBlackFunds_notListed`: owner,
+  `a` not blacklisted ⇒ REVERT.
+- `destroyBlackFunds` (owner, `a` blacklisted, not deprecated): STOP; reads slot 0,
+  `isBlackListed[a]`, slot 10 and `B` (TetherToken's own `balanceOf` getter, reached by an
+  internal call); `B := 0`, then slot 1 `:= T' - d` (unchecked; `T'` read after the first
+  write); log `DestroyedBlackFunds(a, d)` (topic 0x61e6e66b…, data the words `a` and `d`).
+  Gas `2865 +` the five read prices `+` the two write prices. `runFrame_destroyBlackFunds`.
+  `destroyBlackFunds_effects`: with `B ≠ 1`, `B` is 0, slot 1 is `T - d` as a word (as numbers
+  when `d ≤ T`), every other slot unchanged.
+  The deprecated case (the getter calls the upgraded contract) is not covered.
+
 ## Not proved
 The owner functions and the remaining getters (see docs/STATUS.md); the fallback. The returned bytes of a STOP (`At` does
 not track the output buffer).
@@ -320,6 +335,9 @@ alias transferOwnership_notOwner := AddrWriteSpec.spec_transferOwnership_notOwne
 alias transferOwnership_effects := AddrWriteSpec.transferOwnership_effects
 alias destroyBlackFunds_notOwner := Destroy.spec_notOwner
 alias destroyBlackFunds_notListed := Destroy.spec_notListed
+alias destroyBlackFunds := DestroySpec.spec
+alias runFrame_destroyBlackFunds := DestroySpec.runFrame_spec
+alias destroyBlackFunds_effects := DestroySpec.destroy_effects
 
 variable {fork : Fork} {message : Message fork}
 

@@ -143,9 +143,19 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
     of slot 0. Afterwards the owner is `a`, `paused` is unchanged, and so is every other slot.
     No log is emitted (Ownable has no event here).
   - The gas is exact.
-- **destroyBlackFunds(a), the reverts only** (`Destroy.lean`). A caller that is not the owner
-  gets a revert, and so does the owner when `a` is not blacklisted. The success path is not
-  covered yet.
+- **destroyBlackFunds(a)** (`Destroy.lean`, `DestroySpec.lean`). `B` is the slot of
+  `balances[a]` and `d` its word.
+  - A caller that is not the owner gets a revert, and so does the owner when `a` is not
+    blacklisted.
+  - When the owner calls it, `a` is blacklisted and the contract is not deprecated, the code
+    reads `d` through TetherToken's own `balanceOf` getter (an internal call). The run then stops
+    after exactly two storage writes and one log:
+    - it writes 0 to `B`, then `_totalSupply - d` to slot 1 (an unchecked subtraction, with
+      `_totalSupply` read after the first write);
+    - it logs `DestroyedBlackFunds(a, d)`, with the address word and `d` as data.
+  - Assuming `B ≠ 1`, `B` is then 0, slot 1 is `_totalSupply - d` as a word (and as a number
+    when `d ≤ _totalSupply`), and every other slot is unchanged. The gas is exact.
+  - The deprecated case, where the getter calls the upgraded contract, is not covered.
 
 ## What is trusted
 
@@ -162,7 +172,7 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
 
 ## What is not covered
 
-- The success path of destroyBlackFunds, the getters other than totalSupply and balanceOf, and
+- destroyBlackFunds when deprecated, the getters other than totalSupply and balanceOf, and
   the fallback.
 - Properties across several calls (invariants), and the global "sum of all balances =
   `_totalSupply`". The global statement needs a sum over a mapping and is not stated.

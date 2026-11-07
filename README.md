@@ -78,7 +78,7 @@ All of this holds from the Berlin fork onwards, and before Glamsterdam on paths 
   - `setParams` sets the fee rate and the maximum fee and emits `Params`. It reverts when the rate is 20 or more, or the maximum is 50 or more. The overflow of the maximum fee times the decimals is not covered.
   - `deprecate` sets the deprecated byte and the upgraded address and emits `Deprecate`.
   - `transferOwnership` replaces the owner bits and keeps the paused byte. It does nothing for the zero address.
-  - `destroyBlackFunds` reverts for a non-owner and for an address that is not blacklisted. Its success path is not proved yet.
+  - `destroyBlackFunds` reverts for a non-owner and for an address that is not blacklisted. Otherwise it sets the address's balance to 0, lowers the total supply by that balance with an unchecked subtraction, as the bytecode does, and emits `DestroyedBlackFunds`.
 
 ## What you have to trust
 
@@ -92,7 +92,6 @@ A few general opcode rules are proved locally in `UsdtVerify/Local/` while they 
 
 ## What is not covered yet
 
-- The success path of `destroyBlackFunds`.
 - The remaining getters, such as `allowance` and `getBlackListStatus`, and the fallback.
 - Properties across several calls, including the global statement that the balances sum to the total supply.
 - The returned bytes after a `STOP`, because EthLib's frame predicate does not track the output buffer.

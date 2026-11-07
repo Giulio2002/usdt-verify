@@ -396,12 +396,29 @@ entry; `DESTS` = the 32 destinations).
 - `toBody` (its body pushes the local first: `JUMPDEST PUSH1 0 DUP1 PUSH1 0`, check at 7824).
 - `spec_notOwner` (925 + slot 0), `spec_notListed` (1074 + slot 0 + `isBlackListed[a]`;
   `lowTest_eq`).
-- Not covered: the success path. It calls TetherToken's `balanceOf` getter at 4665 (with its own
-  deprecation check) from a deeper stack; `BalanceOf.toLookup` / `lookup` are stated for the
-  exact stack of balanceOf and need a `rest` generalization first.
+- The success path: see round 8.
+
+### Round 8: destroyBlackFunds, the success path (DestroySpec.lean; BalanceOf.lean generalized)
+- `BalanceOf.toLookup`, `lookup`, `back` now hold for any words below the getter's own (`rest`),
+  `lookup` for any memory of 96 bytes (`lookMem M a`; `MEM1 a = lookMem MEM0 a` by `rfl`), and
+  `back` for both return addresses 1511 (balanceOf) and 8008 (destroyBlackFunds).
+  `BalanceOf.spec` is re-derived from them unchanged.
+- Blocks: `toGetter` (pc 0 to 4665, the owner, `a` blacklisted: `lowTest_ne`; 1086 + slot 0 +
+  `isBlackListed[a]`), then `depCheck` (4665), `toLookup`, `lookup`, `back` (to 8008),
+  `zeroBal` (8008: `balances[a] := 0`, lookup tail 8018 from `HASH_PCS7`; 110 + write, `hstip`
+  2409), `subTotal` (8080: SLOAD slot 1, unchecked SUB, SSTORE; 33 + slot 1 + write, `hstip`
+  2332 + slot 1), `logBlock` (8096: `DestroyedBlackFunds(mkey a, d)`, 64 bytes of data, back to
+  2486, STOP; 1368).
+- `spec`: `Local.Stopped (gas - (2865 + slots 0, L, 10, B, 1 + costB + costT))`,
+  `destroyState` (`B := 0`, then slot 1 `:= T' - d`, `T'` read after the first write),
+  `destroySub` (both `storeSub`s and the log). Hypotheses: not deprecated, `a` blacklisted,
+  `hstip1` 3763 + four reads, `hstip2` 3796 + four reads + costB + slot 1.
+  `runFrame_spec` (via `Spec.runFrame`). `destroy_effects`: with `B ≠ 1`, `B` = 0, slot 1 =
+  `sub T d` (and `T - d` as numbers when `d ≤ T`), every other slot unchanged.
+- Not covered: destroyBlackFunds when deprecated (the getter calls the upgraded contract).
 
 ## Open (not proved)
-- destroyBlackFunds' success path, the getters other than totalSupply/balanceOf, the fallback, invariants across calls, the global
+- destroyBlackFunds when deprecated, the getters other than totalSupply/balanceOf, the fallback, invariants across calls, the global
   "sum of balances = totalSupply" (needs a sum over a mapping).
 - The returned bytes after STOP (generic gap 8).
 

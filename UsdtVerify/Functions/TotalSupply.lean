@@ -104,10 +104,11 @@ theorem spec (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
   have h3 := getter (substate := substate) hfork
     (x := BitVec.ofNat 256 (selector message.data)) hdep hc10 hc1
     (gas := gas - 62 - 22 * 6 - 34) (by gas_ok)
-  have h4 := ret (message := message) (p := 797) (Or.inl rfl) size_MEM0 mload_MEM0
+  have h4 := ret (message := message) (p := 797) (by decide) size_MEM0 mload_MEM0
     (state := readSlot (readSlot state message.currentTarget 10) message.currentTarget 1)
     (substate := accessSlot (accessSlot substate message.currentTarget 10) message.currentTarget 1)
-    (v := storageAt state message.currentTarget 1) (x := BitVec.ofNat 256 (selector message.data))
+    (v := storageAt state message.currentTarget 1) (rest := [BitVec.ofNat 256 (selector message.data)])
+    (by simp)
     (gas := gas - 62 - 22 * 6 - 34 - (130 + slotCost c10 + slotCost c1)) (by gas_ok)
   refine Spec.seq (h1.seq (h2.seq h3)) (h4.consequence (fun _ h => h) ?_)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
