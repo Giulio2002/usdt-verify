@@ -1,3 +1,5 @@
+import UsdtVerify.Complete.Inv
+import UsdtVerify.Complete.Getters
 import UsdtVerify.Complete.Approve
 import UsdtVerify.Complete.TransferFrom
 import UsdtVerify.Complete.Owner
@@ -313,3 +315,24 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Complete.ok_deprecate
 #print axioms UsdtVerify.Complete.ok_transferOwnership
 #print axioms UsdtVerify.Complete.ok_destroyBlackFunds
+#print axioms UsdtVerify.Complete.ok_decimals
+#print axioms UsdtVerify.Complete.ok_maximumFee
+#print axioms UsdtVerify.Complete.ok_totalSupplyVar
+#print axioms UsdtVerify.Complete.ok_basisPointsRate
+#print axioms UsdtVerify.Complete.ok_deprecated
+#print axioms UsdtVerify.Complete.ok_paused
+#print axioms UsdtVerify.Complete.ok_upgradedAddress
+#print axioms UsdtVerify.Complete.ok_owner
+#print axioms UsdtVerify.Complete.ok_getOwner
+#print axioms UsdtVerify.Complete.ok_maxUint
+#print axioms UsdtVerify.Complete.ok_balances
+#print axioms UsdtVerify.Complete.ok_isBlackListed
+#print axioms UsdtVerify.Complete.ok_getBlackListStatus
+#print axioms UsdtVerify.Complete.ok_allowed
+#print axioms UsdtVerify.Complete.ok_allowance
+#print axioms UsdtVerify.Complete.ok_name
+#print axioms UsdtVerify.Complete.ok_symbol
+#print axioms UsdtVerify.Complete.inv_call
+#print axioms UsdtVerify.Complete.inv_transfer
+#print axioms UsdtVerify.Complete.inv_transferFrom
+#print axioms UsdtVerify.Complete.inv_destroyBlackFunds

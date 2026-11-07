@@ -43,7 +43,9 @@ import UsdtVerify.Complete.Dispatch
 import UsdtVerify.Complete.Approve
 import UsdtVerify.Complete.TransferFrom
 import UsdtVerify.Complete.Owner
+import UsdtVerify.Complete.Getters
 import UsdtVerify.Functions.SetParamsFault
 import UsdtVerify.Test.Axioms
 import UsdtVerify.Summary
 import UsdtVerify.Invariant
+import UsdtVerify.Complete.Inv

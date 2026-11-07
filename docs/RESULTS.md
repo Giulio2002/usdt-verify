@@ -241,8 +241,8 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
     `Inv`, `d` is one term of the sum, so `d ≤ _totalSupply`, the subtraction does not wrap, and
     `Inv` still holds after it.
   - `steps_inv` lifts the invariant to any finite sequence of these steps.
-  - Not proved: that these paths are all the successful runs of a call (there is no
-    completeness theorem over all inputs and gas), and anything about the deprecated paths.
+  - That these paths are all the successful runs of a call, when not deprecated, is proved in
+    round 13 (`ok_*`, and `inv_call` below). Nothing is proved here about the deprecated paths.
 
 ## Completeness of the dispatcher, for every gas
 
@@ -274,8 +274,21 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   setParams with `m * 10^d ≥ 2^256` ends in INVALID (`SetParamsSpec.spec_mulOv`).
   Hypotheses: Berlin ≤ fork < Glamsterdam, the frame not static, the contract has an account,
   call data below 2^256 bytes, and not deprecated for approve, transferFrom, destroyBlackFunds.
-- Not yet proved: the same for the getters and name/symbol, the deprecated paths, and so the
-  invariant over all successful calls.
+- Round 13 also covers every getter (allowance: not deprecated) and name() / symbol(). For
+  name and symbol the slot word must have one of the shapes Solidity writes (`StrForm`: empty,
+  1 to 31 bytes in the short form, or the long form with a length below 2^180); this is a named
+  hypothesis, since the other words have no specification.
+- **The invariant over every successful call, not deprecated** (`Complete.inv_call`,
+  `UsdtVerify/Complete/Inv.lean`). From Berlin to before Glamsterdam, take a fresh frame of the deployed
+  code at pc 0, with any call data below 2^256 bytes, any value, any gas, any gas bound and any
+  message runner. Assume:
+  - `KeccakSep` (keccak keeps the storage slots apart; not proved);
+  - the frame is not static, and the contract has an account;
+  - the contract is not deprecated (byte 20 of slot 10 is 0);
+  - slots 7 and 8 hold strings in a form Solidity writes (`StrForm`);
+  - `Inv`: the sum of the 2^160 balances equals `_totalSupply` at the start.
+  If the interpreter loop ends with no error, `Inv` holds in the end state.
+- Not yet proved: the deprecated paths, and so the invariant when the contract is deprecated.
 
 ## What is trusted
 
@@ -292,8 +305,9 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
 
 ## What is not covered
 
-- That the proved success paths are all the successful runs of a call, for the getters,
-  name/symbol and the deprecated paths, and the invariant on the deprecated paths.
+- That the proved success paths are all the successful runs of a call, for the deprecated
+  paths, and name/symbol on slot words outside `StrForm`; the invariant when the contract is
+  deprecated.
 - `KeccakSep` (a hypothesis of the invariant theorems, about keccak).
 - Runs that run out of gas below the stated bounds, except at the dispatcher (see above).
 - Forks before Berlin, and Glamsterdam onwards on the writing and calling paths.

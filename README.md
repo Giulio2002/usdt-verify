@@ -76,7 +76,7 @@ All of this holds from the Berlin fork onwards, and before Glamsterdam on paths 
 - **destroyBlackFunds when deprecated.** Its internal `balanceOf(a)` is forwarded as one message, with no value, to the upgraded address. If that call fails, the run reverts with empty output. If it succeeds, the run sets the local `balances[a]` to 0 and lowers the local total supply by the balance the upgraded contract reported, with an unchecked subtraction. So the local total supply drops by the upgraded contract's answer, not by the local balance. This is proved for any callee that leaves USDT's own account unchanged.
 - **Fallback.** A selector that is not in the table reverts with no output and no state change after exactly 773 gas. Call data shorter than 4 bytes reverts the same way after 46 gas.
 - **Dispatcher completeness.** From Berlin, for any gas, if a call to USDT ends without an error, then the call data is at least 4 bytes, the call value is 0, and the selector is one of the 32 in the table. This covers runs that run out of gas too. It is the first step toward proving that the proved paths are all the successful runs.
-- **Completeness per function.** For `totalSupply`, `balanceOf`, `transfer`, `approve`, `transferFrom` and all ten owner functions, when not deprecated, every successful run, with any gas, is one of the proved paths and ends exactly as its spec says. The writing functions assume a fork before Glamsterdam, a call frame that is not static and an existing account for the contract. The getters, the strings and the deprecated paths are in progress.
+- **Completeness per function.** For `totalSupply`, `balanceOf`, `transfer`, `approve`, `transferFrom` and all ten owner functions, all the getters, `name` and `symbol`, when not deprecated, every successful run, with any gas, is one of the proved paths and ends exactly as its spec says. The writing functions assume a fork before Glamsterdam, a call frame that is not static and an existing account for the contract. For `name` and `symbol` the slot word must be in one of the three forms Solidity writes. The deprecated paths are in progress.
 - **No ether accepted.** Every one of the 32 functions reverts with empty output when called with a nonzero value, before any storage read.
 - **Owner functions.** For each one, a caller that is not the owner (the low 160 bits of slot 0) gets a revert with empty output.
   - `pause` and `unpause` set or clear the paused byte of slot 0, keep the owner bits, and emit `Pause` or `Unpause`. They revert if the contract is already in that state.
@@ -98,7 +98,9 @@ All of this holds from the Berlin fork onwards, and before Glamsterdam on paths 
 
 These theorems assume a hypothesis called `KeccakSep`, which is stated and not proved. It says that distinct addresses get distinct balance slots, and that balance slots and slot 1 never collide with the fixed slots 0 to 10 or with the slots of the other mappings. Since the slots are keccak outputs, this is a claim about the hash function.
 
-The invariant theorems do not claim that the proved paths are the only successful runs of a call, and they do not cover the deprecated paths.
+The main theorem is `inv_call` in `UsdtVerify/Complete/Inv.lean`. From Berlin and before Glamsterdam, take any call to USDT, with any call data, any value and any gas. If the invariant holds before and the call ends without an error, the invariant holds after. Its hypotheses are `KeccakSep`, a call frame that is not static, an existing account for the contract, the contract not being deprecated, and the name and symbol slots being in a form Solidity writes.
+
+The deprecated mode is not covered yet.
 
 ## What you have to trust
 
@@ -112,8 +114,7 @@ A few general opcode rules are proved locally in `UsdtVerify/Local/` while they 
 
 ## What is not covered yet
 
-- That the proved paths are all the successful runs of each call. So the supply invariant covers the proved paths, not every possible run.
-- The supply invariant on the deprecated paths.
+- Completeness and the supply invariant when the contract is deprecated.
 - Runs with less gas than the stated bounds, and forks outside the stated range.
 
 ## Related work

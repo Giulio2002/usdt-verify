@@ -670,12 +670,29 @@ entry; `DESTS` = the 32 destinations).
   `hstatic` (not static), `hacc` (the contract has an account), `hsize'` (size < 2^256), `hsel`,
   the coldness flags `hc..` (equations naming each flag, any value), and `hdep` (byte 20 of slot
   10 is 0) for approve, transferFrom and destroyBlackFunds.
+- Getters (Complete/Getters.lean): `ok_decimals`, `ok_maximumFee`, `ok_totalSupplyVar`,
+  `ok_basisPointsRate`, `ok_deprecated`, `ok_paused`, `ok_upgradedAddress`, `ok_owner`,
+  `ok_getOwner`, `ok_maxUint`, `ok_balances`, `ok_isBlackListed`, `ok_getBlackListStatus`,
+  `ok_allowed`, `ok_allowance` (`hdep`): no branch, so each is `ok_exact` of the spec; exact output,
+  gas, state (reads), substate. `ok_name`, `ok_symbol`: under the named hypothesis `StrForm w`
+  (slot 7 / 8 word: low byte 0, or low byte `2 n` with 1 ≤ n ≤ 31, or odd with
+  32 ≤ w / 2 < 2^180), one of the three paths (`spec_nameEmpty`, `spec_name`, `spec_nameLong`).
+  Words outside `StrForm` (even with low byte ≥ 64, odd with w / 2 < 32, or a long length
+  ≥ 2^180) have no specification.
+- The invariant over every successful call, not deprecated (Complete/Inv.lean): `inv_X` for each
+  of the 32 functions (from `ok_X`, `Invariant.reach_*` and `steps_inv`; read-only ones by
+  `inv_readSlot` / `inv_rdSt`), and `inv_call`: Berlin ≤ fork < Glamsterdam, a fresh frame of
+  `CODE` at pc 0, any call data below 2^256 bytes, any value, any gas, any gas bound, any message
+  runner; hypotheses `K : KeccakSep`, `hstatic`, `hacc`, `hdep` (not deprecated), `h7`/`h8`
+  (`StrForm` of slots 7 and 8), `hI : Inv C state`; if the loop ends with no error, then
+  `Inv C s.state`. The match over the 32 table entries uses `runFrame_ok_dispatch`.
 
 ## Open (not proved)
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
   transfer (round 12), approve, transferFrom, the ten owner functions (round 13), not deprecated
-  where the function reads the flag. Still to do: the getters, name/symbol (slot words that are
-  odd with w/2 < 32 are not covered by a spec, so they stay a named hypothesis).
+  where the function reads the flag, and every getter and name/symbol (round 13, name/symbol
+  under the named hypothesis `StrForm`), and the invariant over every successful call when not
+  deprecated (`inv_call`). Not covered: the deprecated paths (below).
 - The deprecated paths split at GAS (the prefix is now over `StepG`; the GAS step itself and
   the CALL need a separate argument), and the invariant over every successful call.
 - Hypotheses the completeness theorems keep, by name: `hstatic` (frame not static; a static

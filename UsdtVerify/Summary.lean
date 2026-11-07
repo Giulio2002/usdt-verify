@@ -5,6 +5,7 @@ import UsdtVerify.Complete.Transfer
 import UsdtVerify.Complete.Approve
 import UsdtVerify.Complete.TransferFrom
 import UsdtVerify.Complete.Owner
+import UsdtVerify.Complete.Getters
 import UsdtVerify.Functions.TotalSupply
 import UsdtVerify.Functions.BalanceOf
 import UsdtVerify.Functions.Transfer
@@ -350,6 +351,14 @@ deprecated). Each conclusion states that the caller is the owner and the `requir
 Hypotheses of each: Berlin ≤ fork < Glamsterdam, `hstatic` (not static), `hacc` (the contract
 has an account), size < 2^256, the selector, the coldness flags as named in the specs, and
 `hdep` (not deprecated) for approve, transferFrom and destroyBlackFunds.
+
+Getters (round 13): `decimals_complete`, `maximumFee_complete`, `totalSupplyVar_complete`,
+`basisPointsRate_complete`, `deprecated_complete`, `paused_complete`, `upgradedAddress_complete`,
+`owner_complete`, `getOwner_complete`, `maxUint_complete`, `balances_complete`,
+`isBlackListed_complete`, `getBlackListStatus_complete`, `allowed_complete`,
+`allowance_complete` (not deprecated): exact output, gas, state (reads only), substate.
+`name_complete`, `symbol_complete`: under the named hypothesis `Complete.StrForm w` on the slot
+word (empty, short 1..31 bytes, or long with 32 ≤ w / 2 < 2^180), the empty, short or long path.
 -/
 
 namespace UsdtVerify.Summary
@@ -378,6 +387,23 @@ alias transferOwnership_complete := Complete.ok_transferOwnership
 alias destroyBlackFunds_complete := Complete.ok_destroyBlackFunds
 alias approve_short := Approve.spec_payload
 alias setParams_mulOv := SetParamsSpec.spec_mulOv
+alias decimals_complete := Complete.ok_decimals
+alias maximumFee_complete := Complete.ok_maximumFee
+alias totalSupplyVar_complete := Complete.ok_totalSupplyVar
+alias basisPointsRate_complete := Complete.ok_basisPointsRate
+alias deprecated_complete := Complete.ok_deprecated
+alias paused_complete := Complete.ok_paused
+alias upgradedAddress_complete := Complete.ok_upgradedAddress
+alias owner_complete := Complete.ok_owner
+alias getOwner_complete := Complete.ok_getOwner
+alias maxUint_complete := Complete.ok_maxUint
+alias balances_complete := Complete.ok_balances
+alias isBlackListed_complete := Complete.ok_isBlackListed
+alias getBlackListStatus_complete := Complete.ok_getBlackListStatus
+alias allowed_complete := Complete.ok_allowed
+alias allowance_complete := Complete.ok_allowance
+alias name_complete := Complete.ok_name
+alias symbol_complete := Complete.ok_symbol
 alias totalSupply_spec := TotalSupply.spec
 alias balanceOf_spec := BalanceOf.spec
 alias transfer_paused := Transfer.spec_paused
