@@ -2,6 +2,7 @@ import UsdtVerify.Functions.TotalSupply
 import UsdtVerify.Functions.Strings
 import UsdtVerify.Functions.DeprecatedAllowance
 import UsdtVerify.Functions.Fallback
+import UsdtVerify.Functions.DeprecatedDestroy
 import UsdtVerify.Functions.BalanceOf
 import UsdtVerify.Functions.Transfer
 import UsdtVerify.Functions.TransferSuccess
@@ -202,3 +203,10 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Fallback.spec_short
 #print axioms UsdtVerify.Fallback.runFrame_unknown
 #print axioms UsdtVerify.Fallback.runFrame_short
+#print axioms UsdtVerify.DeprecatedDestroy.spec_depD
+#print axioms UsdtVerify.DeprecatedDestroy.spec_depD_answers
+#print axioms UsdtVerify.DeprecatedDestroy.spec_depD_fails
+#print axioms UsdtVerify.DeprecatedDestroy.runFrame_depD_process
+#print axioms UsdtVerify.DeprecatedDestroy.spec_depDNoCode
+#print axioms UsdtVerify.DeprecatedDestroy.runFrame_depDNoCode
+#print axioms UsdtVerify.DeprecatedDestroy.tailD

@@ -27,6 +27,7 @@ import UsdtVerify.Functions.RunFrames
 import UsdtVerify.Functions.Strings
 import UsdtVerify.Functions.DeprecatedAllowance
 import UsdtVerify.Functions.Fallback
+import UsdtVerify.Functions.DeprecatedDestroy
 
 /-!
 # Summary: what is proved about the deployed USDT bytecode
@@ -239,7 +240,20 @@ Every `spec_*` of rounds 7 and 8 from pc 0 has a `runFrame_*` wrapper in the sam
   Gas `2865 +` the five read prices `+` the two write prices. `runFrame_destroyBlackFunds`.
   `destroyBlackFunds_effects`: with `B ≠ 1`, `B` is 0, slot 1 is `T - d` as a word (as numbers
   when `d ≤ T`), every other slot unchanged.
-  The deprecated case (the getter calls the upgraded contract) is not covered.
+- Deprecated (`destroyBlackFunds_dep`, DeprecatedDestroy.lean): owner, `a` blacklisted, byte 20
+  of slot 10 set, `ua` holding a code `c`. The internal `balanceOf(a)` sends `ua` one message with
+  data `0x70a08231 ++ a` (`dataB`) and no value; it never reads `B`. If the call fails: REVERT, no
+  output. If it ends with no error, with `S`, `ss` the state and substate it left and `d` the word
+  at 0x60 after the copy of its output: STOP in `tailState S C a d` (`B := 0` in THIS contract,
+  then slot 1 `:= T' - d`, unchecked), substate `tailSub` (log `DestroyedBlackFunds(a, d)`), gas
+  exact (`tailCost`; `B` may be cold). Hypotheses beyond the usual: at least `TAIL_MAX` = 47881
+  gas after the CALL's price, and `hkeep` (the callee leaves the contract's account in place).
+  So `_totalSupply` drops by the balance that the UPGRADED contract reports, while the local
+  `balances[a]` (whatever it held) becomes 0. `destroyBlackFunds_dep_answers` (a callee answering
+  `o`, ≥ 32 bytes: STOP, state `tailState S C a (first word of o)` for some `S`),
+  `destroyBlackFunds_dep_fails`, `runFrame_destroyBlackFunds_dep_process` (EthLib's runner,
+  upgraded code with a `Spec`), `destroyBlackFunds_depNoCode` (empty code: REVERT before any
+  call, gas `1497 +` slots 0, `isBlackListed[a]`, 10 `+` address).
 
 ## Getters (Getters.lean, GettersMap.lean)
 Each returns 32 bytes and only reads; `a`, `a0`, `a1` are argument words masked to 160 bits.
@@ -282,8 +296,7 @@ neither checks the call value. Call data of 4 bytes or more whose selector is no
 REVERT, no output, unchanged, gas 46.
 
 ## Not proved
-destroyBlackFunds when deprecated (its internal `balanceOf` call then forwards to
-the upgraded contract).
+See docs/STATUS.md ("Open").
 -/
 
 namespace UsdtVerify.Summary
@@ -416,6 +429,12 @@ alias fallback_unknown := Fallback.spec_unknown
 alias fallback_short := Fallback.spec_short
 alias runFrame_fallback_unknown := Fallback.runFrame_unknown
 alias runFrame_fallback_short := Fallback.runFrame_short
+alias destroyBlackFunds_dep := DeprecatedDestroy.spec_depD
+alias destroyBlackFunds_dep_answers := DeprecatedDestroy.spec_depD_answers
+alias destroyBlackFunds_dep_fails := DeprecatedDestroy.spec_depD_fails
+alias runFrame_destroyBlackFunds_dep_process := DeprecatedDestroy.runFrame_depD_process
+alias destroyBlackFunds_depNoCode := DeprecatedDestroy.spec_depDNoCode
+alias runFrame_destroyBlackFunds_depNoCode := DeprecatedDestroy.runFrame_depDNoCode
 
 variable {fork : Fork} {message : Message fork}
 

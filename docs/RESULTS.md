@@ -173,7 +173,21 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
     - it logs `DestroyedBlackFunds(a, d)`, with the address word and `d` as data.
   - Assuming `B ≠ 1`, `B` is then 0, slot 1 is `_totalSupply - d` as a word (and as a number
     when `d ≤ _totalSupply`), and every other slot is unchanged. The gas is exact.
-  - The deprecated case, where the getter calls the upgraded contract, is not covered.
+  - When the contract is deprecated (`DeprecatedDestroy.lean`), the getter does not read `B`.
+    It sends the upgraded address `ua` one message with no value and the data
+    `0x70a08231 ++ a` (`balanceOf(a)`). The theorem holds for every callee behaviour that meets
+    a stated assumption: when the call ends with no error, the contract's account still exists
+    in the state the call left. It also needs at least 47,881 gas left after the price of the
+    CALL (`TAIL_MAX`, enough for both writes at their highest price).
+    - If the call fails, the run reverts with no output.
+    - If it succeeds, let `S` be the state the call left and `d` the first word of the reply
+      (the word at 0x60 after the copy). The run stops after writing 0 to `B` and then
+      `_totalSupply - d` (unchecked) to slot 1 of this contract, both over `S`, and logs
+      `DestroyedBlackFunds(a, d)`. The gas is exact.
+    - So `_totalSupply` drops by the balance that the upgraded contract reports, while the local
+      `balances[a]` is set to 0 whatever it held.
+    - If `ua` has no code, the run reverts before any call. The interpreter's own message runner
+      is covered for an upgraded code with a proved specification.
 
 - **The getters** (`Getters.lean`, `GettersMap.lean`). Each call with no value returns exactly
   32 bytes, writes nothing, and reads only the slots named; the gas is exact.
@@ -214,7 +228,6 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
 
 ## What is not covered
 
-- destroyBlackFunds when deprecated.
 - name() and symbol() for the empty string or a string of 32 bytes or more.
 - Properties across several calls (invariants), and the global "sum of all balances =
   `_totalSupply`". The global statement needs a sum over a mapping and is not stated.

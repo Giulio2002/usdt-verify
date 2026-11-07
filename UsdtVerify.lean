@@ -35,5 +35,6 @@ import UsdtVerify.Functions.RunFrames
 import UsdtVerify.Functions.Strings
 import UsdtVerify.Functions.DeprecatedAllowance
 import UsdtVerify.Functions.Fallback
+import UsdtVerify.Functions.DeprecatedDestroy
 import UsdtVerify.Test.Axioms
 import UsdtVerify.Summary

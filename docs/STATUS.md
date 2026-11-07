@@ -511,8 +511,33 @@ entry; `DESTS` = the 32 destinations).
   (gas - 46) state substate`. No value hypothesis.
 - `runFrame_unknown`, `runFrame_short`.
 
+### Round 10: destroyBlackFunds when deprecated (DeprecatedDestroy.lean)
+- Path: `DestroySpec.toGetter` (0 → 4665, memory `MEMB`), `depSet` (4665, flag set),
+  `fwdArgsD` (4689 → 4874: `fwdArgsB` on any 96-byte memory with the free memory pointer 0x60;
+  memories `D1`, `D2`, `D3`; `read40_D*`, `data_D3`), `toCall`/`noCode` (4874), CALL at 4891
+  (`callWith`, input 0x60..0x84, output 32 bytes at 0x60), `failTail` (4892) or `okTailD` (4892 →
+  8008 with `resWord`), `zeroBalD` (8008, 160-byte memory, the SSTORE coldness `cB` free: the
+  getter did not read `balances[a]`; `hashTail160` at 8018), `DestroySpec.subTotal` (8080),
+  `logBlockD` (8096, 1362 gas: no memory growth). `tailD` composes 4892 → STOP.
+- `spec_depD` (any callee): `Sends message ua c (dataB message) msg`, msg.gas =
+  `(callGasD …).subCall`, caller state/substate exact; child.error = none ⇒ `Halted false .empty`
+  with state `tailState S C a d` (`balances[a] := 0`, then slot 1 := `T' - d` unchecked) and
+  substate `tailSub` (both `storeSub`s and the log), `S`/`ss` the incorporated state/substate,
+  `d = resWord (outMemOf (memD message) child.output)`, gas `… - tailCost` (1581 + both SSTORE
+  prices + slot 1 read); else `Halted true .empty (… - 25)`. `preCostD = 1500 + slots 0, L, 10 +
+  account`. Hypotheses beyond the getter's: `htail : TAIL_MAX (47881) ≤ gas after the CALL's
+  price` (EthLib's `sstoreCost_le` bounds both writes by 22100), and `hkeep` on the callee
+  assumption (a forwarded message that ends with no error leaves `C`'s account in its state;
+  needed by `writeSlot`).
+- `spec_depD_answers` (`AnswersD` + `hkeep`: STOP, empty output, state `tailState S C a
+  (loadWord o 0 32)` for some `S`), `spec_depD_fails`, `runFrame_depD_process` (`keep_runsAs`:
+  `RunsAs` gives `hkeep` when `Q`'s stopped frames have no error and `C`'s account),
+  `spec_depDNoCode` / `runFrame_depDNoCode` (gas `1497 + slots 0, L, 10 + account`).
+- Finding (stated by `spec_depD`): when deprecated, `_totalSupply` of this contract drops by the
+  balance that the UPGRADED contract reports, and this contract's `balances[a]` becomes 0.
+
 ## Open (not proved)
-- destroyBlackFunds when deprecated, name()/symbol() for the empty or long strings, invariants across calls, the global
+- name()/symbol() for the empty or long strings, invariants across calls, the global
   "sum of balances = totalSupply" (needs a sum over a mapping).
 
 ## Generic gaps found (for the EthLib program-logic agent)

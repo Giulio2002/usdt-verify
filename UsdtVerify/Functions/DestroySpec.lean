@@ -13,7 +13,7 @@ address 8008 (`PUSH2 0x1f48 DUP3 PUSH2 0x1239 JUMP`). When not deprecated the ge
 - 8080: `_totalSupply -= dirtyFunds` (SLOAD and unchecked SUB, SSTORE at 8094);
 - 8096: `DestroyedBlackFunds(a, dirtyFunds)` (LOG1, 64 bytes of data), back to 2486, STOP.
 
-The deprecated case (the getter calls the upgraded contract) is not covered.
+The deprecated case is in DeprecatedDestroy.lean.
 -/
 
 namespace UsdtVerify.DestroySpec

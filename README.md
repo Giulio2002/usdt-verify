@@ -73,6 +73,7 @@ All of this holds from the Berlin fork onwards, and before Glamsterdam on paths 
 - **Getters.** `decimals`, `maximumFee`, `_totalSupply`, `basisPointsRate`, `MAX_UINT`, `deprecated`, `paused`, `upgradedAddress`, `owner`, `getOwner`, `balances`, `isBlackListed`, `getBlackListStatus`, `allowed` and `allowance` (when not deprecated) each return exactly the stated 32 bytes, read only the named slots and write nothing.
 - **name and symbol.** For a string of 1 to 31 bytes stored in Solidity's short form, they return the word 32, the length `n`, then the first `n` bytes of the slot padded with zeros, with exact gas. For the slot words of "Tether USD" and "USDT" the output is proved to be those strings. That mainnet stores those words is a hypothesis.
 - **allowance when deprecated.** It forwards `0xdd62ed3e ++ owner ++ spender` to the upgraded address, for any callee, with the same cases as the other deprecated paths.
+- **destroyBlackFunds when deprecated.** Its internal `balanceOf(a)` is forwarded as one message, with no value, to the upgraded address. If that call fails, the run reverts with empty output. If it succeeds, the run sets the local `balances[a]` to 0 and lowers the local total supply by the balance the upgraded contract reported, with an unchecked subtraction. So the local total supply drops by the upgraded contract's answer, not by the local balance. This is proved for any callee that leaves USDT's own account unchanged.
 - **Fallback.** A selector that is not in the table reverts with no output and no state change after exactly 773 gas. Call data shorter than 4 bytes reverts the same way after 46 gas.
 - **No ether accepted.** Every one of the 32 functions reverts with empty output when called with a nonzero value, before any storage read.
 - **Owner functions.** For each one, a caller that is not the owner (the low 160 bits of slot 0) gets a revert with empty output.
@@ -97,7 +98,6 @@ A few general opcode rules are proved locally in `UsdtVerify/Local/` while they 
 ## What is not covered yet
 
 - The string getters for the empty string and for strings of 32 bytes or more.
-- The deprecated path of `destroyBlackFunds`, which forwards its internal `balanceOf` call.
 - Properties across several calls, including the global statement that the balances sum to the total supply.
 - Runs with less gas than the stated bounds, and forks outside the stated range.
 
