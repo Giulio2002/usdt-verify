@@ -332,20 +332,25 @@ finite sequence of steps; read-only paths only record reads (`inv_readSlot`, `in
 destroyBlackFunds keeps `Inv`: under `Inv`, `d ≤ _totalSupply`, so its unchecked subtraction does
 not wrap (`destroy_inv`).
 Every successful call, not deprecated, static or not, with or without an account:
-`Complete.inv_call`. Deprecated or not: `Complete.inv_call_ns` (Complete/DepInvAll.lean, not
-static; when deprecated, under an account of the contract and the named assumptions `KeepsInv`
-on the runner and `HonestBalance` for destroyBlackFunds; the upgraded code
-may be an EIP-7702 delegation). Static or not: `Complete.inv_call_all` (Complete/Static.lean; a
-static frame keeps the state, EthLib's `staticStep_runFrame`, under the named runner assumption
-`StaticKeeps`, proved for the interpreter's runner from Paris by `staticKeeps_process`). Along a
-finite sequence of such calls and of steps that keep the storage of `C`: `Complete.inv_calls`
-(Complete/Seq.lean); a successful top-level `processMessage` of `CODE` with no value and no
-precompile, from Paris (before Glamsterdam when deprecated), under the named assumptions, is such
-a call (`Complete.goodCall_process`); a top-level `processMessage` (any code) that ends with an
-error keeps every storage word (`Complete.untouched_process_failed`), one of `CODE` with a nonzero
-value always ends with an error from Berlin (`Complete.process_value_fails`), and from Paris every
-top-level `processMessage` of `CODE` with no precompile is one of the two kinds of steps
-(`Complete.process_step`). None
+`Complete.inv_call`. Deprecated or not: `Complete.inv_call_ns` (Complete/DepInvAll.lean, from
+Berlin, before Glamsterdam when deprecated; not static; when deprecated, under an account of the
+contract and the named assumptions `KeepsInv` on the runner and `HonestBalance` for
+destroyBlackFunds; the upgraded code may be an EIP-7702 delegation). Static or not:
+`Complete.inv_call_all` (Complete/Static.lean; "not static" replaced by `hstat`: when static,
+`message.code = CODE`, `StaticCode` and `StaticKeeps`; the account only when deprecated and not
+static; a static frame keeps the state, EthLib's `staticStep_runFrame`, under the named runner
+assumption `StaticKeeps`, proved for the interpreter's runner from Paris by
+`staticKeeps_process`). Along a finite sequence of such calls and of steps that keep the storage
+of `C`: `Complete.inv_calls` (Complete/Seq.lean); a successful top-level `processMessage` of
+`CODE` with no value and no precompile, from Paris (before Glamsterdam when deprecated), under
+the named assumptions, is such a call (`Complete.goodCall_process`); a top-level
+`processMessage` (any code, any fork) that ends with an error keeps every storage word
+(`Complete.untouched_process_failed`), one of `CODE` with no precompile, call data below 2^256
+bytes and a nonzero value always ends with an error from Berlin
+(`Complete.process_value_fails`), and from Paris (before Glamsterdam when deprecated) every
+top-level `processMessage` of `CODE` with no precompile, under the hypotheses of
+`goodCall_process` except "no value", is one of the two kinds of steps (`Complete.process_step`).
+None
 has an alias here, since Invariant imports this file.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)

@@ -31,9 +31,10 @@ Failed calls and calls with value (round 18):
   (`Local.processMessage_failed_getStorage`, Local/Parent.lean).
 - `process_value_fails`: from Berlin, a top-level message of `CODE` (no precompile) with a nonzero
   value ends with an error, whether the value is moved or not.
-- `process_step`: from Paris, every top-level message of `CODE` to `C` (no precompile) that
-  `processMessage` ends is a `GoodCall` (no error, under the named assumptions of
-  `goodCall_process`) or an `Untouched` step (an error, with no assumption).
+- `process_step`: from Paris (before Glamsterdam when deprecated), under the hypotheses of
+  `goodCall_process` except "no value", every top-level message of `CODE` to `C` (no
+  precompile) that `processMessage` ends is a `GoodCall` (no error) or an `Untouched` step (an
+  error; that case uses none of those hypotheses).
 -/
 
 namespace UsdtVerify.Complete
@@ -198,7 +199,8 @@ theorem process_value_fails {fork : Fork} (hfork : .berlin ≤ fork) {message : 
     | ok moved => exact key moved _ _ rfl (processMessage_map_val_value ht hm noPrecompile rfl)
   · exact key _ _ _ rfl (processMessage_map_val ht noPrecompile rfl)
 
-/-- From Paris, every top-level message to `C` whose code is `CODE` (no precompile, call data
+/-- From Paris (before Glamsterdam when deprecated), under the hypotheses of `goodCall_process`
+except "no value", every top-level message to `C` whose code is `CODE` (no precompile, call data
 below 2^256 bytes), run by EthLib's `processMessage` to the end, is a step of `Calls C`: a
 `GoodCall` when it ends with no error (then its value is 0 or not moved, `process_value_fails`,
 and `goodCall_process` applies under its named assumptions), and an `Untouched` step when it ends

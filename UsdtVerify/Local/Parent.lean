@@ -7,7 +7,7 @@ import EthLib.Execution.Proofs.Evm.MemorySize
 GENERIC GAP. Nothing here is specific to USDT; each lemma holds for every code.
 
 EthLib proves that a message keeps the block of its state (`parent`) only for static messages
-(`processMessage_static`). This file proves it for every message from any fork: every step of
+from Paris (`processMessage_static`). This file proves it for every message from any fork: every step of
 any frame, static or not, every run of a frame under a runner that keeps the block, and
 `processMessage` and `processCreateMessage` themselves, by induction on the gas of the message.
 

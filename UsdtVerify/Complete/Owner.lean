@@ -49,7 +49,7 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
 
 theorem not_ne {a b : U256} (h : ¬ a ≠ b) : a = b := by simpa using h
 
-/-- Every successful `pause()` call is the owner's, when not paused
+/-- Every successful `pause()` call is the owner's, when not paused.
 The conclusion states that the frame is not static and the contract has an account:
 otherwise the SSTORE of slot 0 is `Gas.Stuck`
 (`bad_pause`). -/
@@ -373,7 +373,7 @@ theorem ok_deprecate (hfork : .berlin ≤ fork)
   exact ⟨hstatic, hacc, hown, ho, hg, hst, hss⟩
 
 /-- Every successful `transferOwnership(a)` call is the owner's: with `a = 0` nothing is written,
-otherwise the owner becomes `a`
+otherwise the owner becomes `a`.
 For `a ≠ 0` the conclusion states that the frame is not static and the contract has an account:
 otherwise the SSTORE of slot 0 is `Gas.Stuck` (`bad_transferOwnership`). -/
 theorem ok_transferOwnership (hfork : .berlin ≤ fork)

@@ -9,13 +9,13 @@ gas, fails: an error, or a halt with an error. A run that reaches such a frame a
 a start with more gas, as in `no_ok`) does not end with no error (`no_ok_stuck`): every frame
 with less gas fails earlier or at that frame.
 
-`sstore_stuck`: SSTORE in a static frame, or when the current account has no account in the
+`sstore_stuck`: SSTORE in a static frame, or when the current target has no account in the
 state, is `Stuck` (any fork, any gas): from Glamsterdam a static frame fails first; otherwise
 the step either fails before the write (stack, the stipend, gas), halts after its reads
 (`keepReads`), or reaches the write, which a static frame refuses and which `setStorage` refuses
 without an account (an error of the state, which aborts the run).
 
-This is how the completeness theorems of the writing functions do without the hypotheses
+This is how the completeness theorems of the writing functions (not deprecated) do without the hypotheses
 `hstatic` (not static) and `hacc` (an account): on each writing path the run reaches its first
 SSTORE, and with a static frame or no account it cannot end with no error.
 -/

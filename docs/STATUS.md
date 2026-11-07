@@ -939,8 +939,9 @@ entry; `DESTS` = the 32 destinations).
 ### Round 18: failed top-level calls and calls with value (Local/Parent.lean, Complete/Seq.lean)
 - Local/Parent.lean (LOCAL, generic, proved from EthLib's semantics): every step of every frame,
   static or not, keeps the block of the state (`parent`): `parent_instruction` (the ten groups of
-  instructions; SSTORE, TSTORE, SELFDESTRUCT through `parent_setStorage`, `parent_modifyState`,
-  `parent_selfdestructTransfer`), `pResult_step` (calls and creations: the caller keeps it, and the
+  instructions; SSTORE through EthLib's `TransactionState.parent_setStorage`, TSTORE by
+  `parent_tstoreStep`, SELFDESTRUCT through `parent_selfdestructTransfer`, which rests on EthLib's
+  `parent_modifyState` and `parent_moveEther`), `pResult_step` (calls and creations: the caller keeps it, and the
   frame that resumes keeps it when the child ended with the caller's block). `parent_runFrame`: a
   run keeps it under a runner that does. `parent_process`: by strong induction on the gas, every
   `processMessage` ends as `rollbackOnError state last` with `last` of the start block, and every
@@ -956,23 +957,26 @@ entry; `DESTS` = the 32 destinations).
   `processMessage`: value moved, `processMessage_map_val_value`; not moved,
   `processMessage_map_val`; a failed move gives no `.ok`), by `runFrame_ok_dispatch`.
 - `process_step`: from Paris (before Glamsterdam when deprecated), every top-level message of
-  `CODE` with no precompile that `processMessage` ends is a `GoodCall` (no error; under the named
-  assumptions of `goodCall_process`) or an `Untouched` step (an error; nothing assumed).
+  `CODE` with no precompile that `processMessage` ends is a `GoodCall` (no error) or an
+  `Untouched` step (an error). It takes the hypotheses of `goodCall_process` except "no value"
+  (call data below 2^256 bytes and the named assumptions), for both cases; the error case uses
+  none of them (`untouched_process_failed`).
 - Still assumed in a `Calls` sequence: the `Untouched` steps that are not a top-level message of
   `CODE` (transactions to other accounts, fees).
 
 ### Round 18: no `hstatic`/`hacc` in the completeness theorems (UsdtVerify/Stuck.lean, the bad_* lemmas)
 - UsdtVerify/Stuck.lean (generic): `Stuck z` (running, and the step from `z` or from `z` with any
-  less gas fails or halts with an error); `not_ok_of_reaches`, `no_ok_stuck` (a run whose start,
-  with more gas, reaches a `Stuck` frame along `StepG` does not end with no error);
+  less gas fails or halts with an error); `not_ok_of_reaches`, `no_ok_stuck` (when, for every gas
+  `g ≥ B`, the frame `At … g` reaches a `Stuck` frame along `StepG` (a `HoareG`), no run from
+  `At … gas` ends with no error);
   `sstoreStep_bad`, `sstore_stuck`, `sstoreStuckW` (SSTORE in a static frame, or at an address
   with no account, is `Stuck`, any fork, any gas); `bad_of_not`, `hasAccount_readSlot_iff`.
 - Per path, the prefix up to the first SSTORE as a `HoareG` to `Stuck` (the existing blocks are
   split into a `_pre` macro used by both): `PauseSpec.bad_pause`, `bad_unpause`,
   `BlackListSpec.bad_add`, `bad_remove`, `IssueSpec.bad_issue`, `bad_redeem`,
   `SetParamsSpec.bad_setParams`, `AddrWriteSpec.bad_transferOwnership`, `bad_deprecate`,
-  `DestroySpec.bad`, `ApproveSpec.bad_zero`, `bad_set`, `TransferOk.bad_transfer`,
-  `bad_allowF`, `bad_transferFrom` (with the blocks `*Bad` below them).
+  `DestroySpec.bad`, `Approve.bad_zero`, `bad_set` (ApproveSpec.lean), `TransferOk.bad_transfer`,
+  `TransferFrom.bad_allowF`, `bad_transferFrom` (with the blocks `*Bad` below them).
 - Every `ok_X` of a writing function (transfer, transferFrom, approve, the ten owner functions)
   no longer takes `hstatic` or `hacc`; each conclusion now begins with `message.isStatic = false
   ∧ hasAccount state C` (transferOwnership: in the `a ≠ 0` disjunct). `spec_feeGtF`,
@@ -980,12 +984,12 @@ entry; `DESTS` = the 32 destinations).
   static ∧ account` in place of `hstatic hacc` (with `A = MAX_UINT` nothing is written before
   those INVALIDs).
 - `inv_X` (writing functions) and `inv_call` take neither; `inv_call_ns` takes `hacc` only when
-  deprecated; `inv_call_all`, `GoodCall`, `goodCall_process`, `process_step` take
+  deprecated, and still takes `hstatic` (not static) for every call; `inv_call_all`, `GoodCall`, `goodCall_process`, `process_step` take
   `byte20 (slot 10) ≠ 0 → isStatic = false → hasAccount state C`.
 - Still assumed, by name: the account when deprecated (the forwarders: premise of `KeepsInv`;
-  destroyBlackFunds: `inv_tail_iff` needs it in the child's end state), and `hstatic`/`hkeep` of
+  destroyBlackFunds: `inv_tail_iff` needs it in the child's end state), `hstatic`/`hkeep` of
   deprecated destroyBlackFunds (`dep_destroy_complete`, whose first local write is after the
-  CALL).
+  CALL), and `hstatic` of `inv_call_ns` (`inv_call_all` replaces it by `hstat`).
 
 ## Open (not proved)
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
@@ -999,12 +1003,14 @@ entry; `DESTS` = the 32 destinations).
   at the upgraded address (round 16). Named hypotheses that stay: for destroyBlackFunds,
   `hstatic` and `hkeep` (the contract keeps an account after a successful forwarded call).
 - Hypotheses the completeness theorems of the writing paths keep, by name: size < 2^256
-  (`hstatic` and `hacc` removed in round 18, except for deprecated destroyBlackFunds); Berlin ≤ fork < Glamsterdam only on the deprecated paths
+  (`hstatic` and `hacc` removed in round 18; deprecated destroyBlackFunds keeps `hstatic` and
+  `hkeep`, and takes no `hacc`); Berlin ≤ fork < Glamsterdam only on the deprecated paths
   (round 17: the non-deprecated writing paths hold at Glamsterdam too).
 - Failed top-level calls and calls with value: done (round 18, `untouched_process_failed`,
   `process_value_fails`, `process_step`).
 - The deprecated paths in the invariant: done (round 15, now `inv_call_ns`; static frames too in `inv_call_all`, round 17) under the named runner
-  assumptions `KeepsInv` and `HonestBalance`. Without `HonestBalance`, deprecated
+  assumptions `KeepsInv` and `HonestBalance`, and an account of the contract when deprecated and
+  not static (`hacc`; `inv_call_ns` also takes `hstatic`). Without `HonestBalance`, deprecated
   destroyBlackFunds keeps `Inv` exactly when the answer is the local balance
   (`inv_dep_destroy_iff`); `exists_breaks` gives a state where a different answer breaks it.
   `KeepsInv` is not proved for any concrete upgraded contract.
@@ -1097,13 +1103,17 @@ entry; `DESTS` = the 32 destinations).
    atom. (d) `if_neg`/`if_false` are deprecated in this toolchain (`ite_false`, or `split`).
 
 17. Round 18 (LOCAL, UsdtVerify/Local/Parent.lean, no sorry): EthLib proves that a message keeps
-   the block of the state (`parent`) only for static messages (`processMessage_static`), so its
+   the block of the state (`parent`) only for static messages from Paris (`processMessage_static`), so its
    `getStorage_restoreTxState` could not be applied to the rollback of a failed message that is
    not static. `parent_process` proves it for every message and creation from any fork.
    Candidates for EthLib: the per-group lemmas, `pResult_step`, `parent_runFrame`,
    `parent_process`, `processMessage_failed_getStorage`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+- Round 18 (after commit 8f76073, rm -rf .lake/build, EthLib oleans prebuilt): 125.64 s wall,
+  286.32 s user, 1408958464 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines, 1383
+  jobs; `#print axioms`: 392 [propext, Classical.choice, Quot.sound], 2 [propext, Quot.sound],
+  2 [propext], 1 with no axioms.
 - Round 17 (after commit e6d4b71, rm -rf .lake/build, EthLib oleans prebuilt): 123.62 s wall,
   277.07 s user, 1421475840 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines, 1380
   jobs; `#print axioms`: 367 [propext, Classical.choice, Quot.sound], 2 [propext, Quot.sound],

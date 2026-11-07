@@ -287,14 +287,15 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   setParams with `m * 10^d ≥ 2^256` ends in INVALID (`SetParamsSpec.spec_mulOv`).
   Hypotheses: Berlin ≤ fork (Glamsterdam included since round 17), call data below 2^256 bytes,
   and not deprecated for approve, transferFrom, destroyBlackFunds.
-- Round 18: the writing functions' completeness theorems no longer assume a frame that is not
-  static or an account for the contract. On every path that remains after the checks, the run
+- Round 18: the writing functions' completeness theorems (not deprecated) no longer assume a
+  frame that is not static or an account for the contract. On every path that remains after the checks, the run
   reaches an SSTORE; in a static frame, or with no account, that SSTORE fails or halts with an
   error at any gas (`Gas.sstore_stuck`, UsdtVerify/Stuck.lean), so no such run ends with no
   error (`Gas.no_ok_stuck`, the per-path `bad_*` lemmas). Each `ok_X` of a writing path now also
   concludes `message.isStatic = false` and `hasAccount state C` (transferOwnership: on the
   `a ≠ 0` path, the only one that writes). `transferFrom`'s INVALID specifications
-  `spec_feeGtF`/`spec_balLow` take these two facts only when the allowance is written.
+  `spec_feeGtF`/`spec_balLow` take these two facts only when the allowance `A` is not `MAX_UINT`
+  (`hgood`; with `A = MAX_UINT` the allowance is not written before those INVALIDs).
 - Round 13 also covers every getter (allowance: not deprecated) and name() / symbol(). For
   name and symbol the slot word must have one of the shapes Solidity writes (`StrForm`: empty,
   1 to 31 bytes in the short form, or the long form with a length below 2^180); this is a named
@@ -417,8 +418,9 @@ it, from Paris, for the interpreter's own runner (EthLib's `processMessage_stati
   `message.code = CODE`, `StaticCode`, `StaticKeeps`), and is `inv_static` or `inv_call_ns` by
   the flag. The hypothesis "not static" is gone from it. Round 18: the account is assumed only
   for a frame that is not static and when deprecated (`byte20 (slot 10) ≠ 0 → isStatic = false →
-  hasAccount state C`); the forwarding paths need it for the premise of `KeepsInv`, and
-  deprecated destroyBlackFunds for its write after the CALL. The same holds for `GoodCall`,
+  hasAccount state C`); the deprecated paths need it for the premise of `KeepsInv`, and
+  destroyBlackFunds then needs the account that `KeepsInv` gives in the child's end state for
+  its writes after the CALL (`inv_tail_iff`). The same holds for `GoodCall`,
   `goodCall_process` and `process_step`.
 
 ## A finite sequence of calls (round 17)
@@ -435,15 +437,18 @@ gas and runner) or `Untouched` (any change that keeps every storage word of `C`)
 - Failed top-level calls (round 18): `untouched_process_failed` proves that a top-level message
   run by `processMessage` (any code, any fork) that ends with an error is an `Untouched` step for
   every address. The rollback restores the storage of the start state because the run keeps the
-  block of the state (`parent`). EthLib proves that only for static messages; the local
+  block of the state (`parent`). EthLib proves that only for static messages, from Paris
+  (`processMessage_static`); the local
   `Local.parent_process` (UsdtVerify/Local/Parent.lean) proves it for every message and every
-  creation, static or not, from any fork, by induction on the gas, from EthLib's semantics.
+  creation, static or not, from any fork, by induction on the gas, from EthLib's semantics
+  (`Local.processMessage_failed_getStorage` then applies EthLib's `getStorage_restoreTxState`).
 - Calls with value (round 18): `process_value_fails` proves that, from Berlin, a top-level message
   of the deployed code (no precompile, call data below 2^256 bytes) with a nonzero value ends
   with an error, whether the value is moved or not. `process_step` (from Paris; when deprecated,
   before Glamsterdam) puts both together: every top-level message of the deployed code to `C`
-  with no precompile that `processMessage` ends is a `GoodCall` (no error, under the named
-  assumptions of `goodCall_process`) or an `Untouched` step (an error, nothing assumed).
+  with no precompile that `processMessage` ends is a `GoodCall` (no error) or an `Untouched` step
+  (an error). It takes the hypotheses of `goodCall_process` except "no value" (call data below
+  2^256 bytes and the named assumptions) in both cases; the error case uses none of them.
 - What the remaining `Untouched` steps stand for is assumed, not proved: a transaction that does
   not reach `C`, fees. A transaction that reaches `C` through another contract is not a
   top-level call and is not covered.
