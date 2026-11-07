@@ -131,7 +131,11 @@ A few general opcode rules are proved locally in `UsdtVerify/Local/` while they 
 
 ## What is not covered yet
 
-- Runs with less gas than the stated bounds, and forks outside the stated range.
+- Forks before Berlin, and Glamsterdam onwards on paths that write storage or make a call.
+- `KeccakSep` is a hypothesis about keccak, not a theorem.
+- `KeepsInv` and `HonestBalance` are not shown to hold for any real upgraded contract. They say what the upgraded contract must do.
+- Slot words for `name` and `symbol` in a form Solidity never writes.
+- The individual path specs still state exact gas bounds. Completeness and the invariant hold for any gas.
 
 ## Related work
 
