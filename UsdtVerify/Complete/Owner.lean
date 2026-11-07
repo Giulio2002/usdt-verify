@@ -22,9 +22,15 @@ The other cases are excluded by the reverts (`*_notOwner`, `spec_pause_paused`,
 `spec_feeHigh`, `Destroy.spec_notListed`) and, for setParams, by the INVALID of the overflow of
 `m * 10^d` (`SetParamsSpec.spec_mulOv`).
 
-Hypotheses beyond the call: Berlin ≤ fork (Glamsterdam included), the frame is not static (`hstatic`),
-the contract has an account (`hacc`); destroyBlackFunds also takes `hdep` (byte 20 of slot 10 is
-0: the deprecated path calls out, see DeprecatedDestroy.lean).
+Hypotheses beyond the call: Berlin ≤ fork (Glamsterdam included); destroyBlackFunds also takes
+`hdep` (byte 20 of slot 10 is 0: the deprecated path calls out, see DeprecatedDestroy.lean).
+The frame may be static and the contract may have no account: once the reverts are excluded,
+each writing path reaches its first SSTORE, which in a static frame or with no account is
+`Gas.Stuck`, so no such run ends with no error, and each conclusion (for transferOwnership, its
+`a ≠ 0` case) states `message.isStatic = false` and an account of the contract (`Gas.no_ok_stuck` with `bad_pause`,
+`bad_unpause`, `bad_add`, `bad_remove`, `bad_issue`, `bad_redeem`, `bad_setParams`,
+`bad_deprecate`, `bad_transferOwnership`, `DestroySpec.bad`). For setParams this comes before
+the overflow of `m * 10^d`, which follows the write of slot 3.
 -/
 
 namespace UsdtVerify.Complete
@@ -43,15 +49,18 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
 
 theorem not_ne {a b : U256} (h : ¬ a ≠ b) : a = b := by simpa using h
 
-/-- Every successful `pause()` call is the owner's, when not paused. -/
+/-- Every successful `pause()` call is the owner's, when not paused
+The conclusion states that the frame is not static and the contract has an account:
+otherwise the SSTORE of slot 0 is `Gas.Stuck`
+(`bad_pause`). -/
 theorem ok_pause (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x8456cb59)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     callerWord message = ownerOf state message.currentTarget ∧
       byte20 (storageAt state message.currentTarget 0) = 0 ∧ s.output = .empty ∧
       s.gas = gas - (PAUSE_COST + slotCost c0 + flagCost fork state message 1) ∧
@@ -70,20 +79,27 @@ theorem ok_pause (hfork : .berlin ≤ fork)
   · exact (no_ok (fun g hg => spec_pause_paused hfork h4 hsize' hsel hv hown hp hc0 hg)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hp : byte20 (storageAt state message.currentTarget 0) = 0 := by omega
+  by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
+  · exact (Gas.no_ok_stuck (fun g hg => bad_pause hfork (Gas.bad_of_not hgood) h4 hsize' hsel hv
+      hown hp hc0 hg) start within hrun hok).elim
+  obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
     (fun g h1 h2 => spec_pause hfork hstatic hacc h4 hsize' hsel hv hown hp hc0 h1 h2)
     start within hrun hok
-  exact ⟨hown, hp, ho, hg, hst, hss⟩
+  exact ⟨hstatic, hacc, hown, hp, ho, hg, hst, hss⟩
 
-/-- Every successful `unpause()` call is the owner's, when paused. -/
+/-- Every successful `unpause()` call is the owner's, when paused
+The conclusion states that the frame is not static and the contract has an account:
+otherwise the SSTORE of slot 0 is `Gas.Stuck`
+(`bad_unpause`). -/
 theorem ok_unpause (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x3f4ba83a)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     callerWord message = ownerOf state message.currentTarget ∧
       byte20 (storageAt state message.currentTarget 0) ≠ 0 ∧ s.output = .empty ∧
       s.gas = gas - (UNPAUSE_COST + slotCost c0 + flagCost fork state message 0) ∧
@@ -101,14 +117,20 @@ theorem ok_unpause (hfork : .berlin ≤ fork)
   by_cases hp : byte20 (storageAt state message.currentTarget 0) = 0
   · exact (no_ok (fun g hg => spec_unpause_notPaused hfork h4 hsize' hsel hv hown hp hc0 hg)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
+  · exact (Gas.no_ok_stuck (fun g hg => bad_unpause hfork (Gas.bad_of_not hgood) h4 hsize' hsel
+      hv hown hp hc0 hg) start within hrun hok).elim
+  obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
     (fun g h1 h2 => spec_unpause hfork hstatic hacc h4 hsize' hsel hv hown hp hc0 h1 h2)
     start within hrun hok
-  exact ⟨hown, hp, ho, hg, hst, hss⟩
+  exact ⟨hstatic, hacc, hown, hp, ho, hg, hst, hss⟩
 
-/-- Every successful `addBlackList(a)` call is the owner's. -/
+/-- Every successful `addBlackList(a)` call is the owner's
+The conclusion states that the frame is not static and the contract has an account:
+otherwise the SSTORE of `isBlackListed[a]` is
+`Gas.Stuck` (`bad_add`). -/
 theorem ok_addBlackList (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x0ecb93c0)
     {c0 cB : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
@@ -117,6 +139,7 @@ theorem ok_addBlackList (hfork : .berlin ≤ fork)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     callerWord message = ownerOf state message.currentTarget ∧ s.output = .empty ∧
       s.gas = gas - (1567 + slotCost c0 + slotCost cB + listCost fork state message 1) ∧
       s.state = listState state message 1 ∧
@@ -126,14 +149,20 @@ theorem ok_addBlackList (hfork : .berlin ≤ fork)
   · exact (no_ok (fun g hg => spec_add_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hown := not_ne hown
+  by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
+  · exact (Gas.no_ok_stuck (fun g hg => bad_add hfork (Gas.bad_of_not hgood) h4 hsize' hsel hv
+      hown hc0 hcB hg) start within hrun hok).elim
+  obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
     (fun g h1 h2 => spec_add hfork hstatic hacc h4 hsize' hsel hv hown hc0 hcB h1 h2)
     start within hrun hok
-  exact ⟨hown, ho, hg, hst, hss⟩
+  exact ⟨hstatic, hacc, hown, ho, hg, hst, hss⟩
 
-/-- Every successful `removeBlackList(a)` call is the owner's. -/
+/-- Every successful `removeBlackList(a)` call is the owner's
+The conclusion states that the frame is not static and the contract has an account:
+otherwise the SSTORE of `isBlackListed[a]` is
+`Gas.Stuck` (`bad_remove`). -/
 theorem ok_removeBlackList (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xe4997dc5)
     {c0 cB : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
@@ -142,6 +171,7 @@ theorem ok_removeBlackList (hfork : .berlin ≤ fork)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     callerWord message = ownerOf state message.currentTarget ∧ s.output = .empty ∧
       s.gas = gas - (2095 + slotCost c0 + slotCost cB + listCost fork state message 0) ∧
       s.state = listState state message 0 ∧
@@ -151,15 +181,21 @@ theorem ok_removeBlackList (hfork : .berlin ≤ fork)
   · exact (no_ok (fun g hg => spec_remove_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hown := not_ne hown
+  by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
+  · exact (Gas.no_ok_stuck (fun g hg => bad_remove hfork (Gas.bad_of_not hgood) h4 hsize' hsel hv
+      hown hc0 hcB hg) start within hrun hok).elim
+  obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
     (fun g h1 h2 => spec_remove hfork hstatic hacc h4 hsize' hsel hv hown hc0 hcB h1 h2)
     start within hrun hok
-  exact ⟨hown, ho, hg, hst, hss⟩
+  exact ⟨hstatic, hacc, hown, ho, hg, hst, hss⟩
 
 /-- Every successful `issue(a)` call is the owner's, with `0 < a` and no overflow of
-`_totalSupply + a` nor of `balances[owner] + a`. -/
+`_totalSupply + a` nor of `balances[owner] + a`
+The conclusion states that the frame is not static and the contract has an account:
+otherwise the SSTORE of `balances[owner]` is
+`Gas.Stuck` (`bad_issue`). -/
 theorem ok_issue (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xcc872b66)
     {c0 c1 cO : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (hc1 : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget 1 = c1)
@@ -169,6 +205,7 @@ theorem ok_issue (hfork : .berlin ≤ fork)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     callerWord message = ownerOf state message.currentTarget ∧
       0 < (wordArg message.data 0).toNat ∧
       (storageAt state message.currentTarget 1).toNat + (wordArg message.data 0).toNat < 2 ^ 256 ∧
@@ -194,16 +231,22 @@ theorem ok_issue (hfork : .berlin ≤ fork)
   · exact (no_ok (fun g hg => spec_issue_req2 hfork h4 hsize' hsel hv hown hT hB hc0 hc1 hcO hg)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hB := Classical.not_not.mp hB
+  by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
+  · exact (Gas.no_ok_stuck (fun g hg => bad_issue hfork (Gas.bad_of_not hgood) h4 hsize' hsel hv
+      hown hT hB.2 hc0 hc1 hcO hg) start within hrun hok).elim
+  obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
     (fun g h1 h2 => spec_issue hfork hstatic hacc h4 hsize' hsel hv hown hT hB.2 hc0 hc1 hcO
       h1 h2)
     start within hrun hok
-  exact ⟨hown, hT.1, hT.2, hB.2, ho, hg, hst, hss⟩
+  exact ⟨hstatic, hacc, hown, hT.1, hT.2, hB.2, ho, hg, hst, hss⟩
 
 /-- Every successful `redeem(a)` call is the owner's, with `a ≤ _totalSupply` and
-`a ≤ balances[owner]`. -/
+`a ≤ balances[owner]`
+The conclusion states that the frame is not static and the contract has an account:
+otherwise the SSTORE of `_totalSupply` is
+`Gas.Stuck` (`bad_redeem`). -/
 theorem ok_redeem (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xdb006a75)
     {c0 c1 cO : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (hc1 : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget 1 = c1)
@@ -213,6 +256,7 @@ theorem ok_redeem (hfork : .berlin ≤ fork)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     callerWord message = ownerOf state message.currentTarget ∧
       (wordArg message.data 0).toNat ≤ (storageAt state message.currentTarget 1).toNat ∧
       (wordArg message.data 0).toNat ≤
@@ -235,16 +279,22 @@ theorem ok_redeem (hfork : .berlin ≤ fork)
   · exact (no_ok (fun g hg => spec_redeem_req2 hfork h4 hsize' hsel hv hown hT hB hc0 hc1 hcO hg)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hB := Nat.le_of_not_lt hB
+  by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
+  · exact (Gas.no_ok_stuck (fun g hg => bad_redeem hfork (Gas.bad_of_not hgood) h4 hsize' hsel hv
+      hown hT hB hc0 hc1 hcO hg) start within hrun hok).elim
+  obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
     (fun g h1 h2 => spec_redeem hfork hstatic hacc h4 hsize' hsel hv hown hT hB hc0 hc1 hcO
       h1 h2)
     start within hrun hok
-  exact ⟨hown, hT, hB, ho, hg, hst, hss⟩
+  exact ⟨hstatic, hacc, hown, hT, hB, ho, hg, hst, hss⟩
 
 /-- Every successful `setParams(b, m)` call is the owner's, with `b < 20`, `m < 50` and no
-overflow of `m * 10^d`. -/
+overflow of `m * 10^d`
+The conclusion states that the frame is not static and the contract has an account:
+otherwise the SSTORE of slot 3 is `Gas.Stuck`
+(`bad_setParams`). -/
 theorem ok_setParams (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xc0324c77)
     {c0 c3 c9 c4 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (hc3 : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget 3 = c3)
@@ -256,6 +306,7 @@ theorem ok_setParams (hfork : .berlin ≤ fork)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     callerWord message = ownerOf state message.currentTarget ∧
       (wordArg message.data 0).toNat < 20 ∧ (wordArg message.data 1).toNat < 50 ∧
       (wordArg message.data 1).toNat *
@@ -276,6 +327,10 @@ theorem ok_setParams (hfork : .berlin ≤ fork)
   · exact (no_ok (fun g hg => spec_feeHigh hfork h4 hsize' hsel hv hown hb hm hc0 hg)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hm := Nat.lt_of_not_le hm
+  by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
+  · exact (Gas.no_ok_stuck (fun g hg => bad_setParams hfork (Gas.bad_of_not hgood) h4 hsize' hsel
+      hv hown hb hm hc0 hg) start within hrun hok).elim
+  obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   by_cases hov : 2 ^ 256 ≤ (wordArg message.data 1).toNat *
       (exp (0x0a : U256) (storageAt state message.currentTarget 9)).toNat
   · exact (no_ok (fun g hg => SetParamsSpec.spec_mulOv hfork hstatic hacc h4 hsize' hsel hv
@@ -285,11 +340,13 @@ theorem ok_setParams (hfork : .berlin ≤ fork)
     (fun g h1 h2 => spec_setParams hfork hstatic hacc h4 hsize' hsel hv hown hb hm hov hc0
       hc3 hc9 hc4 h1 h2)
     start within hrun hok
-  exact ⟨hown, hb, hm, hov, ho, hg, hst, hss⟩
+  exact ⟨hstatic, hacc, hown, hb, hm, hov, ho, hg, hst, hss⟩
 
-/-- Every successful `deprecate(a)` call is the owner's. -/
+/-- Every successful `deprecate(a)` call is the owner's
+The conclusion states that the frame is not static and the contract has an account:
+otherwise the SSTORE of slot 10 is `Gas.Stuck`
+(`bad_deprecate`). -/
 theorem ok_deprecate (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x0753c30c)
     {c0 c10 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (hc10 : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget 10 = c10)
@@ -297,6 +354,7 @@ theorem ok_deprecate (hfork : .berlin ≤ fork)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     callerWord message = ownerOf state message.currentTarget ∧ s.output = .empty ∧
       s.gas = gas - (1628 + slotCost c0 + slotCost c10 + depCost fork state message) ∧
       s.state = depState state message ∧ s.substate = depSub fork substate state message := by
@@ -305,15 +363,20 @@ theorem ok_deprecate (hfork : .berlin ≤ fork)
   · exact (no_ok (fun g hg => spec_deprecate_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hown := not_ne hown
+  by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
+  · exact (Gas.no_ok_stuck (fun g hg => bad_deprecate hfork (Gas.bad_of_not hgood) h4 hsize' hsel
+      hv hown hc0 hc10 hg) start within hrun hok).elim
+  obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
     (fun g h1 h2 => spec_deprecate hfork hstatic hacc h4 hsize' hsel hv hown hc0 hc10 h1 h2)
     start within hrun hok
-  exact ⟨hown, ho, hg, hst, hss⟩
+  exact ⟨hstatic, hacc, hown, ho, hg, hst, hss⟩
 
 /-- Every successful `transferOwnership(a)` call is the owner's: with `a = 0` nothing is written,
-otherwise the owner becomes `a`. -/
+otherwise the owner becomes `a`
+For `a ≠ 0` the conclusion states that the frame is not static and the contract has an account:
+otherwise the SSTORE of slot 0 is `Gas.Stuck` (`bad_transferOwnership`). -/
 theorem ok_transferOwnership (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf2fde38b)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (start : At CODE message 0 [] .empty gas state substate evm)
@@ -325,6 +388,7 @@ theorem ok_transferOwnership (hfork : .berlin ≤ fork)
         s.state = readSlot state message.currentTarget 0 ∧
         s.substate = accessSlot substate message.currentTarget 0) ∨
       (addrArg message.data 0 ≠ 0 ∧
+        message.isStatic = false ∧ hasAccount state message.currentTarget ∧
         s.gas = gas - (1114 + slotCost c0 + ownCost fork state message) ∧
         s.state = writeSlot state message.currentTarget 0
           (withAddr (storageAt state message.currentTarget 0) (addrArg message.data 0)) ∧
@@ -341,16 +405,22 @@ theorem ok_transferOwnership (hfork : .berlin ≤ fork)
       (fun g hg => spec_transferOwnership_zero hfork h4 hsize' hsel hv hown hz hc0 hg)
       start within hrun hok
     exact ⟨hown, ho, .inl ⟨hz, hg, hst, hss⟩⟩
+  by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
+  · exact (Gas.no_ok_stuck (fun g hg => bad_transferOwnership hfork (Gas.bad_of_not hgood) h4
+      hsize' hsel hv hown hz hc0 hg) start within hrun hok).elim
+  obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
     (fun g h1 h2 => spec_transferOwnership hfork hstatic hacc h4 hsize' hsel hv hown hz hc0
       h1 h2)
     start within hrun hok
-  exact ⟨hown, ho, .inr ⟨hz, hg, hst, hss⟩⟩
+  exact ⟨hown, ho, .inr ⟨hz, hstatic, hacc, hg, hst, hss⟩⟩
 
 /-- Every successful `destroyBlackFunds(a)` call, not deprecated, is the owner's, with `a`
-blacklisted. -/
+blacklisted
+The conclusion states that the frame is not static and the contract has an account:
+otherwise the SSTORE of `balances[a]` is `Gas.Stuck`
+(`DestroySpec.bad`). -/
 theorem ok_destroyBlackFunds (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     {c0 cL c10 cB c1 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
@@ -364,6 +434,7 @@ theorem ok_destroyBlackFunds (hfork : .berlin ≤ fork)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     callerWord message = ownerOf state message.currentTarget ∧
       (storageAt state message.currentTarget (listSlot (addrArg message.data 0))).toNat % 256 ≠ 0 ∧
       s.output = .empty ∧
@@ -379,10 +450,14 @@ theorem ok_destroyBlackFunds (hfork : .berlin ≤ fork)
       256 = 0
   · exact (no_ok (fun g hg => Destroy.spec_notListed hfork h4 hsize' hsel hv hown hl hc0 hcL hg)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
+  · exact (Gas.no_ok_stuck (fun g hg => DestroySpec.bad hfork (Gas.bad_of_not hgood) h4 hsize'
+      hsel hv hown hl hdep hc0 hcL hc10 hcB hg) start within hrun hok).elim
+  obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact3
     (fun g h1 h2 h3 => DestroySpec.spec hfork hstatic hacc h4 hsize' hsel hv hown hl hdep hc0
       hcL hc10 hcB hc1 h1 h2 h3)
     start within hrun hok
-  exact ⟨hown, hl, ho, hg, hst, hss⟩
+  exact ⟨hstatic, hacc, hown, hl, ho, hg, hst, hss⟩
 
 end UsdtVerify.Complete

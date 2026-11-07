@@ -322,9 +322,9 @@ theorem getStorage_eq (st : State.TransactionState) (t : EthLib.Base.Address) (n
     st.getStorage t (U256.toBeBytes n) = storageAt st t n := rfl
 
 -- The tail of a write of `slot op= a`, from `PUSH1 0 DUP3 DUP3` (slot and amount below) to the
--- `POP` after `SSTORE`.
+-- `SSTORE`.
 set_option hygiene false in
-macro "op_write " b:term:max i:term:max hcold:term:max : tactic => `(tactic| (
+macro "op_pre " b:term:max i:term:max hcold:term:max : tactic => `(tactic| (
   step dupR 2
   step dupR 2
   step Gas.sloadG hfork (cold := false) (by code_fact) (by code_fact) $hcold (by gas_ok)
@@ -336,7 +336,13 @@ macro "op_write " b:term:max i:term:max hcold:term:max : tactic => `(tactic| (
   step popR
   step dupR 1
   step swapR 0
-  norm
+  norm))
+
+-- The tail of a write of `slot op= a`, from `PUSH1 0 DUP3 DUP3` (slot and amount below) to the
+-- `POP` after `SSTORE`.
+set_option hygiene false in
+macro "op_write " b:term:max i:term:max hcold:term:max : tactic => `(tactic| (
+  op_pre $b $i $hcold
   step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
@@ -392,6 +398,27 @@ theorem redeemTotal (hfork : .berlin ≤ fork) {a : U256}
   op_write 0x03 Local.instruction_sub hc1
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
+-- The write of `balances[owner] op= a` after the lookup of the slot (issue and redeem), from
+-- `DUP3 DUP3` to the `SSTORE`.
+set_option hygiene false in
+macro "owner_pre " b:term:max i:term:max : tactic => `(tactic| (
+  step dupR 2
+  step dupR 2
+  step Gas.sloadG hfork (cold := false) (by code_fact) (by code_fact) hcO' (by gas_ok)
+  rw [getStorage_eq]
+  step binR $b $i
+  step swapR 2
+  norm
+  step popR
+  step popR
+  step dupR 1
+  step swapR 0
+  norm
+  step restate (st' := readSlot (readSlot state message.currentTarget 0) message.currentTarget
+      (ownerBal state message.currentTarget))
+    (ss' := accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
+      (ownerBal state message.currentTarget)) rfl rfl rfl rfl rfl rfl))
+
 /-- At 6338 (issue): `balances[owner] += amount`. -/
 theorem issueOwner (hfork : .berlin ≤ fork) {a : U256}
     {rest : List U256} (hrest : rest.length ≤ 800) (hstatic : message.isStatic = false)
@@ -425,22 +452,7 @@ theorem issueOwner (hfork : .berlin ≤ fork) {a : U256}
   step ownerLookup hfork (by decide) (by simp; omega) hM hc0 (gas := gas - 1 - 3) (by gas_ok)
   step pushR 1 (0 : U256)
   have hacc := hasAccount_readSlot (n := 0) (other := message.currentTarget) hacc
-  step dupR 2
-  step dupR 2
-  step Gas.sloadG hfork (cold := false) (by code_fact) (by code_fact) hcO' (by gas_ok)
-  rw [getStorage_eq]
-  step binR 0x01 instruction_add
-  step swapR 2
-  norm
-  step popR
-  step popR
-  step dupR 1
-  step swapR 0
-  norm
-  step restate (st' := readSlot (readSlot state message.currentTarget 0) message.currentTarget
-      (ownerBal state message.currentTarget))
-    (ss' := accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
-      (ownerBal state message.currentTarget)) rfl rfl rfl rfl rfl rfl
+  owner_pre 0x01 instruction_add
   step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by simp only [originalAt_readSlot, storageAt_readSlot]; gas_ok)
@@ -481,22 +493,7 @@ theorem redeemOwner (hfork : .berlin ≤ fork) {a : U256}
   step ownerLookup hfork (by decide) (by simp; omega) hM hc0 (gas := gas - 3) (by gas_ok)
   step pushR 1 (0 : U256)
   have hacc := hasAccount_readSlot (n := 0) (other := message.currentTarget) hacc
-  step dupR 2
-  step dupR 2
-  step Gas.sloadG hfork (cold := false) (by code_fact) (by code_fact) hcO' (by gas_ok)
-  rw [getStorage_eq]
-  step binR 0x03 Local.instruction_sub
-  step swapR 2
-  norm
-  step popR
-  step popR
-  step dupR 1
-  step swapR 0
-  norm
-  step restate (st' := readSlot (readSlot state message.currentTarget 0) message.currentTarget
-      (ownerBal state message.currentTarget))
-    (ss' := accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
-      (ownerBal state message.currentTarget)) rfl rfl rfl rfl rfl rfl
+  owner_pre 0x03 Local.instruction_sub
   step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by simp only [originalAt_readSlot, storageAt_readSlot]; gas_ok)
@@ -504,6 +501,38 @@ theorem redeemOwner (hfork : .berlin ≤ fork) {a : U256}
   rw [writeSlot_readSlot _ _ hacc, storeSub_accessSlot]
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
+
+/-- At 6338 (issue), in a static frame or with no account for `C`: the run reaches the `SSTORE`
+of `balances[owner]`, which is `Stuck`. -/
+theorem issueOwnerBad (hfork : .berlin ≤ fork) {a : U256}
+    {rest : List U256} (hrest : rest.length ≤ 800)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    (hc0 : coldIn substate message.currentTarget 0 = false)
+    (hcO : coldIn substate message.currentTarget (ownerBal state message.currentTarget) = false)
+    {M : ByteArray} (hM : M.size = 96) {gas : Nat} (hg : 360 ≤ gas) :
+    Gas.HoareG fork (At CODE message 6338 (a :: rest) M gas state substate) Gas.Stuck := by
+  have hcO' := TransferFrom.coldIn_accessSlot_false (n := 0) hcO
+  step jumpdestR
+  step dupR 0
+  step ownerLookup hfork (by decide) (by simp; omega) hM hc0 (gas := gas - 1 - 3) (by gas_ok)
+  step pushR 1 (0 : U256)
+  owner_pre 0x01 instruction_add
+  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
+
+/-- At 6741 (redeem), in a static frame or with no account for `C`: the run reaches the `SSTORE`
+of `_totalSupply`, which is `Stuck`. -/
+theorem redeemTotalBad (hfork : .berlin ≤ fork) {a : U256}
+    {rest : List U256} (hrest : rest.length ≤ 800)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    (hc1 : coldIn substate message.currentTarget 1 = false) {M : ByteArray} {gas : Nat}
+    (hg : 134 ≤ gas) :
+    Gas.HoareG fork (At CODE message 6741 (a :: rest) M gas state substate) Gas.Stuck := by
+  step jumpdestR
+  step dupR 0
+  step pushR 1 (0x01 : U256)
+  step pushR 1 (0 : U256)
+  op_pre 0x03 Local.instruction_sub hc1
+  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
 
 /-! ## redeem's tests -/
 

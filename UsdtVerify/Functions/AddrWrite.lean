@@ -75,6 +75,32 @@ theorem byte20_withAddr (w a : U256) : byte20 (withAddr w a) = byte20 w := by
 theorem mul_mask_one : mul ADDR_MASK 1 = ADDR_MASK := by decide
 theorem mul_one' (x : U256) : mul x 1 = x := by simp [mul]
 
+-- The shared tail of the two address writes, from `PUSH2 0x0100` to the `SSTORE`.
+set_option hygiene false in
+macro "addr_pre" : tactic => `(tactic| (
+  step pushR 2 (0x0100 : U256)
+  step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
+  rw [BlackList.exp0]
+  step dupR 1
+  step Gas.sloadG hfork (cold := false) (by code_fact) (by code_fact) hk (by gas_ok)
+  rw [getStorage_eq]
+  step dupR 1
+  step pushR 20 ADDR_MASK
+  step binR 0x02 Local.instruction_mul
+  rw [mul_mask_one]
+  step unR 0x19 Local.instruction_not
+  step binR 0x16 Local.instruction_and
+  step swapR 0
+  norm
+  step dupR 3
+  step pushR 20 ADDR_MASK
+  step binR 0x16 Local.instruction_and
+  step binR 0x02 Local.instruction_mul
+  rw [mul_one']
+  step binR 0x17 Local.instruction_or
+  step swapR 0
+  norm))
+
 /-- The shared tail of the two address writes, at 2770 (slot 10) and 7755 (slot 0): with
 `0 :: k :: a :: a` on the stack, slot `k` (warm) gets its low 160 bits from `a`. -/
 theorem addrTail (hfork : .berlin ≤ fork) {p : Nat}
@@ -99,28 +125,7 @@ theorem addrTail (hfork : .berlin ≤ fork) {p : Nat}
   unfold withAddr at hg ⊢
   rcases hp with rfl | rfl
   all_goals
-    step pushR 2 (0x0100 : U256)
-    step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
-    rw [BlackList.exp0]
-    step dupR 1
-    step Gas.sloadG hfork (cold := false) (by code_fact) (by code_fact) hk (by gas_ok)
-    rw [getStorage_eq]
-    step dupR 1
-    step pushR 20 ADDR_MASK
-    step binR 0x02 Local.instruction_mul
-    rw [mul_mask_one]
-    step unR 0x19 Local.instruction_not
-    step binR 0x16 Local.instruction_and
-    step swapR 0
-    norm
-    step dupR 3
-    step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
-    step binR 0x02 Local.instruction_mul
-    rw [mul_one']
-    step binR 0x17 Local.instruction_or
-    step swapR 0
-    norm
+    addr_pre
     step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
       (coldIn_accessSlot_self _ _ _) (by gas_ok)
       (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
@@ -128,28 +133,9 @@ theorem addrTail (hfork : .berlin ≤ fork) {p : Nat}
     step popR
     exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
-/-- At 2737 (deprecate): `deprecated = true`, slot 10 with byte 20 set to 1. -/
-theorem depFlag (hfork : .berlin ≤ fork) {a : U256}
-    {rest : List U256} (hrest : rest.length ≤ 16) (hstatic : message.isStatic = false)
-    (hacc : hasAccount state message.currentTarget) {c10 : Bool}
-    (hc10 : coldIn substate message.currentTarget 10 = c10) {M : ByteArray} {gas : Nat}
-    (hstip : 2417 + slotCost c10 ≤ gas)
-    (hg : 118 + slotCost c10 + Gas.writeCost fork (originalAt state message.currentTarget 10)
-      (storageAt state message.currentTarget 10)
-      (withPaused (storageAt state message.currentTarget 10) 1) false ≤ gas) :
-    Gas.HoareG fork (At CODE message 2737 (a :: rest) M gas state substate)
-      (At CODE message 2765 (a :: rest) M
-        (gas - (118 + slotCost c10 + Gas.writeCost fork (originalAt state message.currentTarget 10)
-          (storageAt state message.currentTarget 10)
-          (withPaused (storageAt state message.currentTarget 10) 1) false))
-        (writeSlot state message.currentTarget 10
-          (withPaused (storageAt state message.currentTarget 10) 1))
-        (storeSub fork substate message.currentTarget 10
-          (originalAt state message.currentTarget 10) (storageAt state message.currentTarget 10)
-          (withPaused (storageAt state message.currentTarget 10) 1))) := by
-  have hexp : exponentBytes (0x14 : U256) = 1 := by decide
-  have hb : isZero (isZero (1 : U256)) = 1 := by decide
-  unfold withPaused at hg ⊢
+-- deprecate's flag write, from the `JUMPDEST` at 2737 to the `SSTORE` of slot 10.
+set_option hygiene false in
+macro "dep_pre" : tactic => `(tactic| (
   step jumpdestR
   step pushR 1 (0x01 : U256)
   step pushR 1 (0x0a : U256)
@@ -174,7 +160,31 @@ theorem depFlag (hfork : .berlin ≤ fork) {a : U256}
   step binR 0x02 Local.instruction_mul
   step binR 0x17 Local.instruction_or
   step swapR 0
-  norm
+  norm))
+
+/-- At 2737 (deprecate): `deprecated = true`, slot 10 with byte 20 set to 1. -/
+theorem depFlag (hfork : .berlin ≤ fork) {a : U256}
+    {rest : List U256} (hrest : rest.length ≤ 16) (hstatic : message.isStatic = false)
+    (hacc : hasAccount state message.currentTarget) {c10 : Bool}
+    (hc10 : coldIn substate message.currentTarget 10 = c10) {M : ByteArray} {gas : Nat}
+    (hstip : 2417 + slotCost c10 ≤ gas)
+    (hg : 118 + slotCost c10 + Gas.writeCost fork (originalAt state message.currentTarget 10)
+      (storageAt state message.currentTarget 10)
+      (withPaused (storageAt state message.currentTarget 10) 1) false ≤ gas) :
+    Gas.HoareG fork (At CODE message 2737 (a :: rest) M gas state substate)
+      (At CODE message 2765 (a :: rest) M
+        (gas - (118 + slotCost c10 + Gas.writeCost fork (originalAt state message.currentTarget 10)
+          (storageAt state message.currentTarget 10)
+          (withPaused (storageAt state message.currentTarget 10) 1) false))
+        (writeSlot state message.currentTarget 10
+          (withPaused (storageAt state message.currentTarget 10) 1))
+        (storeSub fork substate message.currentTarget 10
+          (originalAt state message.currentTarget 10) (storageAt state message.currentTarget 10)
+          (withPaused (storageAt state message.currentTarget 10) 1))) := by
+  have hexp : exponentBytes (0x14 : U256) = 1 := by decide
+  have hb : isZero (isZero (1 : U256)) = 1 := by decide
+  unfold withPaused at hg ⊢
+  dep_pre
   step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
@@ -182,6 +192,34 @@ theorem depFlag (hfork : .berlin ≤ fork) {a : U256}
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
+
+/-- At 2770 / 7755, in a static frame or with no account for `C`: the run reaches the `SSTORE`
+of slot `k`, which is `Stuck`. -/
+theorem addrTailBad (hfork : .berlin ≤ fork) {p : Nat}
+    (hp : p = 2770 ∨ p = 7755) {k a : U256} {rest : List U256} (hrest : rest.length ≤ 16)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    (hk : coldIn substate message.currentTarget k = false) {M : ByteArray} {gas : Nat}
+    (hg : 158 ≤ gas) :
+    Gas.HoareG fork (At CODE message p (0 :: k :: a :: a :: rest) M gas state substate)
+      Gas.Stuck := by
+  have hexp : exponentBytes (0 : U256) = 0 := by decide
+  rcases hp with rfl | rfl
+  all_goals
+    addr_pre
+    exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
+
+/-- At 2737 (deprecate), in a static frame or with no account for `C`: the run reaches the
+`SSTORE` of slot 10, which is `Stuck`. -/
+theorem depFlagBad (hfork : .berlin ≤ fork) {a : U256}
+    {rest : List U256} (hrest : rest.length ≤ 16)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget) {c10 : Bool}
+    (hc10 : coldIn substate message.currentTarget 10 = c10) {M : ByteArray} {gas : Nat}
+    (hg : 118 + slotCost c10 ≤ gas) :
+    Gas.HoareG fork (At CODE message 2737 (a :: rest) M gas state substate) Gas.Stuck := by
+  have hexp : exponentBytes (0x14 : U256) = 1 := by decide
+  have hb : isZero (isZero (1 : U256)) = 1 := by decide
+  dep_pre
+  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
 
 /-- At 2765 (deprecate): `DUP1 PUSH1 0a PUSH1 00` sets up the address write of slot 10. -/
 theorem depPrefix {a : U256} {rest : List U256} (hrest : rest.length ≤ 16) {M : ByteArray}

@@ -276,8 +276,8 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   ends with no error, with any gas, is one of the proved success paths, with the exact output,
   gas left, state and substate. For transfer, the run also passed every check (paused,
   blacklist, payload size, the SafeMath overflows, the balance), and it is the fee-0 path or
-  the fee path. Its hypotheses: Berlin ≤ fork (Glamsterdam included since round 17), the frame
-  not static, the contract has an account.
+  the fee path. Its hypotheses: Berlin ≤ fork (Glamsterdam included since round 17); until
+  round 18 also a frame that is not static and an account for the contract (see below).
 - Round 13 adds the same for approve(address,uint256) and transferFrom(address,address,uint256)
   (not deprecated), and for the owner functions pause, unpause, addBlackList, removeBlackList,
   issue, redeem, setParams, deprecate, transferOwnership and destroyBlackFunds (the last not
@@ -285,8 +285,16 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   caller is the owner, and each `require`). Two new specifications were needed to exclude
   cases: approve with call data shorter than 68 bytes reverts (`Approve.spec_payload`), and
   setParams with `m * 10^d ≥ 2^256` ends in INVALID (`SetParamsSpec.spec_mulOv`).
-  Hypotheses: Berlin ≤ fork (Glamsterdam included since round 17), the frame not static, the
-  contract has an account, call data below 2^256 bytes, and not deprecated for approve, transferFrom, destroyBlackFunds.
+  Hypotheses: Berlin ≤ fork (Glamsterdam included since round 17), call data below 2^256 bytes,
+  and not deprecated for approve, transferFrom, destroyBlackFunds.
+- Round 18: the writing functions' completeness theorems no longer assume a frame that is not
+  static or an account for the contract. On every path that remains after the checks, the run
+  reaches an SSTORE; in a static frame, or with no account, that SSTORE fails or halts with an
+  error at any gas (`Gas.sstore_stuck`, UsdtVerify/Stuck.lean), so no such run ends with no
+  error (`Gas.no_ok_stuck`, the per-path `bad_*` lemmas). Each `ok_X` of a writing path now also
+  concludes `message.isStatic = false` and `hasAccount state C` (transferOwnership: on the
+  `a ≠ 0` path, the only one that writes). `transferFrom`'s INVALID specifications
+  `spec_feeGtF`/`spec_balLow` take these two facts only when the allowance is written.
 - Round 13 also covers every getter (allowance: not deprecated) and name() / symbol(). For
   name and symbol the slot word must have one of the shapes Solidity writes (`StrForm`: empty,
   1 to 31 bytes in the short form, or the long form with a length below 2^180); this is a named
@@ -296,7 +304,8 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   code at pc 0, with any call data below 2^256 bytes, any value, any gas, any gas bound and any
   message runner. Assume:
   - `KeccakSep` (keccak keeps the storage slots apart; not proved);
-  - the frame is not static, and the contract has an account;
+  - (until round 18: the frame is not static, and the contract has an account; both are now
+    derived from the successful run, see above);
   - the contract is not deprecated (byte 20 of slot 10 is 0);
   - slots 7 and 8 hold strings in a form Solidity writes (`StrForm`);
   - `Inv`: the sum of the 2^160 balances equals `_totalSupply` at the start.
@@ -379,9 +388,9 @@ left. The callee may call back into this contract, so `S` can differ from the st
 `inv_call_all`). It is `inv_call` without the
 hypothesis "not deprecated". From Berlin on (before Glamsterdam when deprecated, round 17), take a fresh frame of the
 deployed code at pc 0, with any call data below 2^256 bytes, any value, any gas, any gas bound
-and any message runner. Assume `KeccakSep`, a frame that is not static, an account for the
-contract `C`, `StrForm` of slots 7 and 8, and `Inv` at the start. When the contract is
-deprecated, also assume:
+and any message runner. Assume `KeccakSep`, a frame that is not static, `StrForm` of slots 7
+and 8, and `Inv` at the start. When the contract is deprecated, also assume an account for the
+contract `C` (round 18: only when deprecated) and:
 - `KeepsInv` (`hkeeps`): whenever the runner ends a message from `C` to `ua` with no error, and
   `C` had an account and `Inv` held in the caller's state, then `C` still has an account and
   `Inv` holds in the child's end state. The callee may call back into `C`; this assumption is
@@ -405,12 +414,12 @@ it, from Paris, for the interpreter's own runner (EthLib's `processMessage_stati
   the start state at every address (account, storage and transient storage).
 - `inv_static`: so `Inv C` at the start gives `Inv C` at the end.
 - `Complete.inv_call_all` now covers static frames: it takes `hstat` (when static:
-  `message.code = CODE`, `StaticCode`, `StaticKeeps`) and `hacc` only when not static, and is
-  `inv_static` or `inv_call_ns` by the flag. The hypothesis "not static" is gone from it. The
-  hypothesis that the contract has an account stays for frames that are not static: the case
-  without an account (where the first SSTORE fails) is not proved.
-- The completeness theorems of the writing functions still take `hstatic`: in a static frame a
-  successful run of a writing path does not exist, but this is not proved per function.
+  `message.code = CODE`, `StaticCode`, `StaticKeeps`), and is `inv_static` or `inv_call_ns` by
+  the flag. The hypothesis "not static" is gone from it. Round 18: the account is assumed only
+  for a frame that is not static and when deprecated (`byte20 (slot 10) ≠ 0 → isStatic = false →
+  hasAccount state C`); the forwarding paths need it for the premise of `KeepsInv`, and
+  deprecated destroyBlackFunds for its write after the CALL. The same holds for `GoodCall`,
+  `goodCall_process` and `process_step`.
 
 ## A finite sequence of calls (round 17)
 

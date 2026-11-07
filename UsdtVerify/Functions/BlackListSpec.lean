@@ -194,6 +194,63 @@ theorem spec_remove (hfork : .berlin ≤ fork)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; omega, hs, hss⟩
 
+/-- The two writing paths from the owner check on, in a static frame or with no account for `C`:
+the run reaches the `SSTORE` of `isBlackListed[a]`, which is `Stuck`. -/
+theorem listTailBad (hfork : .berlin ≤ fork) {s p : Nat} {v : U256} {r : Nat}
+    (hp : (s = 3288 ∧ p = 3375 ∧ v = 1 ∧ r = 0x0308) ∨ (s = 7292 ∧ p = 7379 ∧ v = 0 ∧ r = 0x091b))
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    (hown : callerWord message = ownerOf state message.currentTarget) {x : U256}
+    {c0 cB : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
+    (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
+      (listSlot (addrArg message.data 0)) = cB) {gas : Nat}
+    (hg : 500 + slotCost c0 + slotCost cB ≤ gas) :
+    Gas.HoareG fork (At CODE message s [0, 0, addrArg message.data 0, BitVec.ofNat 256 r, x] MEM0
+        gas state substate) Gas.Stuck := by
+  have hsq : s + 87 = p := by rcases hp with ⟨rfl, rfl, -⟩ | ⟨rfl, rfl, -⟩ <;> rfl
+  have hs : s ∈ CHECKS := by rcases hp with ⟨rfl, -⟩ | ⟨rfl, -⟩ <;> decide
+  step ownerOk hfork hs (by simp) hc0 hown (by gas_ok)
+  rw [hsq]
+  have hpv : (p = 3375 ∧ v = 1) ∨ (p = 7379 ∧ v = 0) := by
+    rcases hp with ⟨-, h1, h2, -⟩ | ⟨-, h1, h2, -⟩
+    · exact Or.inl ⟨h1, h2⟩
+    · exact Or.inr ⟨h1, h2⟩
+  refine listWriteBad (state := readSlot state message.currentTarget 0) hfork hpv ?_ hbad hcB
+    size_MEM0 ?_
+  · simp
+  · gas_ok
+
+/-- `addBlackList(a)` by the owner, in a static frame or with no account for `C`: the run
+reaches the `SSTORE` of `isBlackListed[a]`, which is `Stuck`. -/
+theorem bad_add (hfork : .berlin ≤ fork)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
+    (hsel : selector message.data = 0x0ecb93c0) (hv : message.value = 0)
+    (hown : callerWord message = ownerOf state message.currentTarget)
+    {c0 cB : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
+    (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
+      (listSlot (addrArg message.data 0)) = cB) {gas : Nat}
+    (hg : 5000 + slotCost c0 + slotCost cB ≤ gas) :
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
+  refine Triple.seq (toBody1 (e := 721) (r := 0x0308) (b := 3284) (t := 5) (by decide) (by decide)
+    (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
+  exact listTailBad hfork (Or.inl ⟨rfl, rfl, rfl, rfl⟩) hbad hown hc0 hcB (by omega)
+
+/-- `removeBlackList(a)` by the owner, in a static frame or with no account for `C`: the run
+reaches the `SSTORE` of `isBlackListed[a]`, which is `Stuck`. -/
+theorem bad_remove (hfork : .berlin ≤ fork)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
+    (hsel : selector message.data = 0xe4997dc5) (hv : message.value = 0)
+    (hown : callerWord message = ownerOf state message.currentTarget)
+    {c0 cB : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
+    (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
+      (listSlot (addrArg message.data 0)) = cB) {gas : Nat}
+    (hg : 5000 + slotCost c0 + slotCost cB ≤ gas) :
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
+  refine Triple.seq (toBody1 (e := 2276) (r := 0x091b) (b := 7288) (t := 29) (by decide)
+    (by decide) (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
+  exact listTailBad hfork (Or.inr ⟨rfl, rfl, rfl, rfl⟩) hbad hown hc0 hcB (by omega)
+
 /-- In plain terms: after `addBlackList(a)` / `removeBlackList(a)` the low byte of
 `isBlackListed[a]` is 1 / 0 (the flag that transfer and transferFrom test), and every other
 slot read in the end state is as in the start state. -/

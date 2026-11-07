@@ -146,6 +146,16 @@ theorem fail (hfork : .berlin ≤ fork) {p : Nat} (hp : p = 5888 ∨ p = 5903) {
     · rw [ho]; simp [memoryReadBytes]
     · rw [hgas, hz]; gas_ok
 
+-- At 5911, from the `JUMPDEST` to the `SSTORE` of slot 3.
+set_option hygiene false in
+macro "write3_pre" : tactic => `(tactic| (
+  step jumpdestR
+  step dupR 1
+  step pushR 1 (0x03 : U256)
+  step dupR 1
+  step swapR 0
+  norm))
+
 /-- At 5911: `basisPointsRate = newBasisPoints` (slot 3). -/
 theorem write3 (hfork : .berlin ≤ fork) {b m : U256}
     {rest : List U256} (hrest : rest.length ≤ 16) (hstatic : message.isStatic = false)
@@ -161,15 +171,19 @@ theorem write3 (hfork : .berlin ≤ fork) {b m : U256}
         (writeSlot state message.currentTarget 3 b)
         (storeSub fork substate message.currentTarget 3 (originalAt state message.currentTarget 3)
           (storageAt state message.currentTarget 3) b)) := by
-  step jumpdestR
-  step dupR 1
-  step pushR 1 (0x03 : U256)
-  step dupR 1
-  step swapR 0
-  norm
+  write3_pre
   step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic hacc hc3 (by gas_ok) (by gas_ok)
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
+
+/-- At 5911, in a static frame or with no account for `C`: the run reaches the `SSTORE` of
+slot 3, which is `Stuck`. -/
+theorem write3Bad {b m : U256} {rest : List U256} (hrest : rest.length ≤ 16)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget) {M : ByteArray}
+    {gas : Nat} (hg : 15 ≤ gas) :
+    Gas.HoareG fork (At CODE message 5911 (m :: b :: rest) M gas state substate) Gas.Stuck := by
+  write3_pre
+  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
 
 /-- At 5919: reads `decimals` (slot 9), computes `10 ** decimals`, and calls `mul(newMaxFee,
 10 ** decimals)`, which returns to 5942. -/

@@ -420,14 +420,56 @@ theorem originalAt_allowState {state : State.TransactionState} {target other : E
   · rfl
   · exact originalAt_writeSlot h
 
+-- The allowance step when `A ≠ MAX_UINT`, from the `JUMPDEST` at 8834 to the `SSTORE` of the
+-- allowance.
+set_option hygiene false in
+macro "allow_pre" : tactic => `(tactic| (
+  step jumpdestR
+  step pushR 32 MAX_UINT
+  step dupR 4
+  step binR 0x10 Local.instruction_lt
+  step unR 0x15 instruction_iszero
+  step pushR 2 (0x233e : U256)
+  step jumpi0R (by simp [lessThan, isZero]; omega)
+  step pushR 2 (0x22bd : U256)
+  step dupR 5
+  step dupR 5
+  step pushR 2 (0x2ae0 : U256)
+  step swapR 0
+  norm
+  step swapR 1
+  norm
+  step swapR 0
+  norm
+  step pushR 4 (0xffffffff : U256)
+  step binR 0x16 Local.instruction_and
+  step jumpR
+  step subBlock (by simp; omega) (by valid_dest) hle (by gas_ok)
+  at_pc 8893
+  step jumpdestR
+  step pushR 1 (0x05 : U256)
+  step pushR 1 (0 : U256)
+  step dupR 9
+  at_pc 8899
+  step hashTail (by decide) (by simp; omega) hM (by gas_ok)
+  at_pc 8957
+  step pushR 1 (0 : U256)
+  step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  at_pc 8960
+  step hashTail (by decide) (by simp; omega) (size_mapMem hM _ _) (by gas_ok)
+  at_pc 9018
+  step dupR 1
+  step swapR 0
+  norm))
+
 /-- At 8834, the allowance step: with `_allowance = A`, either `A = MAX_UINT` (nothing is
 written) or `v ≤ A` and `allowed[_from][msg.sender] := A - v`. The slot was read at 8773 and is
-warm. -/
+warm. The frame must be able to write (`hgood`) only when `A ≠ MAX_UINT`. -/
 theorem allowStep (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {fee A v t f : U256} {rest : List U256} (hrest : rest.length ≤ 8)
     (hA : storageAt state message.currentTarget (allowFrom message f) = A)
     (hok : A = MAX_UINT ∨ v.toNat ≤ A.toNat)
+    (hgood : A ≠ MAX_UINT → message.isStatic = false ∧ hasAccount state message.currentTarget)
     (hw : coldIn substate message.currentTarget (allowFrom message f) = false) {gas : Nat}
     (hg : allowCost fork (originalAt state message.currentTarget (allowFrom message f)) A v +
       2300 ≤ gas) {M : ByteArray} (hM : M.size = 96) :
@@ -451,6 +493,7 @@ theorem allowStep (hfork : .berlin ≤ fork)
     step jumpiR (by decide)
     exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
   · simp only [allowCost, allowState, allowSub, allowMem2, hmax, ite_false] at hg ⊢
+    obtain ⟨hstatic, hacc⟩ := hgood hmax
     have hle : v.toNat ≤ A.toNat := hok.resolve_left hmax
     have hlt : A.toNat < 2 ^ 256 - 1 := by
       have h1 := A.isLt
@@ -460,46 +503,26 @@ theorem allowStep (hfork : .berlin ≤ fork)
     clear hok hmax
     subst hA
     simp only [allowFrom, allowMem, mkey] at hw hg hle hlt ⊢
-    step jumpdestR
-    step pushR 32 MAX_UINT
-    step dupR 4
-    step binR 0x10 Local.instruction_lt
-    step unR 0x15 instruction_iszero
-    step pushR 2 (0x233e : U256)
-    step jumpi0R (by simp [lessThan, isZero]; omega)
-    step pushR 2 (0x22bd : U256)
-    step dupR 5
-    step dupR 5
-    step pushR 2 (0x2ae0 : U256)
-    step swapR 0
-    norm
-    step swapR 1
-    norm
-    step swapR 0
-    norm
-    step pushR 4 (0xffffffff : U256)
-    step binR 0x16 Local.instruction_and
-    step jumpR
-    step subBlock (by simp; omega) (by valid_dest) hle (by gas_ok)
-    at_pc 8893
-    step jumpdestR
-    step pushR 1 (0x05 : U256)
-    step pushR 1 (0 : U256)
-    step dupR 9
-    at_pc 8899
-    step hashTail (by decide) (by simp; omega) hM (by gas_ok)
-    at_pc 8957
-    step pushR 1 (0 : U256)
-    step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
-    at_pc 8960
-    step hashTail (by decide) (by simp; omega) (size_mapMem hM _ _) (by gas_ok)
-    at_pc 9018
-    step dupR 1
-    step swapR 0
-    norm
+    allow_pre
     step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic hacc hw (by gas_ok) (by gas_ok)
     step popR
     exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
+
+/-- At 8834, with `_allowance = A ≠ MAX_UINT` and `v ≤ A`, in a static frame or with no account
+for `C`: the run reaches the `SSTORE` of the allowance, which is `Stuck`. -/
+theorem allowStepBad {fee A v t f : U256} {rest : List U256} (hrest : rest.length ≤ 8)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    (hmax : A ≠ MAX_UINT) (hle : v.toNat ≤ A.toNat) {gas : Nat} (hg : 1000 ≤ gas) {M : ByteArray}
+    (hM : M.size = 96) :
+    Gas.HoareG fork (At CODE message 8834 (0x60 :: 0 :: fee :: A :: v :: t :: f :: rest) M gas state
+        substate) Gas.Stuck := by
+  have hlt : A.toNat < 2 ^ 256 - 1 := by
+    have h1 := A.isLt
+    have h2 : A.toNat ≠ MAX_UINT.toNat := fun h => hmax (BitVec.eq_of_toNat_eq h)
+    have h3 : MAX_UINT.toNat = 2 ^ 256 - 1 := by decide
+    omega
+  allow_pre
+  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
 
 /-- At 9022, the code calls `sub(_value, fee)`. -/
 theorem sendCall {fee A v t f : U256} {rest : List U256} (hrest : rest.length ≤ 8) {gas : Nat}
@@ -562,6 +585,20 @@ theorem debitCall (hfork : .berlin ≤ fork) {send fee A v t f : U256} {rest : L
   step jumpR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
+-- At 9125, from the `JUMPDEST` to the `SSTORE` of `balances[_from]`.
+set_option hygiene false in
+macro "debitF_pre" : tactic => `(tactic| (
+  step jumpdestR
+  step pushR 1 (0x02 : U256)
+  step pushR 1 (0 : U256)
+  step dupR 9
+  at_pc 9131
+  step hashTail (by decide) (by simp; omega) hM (by gas_ok)
+  at_pc 9189
+  step dupR 1
+  step swapR 0
+  norm))
+
 /-- At 9125, the code writes the new balance of `_from`. -/
 theorem debitStore (hfork : .berlin ≤ fork)
     {nb send fee A v t f : U256} {rest : List U256} (hrest : rest.length ≤ 8)
@@ -581,19 +618,20 @@ theorem debitStore (hfork : .berlin ≤ fork)
           (originalAt state message.currentTarget (recipientSlot f))
           (storageAt state message.currentTarget (recipientSlot f)) nb)) := by
   simp only [recipientSlot, mkey] at hcF hg ⊢
-  step jumpdestR
-  step pushR 1 (0x02 : U256)
-  step pushR 1 (0 : U256)
-  step dupR 9
-  at_pc 9131
-  step hashTail (by decide) (by simp; omega) hM (by gas_ok)
-  at_pc 9189
-  step dupR 1
-  step swapR 0
-  norm
+  debitF_pre
   step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic hacc hcF (by gas_ok) (by gas_ok)
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
+
+/-- At 9125, in a static frame or with no account for `C`: the run reaches the `SSTORE` of
+`balances[_from]`, which is `Stuck`. -/
+theorem debitStoreFBad {nb send fee A v t f : U256} {rest : List U256} (hrest : rest.length ≤ 8)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget) {gas : Nat}
+    (hg : 102 ≤ gas) {M : ByteArray} (hM : M.size = 96) :
+    Gas.HoareG fork (At CODE message 9125 (nb :: 0x60 :: send :: fee :: A :: v :: t :: f :: rest) M
+        gas state substate) Gas.Stuck := by
+  debitF_pre
+  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
 
 /-- At 9193, the code reads `balances[_to]` and calls `add(balance, sendAmount)`. -/
 theorem creditCall (hfork : .berlin ≤ fork) {send fee A v t f : U256} {rest : List U256}

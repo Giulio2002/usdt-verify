@@ -1,5 +1,6 @@
 import UsdtVerify.Functions.Owner
 import UsdtVerify.Functions.Nonpayable
+import UsdtVerify.Stuck
 import EthLib.Execution.Proofs.Evm.Logic.Log
 
 /-!
@@ -227,9 +228,9 @@ theorem logStop {p : Nat} {t : U256} {r : Nat}
     rw [hss, hext3, memoryExtend_zero]
     simp [memoryReadBytes, log0]
 
--- The shared part of the two writes, from the `EXP` of `256 ^ 20` to the `POP` after `SSTORE`.
+-- The shared part of the two writes, from the `EXP` of `256 ^ 20` to the `SSTORE`.
 set_option hygiene false in
-macro "flag_write" : tactic => `(tactic| (
+macro "flag_pre" : tactic => `(tactic| (
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   rw [exp20]
   step dupR 1
@@ -250,7 +251,12 @@ macro "flag_write" : tactic => `(tactic| (
   step binR 0x02 Local.instruction_mul
   step binR 0x17 Local.instruction_or
   step swapR 0
-  norm
+  norm))
+
+-- The shared part of the two writes, from the `EXP` of `256 ^ 20` to the `POP` after `SSTORE`.
+set_option hygiene false in
+macro "flag_write" : tactic => `(tactic| (
+  flag_pre
   step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
@@ -315,6 +321,42 @@ theorem unpauseWrite (hfork : .berlin ≤ fork) {rest : List U256}
   step pushR 1 (0x14 : U256)
   step pushR 2 (0x0100 : U256)
   flag_write
+
+/-- At 5055 (pause), in a static frame or with no account for `C`: the run reaches the `SSTORE`
+of slot 0, which is `Stuck`. -/
+theorem pauseWriteBad (hfork : .berlin ≤ fork) {rest : List U256}
+    (hrest : rest.length ≤ 16)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    (hc0 : coldIn substate message.currentTarget 0 = false) {M : ByteArray} {gas : Nat}
+    (hg : 218 ≤ gas) :
+    Gas.HoareG fork (At CODE message 5055 rest M gas state substate) Gas.Stuck := by
+  have hexp : exponentBytes (0x14 : U256) = 1 := by decide
+  have hb : isZero (isZero (1 : U256)) = 1 := by decide
+  step jumpdestR
+  step pushR 1 (0x01 : U256)
+  step pushR 1 (0 : U256)
+  step pushR 1 (0x14 : U256)
+  step pushR 2 (0x0100 : U256)
+  flag_pre
+  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
+
+/-- At 4451 (unpause), in a static frame or with no account for `C`: the run reaches the
+`SSTORE` of slot 0, which is `Stuck`. -/
+theorem unpauseWriteBad (hfork : .berlin ≤ fork) {rest : List U256}
+    (hrest : rest.length ≤ 16)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    (hc0 : coldIn substate message.currentTarget 0 = false) {M : ByteArray} {gas : Nat}
+    (hg : 218 ≤ gas) :
+    Gas.HoareG fork (At CODE message 4451 rest M gas state substate) Gas.Stuck := by
+  have hexp : exponentBytes (0x14 : U256) = 1 := by decide
+  have hb : isZero (isZero (0 : U256)) = 0 := by decide
+  step jumpdestR
+  step pushR 1 (0 : U256)
+  step dupR 0
+  step pushR 1 (0x14 : U256)
+  step pushR 2 (0x0100 : U256)
+  flag_pre
+  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
 
 /-! ## The word written to slot 0 -/
 

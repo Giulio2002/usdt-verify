@@ -1,5 +1,6 @@
 import UsdtVerify.Functions.Transfer
 import UsdtVerify.Functions.SafeMath
+import UsdtVerify.Stuck
 import EthLib.Execution.Proofs.Evm.Logic.Rules
 import UsdtVerify.Spec.Write
 import EthLib.Execution.Proofs.Evm.Logic.Log
@@ -286,6 +287,20 @@ theorem debitCall (hfork : .berlin ≤ fork) {send fee v a : U256} {rest : List 
   step jumpR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
+-- At 10072, from the `JUMPDEST` to the `SSTORE` of `balances[msg.sender]`.
+set_option hygiene false in
+macro "debit_pre" : tactic => `(tactic| (
+  step jumpdestR
+  step pushR 1 (0x02 : U256)
+  step pushR 1 (0 : U256)
+  step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  at_pc 10078
+  step hashTail (by decide) (by simp; omega) hM (by gas_ok)
+  at_pc 10136
+  step dupR 1
+  step swapR 0
+  norm))
+
 /-- At 10072, the code writes the new balance of the sender to `balances[msg.sender]`. -/
 theorem debitStore (hfork : .berlin ≤ fork) {nb send fee v a : U256}
     {rest : List U256} (hrest : rest.length ≤ 800) (hstatic : message.isStatic = false)
@@ -306,19 +321,20 @@ theorem debitStore (hfork : .berlin ≤ fork) {nb send fee v a : U256}
           (originalAt state message.currentTarget (senderSlot message))
           (storageAt state message.currentTarget (senderSlot message)) nb)) := by
   simp only [senderSlot, callerKey] at hcS hg ⊢
-  step jumpdestR
-  step pushR 1 (0x02 : U256)
-  step pushR 1 (0 : U256)
-  step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
-  at_pc 10078
-  step hashTail (by decide) (by simp; omega) hM (by gas_ok)
-  at_pc 10136
-  step dupR 1
-  step swapR 0
-  norm
+  debit_pre
   step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic hacc hcS (by gas_ok) (by gas_ok)
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
+
+/-- At 10072, in a static frame or with no account for `C`: the run reaches the `SSTORE` of
+`balances[msg.sender]`, which is `Stuck`. -/
+theorem debitStoreBad {nb send fee v a : U256} {rest : List U256} (hrest : rest.length ≤ 800)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget) {gas : Nat}
+    (hg : 101 ≤ gas) {M : ByteArray} (hM : M.size = 96) :
+    Gas.HoareG fork (At CODE message 10072 (nb :: 0x40 :: send :: fee :: v :: a :: rest) M gas state
+        substate) Gas.Stuck := by
+  debit_pre
+  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
 
 /-- The slot of `balances[_to]` for the recipient word `a`: mapping base slot 2. -/
 abbrev recipientSlot (a : U256) : U256 := mapSlot (mkey a) 2

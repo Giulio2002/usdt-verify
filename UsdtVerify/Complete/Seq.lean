@@ -10,7 +10,8 @@ between states, each of which is:
 - `GoodCall C S S'`: a successful run of a fresh frame of `CODE` for a message to `C`, from the
   state `S`, that ends in `S'`, with the hypotheses of `inv_call_all` for that run (its own fork
   from Berlin (before Glamsterdam when deprecated), message, gas, gas bound, runner, and the named assumptions
-  `StrForm`, `hstat`/`hacc`, `KeepsInv`, `HonestBalance`, each at the state `S` of that call);
+  `StrForm`, `hstat`, `hacc` (an account of `C` only when deprecated and not static), `KeepsInv`,
+  `HonestBalance`, each at the state `S` of that call);
 - or `Untouched C S S'`: any change that keeps every storage word of `C`. This is where the
   model puts what is not a successful run of `C`'s code: a failed call rolled back by the message
   layer, transactions to other accounts, fees. For a failed top-level message (any code) that
@@ -53,7 +54,7 @@ def GoodCall (C : Address) (S S' : State.TransactionState) : Prop :=
     (byte20 (storageAt S C 10) ≠ 0 → fork < .glamsterdam) ∧
     (message.isStatic = true →
       message.code = CODE ∧ StaticCode S message ∧ StaticKeeps runChild) ∧
-    (message.isStatic = false → hasAccount S C) ∧
+    (byte20 (storageAt S C 10) ≠ 0 → message.isStatic = false → hasAccount S C) ∧
     message.data.size < 2 ^ 256 ∧
     StrForm (storageAt S C 7) ∧ StrForm (storageAt S C 8) ∧
     (byte20 (storageAt S C 10) ≠ 0 → KeepsInv runChild C (upAddr S message)) ∧
@@ -101,7 +102,8 @@ theorem goodCall_process {fork : Fork} (hparis : .paris ≤ fork)
     (noValue : ¬(message.shouldTransferValue = true ∧ message.value ≠ 0))
     (noPrecompile : precompileAddress fork message = none)
     (hstat : message.isStatic = true → StaticCode state message)
-    (hacc : message.isStatic = false → hasAccount state message.currentTarget)
+    (hacc : byte20 (storageAt state message.currentTarget 10) ≠ 0 → message.isStatic = false →
+      hasAccount state message.currentTarget)
     (hsize : message.data.size < 2 ^ 256)
     (hglam : byte20 (storageAt state message.currentTarget 10) ≠ 0 → fork < .glamsterdam)
     (h7 : StrForm (storageAt state message.currentTarget 7))
@@ -206,7 +208,8 @@ theorem process_step {fork : Fork} (hparis : .paris ≤ fork)
     (hmc : message.code = CODE)
     (noPrecompile : precompileAddress fork message = none)
     (hstat : message.isStatic = true → StaticCode state message)
-    (hacc : message.isStatic = false → hasAccount state message.currentTarget)
+    (hacc : byte20 (storageAt state message.currentTarget 10) ≠ 0 → message.isStatic = false →
+      hasAccount state message.currentTarget)
     (hsize : message.data.size < 2 ^ 256)
     (hglam : byte20 (storageAt state message.currentTarget 10) ≠ 0 → fork < .glamsterdam)
     (h7 : StrForm (storageAt state message.currentTarget 7))

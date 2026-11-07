@@ -251,6 +251,47 @@ theorem bodyToOv (hfork : .berlin ≤ fork)
     (size_mapMem (size_mapMem hM _ _) _ _)
   exact addFault (by simp) hto (by gas_ok)
 
+/-- From 9883, for any fee `≤ v` and `v ≤ balances[caller]`, in a static frame or with no account
+for `C`: the run reaches the `SSTORE` of the sender's balance, which is `Stuck`. -/
+theorem bodyBad (hfork : .berlin ≤ fork)
+    (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    {v a sel : U256} {M : ByteArray} (hM : M.size = 96)
+    (hov : v.toNat * (storageAt state message.currentTarget 3).toNat < 2 ^ 256)
+    (hfv : (feeOf state message v).toNat ≤ v.toNat)
+    (hbal : v.toNat ≤ (balS state message).toNat)
+    {c3 c4 cS : Bool} (hc3 : coldIn substate message.currentTarget 3 = c3)
+    (hc4 : coldIn (accessSlot substate message.currentTarget 3) message.currentTarget 4 = c4)
+    (hcS : coldIn (accessSlot (accessSlot substate message.currentTarget 3) message.currentTarget 4)
+      message.currentTarget (senderSlot message) = cS)
+    {gas : Nat}
+    (hg : 1000 + slotCost c3 + slotCost c4 + slotCost cS + mulCost v +
+      capCost (rawFee state message v) (storageAt state message.currentTarget 4) ≤ gas) :
+    Gas.HoareG fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
+      Gas.Stuck := by
+  simp only [rawFee, feeOf, balS] at hg hfv hbal
+  step payloadOk hlong hsz (by simp) (by gas_ok)
+  step feeCall hfork (by simp) hc3 (by gas_ok)
+  step mulBlock (by simp) (by valid_dest) hov (by gas_ok)
+  at_pc 9937
+  step divCall (by simp) (by gas_ok)
+  step divBlock (by simp) (by valid_dest) (by decide) (by gas_ok)
+  at_pc 9951
+  step capBlock hfork (by simp) hc4 (by simp only [storageAt_readSlot]; gas_ok)
+  simp only [storageAt_readSlot]
+  step sendCall (by simp) (by gas_ok)
+  step subBlock (by simp) (by valid_dest) hfv (by gas_ok)
+  at_pc 9988
+  step debitCall hfork (by simp) hcS (by gas_ok) hM
+  simp only [storageAt_readSlot]
+  step subBlock (by simp) (by valid_dest) hbal (by gas_ok)
+  at_pc 10072
+  refine debitStoreBad (state := readSlot (readSlot (readSlot state message.currentTarget 3)
+    message.currentTarget 4) message.currentTarget (senderSlot message)) ?_ hbad ?_
+    (size_mapMem hM _ _)
+  · simp
+  · gas_ok
+
 /-- The state at the owner's `add`: after the recipient's write, slot 0 and the owner's slot read. -/
 abbrev ownerOvState (state : State.TransactionState) (message : Message fork) (v a : U256) :
     State.TransactionState :=
@@ -445,6 +486,43 @@ theorem spec_toOv (hfork : .berlin ≤ fork)
       (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
       (size_MEMK (callerKey message) 6) hov hfv hbal hto hc3 hc4 hcS hcT
       (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hstip))
+      (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hg)))
+
+/-- `transfer(to, v)`, not deprecated, with the checks passing, `v * rate < 2^256`,
+`fee ≤ v` and `v ≤ balances[caller]`, in a static frame or with no account for `C`: the run
+reaches the `SSTORE` of the sender's balance, which is `Stuck`. -/
+theorem bad_transfer (hfork : .berlin ≤ fork)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
+    (hsel : selector message.data = 0xa9059cbb) (hv : message.value = 0)
+    (hnp : byte20 (storageAt state message.currentTarget 0) = 0)
+    (hnb : (storageAt state message.currentTarget (blackSlot message)).toNat % 256 = 0)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    (hov : (wordArg message.data 1).toNat *
+      (storageAt (shortState state message) message.currentTarget 3).toNat < 2 ^ 256)
+    (hfv : (feeOf (shortState state message) message (wordArg message.data 1)).toNat ≤
+      (wordArg message.data 1).toNat)
+    (hbal : (wordArg message.data 1).toNat ≤ (balS (shortState state message) message).toNat)
+    {c0 cB c10 c3 c4 cS : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
+    (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
+      (blackSlot message) = cB)
+    (hc10 : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
+      (blackSlot message)) message.currentTarget 10 = c10)
+    (hc3 : coldIn (shortSubstate substate message) message.currentTarget 3 = c3)
+    (hc4 : coldIn (accessSlot (shortSubstate substate message) message.currentTarget 3)
+      message.currentTarget 4 = c4)
+    (hcS : coldIn (accessSlot (accessSlot (shortSubstate substate message) message.currentTarget 3)
+      message.currentTarget 4) message.currentTarget (senderSlot message) = cS)
+    {gas : Nat}
+    (hg : preCost c0 cB c10 + (1000 + slotCost c3 + slotCost c4 + slotCost cS +
+      mulCost (wordArg message.data 1) +
+      capCost (rawFee (shortState state message) message (wordArg message.data 1))
+        (storageAt (shortState state message) message.currentTarget 4)) ≤ gas) :
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck :=
+  Triple.seq (pre hfork (by omega) hsz hsel hv hnp hnb hdep hc0 hcB hc10
+      (Nat.le_trans (Nat.le_add_right _ _) hg))
+    (bodyBad (state := shortState state message) hfork hlong hsz hbad
+      (size_MEMK (callerKey message) 6) hov hfv hbal hc3 hc4 hcS
       (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hg)))
 
 /-- The specification of `transfer(to, v)` with a fee above 0 when the owner's balance

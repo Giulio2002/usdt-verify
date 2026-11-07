@@ -174,6 +174,48 @@ theorem spec_set (hfork : .berlin ≤ fork)
   · rw [hgas]; simp only [storageAt_readSlot, originalAt_readSlot, hallow]; gas_ok
   · rw [hss]; simp only [storageAt_readSlot, originalAt_readSlot, hallow]
 
+/-- `approve(spender, 0)`, not deprecated, in a static frame or with no account for `C`: the run
+reaches the `SSTORE` of the allowance, which is `Stuck`. -/
+theorem bad_zero (hfork : .berlin ≤ fork)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
+    (hsel : selector message.data = 0x095ea7b3) (hv : message.value = 0)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    (hzero : wordArg message.data 1 = 0)
+    {c10 : Bool} (hc10 : coldIn substate message.currentTarget 10 = c10) {gas : Nat}
+    (hg : 5000 + slotCost c10 ≤ gas) :
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
+  step prefixA hfork hlong hsz hsel hv hdep hc10 (by gas_ok)
+  rw [hzero]
+  step checkZero (by simp) (by gas_ok)
+  refine storeBad (state := readSlot state message.currentTarget 10) ?_ hbad ?_ size_MEM0
+  · simp
+  · gas_ok
+
+/-- `approve(spender, v)` with `v ≠ 0` and the allowance 0, not deprecated, in a static frame or
+with no account for `C`: the run reaches the `SSTORE` of the allowance, which is `Stuck`. -/
+theorem bad_set (hfork : .berlin ≤ fork)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
+    (hsel : selector message.data = 0x095ea7b3) (hv : message.value = 0)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    (hnz : wordArg message.data 1 ≠ 0)
+    (hallow : storageAt state message.currentTarget (allowArg message) = 0)
+    {c10 cA : Bool} (hc10 : coldIn substate message.currentTarget 10 = c10)
+    (hcA : coldIn (accessSlot substate message.currentTarget 10) message.currentTarget
+      (allowArg message) = cA) {gas : Nat}
+    (hg : 5000 + slotCost c10 + slotCost cA ≤ gas) :
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
+  simp only [allowArg] at hcA hallow
+  step prefixA hfork hlong hsz hsel hv hdep hc10 (by gas_ok)
+  step checkNonzero hfork hnz (by simp) hcA (by rw [storageAt_readSlot]; exact hallow)
+    (by gas_ok) size_MEM0
+  refine storeBad (state := readSlot (readSlot state message.currentTarget 10)
+    message.currentTarget (allowSlot message (addrArg message.data 0))) ?_ hbad ?_
+    (size_mapMem (size_mapMem size_MEM0 _ _) _ _)
+  · simp
+  · gas_ok
+
 /-- The loop of the interpreter runs the case of `spec_zero` to its end condition. It holds for
 every bound on the gas of messages and every runner of messages. -/
 theorem runFrame_zero (hfork : .berlin ≤ fork)

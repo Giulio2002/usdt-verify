@@ -898,7 +898,7 @@ entry; `DESTS` = the 32 destinations).
   writing path fails (`setStorage` errors, an aborting state error), so no writing path succeeds;
   proving it needs, per writing path, the prefix up to its first SSTORE as a `HoareG` and a fault
   lemma for SSTORE without an account. The completeness theorems keep `hstatic` and `hacc` for the
-  same reason (per-path fault proofs at the first write).
+  same reason (per-path fault proofs at the first write). (Done in round 18, below, except when deprecated.)
 
 ### Round 17: a finite sequence of calls (Complete/Seq.lean)
 - `GoodCall C S S'`: an existential over fork, message, substate, gas, bound, runner, start
@@ -961,6 +961,32 @@ entry; `DESTS` = the 32 destinations).
 - Still assumed in a `Calls` sequence: the `Untouched` steps that are not a top-level message of
   `CODE` (transactions to other accounts, fees).
 
+### Round 18: no `hstatic`/`hacc` in the completeness theorems (UsdtVerify/Stuck.lean, the bad_* lemmas)
+- UsdtVerify/Stuck.lean (generic): `Stuck z` (running, and the step from `z` or from `z` with any
+  less gas fails or halts with an error); `not_ok_of_reaches`, `no_ok_stuck` (a run whose start,
+  with more gas, reaches a `Stuck` frame along `StepG` does not end with no error);
+  `sstoreStep_bad`, `sstore_stuck`, `sstoreStuckW` (SSTORE in a static frame, or at an address
+  with no account, is `Stuck`, any fork, any gas); `bad_of_not`, `hasAccount_readSlot_iff`.
+- Per path, the prefix up to the first SSTORE as a `HoareG` to `Stuck` (the existing blocks are
+  split into a `_pre` macro used by both): `PauseSpec.bad_pause`, `bad_unpause`,
+  `BlackListSpec.bad_add`, `bad_remove`, `IssueSpec.bad_issue`, `bad_redeem`,
+  `SetParamsSpec.bad_setParams`, `AddrWriteSpec.bad_transferOwnership`, `bad_deprecate`,
+  `DestroySpec.bad`, `ApproveSpec.bad_zero`, `bad_set`, `TransferOk.bad_transfer`,
+  `bad_allowF`, `bad_transferFrom` (with the blocks `*Bad` below them).
+- Every `ok_X` of a writing function (transfer, transferFrom, approve, the ten owner functions)
+  no longer takes `hstatic` or `hacc`; each conclusion now begins with `message.isStatic = false
+  ∧ hasAccount state C` (transferOwnership: in the `a ≠ 0` disjunct). `spec_feeGtF`,
+  `spec_balLow`, `allowStep`, `bodyFeeGtF`, `bodyBalLow` take `hgood : A ≠ MAX_UINT → not
+  static ∧ account` in place of `hstatic hacc` (with `A = MAX_UINT` nothing is written before
+  those INVALIDs).
+- `inv_X` (writing functions) and `inv_call` take neither; `inv_call_ns` takes `hacc` only when
+  deprecated; `inv_call_all`, `GoodCall`, `goodCall_process`, `process_step` take
+  `byte20 (slot 10) ≠ 0 → isStatic = false → hasAccount state C`.
+- Still assumed, by name: the account when deprecated (the forwarders: premise of `KeepsInv`;
+  destroyBlackFunds: `inv_tail_iff` needs it in the child's end state), and `hstatic`/`hkeep` of
+  deprecated destroyBlackFunds (`dep_destroy_complete`, whose first local write is after the
+  CALL).
+
 ## Open (not proved)
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
   transfer (round 12), approve, transferFrom, the ten owner functions (round 13), not deprecated
@@ -972,10 +998,8 @@ entry; `DESTS` = the 32 destinations).
   theorem for any gas and any runner (`dep_*_complete`), with or without an EIP-7702 delegation
   at the upgraded address (round 16). Named hypotheses that stay: for destroyBlackFunds,
   `hstatic` and `hkeep` (the contract keeps an account after a successful forwarded call).
-- Hypotheses the completeness theorems of the writing paths keep, by name: `hstatic` (frame not static; a static
-  SSTORE/LOG fails, but no spec of that failure is proved per path; for the invariant the static
-  case is done generically, round 17, `inv_static`), `hacc` (the contract has an account;
-  the write needs it), size < 2^256; Berlin ≤ fork < Glamsterdam only on the deprecated paths
+- Hypotheses the completeness theorems of the writing paths keep, by name: size < 2^256
+  (`hstatic` and `hacc` removed in round 18, except for deprecated destroyBlackFunds); Berlin ≤ fork < Glamsterdam only on the deprecated paths
   (round 17: the non-deprecated writing paths hold at Glamsterdam too).
 - Failed top-level calls and calls with value: done (round 18, `untouched_process_failed`,
   `process_value_fails`, `process_step`).

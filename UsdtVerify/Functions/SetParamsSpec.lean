@@ -227,6 +227,28 @@ theorem spec_setParams (hfork : .berlin ≤ fork)
   refine ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, ?_⟩
   rw [hss, hR3, hR4]
 
+/-- `setParams(b, m)` by the owner, with `b < 20` and `m < 50`, in a static frame or with no
+account for `C`: the run reaches the `SSTORE` of slot 3, which is `Stuck`. -/
+theorem bad_setParams (hfork : .berlin ≤ fork)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    (hsize : 4 ≤ message.data.size)
+    (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xc0324c77)
+    (hv : message.value = 0) (hown : callerWord message = ownerOf state message.currentTarget)
+    (hb : (wordArg message.data 0).toNat < 20) (hm : (wordArg message.data 1).toNat < 50)
+    {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
+    (hg : 5000 + slotCost c0 ≤ gas) :
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
+  refine Triple.seq (toBody hsize hsize' hsel hv (by omega)) ?_
+  step ownerOk hfork (mem_CHECKS (by decide)) (by simp) hc0 hown (by gas_ok)
+  at_pc 5881
+  step test1 (by simp) (by gas_ok)
+  step pass (Or.inl ⟨rfl, rfl⟩) (lt_ne (by simpa using hb)) (by simp) (by gas_ok)
+  step test2 (by simp) (by gas_ok)
+  step pass (Or.inr ⟨rfl, rfl⟩) (lt_ne (by simpa using hm)) (by simp) (by gas_ok)
+  refine write3Bad (state := readSlot state message.currentTarget 0) ?_ hbad ?_
+  · simp
+  · gas_ok
+
 /-- After `setParams(b, m)`: slot 3 is `b`, slot 4 is `m * 10^d`, every other slot is unchanged.
 With `b < 20` and `m < 50` from the `require`s. -/
 theorem params_effects (hacc : hasAccount state message.currentTarget) :

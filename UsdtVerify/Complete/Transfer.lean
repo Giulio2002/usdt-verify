@@ -18,9 +18,11 @@ Each other case is excluded by a specification over `StepG` that ends with an er
 reverts (`spec_paused`, `spec_blacklisted`, `spec_short`) and the INVALID paths (`spec_mulOv`,
 `spec_feeGt`, `spec_low`, `spec_toOv`, `spec_ownerOv`).
 
-Hypotheses beyond the call: Berlin ≤ fork (Glamsterdam included), the frame is not static, and the
-contract has an account (the writes of the success paths and of the INVALID paths after a write
-need them).
+Hypotheses beyond the call: Berlin ≤ fork (Glamsterdam included). A static frame, or a contract
+with no account, is excluded once the checks up to `spec_low` pass: every remaining path reaches
+the SSTORE of the sender's balance, which is then `Gas.Stuck` (`TransferOk.bad_transfer`, with
+`Gas.no_ok_stuck`); so the conclusion states `message.isStatic = false` and an account of the
+contract.
 -/
 
 namespace UsdtVerify.Complete
@@ -40,9 +42,10 @@ theorem sendOf_zero {S : State.TransactionState} {v : U256} (h : feeOf S message
     sendOf S message v = v := by
   simp [sendOf, h, sub]
 
-/-- Every successful `transfer(a, v)` call, not deprecated, is the fee-0 or the fee path. -/
+/-- Every successful `transfer(a, v)` call, not deprecated, is the fee-0 or the fee path.
+The conclusion states that the frame is not static and the contract has an account: otherwise
+the SSTORE of the sender's balance is `Gas.Stuck` (`bad_transfer`). -/
 theorem ok_transfer (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xa9059cbb)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     {c0 cB c10 c3 c4 cS cT cO : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
@@ -65,6 +68,7 @@ theorem ok_transfer (hfork : .berlin ≤ fork)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     68 ≤ message.data.size ∧ byte20 (storageAt state message.currentTarget 0) = 0 ∧
       (storageAt state message.currentTarget (blackSlot message)).toNat % 256 = 0 ∧
       (wordArg message.data 1).toNat *
@@ -119,6 +123,10 @@ theorem ok_transfer (hfork : .berlin ≤ fork)
   · exact (no_ok (fun g hg => spec_low hfork hl hsize' hsel hv hp hb hdep hov hfv hlow hc0 hcB
       hc10 hc3 hc4 hcS hg) (fun _ e h => faulted_error e h) start within hrun hok).elim
   have hbal := Nat.le_of_not_lt hlow
+  by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
+  · exact (Gas.no_ok_stuck (fun g hg => bad_transfer hfork (Gas.bad_of_not hgood) hl hsize' hsel
+      hv hp hb hdep hov hfv hbal hc0 hcB hc10 hc3 hc4 hcS hg) start within hrun hok).elim
+  obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   by_cases hto : 2 ^ 256 ≤ (balT (shortState state message) message (wordArg message.data 1)
       (addrArg message.data 0)).toNat +
       (sendOf (shortState state message) message (wordArg message.data 1)).toNat
@@ -134,7 +142,7 @@ theorem ok_transfer (hfork : .berlin ≤ fork)
         hc0 hcB hc10 hc3 hc4 hcS hcT (le_l hg) (le_r hg))
       (fun _ e h => faulted_error e h) start within hrun hok).elim
   have hto := Nat.lt_of_not_le hto
-  refine ⟨hl, hp, hb, hov, hfv, hbal, hto, ?_⟩
+  refine ⟨hstatic, hacc, hl, hp, hb, hov, hfv, hbal, hto, ?_⟩
   by_cases hfee : feeOf (shortState state message) message (wordArg message.data 1) = 0
   · have hto' := hto
     rw [sendOf_zero hfee] at hto'

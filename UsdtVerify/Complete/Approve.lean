@@ -13,8 +13,10 @@ conclusion: call data of at least 68 bytes, and for `v ≠ 0` an allowance of 0.
 The other cases are excluded by the reverts `Approve.spec_payload` (call data shorter than 68
 bytes) and `Approve.spec_revert` (`v ≠ 0` over a nonzero allowance).
 
-Hypotheses beyond the call: Berlin ≤ fork (Glamsterdam included), the frame is not static (`hstatic`),
-and the contract has an account (`hacc`); the write of the success paths needs both.
+Hypotheses beyond the call: Berlin ≤ fork (Glamsterdam included). A static frame, or a contract
+with no account, is excluded: both success paths reach the SSTORE of the allowance, which is then
+`Gas.Stuck` (`Approve.bad_zero`, `Approve.bad_set`, with `Gas.no_ok_stuck`); so the conclusion
+states `message.isStatic = false` and an account of the contract.
 -/
 
 namespace UsdtVerify.Complete
@@ -30,9 +32,10 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
   {substate : Substate} {bound : Nat} {runChild : MessageRunner fork Nat bound}
   {evm s : Evm fork Nat} {gas : Nat}
 
-/-- Every successful `approve(s, v)` call, not deprecated, is the `v = 0` or the `v ≠ 0` path. -/
+/-- Every successful `approve(s, v)` call, not deprecated, is the `v = 0` or the `v ≠ 0` path.
+The conclusion states that the frame is not static and the contract has an account: otherwise
+the SSTORE of the allowance is `Gas.Stuck` (`bad_zero`, `bad_set`). -/
 theorem ok_approve (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x095ea7b3)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     {c10 cA : Bool} (hc10 : coldIn substate message.currentTarget 10 = c10)
@@ -42,6 +45,7 @@ theorem ok_approve (hfork : .berlin ≤ fork)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     68 ≤ message.data.size ∧ s.output = .empty ∧
       ((wordArg message.data 1 = 0 ∧
         s.gas = gas - (2560 + slotCost c10 + Gas.writeCost fork
@@ -77,19 +81,27 @@ theorem ok_approve (hfork : .berlin ≤ fork)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hl : 68 ≤ message.data.size := by omega
   by_cases hz : wordArg message.data 1 = 0
-  · obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_add_left _ _)
+  · by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
+    · exact (Gas.no_ok_stuck (fun g hg => bad_zero hfork (Gas.bad_of_not hgood) hl hsize' hsel hv
+        hdep hz hc10 hg) start within hrun hok).elim
+    obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
+    obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_add_left _ _)
       (B := (2997 + slotCost c10) + (2560 + slotCost c10 + Gas.writeCost fork
           (originalAt state message.currentTarget (allowArg message))
           (storageAt state message.currentTarget (allowArg message)) 0 cA))
       (fun g hg => spec_zero hfork hstatic hacc hl hsize' hsel hv hdep hz hc10 hcA
         (le_l hg) (le_r hg))
       start within hrun hok
-    exact ⟨hl, ho, .inl ⟨hz, hg, hst, hss⟩⟩
+    exact ⟨hstatic, hacc, hl, ho, .inl ⟨hz, hg, hst, hss⟩⟩
   by_cases ha : storageAt state message.currentTarget (allowArg message) ≠ 0
   · exact (no_ok (fun g hg => spec_revert hfork hl hsize' hsel hv hdep hz ha hc10 hcA hg)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have ha : storageAt state message.currentTarget (allowArg message) = 0 := by
     simpa using ha
+  by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
+  · exact (Gas.no_ok_stuck (fun g hg => bad_set hfork (Gas.bad_of_not hgood) hl hsize' hsel hv
+      hdep hz ha hc10 hcA hg) start within hrun hok).elim
+  obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_add_left _ _)
     (B := (3190 + slotCost c10 + slotCost cA) + (2753 + slotCost c10 + slotCost cA + Gas.writeCost fork
         (originalAt state message.currentTarget (allowArg message)) 0
@@ -97,6 +109,6 @@ theorem ok_approve (hfork : .berlin ≤ fork)
     (fun g hg => spec_set hfork hstatic hacc hl hsize' hsel hv hdep hz ha hc10 hcA
       (le_l hg) (le_r hg))
     start within hrun hok
-  exact ⟨hl, ho, .inr ⟨hz, ha, hg, hst, hss⟩⟩
+  exact ⟨hstatic, hacc, hl, ho, .inr ⟨hz, ha, hg, hst, hss⟩⟩
 
 end UsdtVerify.Complete

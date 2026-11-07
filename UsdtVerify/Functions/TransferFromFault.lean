@@ -294,11 +294,12 @@ theorem bodyAllowLow (hfork : .berlin ≤ fork) {v t f sel : U256} {M : ByteArra
 /-- From 8648, the allowance step passes (`A = MAX_UINT` or `v ≤ A`), the fee is at most `v`, and
 `balances[_from]` (read after the allowance step) is below `v`: INVALID at the debit's `sub`. -/
 theorem bodyBalLow (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {v t f sel : U256} {M : ByteArray} (hM : M.size = 96)
     (hov : v.toNat * (storageAt state message.currentTarget 3).toNat < 2 ^ 256)
     (hfv : (feeOf state message v).toNat ≤ v.toNat)
     (hallow : allowOf state message f = MAX_UINT ∨ v.toNat ≤ (allowOf state message f).toNat)
+    (hgood : allowOf state message f ≠ MAX_UINT →
+      message.isStatic = false ∧ hasAccount state message.currentTarget)
     (hlow : (balFrom state message v f).toNat < v.toNat)
     {cA c3 c4 cF : Bool}
     (hcA : coldIn substate message.currentTarget (allowFrom message f) = cA)
@@ -321,8 +322,10 @@ theorem bodyBalLow (hfork : .berlin ≤ fork)
         (readSlot (allowedF state message v f) message.currentTarget (recipientSlot f))
         (accessSlot (allowedSubF fork substate state message v f) message.currentTarget
           (recipientSlot f))) := by
-  have hacc3 : hasAccount (readsF state message f) message.currentTarget :=
-    hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc))
+  have hgood3 : allowOf state message f ≠ MAX_UINT →
+      message.isStatic = false ∧ hasAccount (readsF state message f) message.currentTarget :=
+    fun h => ⟨(hgood h).1,
+      hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot (hgood h).2))⟩
   simp only [allowCostF, rawFee, feeOf, allowOf, balFrom, allowedF, readsF, allowedSubF,
     accessF] at hstip hg hfv hlow hallow hcF ⊢
   step allowRead hfork (by simp) hcA (by gas_ok) hM
@@ -335,7 +338,7 @@ theorem bodyBalLow (hfork : .berlin ≤ fork)
   at_pc 8816
   step capBlock hfork (by simp) hc4 (by simp only [storageAt_readSlot]; gas_ok)
   simp only [storageAt_readSlot]
-  step allowStep hfork hstatic hacc3 (by simp) (by simp only [storageAt_readSlot]) hallow
+  step allowStep hfork (by simp) (by simp only [storageAt_readSlot]) hallow hgood3
     (coldIn_accessSlot_false (coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
     (by simp only [originalAt_readSlot]; gas_ok)
     (size_allowMem hM f)
@@ -507,15 +510,14 @@ theorem spec_allowLow (hfork : .berlin ≤ fork)
 
 /-- The specification of `transferFrom(f, t, v)` when `balances[f]` is below `v`.
 
-Hypotheses: Berlin ≤ fork (Glamsterdam included), not static, the contract has an account; the checks pass
-as in `spec_allowLow`; `v * rate < 2^256`; `fee ≤ v` (any fee); `A = MAX_UINT ∨ v ≤ A`;
-`balances[f] < v`, read after the allowance step (`balFrom`); more than 2300 gas left at the
+Hypotheses: Berlin ≤ fork (Glamsterdam included); the checks pass as in `spec_allowLow`;
+`v * rate < 2^256`; `fee ≤ v` (any fee); `A = MAX_UINT ∨ v ≤ A`; when `A ≠ MAX_UINT`, not static
+and the contract has an account (`hgood`; the allowance is then written); `balances[f] < v`, read after the allowance step (`balFrom`); more than 2300 gas left at the
 allowance's SSTORE when `A ≠ MAX_UINT` (`hstip`), and enough gas to reach the assert.
 
 Then INVALID at the debit's `sub`: no output, no gas left, in the state after the allowance step
 (`A - v` written unless `A = MAX_UINT`) and the read of `balances[f]` (the caller discards it). -/
 theorem spec_balLow (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 100 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x23b872dd) (hv : message.value = 0)
     (hnp : byte20 (storageAt state message.currentTarget 0) = 0)
@@ -527,6 +529,8 @@ theorem spec_balLow (hfork : .berlin ≤ fork)
       (valArg message).toNat)
     (hallow : allowOf (checkState state message) message (fromArg message) = MAX_UINT ∨
       (valArg message).toNat ≤ (allowOf (checkState state message) message (fromArg message)).toNat)
+    (hgood : allowOf (checkState state message) message (fromArg message) ≠ MAX_UINT →
+      message.isStatic = false ∧ hasAccount state message.currentTarget)
     (hlow : (balFrom (checkState state message) message (valArg message) (fromArg message)).toNat <
       (valArg message).toNat)
     {c0 cB c10 cA c3 c4 cF : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
@@ -565,9 +569,9 @@ theorem spec_balLow (hfork : .berlin ≤ fork)
           (recipientSlot (fromArg message)))) :=
   Triple.seq (preF hfork hlong hsz hsel hv hnp hnb hdep hc0 hcB hc10
       (Nat.le_trans (Nat.le_add_right _ _) hg))
-    (bodyBalLow hfork hstatic
-      (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
-      (size_mapMem size_MEM0 _ _) hov hfv hallow hlow hcA hc3 hc4 hcF
+    (bodyBalLow hfork (size_mapMem size_MEM0 _ _) hov hfv hallow
+      (fun h => ⟨(hgood h).1,
+      hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot (hgood h).2))⟩) hlow hcA hc3 hc4 hcF
       (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hstip))
       (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hg)))
 
@@ -758,8 +762,8 @@ theorem runFrame_balLow (hfork : .berlin ≤ fork)
           (accessSlot (allowedSubF fork (checkSub substate message) (checkState state message)
             message (valArg message) (fromArg message)) message.currentTarget
             (recipientSlot (fromArg message))) stopped :=
-  (spec_balLow hfork hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hfv hallow hlow hc0 hcB
-    hc10 hcA hc3 hc4 hcF hstip hg).runFrame start within
+  (spec_balLow hfork hlong hsz hsel hv hnp hnb hdep hov hfv hallow (fun _ => ⟨hstatic, hacc⟩) hlow
+    hc0 hcB hc10 hcA hc3 hc4 hcF hstip hg).runFrame start within
 
 /-- The loop of the interpreter runs the case of `spec_mulOv` to its end condition. It holds for
 every bound on the gas of messages and every runner of messages. -/

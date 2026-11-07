@@ -189,7 +189,8 @@ theorem body (hfork : .berlin ≤ fork)
   step Gas.reshapeG (s' := (0x60 : U256) :: 0 :: 0 ::
       storageAt state message.currentTarget (allowFrom message f) :: v :: t :: f ::
       [0x1097, v, t, f, 0x0392, sel]) (by rw [hfee]) rfl rfl
-  step allowStep hfork hstatic hacc3 (by simp) (by simp only [storageAt_readSlot]) hallow
+  step allowStep hfork (by simp) (by simp only [storageAt_readSlot]) hallow
+    (fun _ => ⟨hstatic, hacc3⟩)
     (coldIn_accessSlot_false (coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
     (by simp only [originalAt_readSlot]; gas_ok)
     (size_allowMem hM f)

@@ -331,9 +331,10 @@ success path that writes is reached by `Steps` (`reach_*`), and `steps_inv` keep
 finite sequence of steps; read-only paths only record reads (`inv_readSlot`, `inv_rdSt`).
 destroyBlackFunds keeps `Inv`: under `Inv`, `d ≤ _totalSupply`, so its unchecked subtraction does
 not wrap (`destroy_inv`).
-Every successful call, not deprecated: `Complete.inv_call`. Deprecated or not:
-`Complete.inv_call_ns` (Complete/DepInvAll.lean, not static; when deprecated, under the named
-assumptions `KeepsInv` on the runner and `HonestBalance` for destroyBlackFunds; the upgraded code
+Every successful call, not deprecated, static or not, with or without an account:
+`Complete.inv_call`. Deprecated or not: `Complete.inv_call_ns` (Complete/DepInvAll.lean, not
+static; when deprecated, under an account of the contract and the named assumptions `KeepsInv`
+on the runner and `HonestBalance` for destroyBlackFunds; the upgraded code
 may be an EIP-7702 delegation). Static or not: `Complete.inv_call_all` (Complete/Static.lean; a
 static frame keeps the state, EthLib's `staticStep_runFrame`, under the named runner assumption
 `StaticKeeps`, proved for the interpreter's runner from Paris by `staticKeeps_process`). Along a
@@ -359,7 +360,7 @@ are steps of `Gas.StepG`, from frames whose instruction is `Gas.RunMono`).
 See docs/STATUS.md ("Open").
 
 ## Completeness per function — `totalSupply_complete`, `balanceOf_complete`, `transfer_complete`
-Not deprecated, Berlin on (transfer: not static, the contract has an account): every run of the loop that ends with no error, for any gas, is the success path of the
+Not deprecated, Berlin on: every run of the loop that ends with no error, for any gas, is the success path of the
 specification, with the exact output, gas, state and substate. For transfer, the conclusion
 also lists every check the run passed, and the end is the fee-0 path or the fee path.
 
@@ -371,9 +372,12 @@ functions `pause_complete`, `unpause_complete`, `addBlackList_complete`,
 INVALID spec `SetParamsSpec.spec_mulOv` excludes the overflow of `m * 10^d`),
 `deprecate_complete`, `transferOwnership_complete`, `destroyBlackFunds_complete` (not
 deprecated). Each conclusion states that the caller is the owner and the `require`s passed.
-Hypotheses of each: Berlin ≤ fork (Glamsterdam included), `hstatic` (not static), `hacc` (the contract
-has an account), size < 2^256, the selector, the coldness flags as named in the specs, and
-`hdep` (not deprecated) for approve, transferFrom and destroyBlackFunds.
+Hypotheses of each: Berlin ≤ fork (Glamsterdam included), size < 2^256, the selector, the
+coldness flags as named in the specs, and `hdep` (not deprecated) for approve, transferFrom and
+destroyBlackFunds. A static frame or a contract with no account needs no hypothesis: each writing
+path reaches an SSTORE that is then `Gas.Stuck` (Stuck.lean, the `bad_*` lemmas), so no such run
+ends with no error (`Gas.no_ok_stuck`), and each of these conclusions (for transferOwnership, its
+`a ≠ 0` case) states `message.isStatic = false` and an account of the contract.
 
 Getters (round 13): `decimals_complete`, `maximumFee_complete`, `totalSupplyVar_complete`,
 `basisPointsRate_complete`, `deprecated_complete`, `paused_complete`, `upgradedAddress_complete`,

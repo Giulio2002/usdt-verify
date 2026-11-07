@@ -21,8 +21,9 @@ static child message with a state that differs from its caller's only by reads.
 - `inv_static`: so `Inv C` holds at the end of such a run when it holds at the start.
 - `inv_call_all`: the invariant over every successful call, static or not. In a static frame it
   is `inv_static`, with the hypotheses `message.code = CODE`, `StaticCode` and `StaticKeeps`; in
-  a frame that is not static it is `inv_call_ns` (Complete/DepInvAll.lean), with `hacc` (the
-  contract has an account) and the deprecated-path assumptions. The hypothesis "not static" of
+  a frame that is not static it is `inv_call_ns` (Complete/DepInvAll.lean), with the
+  deprecated-path assumptions, among them `hacc` (when deprecated and not static, the contract
+  has an account). The hypothesis "not static" of
   `inv_call_ns` is gone.
 -/
 
@@ -101,15 +102,16 @@ CALL rules being pre-Glamsterdam), a fresh frame of `CODE` at pc 0 with any call
 string slots 7 and 8 of `StrForm`, and:
 - when the frame is static (`hstat`): the code of the message is `CODE`, it runs at an account
   that holds code (`StaticCode`), and the runner meets `StaticKeeps`;
-- when it is not static (`hacc`): the contract has an account;
 - when deprecated (byte 20 of slot 10 not 0): the runner meets `KeepsInv` (`hkeeps`), and for
-  destroyBlackFunds `HonestBalance` (`hhonest`).
+  destroyBlackFunds `HonestBalance` (`hhonest`); and when deprecated and not static (`hacc`): the
+  contract has an account.
 If `Inv C state` holds and the interpreter loop ends with no error, then `Inv C s.state` holds. -/
 theorem inv_call_all (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hglam : byte20 (storageAt state message.currentTarget 10) ≠ 0 → fork < .glamsterdam)
     (hstat : message.isStatic = true →
       message.code = CODE ∧ StaticCode state message ∧ StaticKeeps runChild)
-    (hacc : message.isStatic = false → hasAccount state message.currentTarget)
+    (hacc : byte20 (storageAt state message.currentTarget 10) ≠ 0 → message.isStatic = false →
+      hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256)
     (h7 : StrForm (storageAt state message.currentTarget 7))
     (h8 : StrForm (storageAt state message.currentTarget 8))
@@ -123,7 +125,7 @@ theorem inv_call_all (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   cases hs : message.isStatic
-  · exact inv_call_ns K hfork hglam hs (hacc hs) hsize' h7 h8 hkeeps hhonest hI start within hrun
+  · exact inv_call_ns K hfork hglam hs (fun h => hacc h hs) hsize' h7 h8 hkeeps hhonest hI start within hrun
       hok
   · obtain ⟨hmc, hhold, hkeep⟩ := hstat hs
     exact inv_static hs hmc hhold hkeep hI start within hrun

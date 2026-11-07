@@ -30,6 +30,41 @@ abbrev listSlot (a : U256) : U256 := mapSlot (mkey a) 6
 
 theorem exp0 : exp (0x0100 : U256) (0 : U256) = 1 := by decide +kernel
 
+-- The writes of `isBlackListed[a]`, from the `JUMPDEST` to the `SSTORE`.
+set_option hygiene false in
+macro "list_pre" : tactic => `(tactic| (
+  step jumpdestR
+  step Gas.pushG (n := 1) (word := v) (by decide) (by code_fact) (by code_fact)
+    (decode_push 1 (by decide)) (by rw [hv, pushData_CODE]; decide) (by gas_ok) (by stk_ok)
+  step pushR 1 (0x06 : U256)
+  step pushR 1 (0 : U256)
+  step dupR 3
+  step hashTail7 (by decide) (by simp; omega) hM (by gas_ok)
+  step pushR 1 (0 : U256)
+  step pushR 2 (0x0100 : U256)
+  step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
+  rw [exp0]
+  step dupR 1
+  step Gas.sloadG hfork (cold := cB) (by code_fact) (by code_fact) hcB (by gas_ok)
+  rw [show state.getStorage message.currentTarget (U256.toBeBytes (mapSlot (mkey a) 6)) =
+    storageAt state message.currentTarget (mapSlot (mkey a) 6) from rfl]
+  step dupR 1
+  step pushR 1 (0xff : U256)
+  step binR 0x02 Local.instruction_mul
+  rw [hff]
+  step unR 0x19 Local.instruction_not
+  step binR 0x16 Local.instruction_and
+  step swapR 0
+  norm
+  step dupR 3
+  step unR 0x15 instruction_iszero
+  step unR 0x15 instruction_iszero
+  step binR 0x02 Local.instruction_mul
+  rw [hv']
+  step binR 0x17 Local.instruction_or
+  step swapR 0
+  norm))
+
 /-- At 3375 / 7379: the code writes `isBlackListed[a]` with its low byte set to `v`. -/
 theorem listWrite (hfork : .berlin ≤ fork) {p : Nat} {v : U256}
     (hp : (p = 3375 ∧ v = 1) ∨ (p = 7379 ∧ v = 0)) {a : U256} {rest : List U256}
@@ -61,43 +96,32 @@ theorem listWrite (hfork : .berlin ≤ fork) {p : Nat} {v : U256}
   simp only [listSlot] at hcB hg ⊢
   rcases hp with ⟨rfl, hv⟩ | ⟨rfl, hv⟩
   all_goals
-    step jumpdestR
-    step Gas.pushG (n := 1) (word := v) (by decide) (by code_fact) (by code_fact)
-      (decode_push 1 (by decide)) (by rw [hv, pushData_CODE]; decide) (by gas_ok) (by stk_ok)
-    step pushR 1 (0x06 : U256)
-    step pushR 1 (0 : U256)
-    step dupR 3
-    step hashTail7 (by decide) (by simp; omega) hM (by gas_ok)
-    step pushR 1 (0 : U256)
-    step pushR 2 (0x0100 : U256)
-    step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
-    rw [exp0]
-    step dupR 1
-    step Gas.sloadG hfork (cold := cB) (by code_fact) (by code_fact) hcB (by gas_ok)
-    rw [show state.getStorage message.currentTarget (U256.toBeBytes (mapSlot (mkey a) 6)) =
-      storageAt state message.currentTarget (mapSlot (mkey a) 6) from rfl]
-    step dupR 1
-    step pushR 1 (0xff : U256)
-    step binR 0x02 Local.instruction_mul
-    rw [hff]
-    step unR 0x19 Local.instruction_not
-    step binR 0x16 Local.instruction_and
-    step swapR 0
-    norm
-    step dupR 3
-    step unR 0x15 instruction_iszero
-    step unR 0x15 instruction_iszero
-    step binR 0x02 Local.instruction_mul
-    rw [hv']
-    step binR 0x17 Local.instruction_or
-    step swapR 0
-    norm
+    list_pre
     step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
       (coldIn_accessSlot_self _ _ _) (by gas_ok)
       (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
     rw [originalAt_readSlot, storageAt_readSlot, writeSlot_readSlot _ _ hacc]
     step popR
     exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
+
+/-- At 3375 / 7379, in a static frame or with no account for `C`: the run reaches the `SSTORE`
+of `isBlackListed[a]`, which is `Stuck`. -/
+theorem listWriteBad (hfork : .berlin ≤ fork) {p : Nat} {v : U256}
+    (hp : (p = 3375 ∧ v = 1) ∨ (p = 7379 ∧ v = 0)) {a : U256} {rest : List U256}
+    (hrest : rest.length ≤ 16)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget) {cB : Bool}
+    (hcB : coldIn substate message.currentTarget (listSlot a) = cB) {M : ByteArray}
+    (hM : M.size = 96) {gas : Nat} (hg : 158 + slotCost cB ≤ gas) :
+    Gas.HoareG fork (At CODE message p (a :: rest) M gas state substate) Gas.Stuck := by
+  have hexp : exponentBytes (0 : U256) = 0 := by decide
+  have hff : mul (0xff : U256) 1 = 0xff := by decide
+  have hv' : mul (isZero (isZero v)) 1 = v := by
+    rcases hp with ⟨-, rfl⟩ | ⟨-, rfl⟩ <;> decide
+  simp only [listSlot] at hcB
+  rcases hp with ⟨rfl, hv⟩ | ⟨rfl, hv⟩
+  all_goals
+    list_pre
+    exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
 
 /-- The topic of `AddedBlackList(address)`. -/
 abbrev ADDED_TOPIC : U256 :=

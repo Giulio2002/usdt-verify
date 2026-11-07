@@ -117,6 +117,28 @@ theorem spec_transferOwnership (hfork : .berlin ≤ fork)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
+/-- `transferOwnership(a)` by the owner with `a ≠ 0`, in a static frame or with no account for
+`C`: the run reaches the `SSTORE` of slot 0, which is `Stuck`. -/
+theorem bad_transferOwnership (hfork : .berlin ≤ fork)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    (hsize : 4 ≤ message.data.size)
+    (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf2fde38b)
+    (hv : message.value = 0) (hown : callerWord message = ownerOf state message.currentTarget)
+    (hnz : addrArg message.data 0 ≠ 0)
+    {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
+    (hg : 5000 + slotCost c0 ≤ gas) :
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
+  refine Triple.seq (toBody1 (e := 2374) (r := 0x097d) (b := 7605) (t := 31) (by decide)
+    (by decide) (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
+  step ownerOk hfork (mem_CHECKS (by decide)) (by simp) hc0 hown (by gas_ok)
+  at_pc 7696
+  step ownTest (by simp) (by gas_ok)
+  step ownGo (by rw [addrArg, mask_mask, ← addrArg]; exact hnz) (by simp) (by gas_ok)
+  refine addrTailBad (state := readSlot state message.currentTarget 0) hfork (Or.inr rfl) ?_ hbad
+    (coldIn_accessSlot_self _ _ _) ?_
+  · simp
+  · gas_ok
+
 /-- After `transferOwnership(a)` with `a ≠ 0`: the owner is `a`, `paused` is kept, every other
 slot is unchanged. -/
 theorem transferOwnership_effects (hacc : hasAccount state message.currentTarget) :
@@ -211,6 +233,25 @@ theorem spec_deprecate (hfork : .berlin ≤ fork)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   refine ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, ?_⟩
   rw [hss, mkey_addrArg0]
+
+/-- `deprecate(a)` by the owner, in a static frame or with no account for `C`: the run reaches
+the `SSTORE` of slot 10, which is `Stuck`. -/
+theorem bad_deprecate (hfork : .berlin ≤ fork)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    (hsize : 4 ≤ message.data.size)
+    (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x0753c30c)
+    (hv : message.value = 0) (hown : callerWord message = ownerOf state message.currentTarget)
+    {c0 c10 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
+    (hc10 : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget 10 = c10)
+    {gas : Nat} (hg : 5000 + slotCost c0 + slotCost c10 ≤ gas) :
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
+  refine Triple.seq (toBody1 (e := 553) (r := 0x0260) (b := 2646) (t := 2) (by decide) (by decide)
+    (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
+  step ownerOk hfork (mem_CHECKS (by decide)) (by simp) hc0 hown (by gas_ok)
+  at_pc 2737
+  refine depFlagBad (state := readSlot state message.currentTarget 0) hfork ?_ hbad hc10 ?_
+  · simp
+  · gas_ok
 
 /-- After `deprecate(a)`: byte 20 of slot 10 (`deprecated`) is 1, its low 160 bits
 (`upgradedAddress`) are `a`, and every other slot is unchanged. -/

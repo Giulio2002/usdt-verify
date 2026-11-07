@@ -30,9 +30,16 @@ on the runner. Named assumptions:
   the data `balanceOf(a)` (`dataB message`) with no error, the word the call writes at 0x60 is
   `balances[a]` in the child's end state.
 
-`inv_call_ns`: `Complete.inv_call` without `hdep`: under `KeccakSep`, not static, an account,
-`StrForm` of slots 7 and 8, `Inv` at the start, and, when deprecated,
+`inv_call_ns`: `Complete.inv_call` without `hdep`: under `KeccakSep`, not static, `StrForm` of
+slots 7 and 8, `Inv` at the start, and, when deprecated, an account of the contract (`hacc`),
 `KeepsInv` and (for destroyBlackFunds) `HonestBalance`, every successful call ends with `Inv`.
+When not deprecated no account is assumed (`inv_call`: each writing path that succeeds had one).
+When deprecated the account is used only by the forwarding functions and destroyBlackFunds: the
+premise of `KeepsInv` asks for an account of `C` in the caller state of the CALL (`LocalForward`
+carries it there from the start state), and destroyBlackFunds needs the account in the child's
+end state (from `KeepsInv`) for `DepInv.inv_tail_iff`. Nothing here shows that a successful
+deprecated forward implies an account (the code writes nothing locally before or after the CALL),
+so it stays a hypothesis, only when deprecated.
 No hypothesis on the code of the upgraded address: when it is an EIP-7702 delegation, the message
 still has `ua` as its current target (it runs the delegate's code), so both assumptions apply to
 it as stated.
@@ -303,14 +310,16 @@ theorem inv_dep_destroy (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork
 
 `inv_call` with `hdep` replaced by what the deprecated paths need. From Berlin to before
 Glamsterdam, a fresh frame of `CODE` at pc 0 with any call data below 2^256 bytes, any value, any
-gas, any gas bound and any message runner. Under `KeccakSep`, a frame that is not static, of a
-contract with an account, with string slots 7 and 8 of `StrForm`, and, when deprecated (byte 20
-of slot 10 not 0): the runner meets `KeepsInv` (`hkeeps`), and for destroyBlackFunds it meets
-`HonestBalance` (`hhonest`). If `Inv C state` holds and the interpreter loop ends with no error,
+gas, any gas bound and any message runner. Under `KeccakSep`, a frame that is not static, with
+string slots 7 and 8 of `StrForm`, and, when deprecated (byte 20 of slot 10 not 0): the contract
+has an account (`hacc`), the runner meets `KeepsInv` (`hkeeps`), and for destroyBlackFunds it
+meets `HonestBalance` (`hhonest`). If `Inv C state` holds and the interpreter loop ends with no error,
 then `Inv C s.state` holds. -/
 theorem inv_call_ns (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hglam : byte20 (storageAt state message.currentTarget 10) ≠ 0 → fork < .glamsterdam)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
+    (hstatic : message.isStatic = false)
+    (hacc : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256)
     (h7 : StrForm (storageAt state message.currentTarget 7))
     (h8 : StrForm (storageAt state message.currentTarget 8))
@@ -324,16 +333,17 @@ theorem inv_call_ns (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   by_cases hdep : byte20 (storageAt state message.currentTarget 10) = 0
-  · exact inv_call K hfork hstatic hacc hsize' hdep h7 h8 hI start within hrun hok
+  · exact inv_call K hfork hsize' hdep h7 h8 hI start within hrun hok
   have hk := hkeeps hdep
+  have hacc := hacc hdep
   have hglam := hglam hdep
   obtain ⟨_, -, i, hi⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
   match i, hi with
   | ⟨0, _⟩, hi => exact inv_name hfork hsize' (hi.trans rfl) h7 hI start within hrun hok
-  | ⟨1, _⟩, hi => exact inv_deprecate K hfork hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨1, _⟩, hi => exact inv_deprecate K hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨2, _⟩, hi => exact inv_of_local hk hacc hI (dep_approve_local hfork hglam hsize' (hi.trans rfl) hdep start within hrun hok)
   | ⟨3, _⟩, hi => exact inv_deprecated hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨4, _⟩, hi => exact inv_addBlackList K hfork hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨4, _⟩, hi => exact inv_addBlackList K hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨5, _⟩, hi => exact inv_of_local hk hacc hI (dep_totalSupply_local hfork hglam hsize' (hi.trans rfl) hdep start within hrun hok)
   | ⟨6, _⟩, hi => exact inv_of_local hk hacc hI (dep_transferFrom_local hfork hglam hsize' (hi.trans rfl) hdep start within hrun hok)
   | ⟨7, _⟩, hi => exact inv_upgradedAddress hfork hsize' (hi.trans rfl) hI start within hrun hok
@@ -341,25 +351,25 @@ theorem inv_call_ns (K : KeccakSep) (hfork : .berlin ≤ fork)
   | ⟨9, _⟩, hi => exact inv_decimals hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨10, _⟩, hi => exact inv_maximumFee hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨11, _⟩, hi => exact inv_totalSupplyVar hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨12, _⟩, hi => exact inv_unpause K hfork hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨12, _⟩, hi => exact inv_unpause K hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨13, _⟩, hi => exact inv_getBlackListStatus hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨14, _⟩, hi => exact inv_allowed hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨15, _⟩, hi => exact inv_paused hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨16, _⟩, hi => exact inv_of_local hk hacc hI (dep_balanceOf_local hfork hglam hsize' (hi.trans rfl) hdep start within hrun hok)
-  | ⟨17, _⟩, hi => exact inv_pause K hfork hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨17, _⟩, hi => exact inv_pause K hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨18, _⟩, hi => exact inv_getOwner hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨19, _⟩, hi => exact inv_owner hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨20, _⟩, hi => exact inv_symbol hfork hsize' (hi.trans rfl) h8 hI start within hrun hok
   | ⟨21, _⟩, hi => exact inv_of_local hk hacc hI (dep_transfer_local hfork hglam hsize' (hi.trans rfl) hdep start within hrun hok)
-  | ⟨22, _⟩, hi => exact inv_setParams K hfork hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨23, _⟩, hi => exact inv_issue K hfork hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨24, _⟩, hi => exact inv_redeem K hfork hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨22, _⟩, hi => exact inv_setParams K hfork hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨23, _⟩, hi => exact inv_issue K hfork hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨24, _⟩, hi => exact inv_redeem K hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨25, _⟩, hi => exact inv_of_local hk hacc hI (dep_allowance_local hfork hglam hsize' (hi.trans rfl) hdep start within hrun hok)
   | ⟨26, _⟩, hi => exact inv_basisPointsRate hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨27, _⟩, hi => exact inv_isBlackListed hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨28, _⟩, hi => exact inv_removeBlackList K hfork hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨28, _⟩, hi => exact inv_removeBlackList K hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨29, _⟩, hi => exact inv_maxUint hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨30, _⟩, hi => exact inv_transferOwnership K hfork hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨30, _⟩, hi => exact inv_transferOwnership K hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨31, _⟩, hi => exact inv_dep_destroy K hfork hglam hstatic hsize' (hi.trans rfl) hdep hk (hhonest hdep (hi.trans rfl)) hacc hI start within hrun hok
   | ⟨n + 32, h⟩, _ => exact absurd h (by omega)
 

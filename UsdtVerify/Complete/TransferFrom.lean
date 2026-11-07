@@ -20,8 +20,13 @@ Each other case is excluded by a specification over `StepG` that ends with an er
 reverts (`spec_paused`, `spec_blacklisted`, `spec_short`) and the INVALID paths (`spec_mulOv`,
 `spec_allowLow`, `spec_feeGtF`, `spec_balLow`, `spec_toOvF`, `spec_ownerOvF`).
 
-Hypotheses beyond the call: Berlin ≤ fork (Glamsterdam included), the frame is not static (`hstatic`),
-and the contract has an account (`hacc`).
+Hypotheses beyond the call: Berlin ≤ fork (Glamsterdam included). A static frame, or a contract
+with no account, is excluded by `Gas.no_ok_stuck`: with an allowance `A ≠ MAX_UINT` (and
+`v ≤ A`) the SSTORE of the allowance is `Gas.Stuck` (`bad_allowF`); with `A = MAX_UINT` nothing
+is written there, the INVALIDs of `spec_feeGtF` and `spec_balLow` are excluded as before (their
+hypothesis `hgood` asks for a non-static frame and an account only when `A ≠ MAX_UINT`), and the
+SSTORE of `balances[f]` is `Gas.Stuck` (`bad_transferFrom`). So the conclusion states
+`message.isStatic = false` and an account of the contract.
 -/
 
 namespace UsdtVerify.Complete
@@ -38,9 +43,10 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
   {evm s : Evm fork Nat} {gas : Nat}
 
 /-- Every successful `transferFrom(f, t, v)` call, not deprecated, is the fee-0 or the fee
-path. -/
+path. The conclusion states that the frame is not static and the contract has an account:
+otherwise the first SSTORE of the path (of the allowance, or of `balances[f]` when the allowance
+is `MAX_UINT`) is `Gas.Stuck` (`bad_allowF`, `bad_transferFrom`). -/
 theorem ok_transferFrom (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x23b872dd)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     {c0 cB c10 cA c3 c4 cF cT cO : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
@@ -68,6 +74,7 @@ theorem ok_transferFrom (hfork : .berlin ≤ fork)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     100 ≤ message.data.size ∧ byte20 (storageAt state message.currentTarget 0) = 0 ∧
       (storageAt state message.currentTarget (blackFrom (fromArg message))).toNat % 256 = 0 ∧
       (valArg message).toNat *
@@ -126,18 +133,33 @@ theorem ok_transferFrom (hfork : .berlin ≤ fork)
       (valArg message).toNat ≤
         (allowOf (checkState state message) message (fromArg message)).toNat :=
     .inr (Nat.le_of_not_lt hlt)
+  by_cases hA : allowOf (checkState state message) message (fromArg message) ≠ MAX_UINT ∧
+      ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
+  · exact (Gas.no_ok_stuck (fun g hg => bad_allowF hfork (Gas.bad_of_not hA.2) hl hsize' hsel hv
+      hp hb hdep hov hA.1 (Nat.le_of_not_lt hlt) hc0 hcB hc10 hcA hc3 hc4 hg) start within hrun
+      hok).elim
+  have hw : allowOf (checkState state message) message (fromArg message) ≠ MAX_UINT →
+      message.isStatic = false ∧ hasAccount state message.currentTarget :=
+    fun h => Classical.not_not.mp fun h' => hA ⟨h, h'⟩
   by_cases hgt : (valArg message).toNat <
       (feeOf (checkState state message) message (valArg message)).toNat
-  · exact (no_ok (fun g hg => spec_feeGtF hfork hstatic hacc hl hsize' hsel hv hp hb hdep
-      hov hallow hgt hc0 hcB hc10 hcA hc3 hc4 hg)
+  · exact (no_ok (fun g hg => spec_feeGtF hfork hl hsize' hsel hv hp hb hdep
+      hov hallow hw hgt hc0 hcB hc10 hcA hc3 hc4 hg)
       (fun _ e h => faulted_error e h) start within hrun hok).elim
   have hfv := Nat.le_of_not_lt hgt
   by_cases hlow : (balFrom (checkState state message) message (valArg message)
       (fromArg message)).toNat < (valArg message).toNat
-  · exact (no_ok2 (fun g h1 h2 => spec_balLow hfork hstatic hacc hl hsize' hsel hv hp hb
-      hdep hov hfv hallow hlow hc0 hcB hc10 hcA hc3 hc4 hcF h1 h2)
+  · exact (no_ok2 (fun g h1 h2 => spec_balLow hfork hl hsize' hsel hv hp hb
+      hdep hov hfv hallow hw hlow hc0 hcB hc10 hcA hc3 hc4 hcF h1 h2)
       (fun _ e h => faulted_error e h) start within hrun hok).elim
   have hbal := Nat.le_of_not_lt hlow
+  by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
+  · have hmax : allowOf (checkState state message) message (fromArg message) = MAX_UINT :=
+      Classical.byContradiction fun h => hgood (hw h)
+    exact (Gas.no_ok_stuck (fun g hg => bad_transferFrom hfork (Gas.bad_of_not hgood) hl hsize'
+      hsel hv hp hb hdep hov hfv hmax hbal hc0 hcB hc10 hcA hc3 hc4 hcF hg) start within hrun
+      hok).elim
+  obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   by_cases hto : 2 ^ 256 ≤ (balTo (checkState state message) message (valArg message)
       (toArg message) (fromArg message)).toNat +
       (sendOf (checkState state message) message (valArg message)).toNat
@@ -145,7 +167,7 @@ theorem ok_transferFrom (hfork : .berlin ≤ fork)
       hdep hov hallow hfv hbal hto hc0 hcB hc10 hcA hc3 hc4 hcF hcT h1 h2)
       (fun _ e h => faulted_error e h) start within hrun hok).elim
   have hto := Nat.lt_of_not_le hto
-  refine ⟨hl, hp, hb, hov, hallow, hfv, hbal, hto, ?_⟩
+  refine ⟨hstatic, hacc, hl, hp, hb, hov, hallow, hfv, hbal, hto, ?_⟩
   by_cases hfee : feeOf (checkState state message) message (valArg message) = 0
   · have hto' := hto
     rw [sendOf_zero hfee] at hto'

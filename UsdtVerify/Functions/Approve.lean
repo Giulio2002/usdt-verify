@@ -224,6 +224,26 @@ theorem checkNonzero (hfork : .berlin ≤ fork) {v s : U256} (hv0 : v ≠ 0) {re
     rw [h]; decide)
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
+-- At 8384, from the `JUMPDEST` to the `SSTORE` of the allowance.
+set_option hygiene false in
+macro "store_pre" : tactic => `(tactic| (
+  step jumpdestR
+  step dupR 1
+  step pushR 1 (0x05 : U256)
+  step pushR 1 (0 : U256)
+  step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  at_pc 8391
+  step hashTail (by decide) (by simp; omega) hM (by gas_ok)
+  at_pc 8449
+  step pushR 1 (0 : U256)
+  step dupR 5
+  at_pc 8452
+  step hashTail (by decide) (by simp; omega) (size_mapMem hM _ _) (by gas_ok)
+  at_pc 8510
+  step dupR 1
+  step swapR 0
+  norm))
+
 /-- At 8384, the code writes `_value` to `allowed[msg.sender][_spender]`. -/
 theorem store (hfork : .berlin ≤ fork) {v s : U256}
     {rest : List U256} (hrest : rest.length ≤ 800) (hstatic : message.isStatic = false)
@@ -244,25 +264,20 @@ theorem store (hfork : .berlin ≤ fork) {v s : U256}
           (originalAt state message.currentTarget (allowSlot message s))
           (storageAt state message.currentTarget (allowSlot message s)) v)) := by
   simp only [allowSlot, mkey] at hcA hg ⊢
-  step jumpdestR
-  step dupR 1
-  step pushR 1 (0x05 : U256)
-  step pushR 1 (0 : U256)
-  step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
-  at_pc 8391
-  step hashTail (by decide) (by simp; omega) hM (by gas_ok)
-  at_pc 8449
-  step pushR 1 (0 : U256)
-  step dupR 5
-  at_pc 8452
-  step hashTail (by decide) (by simp; omega) (size_mapMem hM _ _) (by gas_ok)
-  at_pc 8510
-  step dupR 1
-  step swapR 0
-  norm
+  store_pre
   step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic hacc hcA (by gas_ok) (by gas_ok)
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
+
+/-- At 8384, in a static frame or with no account for `C`: the run reaches the `SSTORE` of the
+allowance, which is `Stuck`. -/
+theorem storeBad {v s : U256} {rest : List U256} (hrest : rest.length ≤ 800)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget) {gas : Nat}
+    (hg : 194 ≤ gas) {M : ByteArray} (hM : M.size = 96) :
+    Gas.HoareG fork (At CODE message 8384 (0x40 :: v :: s :: rest) M gas state substate)
+      Gas.Stuck := by
+  store_pre
+  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
 
 /-- The topic of the event `Approval(address,address,uint256)`. -/
 abbrev APPROVAL_TOPIC : U256 :=

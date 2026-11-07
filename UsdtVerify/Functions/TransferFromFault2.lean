@@ -24,11 +24,12 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
 
 /-- From 8648, the allowance step passes and the fee is above `v`: INVALID at `sub(v, fee)`. -/
 theorem bodyFeeGtF (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {v t f sel : U256} {M : ByteArray} (hM : M.size = 96)
     (hov : v.toNat * (storageAt state message.currentTarget 3).toNat < 2 ^ 256)
     (hgt : v.toNat < (feeOf state message v).toNat)
     (hallow : allowOf state message f = MAX_UINT ∨ v.toNat ≤ (allowOf state message f).toNat)
+    (hgood : allowOf state message f ≠ MAX_UINT →
+      message.isStatic = false ∧ hasAccount state message.currentTarget)
     {cA c3 c4 : Bool}
     (hcA : coldIn substate message.currentTarget (allowFrom message f) = cA)
     (hc3 : coldIn (accessSlot substate message.currentTarget (allowFrom message f))
@@ -43,8 +44,10 @@ theorem bodyFeeGtF (hfork : .berlin ≤ fork)
         state substate)
       (Faulted (.invalidOpcode 0xfe) (allowedF state message v f)
         (allowedSubF fork substate state message v f)) := by
-  have hacc3 : hasAccount (readsF state message f) message.currentTarget :=
-    hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc))
+  have hgood3 : allowOf state message f ≠ MAX_UINT →
+      message.isStatic = false ∧ hasAccount (readsF state message f) message.currentTarget :=
+    fun h => ⟨(hgood h).1,
+      hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot (hgood h).2))⟩
   simp only [allowCostF, rawFee, feeOf, allowOf, allowedF, readsF, allowedSubF,
     accessF] at hstip hgt hallow ⊢
   step allowRead hfork (by simp) hcA (by gas_ok) hM
@@ -57,13 +60,113 @@ theorem bodyFeeGtF (hfork : .berlin ≤ fork)
   at_pc 8816
   step capBlock hfork (by simp) hc4 (by simp only [storageAt_readSlot]; gas_ok)
   simp only [storageAt_readSlot]
-  step allowStep hfork hstatic hacc3 (by simp) (by simp only [storageAt_readSlot]) hallow
+  step allowStep hfork (by simp) (by simp only [storageAt_readSlot]) hallow hgood3
     (coldIn_accessSlot_false (coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
     (by simp only [originalAt_readSlot]; gas_ok)
     (size_allowMem hM f)
   simp only [originalAt_readSlot]
   step sendCall (by simp) (by gas_ok)
   exact subFault (by simp) hgt (by gas_ok)
+
+/-- From 8648, with `v ≤ A < MAX_UINT` (`A` the allowance), in a static frame or with no account
+for `C`: the run reaches the `SSTORE` of the allowance, which is `Stuck`. -/
+theorem bodyAllowBad (hfork : .berlin ≤ fork)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    {v t f sel : U256} {M : ByteArray} (hM : M.size = 96)
+    (hov : v.toNat * (storageAt state message.currentTarget 3).toNat < 2 ^ 256)
+    (hmax : allowOf state message f ≠ MAX_UINT) (hle : v.toNat ≤ (allowOf state message f).toNat)
+    {cA c3 c4 : Bool}
+    (hcA : coldIn substate message.currentTarget (allowFrom message f) = cA)
+    (hc3 : coldIn (accessSlot substate message.currentTarget (allowFrom message f))
+      message.currentTarget 3 = c3)
+    (hc4 : coldIn (accessSlot (accessSlot substate message.currentTarget (allowFrom message f))
+      message.currentTarget 3) message.currentTarget 4 = c4)
+    {gas : Nat}
+    (hg : 2000 + slotCost cA + slotCost c3 + slotCost c4 + mulCost v +
+      capCost (rawFee state message v) (storageAt state message.currentTarget 4) ≤ gas) :
+    Gas.HoareG fork (At CODE message 8648 [0x60, 0, 0, 0, v, t, f, 0x1097, v, t, f, 0x0392, sel] M
+        gas state substate) Gas.Stuck := by
+  simp only [rawFee, allowOf] at hg hmax hle
+  step allowRead hfork (by simp) hcA (by gas_ok) hM
+  step feeCall hfork (by simp) hc3 (by gas_ok)
+  step mulBlock (by simp) (by valid_dest) (by simpa only [storageAt_readSlot] using hov)
+    (by gas_ok)
+  at_pc 8802
+  step divCall (by simp) (by gas_ok)
+  step divBlock (by simp) (by valid_dest) (by decide) (by gas_ok)
+  at_pc 8816
+  step capBlock hfork (by simp) hc4 (by simp only [storageAt_readSlot]; gas_ok)
+  simp only [storageAt_readSlot]
+  refine allowStepBad (state := readsF state message f) ?_ hbad hmax hle ?_ (size_allowMem hM f)
+  · simp
+  · gas_ok
+
+/-- From 8648, with the allowance `MAX_UINT` (nothing written), `fee ≤ v` and
+`v ≤ balances[_from]`, in a static frame or with no account for `C`: the run reaches the
+`SSTORE` of `balances[_from]`, which is `Stuck`. -/
+theorem bodyDebitBad (hfork : .berlin ≤ fork)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    {v t f sel : U256} {M : ByteArray} (hM : M.size = 96)
+    (hov : v.toNat * (storageAt state message.currentTarget 3).toNat < 2 ^ 256)
+    (hfv : (feeOf state message v).toNat ≤ v.toNat)
+    (hmax : allowOf state message f = MAX_UINT)
+    (hbal : v.toNat ≤ (balFrom state message v f).toNat)
+    {cA c3 c4 cF : Bool}
+    (hcA : coldIn substate message.currentTarget (allowFrom message f) = cA)
+    (hc3 : coldIn (accessSlot substate message.currentTarget (allowFrom message f))
+      message.currentTarget 3 = c3)
+    (hc4 : coldIn (accessSlot (accessSlot substate message.currentTarget (allowFrom message f))
+      message.currentTarget 3) message.currentTarget 4 = c4)
+    (hcF : coldIn (allowedSubF fork substate state message v f) message.currentTarget
+      (recipientSlot f) = cF)
+    {gas : Nat}
+    (hg : 4000 + slotCost cA + slotCost c3 + slotCost c4 + slotCost cF + mulCost v +
+      capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
+      allowCostF fork state message v f ≤ gas) :
+    Gas.HoareG fork (At CODE message 8648 [0x60, 0, 0, 0, v, t, f, 0x1097, v, t, f, 0x0392, sel] M
+        gas state substate) Gas.Stuck := by
+  have hbad' : message.isStatic = true ∨
+      ¬hasAccount (allowedF state message v f) message.currentTarget := by
+    have h : allowedF state message v f = readsF state message f := by
+      unfold allowedF allowState
+      split
+      · rfl
+      · contradiction
+    rw [h]; exact hbad
+  simp only [allowCostF, rawFee, feeOf, allowOf, balFrom, allowedF, readsF, allowedSubF,
+    accessF] at hg hfv hbal hmax hcF hbad'
+  step allowRead hfork (by simp) hcA (by gas_ok) hM
+  step feeCall hfork (by simp) hc3 (by gas_ok)
+  step mulBlock (by simp) (by valid_dest) (by simpa only [storageAt_readSlot] using hov)
+    (by gas_ok)
+  at_pc 8802
+  step divCall (by simp) (by gas_ok)
+  step divBlock (by simp) (by valid_dest) (by decide) (by gas_ok)
+  at_pc 8816
+  step capBlock hfork (by simp) hc4 (by simp only [storageAt_readSlot]; gas_ok)
+  simp only [storageAt_readSlot]
+  step allowStep hfork (by simp) (by simp only [storageAt_readSlot]) (Or.inl hmax)
+    (fun h => absurd hmax h)
+    (coldIn_accessSlot_false (coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
+    (by simp only [originalAt_readSlot]; gas_ok)
+    (size_allowMem hM f)
+  simp only [originalAt_readSlot]
+  have hMa : (allowMem message M f).size = 96 := size_allowMem hM f
+  have hMb := size_allowMem2 (message := message) hMa (storageAt state message.currentTarget
+    (allowFrom message f)) f
+  step sendCall (by simp) (by gas_ok)
+  step subBlock (by simp) (by valid_dest) hfv (by gas_ok)
+  at_pc 9041
+  step debitCall hfork (by simp) hcF (by gas_ok) hMb
+  step subBlock (by simp) (by valid_dest) hbal (by gas_ok)
+  at_pc 9125
+  refine debitStoreFBad (state := readSlot (allowState (readSlot (readSlot (readSlot state
+    message.currentTarget (allowFrom message f)) message.currentTarget 3) message.currentTarget 4)
+    message.currentTarget (allowFrom message f)
+    (storageAt state message.currentTarget (allowFrom message f)) v) message.currentTarget
+    (recipientSlot f)) ?_ hbad' ?_ (size_mapMem hMb _ _)
+  · simp
+  · gas_ok
 
 /-- From 8648, `balances[_to]` (read after the write of `_from`) plus `v - fee` overflows:
 INVALID at the `add`. -/
@@ -120,7 +223,8 @@ theorem bodyToOvF (hfork : .berlin ≤ fork)
   at_pc 8816
   step capBlock hfork (by simp) hc4 (by simp only [storageAt_readSlot]; gas_ok)
   simp only [storageAt_readSlot]
-  step allowStep hfork hstatic hacc3 (by simp) (by simp only [storageAt_readSlot]) hallow
+  step allowStep hfork (by simp) (by simp only [storageAt_readSlot]) hallow
+    (fun _ => ⟨hstatic, hacc3⟩)
     (coldIn_accessSlot_false (coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
     (by simp only [originalAt_readSlot]; gas_ok)
     (size_allowMem hM f)
@@ -210,14 +314,14 @@ theorem bodyOwnerOvF (hfork : .berlin ≤ fork)
 
 /-- The specification of `transferFrom(f, t, v)` when the fee is above `v`.
 
-Hypotheses: Berlin ≤ fork (Glamsterdam included), not static, the contract has an account; the checks pass
-(call data ≥ 100 bytes, not paused, `f` not blacklisted, not deprecated); `v * rate < 2^256`;
-`A = MAX_UINT ∨ v ≤ A`; `v < fee`; more than 2300 gas left at the allowance's SSTORE, which also
+Hypotheses: Berlin ≤ fork (Glamsterdam included); the checks pass (call data ≥ 100 bytes, not
+paused, `f` not blacklisted, not deprecated); `v * rate < 2^256`; `A = MAX_UINT ∨ v ≤ A`; when
+`A ≠ MAX_UINT`, not static and the contract has an account (`hgood`; the allowance is then
+written); `v < fee`; more than 2300 gas left at the allowance's SSTORE, which also
 covers the rest of the path.
 
 Then INVALID at `sub(v, fee)`, after the allowance step (`A - v` written unless `A = MAX_UINT`). -/
 theorem spec_feeGtF (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 100 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x23b872dd) (hv : message.value = 0)
     (hnp : byte20 (storageAt state message.currentTarget 0) = 0)
@@ -227,6 +331,8 @@ theorem spec_feeGtF (hfork : .berlin ≤ fork)
       (storageAt (checkState state message) message.currentTarget 3).toNat < 2 ^ 256)
     (hallow : allowOf (checkState state message) message (fromArg message) = MAX_UINT ∨
       (valArg message).toNat ≤ (allowOf (checkState state message) message (fromArg message)).toNat)
+    (hgood : allowOf (checkState state message) message (fromArg message) ≠ MAX_UINT →
+      message.isStatic = false ∧ hasAccount state message.currentTarget)
     (hgt : (valArg message).toNat < (feeOf (checkState state message) message (valArg message)).toNat)
     {c0 cB c10 cA c3 c4 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
@@ -250,13 +356,96 @@ theorem spec_feeGtF (hfork : .berlin ≤ fork)
           (fromArg message))) :=
   Triple.seq (preF hfork hlong hsz hsel hv hnp hnb hdep hc0 hcB hc10
       (Nat.le_trans (Nat.le_add_right _ _) hg))
-    (bodyFeeGtF hfork hstatic (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
-      (size_mapMem size_MEM0 _ _) hov hgt hallow hcA hc3 hc4
+    (bodyFeeGtF hfork (size_mapMem size_MEM0 _ _) hov hgt hallow
+      (fun h => ⟨(hgood h).1,
+      hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot (hgood h).2))⟩) hcA hc3 hc4
       (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hg)))
+
+/-- `transferFrom(f, t, v)`, not deprecated, with the checks passing, `v * rate < 2^256` and
+`v ≤ A < MAX_UINT` (`A` the allowance), in a static frame or with no account for `C`: the run
+reaches the `SSTORE` of the allowance, which is `Stuck`. -/
+theorem bad_allowF (hfork : .berlin ≤ fork)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    (hlong : 100 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
+    (hsel : selector message.data = 0x23b872dd) (hv : message.value = 0)
+    (hnp : byte20 (storageAt state message.currentTarget 0) = 0)
+    (hnb : (storageAt state message.currentTarget (blackFrom (fromArg message))).toNat % 256 = 0)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    (hov : (valArg message).toNat *
+      (storageAt (checkState state message) message.currentTarget 3).toNat < 2 ^ 256)
+    (hmax : allowOf (checkState state message) message (fromArg message) ≠ MAX_UINT)
+    (hle : (valArg message).toNat ≤
+      (allowOf (checkState state message) message (fromArg message)).toNat)
+    {c0 cB c10 cA c3 c4 : Bool}
+    (hc0 : coldIn substate message.currentTarget 0 = c0)
+    (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
+      (blackFrom (fromArg message)) = cB)
+    (hc10 : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
+      (blackFrom (fromArg message))) message.currentTarget 10 = c10)
+    (hcA : coldIn (checkSub substate message) message.currentTarget
+      (allowFrom message (fromArg message)) = cA)
+    (hc3 : coldIn (accessSlot (checkSub substate message) message.currentTarget
+      (allowFrom message (fromArg message))) message.currentTarget 3 = c3)
+    (hc4 : coldIn (accessSlot (accessSlot (checkSub substate message) message.currentTarget
+      (allowFrom message (fromArg message))) message.currentTarget 3) message.currentTarget 4 = c4)
+    {gas : Nat} (hg : preCostF c0 cB c10 + (2000 + slotCost cA + slotCost c3 + slotCost c4 +
+      mulCost (valArg message) +
+      capCost (rawFee (checkState state message) message (valArg message))
+        (storageAt (checkState state message) message.currentTarget 4)) ≤ gas) :
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck :=
+  Triple.seq (preF hfork hlong hsz hsel hv hnp hnb hdep hc0 hcB hc10
+      (Nat.le_trans (Nat.le_add_right _ _) hg))
+    (bodyAllowBad (state := checkState state message) hfork hbad (size_mapMem size_MEM0 _ _) hov
+      hmax hle hcA hc3 hc4 (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hg)))
+
+/-- `transferFrom(f, t, v)`, not deprecated, with the checks passing, `v * rate < 2^256`, the
+allowance `MAX_UINT`, `fee ≤ v` and `v ≤ balances[f]`, in a static frame or with no account for
+`C`: the run reaches the `SSTORE` of `balances[f]`, which is `Stuck`. -/
+theorem bad_transferFrom (hfork : .berlin ≤ fork)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
+    (hlong : 100 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
+    (hsel : selector message.data = 0x23b872dd) (hv : message.value = 0)
+    (hnp : byte20 (storageAt state message.currentTarget 0) = 0)
+    (hnb : (storageAt state message.currentTarget (blackFrom (fromArg message))).toNat % 256 = 0)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    (hov : (valArg message).toNat *
+      (storageAt (checkState state message) message.currentTarget 3).toNat < 2 ^ 256)
+    (hfv : (feeOf (checkState state message) message (valArg message)).toNat ≤
+      (valArg message).toNat)
+    (hmax : allowOf (checkState state message) message (fromArg message) = MAX_UINT)
+    (hbal : (valArg message).toNat ≤
+      (balFrom (checkState state message) message (valArg message) (fromArg message)).toNat)
+    {c0 cB c10 cA c3 c4 cF : Bool}
+    (hc0 : coldIn substate message.currentTarget 0 = c0)
+    (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
+      (blackFrom (fromArg message)) = cB)
+    (hc10 : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
+      (blackFrom (fromArg message))) message.currentTarget 10 = c10)
+    (hcA : coldIn (checkSub substate message) message.currentTarget
+      (allowFrom message (fromArg message)) = cA)
+    (hc3 : coldIn (accessSlot (checkSub substate message) message.currentTarget
+      (allowFrom message (fromArg message))) message.currentTarget 3 = c3)
+    (hc4 : coldIn (accessSlot (accessSlot (checkSub substate message) message.currentTarget
+      (allowFrom message (fromArg message))) message.currentTarget 3) message.currentTarget 4 = c4)
+    (hcF : coldIn (allowedSubF fork (checkSub substate message) (checkState state message) message
+      (valArg message) (fromArg message)) message.currentTarget (recipientSlot (fromArg message)) =
+        cF)
+    {gas : Nat} (hg : preCostF c0 cB c10 + (4000 + slotCost cA + slotCost c3 + slotCost c4 +
+      slotCost cF + mulCost (valArg message) +
+      capCost (rawFee (checkState state message) message (valArg message))
+        (storageAt (checkState state message) message.currentTarget 4) +
+      allowCostF fork (checkState state message) message (valArg message) (fromArg message)) ≤
+        gas) :
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck :=
+  Triple.seq (preF hfork hlong hsz hsel hv hnp hnb hdep hc0 hcB hc10
+      (Nat.le_trans (Nat.le_add_right _ _) hg))
+    (bodyDebitBad (state := checkState state message) hfork hbad (size_mapMem size_MEM0 _ _) hov
+      hfv hmax hbal hcA hc3 hc4 hcF (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hg)))
 
 /-- The specification of `transferFrom(f, t, v)` when `balances[t] + (v - fee)` overflows.
 
-Hypotheses: as `spec_feeGtF` up to the allowance; `fee ≤ v`; `v ≤ balances[f]` (read after the
+Hypotheses: as `spec_feeGtF` up to the allowance, with a frame that is not static and an account
+for `C` (`hstatic`, `hacc`); `fee ≤ v`; `v ≤ balances[f]` (read after the
 allowance step); `balances[t] + (v - fee) ≥ 2^256` (read after the write of `f`); more than 2300
 gas left at the SSTORE of `balances[f]` (`hstip`), and enough gas to reach the assert.
 
@@ -443,8 +632,8 @@ theorem runFrame_feeGtF (hfork : .berlin ≤ fork)
       Faulted (.invalidOpcode 0xfe) (allowedF (checkState state message) message (valArg message) (fromArg message))
           (allowedSubF fork (checkSub substate message) (checkState state message) message (valArg message)
             (fromArg message)) stopped :=
-  (spec_feeGtF hfork hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hallow hgt hc0 hcB hc10
-    hcA hc3 hc4 hg).runFrame start within
+  (spec_feeGtF hfork hlong hsz hsel hv hnp hnb hdep hov hallow (fun _ => ⟨hstatic, hacc⟩) hgt hc0
+    hcB hc10 hcA hc3 hc4 hg).runFrame start within
 
 /-- The loop of the interpreter runs the case of `spec_toOvF` to its end condition. It holds for
 every bound on the gas of messages and every runner of messages. -/

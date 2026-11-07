@@ -122,7 +122,8 @@ theorem headF (hfork : .berlin ≤ fork)
   at_pc 8816
   step capBlock hfork (by simp) hc4 (by simp only [storageAt_readSlot]; gas_ok)
   simp only [storageAt_readSlot]
-  step allowStep hfork hstatic hacc3 (by simp) (by simp only [storageAt_readSlot]) hallow
+  step allowStep hfork (by simp) (by simp only [storageAt_readSlot]) hallow
+    (fun _ => ⟨hstatic, hacc3⟩)
     (coldIn_accessSlot_false (coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
     (by simp only [originalAt_readSlot]; gas_ok)
     (size_allowMem hM f)
