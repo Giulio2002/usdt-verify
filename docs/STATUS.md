@@ -845,9 +845,42 @@ entry; `DESTS` = the 32 destinations).
 - DepInvAll: `storageAt_route`, `hasAccount_route`; every `dep_*_local`, `dep_destroy_local`,
   `inv_dep_destroy_iff`, `inv_dep_destroy` and `inv_call_all` drop `hdel`. Under delegation the
   message's current target is still `ua`, so `KeepsInv` and `HonestBalance` are unchanged.
-- Not changed: the forward specifications of round 5 to 10 (Functions/Deprecated*.lean, and the
-  `SpecUnder` corollaries in Complete/DepInv.lean) still take `hdel`; they are stated for a given
-  callee code.
+- Not changed in round 16: the forward specifications of round 5 to 10 (Functions/Deprecated*.lean,
+  and the `SpecUnder` corollaries in Complete/DepInv.lean) still took `hdel`. Round 17 removes it
+  (below).
+
+### Round 17: the forward specifications along a route (Functions/Route.lean, Functions/Deprecated*.lean, Complete/DepInv.lean)
+- Functions/Route.lean (new): `Route`, `Routes`, `routeAddr`, `routeCode`, `routeCost`,
+  `routeState`, `routeSub`, `depCallGas`, `SendsVia`, `routes_congr`, `routes_rec`,
+  `routeCost_insert_insert`, `accountAccessCost_of_berlin` and `callStep_child_r` moved there from
+  Complete/DepCall.lean (same names, namespace `UsdtVerify.Complete`), with `Deprecated.accCost`
+  from Functions/Deprecated.lean, so that the forward specifications can use them.
+- `callWithR`: EthLib's `callWith` (a CALL with no value, as a `HoareUnder` triple under a callee
+  assumption) along a route `r`, with `hroute : Routes fork state calleeCode r` in place of
+  `callWith`'s hypothesis of no delegation. The price adds `routeCost` (the access to the
+  delegate); the message has `codeAddress = some (routeAddr to r)`, `code = routeCode calleeCode r`,
+  `disablePrecompiles = r.isSome`, current target `to`; the caller's state and substate are wrapped
+  in `routeState`/`routeSub`.
+- Every forward specification and its corollaries (`spec_dep*`, `spec_dep*_answers`,
+  `spec_dep*_fails`, `spec_dep*_succeeds`, `runFrame_dep*_answers`, `runFrame_dep*_process`, for
+  totalSupply, balanceOf, allowance, transfer, approve, transferFrom, destroyBlackFunds) takes
+  `{r : Route} (hroute : Routes fork state c r)` in place of `hdel` (`HypT`/`HypA`/`HypF`: the
+  field `route` in place of `noDelegation`, and the structure takes `r`). The gas bound `hg` adds
+  the price of the route (`callR`, `callRT`, `callRF`, `callRD`: `routeCost` of the set of
+  accessed addresses at the CALL), and `callGas*` take it as their last argument (`100 + R`). The
+  message is `SendsVia … r …` (the old `Forwarded` and `Sends` are removed), and the caller's state
+  and substate are `routeState …`/`routeSub …`. The callee predicates `Answers`, `Fails`,
+  `AnswersD`, `SucceedsD`, `FailsD` take the route; the `*_runsAs` lemmas give `RunsAs (routeCode c
+  r) G Q`, with `hpre` on `routeAddr ua r`; the `*_process` theorems take the `Spec` of the code of
+  the route. With `r = none` (`Routes … none` is the old `hdel`) each statement is the old one,
+  with `R = 0`.
+- Complete/DepInv.lean: `depD_inv`, `depD_keeps`, `depD_breaks` take the route the same way;
+  `storageAt_callerD` takes the route.
+- `callStep_low` and `callStep_deep` (Complete/DepCall.lean) state their hypothesis as `Routes fork
+  evm.state calleeCode none`: they are the `none` case of `callStep_low_r`/`callStep_deep_r`.
+- After this round no theorem of the repository takes a hypothesis that excludes an EIP-7702
+  delegation at the upgraded address (checked by grep of `delegatedAddress`: it occurs only in
+  `Routes`, in proofs, and in `callStep_missing`, whose hypothesis is that `c` IS a delegation).
 
 ## Open (not proved)
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,

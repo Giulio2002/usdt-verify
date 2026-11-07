@@ -63,16 +63,20 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   USDT forwards the call to the address stored in slot 10. The theorems hold for every callee
   behaviour that meets a stated assumption, through EthLib's callee abstraction. These forward
   specifications (and those below, for the other deprecated functions) take the code `c` of the
-  upgraded address as a hypothesis, with `0 < |c|` and, from Pectra, `c` no EIP-7702 delegation
-  (`hdel`). The completeness theorems further down have neither hypothesis. USDT then:
-  - sends exactly one message to the upgraded address, with no value and with the call data
+  upgraded address as a hypothesis, with `0 < |c|`, and the route `r` of the CALL (`Routes`): no
+  delegation, or, from Pectra, an EIP-7702 delegate `d` whose code is found (round 17: before, the
+  hypothesis `hdel` excluded delegation). Along a delegated route the CALL also pays the access to
+  `d`, and the message runs the code of `d` at `d`, with the upgraded address as its current
+  target. The completeness theorems further down take neither the code nor the route as a
+  hypothesis. USDT then:
+  - sends exactly one message to the upgraded address, along the route, with no value and with the call data
     `0x18160ddd`, or `0x70a08231 ++ who` for balanceOf;
   - returns the first word of the callee's output if the callee succeeds;
   - reverts with empty output if the callee fails;
   - reverts before any call if the address has no code.
 
-  `runFrame_dep_process` instantiates this with EthLib's own message runner: for any code at the
-  upgraded address that has a proved specification, the run returns that code's answer, unless the
+  `runFrame_dep_process` instantiates this with EthLib's own message runner: for any code of the
+  route that has a proved specification, the run returns that code's answer, unless the
   runner aborts.
 - **Deprecated transfer / approve / transferFrom** (`DeprecatedTransfer.lean`,
   `DeprecatedTransferFrom.lean`). The same callee abstraction. With the flag set (and, for transfer,

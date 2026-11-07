@@ -22,7 +22,9 @@ when that code is an EIP-7702 delegation indicator to `d`, the code of `d` (EthL
 `accessDelegation`). The delegated case adds a lookup of the code of `d` (a failed lookup makes the
 step fail, `callStep_missing`), an access to `d` (2600 cold, 100 warm, `routeCost`, in the extra
 price of the CALL), and the read and access of `d` in the state and substate (`routeState`,
-`routeSub`). `callStep_low_r`, `callStep_deep_r`, `callStep_child_r` cover both routes; `call_ok`,
+`routeSub`; these, and `callStep_child_r`, are in Functions/Route.lean). `callStep_low_r`,
+`callStep_deep_r`, `callStep_child_r` cover both routes (`callStep_low`, `callStep_deep` are their
+`none` case); `call_ok`,
 `CallEnd` and `fromExt` take the route. The message of a delegated CALL keeps the upgraded
 address as its current target and runs the code of `d` with the precompiles disabled.
 -/
@@ -130,7 +132,7 @@ theorem callStep_low (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     {evm : Evm fork Nat} {g a i isz o osz : U256} {rest : List U256} {calleeCode : ByteArray}
     (hst : evm.stack.val = g :: a :: 0 :: i :: isz :: o :: osz :: rest)
     (hcode : evm.state.getCode (evm.state.getAccount (toAddressMasked a)).codeHash = .ok calleeCode)
-    (hdel : .pectra ≤ fork → delegatedAddress calleeCode = none)
+    (hdel : Routes fork evm.state calleeCode none)
     (hgas : evm.gas < callBaseCost fork (decide (toAddressMasked a ∉ evm.substate.accessedAddresses)) +
       (extendMemory evm.memory.size [(i, isz), (o, osz)]).cost) :
     ∃ b, callStep .call evm = .ok (.next b) ∧ b.running = false ∧ b.error ≠ none := by
@@ -173,7 +175,7 @@ theorem callStep_deep (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     {evm : Evm fork Nat} {g a i isz o osz : U256} {rest : List U256} {calleeCode : ByteArray}
     (hst : evm.stack.val = g :: a :: 0 :: i :: isz :: o :: osz :: rest)
     (hcode : evm.state.getCode (evm.state.getAccount (toAddressMasked a)).codeHash = .ok calleeCode)
-    (hdel : .pectra ≤ fork → delegatedAddress calleeCode = none)
+    (hdel : Routes fork evm.state calleeCode none)
     (hdeep : STACK_DEPTH_LIMIT < evm.message.depth + 1)
     (hgas : callBaseCost fork (decide (toAddressMasked a ∉ evm.substate.accessedAddresses)) +
       (extendMemory evm.memory.size [(i, isz), (o, osz)]).cost ≤ evm.gas) :
@@ -218,184 +220,6 @@ theorem callStep_deep (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     GasMeter.gasLeft, GasMeter.drain, GasMeter.reservoir, hcb', hgas, Nat.not_lt.mpr hmin, hdeep,
     skipCall, refillStateGas, GasMeter.refill, GasMeter.credit, pushWord, Stack.push, hlen,
     advance, Functor.map, Except.map]
-
-/-! ## The route of a CALL: no delegation, or an EIP-7702 delegate -/
-
-/-- How a CALL to an address reaches the code that it runs. `none`: the code of the address
-itself. `some (d, c')`: the code of the address is a delegation indicator to `d`, and the CALL
-runs `c'`, the code of `d`. -/
-abbrev Route := Option (Address × ByteArray)
-
-/-- The route of a CALL to an account with code `c`, in the state `st`. With no delegation (before
-Pectra, or `c` no indicator), the route is `none`. From Pectra, when `c` delegates to `d`, the
-route is `some (d, c')` with `c'` the code of `d` found in `st`. -/
-def Routes (fork : Fork) (st : State.TransactionState) (c : ByteArray) : Route → Prop
-  | none => .pectra ≤ fork → delegatedAddress c = none
-  | some (d, c') => .pectra ≤ fork ∧ delegatedAddress c = some d ∧
-      st.getCode (st.getAccount d).codeHash = .ok c'
-
-/-- The account whose code the CALL runs. -/
-def routeAddr (a : Address) : Route → Address
-  | none => a
-  | some (d, _) => d
-
-/-- The code that the CALL runs. -/
-def routeCode (c : ByteArray) : Route → ByteArray
-  | none => c
-  | some (_, c') => c'
-
-/-- The extra price of the route: the access to the delegate (2600 cold, 100 warm, in the set of
-accessed addresses `acc`), or 0. -/
-def routeCost (acc : Std.ExtTreeSet Address) : Route → Nat
-  | none => 0
-  | some (d, _) => accCost (decide (d ∉ acc))
-
-/-- The state once the route is followed: the read of the delegate recorded. -/
-def routeState (st : State.TransactionState) : Route → State.TransactionState
-  | none => st
-  | some (d, _) => st.recordAccountRead d
-
-/-- The substate once the route is followed: the delegate accessed. -/
-def routeSub (ss : Substate) : Route → Substate
-  | none => ss
-  | some (d, _) => { ss with accessedAddresses := ss.accessedAddresses.insert d }
-
-theorem accountAccessCost_of_berlin (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
-    (cold : Bool) : accountAccessCost fork cold = accCost cold := by
-  rw [← callBaseCost_of_berlin_le hfork, callBaseCost_of_berlin hfork hglam]
-
-/-- The route depends on the state only through the code that it finds at each address. -/
-theorem routes_congr {st st' : State.TransactionState} {c : ByteArray} {r : Route}
-    (hst : ∀ a, st'.getCode (st'.getAccount a).codeHash = st.getCode (st.getAccount a).codeHash)
-    (h : Routes fork st c r) : Routes fork st' c r := by
-  rcases r with _ | ⟨d, c'⟩
-  · exact h
-  · exact ⟨h.1, h.2.1, (hst d).trans h.2.2⟩
-
-/-- The route does not depend on the reads recorded in the state. -/
-theorem routes_rec {st : State.TransactionState} {u : Address} {c : ByteArray} {r : Route}
-    (h : Routes fork st c r) : Routes fork (st.recordAccountRead u) c r :=
-  routes_congr (fun _ => rfl) h
-
-/-- What the CALL of a deprecated path pays and passes on (EIP-150, EIP-2929), when the code asks
-for `asked` with `left` gas: the warm access to the upgraded address (100), plus `R`, the price of
-the route. -/
-abbrev depCallGas (fork : Fork) (asked : U256) (left R : Nat) : MessageCallGas :=
-  messageCallGas fork 0 asked.toNat left 0 (100 + R)
-
-/-- The message that a deprecated path sends along the route `r`: from the contract to `ua`, with
-the code and the code address of the route, the precompiles disabled when delegated, the data `d`
-and no value. -/
-def SendsVia (message : Message fork) (ua : Address) (c : ByteArray) (r : Route) (d : ByteArray)
-    (msg : Message fork) : Prop :=
-  msg.caller = message.currentTarget ∧ msg.currentTarget = ua ∧ msg.target = some ua ∧
-    msg.codeAddress = some (routeAddr ua r) ∧ msg.code = routeCode c r ∧
-    msg.disablePrecompiles = r.isSome ∧ msg.data = d ∧ msg.value = 0 ∧
-    msg.depth = message.depth + 1 ∧ msg.isStatic = message.isStatic
-
-/-- Accessing an address twice is accessing it once, for the price of the route. -/
-theorem routeCost_insert_insert (acc : Std.ExtTreeSet Address) (u : Address) (r : Route) :
-    routeCost ((acc.insert u).insert u) r = routeCost (acc.insert u) r := by
-  rcases r with _ | ⟨d, c'⟩
-  · rfl
-  · simp [routeCost]
-
-/-- CALL (no value) below the greatest depth, with the gas of both accesses and the memory, along
-any route: the step sends the message. -/
-theorem callStep_child_r (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
-    {evm : Evm fork Nat} {g a i isz o osz : U256} {rest : List U256} {calleeCode : ByteArray}
-    {r : Route}
-    (hst : evm.stack.val = g :: a :: 0 :: i :: isz :: o :: osz :: rest)
-    (hcode : evm.state.getCode (evm.state.getAccount (toAddressMasked a)).codeHash = .ok calleeCode)
-    (hroute : Routes fork evm.state calleeCode r)
-    (hdepth : evm.message.depth + 1 ≤ STACK_DEPTH_LIMIT)
-    (hgas : callBaseCost fork (decide (toAddressMasked a ∉ evm.substate.accessedAddresses)) +
-      routeCost (evm.substate.accessedAddresses.insert (toAddressMasked a)) r +
-      (extendMemory evm.memory.size [(i, isz), (o, osz)]).cost ≤ evm.gas) :
-    ∃ caller msg, callStep .call evm = .ok (.child caller msg (resumeCall fork caller 0 o osz)) ∧
-      caller.code = evm.code ∧ caller.validJumpDestinations = evm.validJumpDestinations ∧
-      caller.message = evm.message ∧ caller.pc = evm.pc ∧ caller.stack.val = rest ∧
-      caller.memory = memoryExtend evm.memory
-        (extendMemory evm.memory.size [(i, isz), (o, osz)]).expandBy ∧
-      caller.gas = evm.gas - ((messageCallGas fork 0 g.toNat evm.gas
-        (extendMemory evm.memory.size [(i, isz), (o, osz)]).cost
-        (callBaseCost fork (decide (toAddressMasked a ∉ evm.substate.accessedAddresses)) +
-          routeCost (evm.substate.accessedAddresses.insert (toAddressMasked a)) r)).cost +
-        (extendMemory evm.memory.size [(i, isz), (o, osz)]).cost) ∧
-      caller.running = evm.running ∧ caller.error = evm.error ∧ caller.output = evm.output ∧
-      caller.state = (routeState (evm.state.recordAccountRead (toAddressMasked a)) r).recordAccountRead
-        evm.message.currentTarget ∧
-      caller.substate = routeSub { evm.substate with
-        accessedAddresses := evm.substate.accessedAddresses.insert (toAddressMasked a) } r ∧
-      msg.gas = (messageCallGas fork 0 g.toNat evm.gas
-        (extendMemory evm.memory.size [(i, isz), (o, osz)]).cost
-        (callBaseCost fork (decide (toAddressMasked a ∉ evm.substate.accessedAddresses)) +
-          routeCost (evm.substate.accessedAddresses.insert (toAddressMasked a)) r)).subCall ∧
-      msg.caller = evm.message.currentTarget ∧ msg.currentTarget = toAddressMasked a ∧
-      msg.target = some (toAddressMasked a) ∧
-      msg.codeAddress = some (routeAddr (toAddressMasked a) r) ∧
-      msg.code = routeCode calleeCode r ∧ msg.disablePrecompiles = r.isSome ∧
-      msg.data = memoryReadBytes (memoryExtend evm.memory
-        (extendMemory evm.memory.size [(i, isz), (o, osz)]).expandBy) i.toNat isz.toNat ∧
-      msg.value = 0 ∧ msg.depth = evm.message.depth + 1 ∧
-      msg.isStatic = evm.message.isStatic := by
-  have hng : ¬fork ≥ .glamsterdam := Nat.not_le_of_lt hglam
-  rcases evm with ⟨pc, ⟨l, hl⟩, memory, code, valid, gas, running, message, output, returnData,
-    state, substate, error⟩
-  simp only at hst
-  subst hst
-  have hgc : ∀ (tx : State.TransactionState) (x : Address) h,
-      (tx.recordAccountRead x).getCode h = tx.getCode h := fun _ _ _ => rfl
-  have hga : ∀ (tx : State.TransactionState) (x y : Address),
-      (tx.recordAccountRead x).getAccount y = tx.getAccount y := fun _ _ _ => rfl
-  have hal : ∀ (tx : State.TransactionState) (x y : Address),
-      (tx.recordAccountRead x).isAccountAlive y = tx.isAccountAlive y := fun _ _ _ => rfl
-  simp only at hcode hgas hdepth hroute ⊢
-  have htw : Fork.tangerineWhistle ≤ fork := Nat.le_trans (by decide) hfork
-  have hsd : Fork.spuriousDragon ≤ fork := Nat.le_trans (by decide) hfork
-  generalize hcb : callBaseCost fork (decide (toAddressMasked a ∉ substate.accessedAddresses)) =
-    cb at hgas ⊢
-  have hcb' : callBaseCost fork (!decide (toAddressMasked a ∈ substate.accessedAddresses)) = cb :=
-    by simpa using hcb
-  generalize hdc : routeCost (substate.accessedAddresses.insert (toAddressMasked a)) r = dc
-    at hgas ⊢
-  have hmin : min g.toNat (maxMessageCallGas
-      (gas - (extendMemory memory.size [(i, isz), (o, osz)]).cost - (cb + dc))) + (cb + dc) +
-      (extendMemory memory.size [(i, isz), (o, osz)]).cost ≤ gas := by
-    have : maxMessageCallGas (gas - (extendMemory memory.size [(i, isz), (o, osz)]).cost - (cb + dc)) ≤
-        gas - (extendMemory memory.size [(i, isz), (o, osz)]).cost - (cb + dc) := Nat.sub_le _ _
-    omega
-  rcases r with _ | ⟨d, dCode⟩
-  · have hdel' : (if Fork.pectra ≤ fork then delegatedAddress calleeCode else none) = none := by
-      split
-      · exact hroute ‹_›
-      · rfl
-    simp only [routeCost] at hdc
-    subst hdc
-    simp only [Nat.add_zero] at hgas hmin ⊢
-    simp [callStep, popCallOperands, popCallValue, CallKind.sendsValue, popWord, Stack.pop, bind,
-      Except.bind, pure, Except.pure, accessAddress, hfork, checkGas, hng, accessDelegation,
-      accountCode, recordAccountRead, hgc, hga, hal, hcode, hdel', htw, hsd, Except.mapError,
-      callExtraGas, callNewAccountCost, callNewAccountStateGas, callValueCost,
-      payCall, messageCallGas, chargeGas, GasMeter.charge, finishCall, genericCall, keepReads,
-      GasMeter.gasLeft, GasMeter.drain, GasMeter.reservoir, hcb', Nat.not_lt.mpr hdepth, hgas,
-      Nat.not_lt.mpr hmin, routeState, routeSub, routeAddr, routeCode]
-    exact ⟨_, _, ⟨rfl, rfl, rfl⟩, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
-  · obtain ⟨hpec, hdel, hdcode⟩ := hroute
-    have hdel' : (if Fork.pectra ≤ fork then delegatedAddress calleeCode else none) = some d := by
-      simp [hpec, hdel]
-    have hdc' : accountAccessCost fork
-        (!decide (toAddressMasked a = d) && !decide (d ∈ substate.accessedAddresses)) = dc := by
-      rw [← hdc, routeCost, accountAccessCost_of_berlin hfork hglam]
-      simp
-    simp [callStep, popCallOperands, popCallValue, CallKind.sendsValue, popWord, Stack.pop, bind,
-      Except.bind, pure, Except.pure, accessAddress, hfork, checkGas, hng, accessDelegation,
-      accountCode, recordAccountRead, hgc, hga, hal, hcode, hdel', hdcode, htw, hsd,
-      Except.mapError, callExtraGas, callNewAccountCost, callNewAccountStateGas, callValueCost,
-      payCall, messageCallGas, chargeGas, GasMeter.charge, finishCall, genericCall, keepReads,
-      GasMeter.gasLeft, GasMeter.drain, GasMeter.reservoir, hcb', hdc', Nat.not_lt.mpr hdepth,
-      hgas, Nat.not_lt.mpr hmin, routeState, routeSub, routeAddr, routeCode]
-    exact ⟨_, _, ⟨rfl, rfl, rfl⟩, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 /-- CALL (no value) with less gas than both accesses and the memory growth, along any route: the
 charge fails and the frame halts with an error. -/

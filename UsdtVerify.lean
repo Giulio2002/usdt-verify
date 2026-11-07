@@ -16,6 +16,7 @@ import UsdtVerify.Functions.TransferFaults
 import UsdtVerify.Functions.TransferFromFault
 import UsdtVerify.Functions.TransferFromFeeSpec
 import UsdtVerify.Functions.TransferFromFault2
+import UsdtVerify.Functions.Route
 import UsdtVerify.Functions.Deprecated
 import UsdtVerify.Functions.DeprecatedBalance
 import UsdtVerify.Functions.DeprecatedTransfer

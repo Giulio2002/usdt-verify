@@ -141,27 +141,30 @@ Every from-pc-0 theorem has a `runFrame_*` form (the interpreter loop, any gas b
 
 ## Deprecated: totalSupply() and balanceOf(who) forward to `upgradedAddress`
 With byte 20 of slot 10 set, `ua` = low 160 bits of slot 10 (as an address) holding a code `c`
-(`0 < |c|`, no delegation), the theorems are `SpecUnder` triples: they hold under every runner of
-messages that meets a callee assumption `callee`, and say nothing when the runner aborts.
+(`0 < |c|`), and the CALL along a route `r` (`Routes`: no delegation, or from Pectra an EIP-7702
+delegate `d` whose code `c'` is found; the CALL then pays the access to `d` too, and the message
+runs `c'` at `d` with `ua` as its current target), the theorems are `SpecUnder` triples: they
+hold under every runner of messages that meets a callee assumption `callee`, and say nothing
+when the runner aborts.
 - `totalSupply_dep` / `balanceOf_dep` (any `callee`): the frame sends `ua` one message with no
-  value and data `0x18160ddd` / `0x70a08231 ++ who` (`Forwarded` / `Sends`); if that call ends with
+  value and data `0x18160ddd` / `0x70a08231 ++ who` along the route (`SendsVia`); if that call ends with
   no error, the frame returns the word at 0x60 after the first `min 32 |output|` output bytes were
   copied there; if it ends with an error, the frame reverts with no output.
 - `totalSupply_dep_answers` / `balanceOf_dep_answers`: a callee that answers `o` (`|o| ≥ 32`) ⇒ the
   frame returns `wordBytes (loadWord o 0 32)`. `*_dep_fails`: a failing callee ⇒ REVERT, no output.
 - `totalSupply_dep_process` / `balanceOf_dep_process`: the same with the interpreter's own runner
-  `processRunner`, for any code at `ua` with a `Spec` (EthLib's `meets_of_spec`, `RunsAs`).
+  `processRunner`, for any code of the route with a `Spec` (EthLib's `meets_of_spec`, `RunsAs`).
 - `totalSupply_depNoCode` / `balanceOf_depNoCode`: empty code at `ua` ⇒ REVERT before any call.
 
 ## Deprecated: transfer, approve, transferFrom forward to `upgradedAddress` (no output range)
 With byte 20 of slot 10 set and `ua` holding a code `c` as above. The hypotheses are bundled in
-`HypT` / `HypA` / `HypF` (fork range, selector, no value, deprecated, the code at `ua`, depth,
+`HypT` / `HypA` / `HypF` (fork range, selector, no value, deprecated, the code at `ua`, its route, depth,
 coldness flags; transfer: not paused and caller not blacklisted; transferFrom: not paused and `f`
 not blacklisted; approve: call data ≥ 68 bytes, its own payload check comes first). transfer and
 transferFrom need only call data ≥ 4 bytes on this path (the payload checks are in BasicToken /
 StandardToken, which are not reached).
 - `transfer_dep` / `approve_dep` / `transferFrom_dep` (any `callee`): the frame sends `ua` one
-  message (`Sends`) with no value, the gas of EIP-150, and the data
+  message along the route (`SendsVia`) with no value, the gas of EIP-150, and the data
   `0x6e18980a ++ caller ++ to ++ v` (`transferByLegacy`, `dataT`),
   `0xaee92d33 ++ caller ++ s ++ v` (`approveByLegacy`, `dataA`),
   `0x8b477adb ++ caller ++ f ++ t ++ v` (`transferFromByLegacy`, `dataF`), each address argument
@@ -170,7 +173,7 @@ StandardToken, which are not reached).
   with no output. Gas left, state and substate: exact (after the call, `incorporateChild`).
 - `*_dep_succeeds`: a callee that ends every such message with no error ⇒ STOP, no error, state and
   substate from `incorporateChild` of the callee's frame. `*_dep_fails`: REVERT, no output.
-- `*_dep_process`: the interpreter's own runner `processRunner`, for any code at `ua` with a `Spec`
+- `*_dep_process`: the interpreter's own runner `processRunner`, for any code of the route with a `Spec`
   whose stopped frames have no error (`meets_of_spec`, `RunsAs`) ⇒ STOP with no error, or abort.
 - `*_depNoCode`: empty code at `ua` ⇒ REVERT before any call.
 What the upgraded contract does with the forwarded call (the balances it changes) is the callee's
@@ -255,8 +258,8 @@ Every `spec_*` of rounds 7 and 8 from pc 0 has a `runFrame_*` wrapper in the sam
   `destroyBlackFunds_effects`: with `B ≠ 1`, `B` is 0, slot 1 is `T - d` as a word (as numbers
   when `d ≤ T`), every other slot unchanged.
 - Deprecated (`destroyBlackFunds_dep`, DeprecatedDestroy.lean): owner, `a` blacklisted, byte 20
-  of slot 10 set, `ua` holding a code `c`. The internal `balanceOf(a)` sends `ua` one message with
-  data `0x70a08231 ++ a` (`dataB`) and no value; it never reads `B`. If the call fails: REVERT, no
+  of slot 10 set, `ua` holding a code `c`, any route. The internal `balanceOf(a)` sends `ua` one
+  message along the route with data `0x70a08231 ++ a` (`dataB`) and no value; it never reads `B`. If the call fails: REVERT, no
   output. If it ends with no error, with `S`, `ss` the state and substate it left and `d` the word
   at 0x60 after the copy of its output: STOP in `tailState S C a d` (`B := 0` in THIS contract,
   then slot 1 `:= T' - d`, unchecked), substate `tailSub` (log `DestroyedBlackFunds(a, d)`), gas
@@ -302,8 +305,8 @@ covers every slot word that Solidity writes for a string (short form `2n`, n ≤
 never writes them).
 
 ## allowance(owner, spender) when deprecated — `allowance_dep`, `allowance_dep_answers`, ...
-With byte 20 of slot 10 set and `ua` holding a code `c`: the frame sends `ua` one message
-(`Sends`) with no value, the gas of EIP-150, and the data `0xdd62ed3e ++ owner ++ spender`
+With byte 20 of slot 10 set and `ua` holding a code `c`, any route: the frame sends `ua` one
+message along the route (`SendsVia`) with no value, the gas of EIP-150, and the data `0xdd62ed3e ++ owner ++ spender`
 (`dataAl`, each argument word masked to 160 bits, 68 bytes); the CALL's output range is 32 bytes
 at 0x60. If that call ends with no error the frame returns the word at 0x60 after the copy of the
 callee's output; otherwise it reverts with no output. `*_answers`: a callee that answers `o`
