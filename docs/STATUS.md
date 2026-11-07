@@ -686,6 +686,15 @@ entry; `DESTS` = the 32 destinations).
   runner; hypotheses `K : KeccakSep`, `hstatic`, `hacc`, `hdep` (not deprecated), `h7`/`h8`
   (`StrForm` of slots 7 and 8), `hI : Inv C state`; if the loop ends with no error, then
   `Inv C s.state`. The match over the 32 table entries uses `runFrame_ok_dispatch`.
+- Deprecated paths, first step (Complete/Split.lean): `low_to_running` (the analogue of
+  `low_of_reaches` that stops at a running frame: a successful run from `l` passes through the
+  low copy `z'` of every frame `z = sh k z'` that `sh k l` reaches by `StepG`, and the loop from
+  `z'` ends in the same `s`), `HoareG.low`, `at_unsh`, `ok_split` (a `HoareG` to a running frame
+  paying `c`, for every gas from `B ≥ c`: a successful run with any gas has `c ≤ gas` and goes
+  through that frame with `gas - c`). Applied to deprecated totalSupply():
+  `prefixG_totalSupply` (pc 0 to 3719, over `StepG`) and `dep_totalSupply_split` (every
+  successful deprecated `totalSupply()` run goes through the EXTCODESIZE frame at 3719 with gas
+  `gas - (574 + price(slot 10))`, slot 10 read).
 
 ## Open (not proved)
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
@@ -693,8 +702,17 @@ entry; `DESTS` = the 32 destinations).
   where the function reads the flag, and every getter and name/symbol (round 13, name/symbol
   under the named hypothesis `StrForm`), and the invariant over every successful call when not
   deprecated (`inv_call`). Not covered: the deprecated paths (below).
-- The deprecated paths split at GAS (the prefix is now over `StepG`; the GAS step itself and
-  the CALL need a separate argument), and the invariant over every successful call.
+- The deprecated paths. Done: the split infrastructure and the prefix of deprecated
+  totalSupply() (`dep_totalSupply_split`, round 13). To do, per deprecated function
+  (totalSupply, balanceOf, transfer, approve, transferFrom, allowance, destroyBlackFunds):
+  (1) the prefix over `StepG` to the EXTCODESIZE pc and its `*_split`; (2) from that frame with
+  ANY gas: the empty-code revert, the failing cases with too little gas for EXTCODESIZE, GAS,
+  SUB and the CALL charge (no OOG lemma for these yet), the CALL with the runner (`spec_dep*` give
+  the result under a runner that meets a callee predicate; the run is deterministic, so
+  `runFrame z' w = .ok s` equals it), and the tail with too little gas (`htail` false); the
+  depth limit and Pectra delegation cases. (3) The invariant when deprecated needs a callee
+  assumption: the child may reenter `C`, and deprecated destroyBlackFunds subtracts the balance
+  that the upgraded contract reports, so `Inv` can fail without one.
 - Hypotheses the completeness theorems keep, by name: `hstatic` (frame not static; a static
   SSTORE/LOG fails, but no spec of that failure is proved), `hacc` (the contract has an account;
   the write needs it), Berlin ≤ fork < Glamsterdam on the writing paths, size < 2^256.

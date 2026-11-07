@@ -1,3 +1,4 @@
+import UsdtVerify.Complete.Split
 import UsdtVerify.Complete.Inv
 import UsdtVerify.Complete.Getters
 import UsdtVerify.Complete.Approve
@@ -336,3 +337,6 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Complete.inv_transfer
 #print axioms UsdtVerify.Complete.inv_transferFrom
 #print axioms UsdtVerify.Complete.inv_destroyBlackFunds
+#print axioms UsdtVerify.Complete.low_to_running
+#print axioms UsdtVerify.Complete.ok_split
+#print axioms UsdtVerify.Complete.dep_totalSupply_split
