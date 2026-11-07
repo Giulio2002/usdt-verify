@@ -311,9 +311,97 @@ Shared blocks: `depSetW` (5481/2955/3890), `upLoad` (5503/2977/3912), `encode3` 
 `data_W4`, `data_W5`, `read40_W4/5`, generic `read_ext` (a read below the old size is kept by
 growth) and `read_prefix` (the first k bytes of a written range).
 
+### Round 7: the nonpayable revert (UsdtVerify/Functions/Nonpayable.lean)
+Each of the 32 table entries begins with its own copy of `JUMPDEST CALLVALUE ISZERO PUSH2 (e+11)
+JUMPI PUSH1 0 DUP1 REVERT` (checked byte by byte in the proof of `valueRevert`, one case per
+entry; `DESTS` = the 32 destinations).
+- `valueRevert`: at any `e ∈ DESTS`, stack `[x]`, memory `MEM0`, value ≠ 0 ⇒ `Halted true .empty
+  (gas - 25)`, state and substate unchanged.
+- `table_entry` (`decide +kernel`): for each `i : Fin 32`, the table tests `i + 1` entries for key
+  `i` and branches to destination `i`.
+- `spec` / `runFrame_spec`: Berlin ≤ fork, `4 ≤ size < 2^256`, `selector = ENTRIES[i].1`, value ≠ 0
+  ⇒ `Halted true .empty (gas - (87 + 22 * (i + 1)))` with the start state and substate.
+
+### Round 7: onlyOwner, pause(), unpause() (Owner.lean, Pause.lean, PauseSpec.lean)
+- `Owner.ownerTest/ownerOk/ownerRevert`: the inlined `require(msg.sender == owner)` at the ten
+  `CHECKS` (from the `SWAP1` before `SLOAD`, stack `0 :: 0 :: rest`, any memory): reads slot 0
+  (price `slotCost c0`), compares `callerWord = caller & (2^160-1)` with
+  `ownerOf = slot0 & (2^160-1)`; equal ⇒ pc `s + 87`, gas `69 + slotCost c0`; not equal ⇒
+  `Halted true .empty`, gas `75 + slotCost c0`. `prefix9`: `JUMPDEST PUSH1 0 DUP1` at the nine
+  `BODIES` (destroyBlackFunds pushes a local first). Generic (no sorry): `writeSlot_readSlot`,
+  `storeSub_accessSlot`.
+- `PauseSpec.spec_pause_notOwner` (574 + slot 0), `spec_unpause_notOwner` (464 + slot 0): REVERT.
+- `spec_pause_paused` (786 + slot 0), `spec_unpause_notPaused` (673 + slot 0): REVERT.
+- `spec_pause` / `spec_unpause`: Berlin ≤ fork < Glamsterdam, not static, account exists, owner
+  caller, flag clear / set, `hstip` (3297 / 3184 + slot 0 ≤ gas: more than 2300 at the SSTORE) ⇒
+  `Local.Stopped (gas - (1784 / 1671 + slotCost c0 + flagCost))`, state
+  `writeSlot S C 0 (withPaused w0 1 / 0)`, substate `storeSub … ` with the log
+  `log0 C PAUSE_TOPIC / UNPAUSE_TOPIC` (one topic, empty data) appended.
+- `withPaused w b = (b * 2^160) | (~(0xff * 2^160) & w)`; `bit_withPaused`, `byte20_withPaused`,
+  `owner_withPaused` (bit-level proofs, `decide +kernel` over `i < 256` for one Bool identity).
+
+### Round 7: addBlackList, removeBlackList (Admin.lean, BlackList.lean, BlackListSpec.lean)
+- Shared (Admin.lean): `hashTail7` (the lookup tail at the 13 copies not in `HASH_PCS`),
+  `entry1` (entry of the five one-address functions, 74 gas), `setLow w b = b | (~0xff & w)`
+  with `lowByte_setLow` and `bit_setLow` (bits ≥ 8 kept).
+- `listWrite` (3375 / 7379, the two bodies are the same code 4004 bytes apart): `isBlackListed[a]`
+  read and written to `setLow w 1 / 0`; `listLog`: `AddedBlackList(a)` / `RemovedBlackList(a)`
+  (LOG1, data = the masked word `a`, memory grows to 128 bytes), jump back, STOP.
+- `spec_add_notOwner` (328 + slot 0), `spec_remove_notOwner` (856 + slot 0): REVERT.
+- `spec_add` / `spec_remove`: `Local.Stopped (gas - (1567 / 2095 + slot 0 + slot L + write))`,
+  state `writeSlot (readSlot S C 0) C L (setLow w v)`, substate with both accesses, the write's
+  refund and the log; `hstip`: 2779 / 3307 + slot 0 + slot L ≤ gas.
+- `listState_flag`, `listState_other`: the end state in plain terms.
+
+### Round 7: issue, redeem (Issue.lean, IssueSpec.lean)
+- Blocks: `ownerLookup` (the `balances[owner]` lookup at its five copies, slot 0 warm, 229 gas),
+  `issueTest1/2`, `redeemTest1/2` (the `require` tests), `reqPass` / `reqRevert` (their JUMPIs,
+  13 / 19 gas), `issueOwner` / `issueTotal` / `redeemTotal` / `redeemOwner` (the writes, macro
+  `op_write`), `amountLog` (LOG1 of the amount, 1075 gas to STOP), `entryW` (word-argument
+  entry, 68 gas). Generic (no sorry): `readSlot_comm`, `accessSlot_comm`, `readSlot_0n0`,
+  `accessSlot_0n0`.
+- Reverts: `spec_issue_notOwner` (740), `spec_redeem_notOwner` (762), `spec_issue_req1`
+  (875 + slots 0, 1), `spec_issue_req2` (1462 + slots 0, 1, O), `spec_redeem_req1` (794 + …),
+  `spec_redeem_req2` (1052 + …).
+- `spec_issue`: `Local.Stopped (gas - (3024 + slots 0, 1, O + issueCostO + issueCostT))`, state
+  `issueState` (reads 0, 1, 0, O; `O := B + a`; read 0; `1 := T' + a`), substate `issueSub`;
+  `hstip`: 4248 + slots + issueCostO ≤ gas. `spec_redeem`: 2614 + …, `redeemState`
+  (`1 := T - a`, then `O := B' - a`), `redeemSub`; `hstip` 3838 + slots + redeemCostT.
+- `issue_effects`, `redeem_effects`: with `O ≠ 1`, slot values as numbers, other slots kept.
+
+### Round 7: setParams (SetParams.lean, SetParamsSpec.lean)
+- Blocks: `entry2` (two word arguments, 92 gas), `test1/test2` + `pass/fail` (the two
+  `require`s), `write3` (slot 3, cold or warm), `mulCall` (slot 9, `exp 10 d` with its EIP-160
+  price `50 * exponentBytes d`, SafeMath `mulBlock` at 10755, back to 5942), `write4` (slot 4),
+  `paramsLogBlock` (slots 3 and 4 read back, two MSTOREs growing memory to 160 bytes, LOG1 of 64
+  bytes, 1556 gas to STOP). Generic: `read_after64`.
+- `spec_notOwner` (742 + slot 0), `spec_bpHigh` (771 + slot 0), `spec_feeHigh` (800 + slot 0).
+- `spec_setParams`: `Local.Stopped (gas - (2425 + paramsCost))`, `paramsState`, `paramsSub` (log
+  `Params(b, f)` with data `wordBytes b ++ wordBytes f`); `hstip` 3168 + … ≤ gas;
+  `params_effects`.
+
+### Round 7: deprecate, transferOwnership (AddrWrite.lean, AddrWriteSpec.lean)
+- Blocks: `depFlag` (2737: slot 10 := `withPaused w10 1`, 118 + slot 10 + write), `depPrefix`,
+  `addrTail` (2770 / 7755: the warm slot `k` gets its low 160 bits from `a`, 158 + write),
+  `ownTest` / `ownSkip` / `ownGo` / `ownEnd`; `listLog` (BlackList.lean) now also covers the
+  `Deprecate(a)` log at 2830. `withAddr`, `bit_withAddr`, `addr_withAddr`, `byte20_withAddr`.
+- `spec_deprecate_notOwner` (262), `spec_transferOwnership_notOwner` (900),
+  `spec_transferOwnership_zero` (947 + slot 0: STOP, no write).
+- `spec_deprecate`: `Local.Stopped (gas - (1628 + slots 0, 10 + depCost))`, `depState`, `depSub`;
+  `hstip` 2840 + … . `spec_transferOwnership`: `gas - (1114 + slot 0 + ownCost)`, state
+  `writeSlot S C 0 (withAddr w0 a)`, substate `storeSub …` (no log); `hstip` 3401 + slot 0.
+- `deprecate_effects`, `transferOwnership_effects`.
+
+### Round 7: destroyBlackFunds, the reverts (Destroy.lean)
+- `toBody` (its body pushes the local first: `JUMPDEST PUSH1 0 DUP1 PUSH1 0`, check at 7824).
+- `spec_notOwner` (925 + slot 0), `spec_notListed` (1074 + slot 0 + `isBlackListed[a]`;
+  `lowTest_eq`).
+- Not covered: the success path. It calls TetherToken's `balanceOf` getter at 4665 (with its own
+  deprecation check) from a deeper stack; `BalanceOf.toLookup` / `lookup` are stated for the
+  exact stack of balanceOf and need a `rest` generalization first.
+
 ## Open (not proved)
-- value ≠ 0 (the nonpayable revert), the other functions (owner/admin functions, issue, redeem,
-  setParams, blacklist management, getters), the fallback, invariants across calls, the global
+- destroyBlackFunds' success path, the getters other than totalSupply/balanceOf, the fallback, invariants across calls, the global
   "sum of balances = totalSupply" (needs a sum over a mapping).
 - The returned bytes after STOP (generic gap 8).
 
@@ -390,7 +478,22 @@ growth) and `read_prefix` (the first k bytes of a written range).
    (by unfold accCost; omega)` works. A long chain of gas subtractions unified against an explicit
    `(gas := …)` of a block also hits maxRecDepth: insert `step reshape (g' := …)` first.
 
+16. Round 7: no new opcode gap (LOG1, SSTORE, SLOAD, EXP, CALLER, MSTORE all from EthLib or the
+   existing local rules). New local generic lemmas (no sorry): `writeSlot_readSlot` (under
+   `hasAccount`), `storeSub_accessSlot`, `readSlot_comm`, `accessSlot_comm`, `readSlot_0n0`,
+   `accessSlot_0n0`, `read_after64`, `byte20_of_bits`, `lowByte_of_bits`, `testBit_one'`.
+   Pitfalls: (a) a coldness argument such as `coldIn_accessSlot_self _ _ _` given inline fixes the
+   block's substate to `accessSlot …` and fails (or times out in whnf) against a `storeSub …`
+   substate; give it as `?h` and close it with `case h => exact …` after the `refine`.
+   (b) `simp`/`omega` side arguments of a block are elaborated before the block's implicit gas and
+   stack are unified: pass `(gas := …)` or defer them the same way. (c) after SLOAD the word is
+   `st.getStorage t (toBeBytes n)`; `rw [getStorage_eq]` turns it into `storageAt` so omega sees one
+   atom. (d) `if_neg`/`if_false` are deprecated in this toolchain (`ite_false`, or `split`).
+
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+Round 7 (pin d4d422780, unchanged): clean project build (`rm -rf .lake/build`) 98.19 s wall,
+1345454080 bytes (1283 MiB) max RSS (/usr/bin/time -l), exit 0, 0 "error:" lines, 1337 jobs,
+124 `#print axioms`, all [propext, Classical.choice, Quot.sound]. New files of round 7: 3960 lines.
 Round 6 (pin d4d422780): re-pin alone, clean project build 79.70 s wall, 1303 MB max RSS, exit 0,
 0 "error:" lines, 1321 jobs, 67 `#print axioms` all [propext, Classical.choice, Quot.sound].
 With the deprecated write paths: clean build 88.06 s wall, 1348 MB max RSS, exit 0, 1323 jobs,

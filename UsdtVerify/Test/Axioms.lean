@@ -14,6 +14,13 @@ import UsdtVerify.Functions.DeprecatedTransfer
 import UsdtVerify.Functions.DeprecatedTransferFrom
 import UsdtVerify.Functions.TransferFromFault2
 import UsdtVerify.Summary
+import UsdtVerify.Functions.Nonpayable
+import UsdtVerify.Functions.PauseSpec
+import UsdtVerify.Functions.BlackListSpec
+import UsdtVerify.Functions.IssueSpec
+import UsdtVerify.Functions.SetParamsSpec
+import UsdtVerify.Functions.AddrWriteSpec
+import UsdtVerify.Functions.Destroy
 import UsdtVerify.Functions.Deprecated
 import UsdtVerify.Functions.DeprecatedBalance
 
@@ -101,3 +108,45 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.DeprecatedTransferFrom.spec_depF_fails
 #print axioms UsdtVerify.DeprecatedTransferFrom.runFrame_depF_process
 #print axioms UsdtVerify.DeprecatedTransferFrom.spec_depFNoCode
+#print axioms UsdtVerify.Nonpayable.spec
+#print axioms UsdtVerify.Nonpayable.runFrame_spec
+#print axioms UsdtVerify.PauseSpec.spec_pause
+#print axioms UsdtVerify.PauseSpec.spec_unpause
+#print axioms UsdtVerify.PauseSpec.spec_pause_notOwner
+#print axioms UsdtVerify.PauseSpec.spec_unpause_notOwner
+#print axioms UsdtVerify.PauseSpec.spec_pause_paused
+#print axioms UsdtVerify.PauseSpec.spec_unpause_notPaused
+#print axioms UsdtVerify.Pause.byte20_withPaused
+#print axioms UsdtVerify.Pause.owner_withPaused
+#print axioms UsdtVerify.Pause.bit_withPaused
+#print axioms UsdtVerify.BlackListSpec.spec_add
+#print axioms UsdtVerify.BlackListSpec.spec_remove
+#print axioms UsdtVerify.BlackListSpec.spec_add_notOwner
+#print axioms UsdtVerify.BlackListSpec.spec_remove_notOwner
+#print axioms UsdtVerify.BlackListSpec.listState_flag
+#print axioms UsdtVerify.BlackListSpec.listState_other
+#print axioms UsdtVerify.Admin.bit_setLow
+#print axioms UsdtVerify.IssueSpec.spec_issue
+#print axioms UsdtVerify.IssueSpec.spec_redeem
+#print axioms UsdtVerify.IssueSpec.spec_issue_notOwner
+#print axioms UsdtVerify.IssueSpec.spec_redeem_notOwner
+#print axioms UsdtVerify.IssueSpec.spec_issue_req1
+#print axioms UsdtVerify.IssueSpec.spec_issue_req2
+#print axioms UsdtVerify.IssueSpec.spec_redeem_req1
+#print axioms UsdtVerify.IssueSpec.spec_redeem_req2
+#print axioms UsdtVerify.IssueSpec.issue_effects
+#print axioms UsdtVerify.IssueSpec.redeem_effects
+#print axioms UsdtVerify.SetParamsSpec.spec_setParams
+#print axioms UsdtVerify.SetParamsSpec.spec_notOwner
+#print axioms UsdtVerify.SetParamsSpec.spec_bpHigh
+#print axioms UsdtVerify.SetParamsSpec.spec_feeHigh
+#print axioms UsdtVerify.SetParamsSpec.params_effects
+#print axioms UsdtVerify.AddrWriteSpec.spec_deprecate
+#print axioms UsdtVerify.AddrWriteSpec.spec_deprecate_notOwner
+#print axioms UsdtVerify.AddrWriteSpec.deprecate_effects
+#print axioms UsdtVerify.AddrWriteSpec.spec_transferOwnership
+#print axioms UsdtVerify.AddrWriteSpec.spec_transferOwnership_zero
+#print axioms UsdtVerify.AddrWriteSpec.spec_transferOwnership_notOwner
+#print axioms UsdtVerify.AddrWriteSpec.transferOwnership_effects
+#print axioms UsdtVerify.Destroy.spec_notOwner
+#print axioms UsdtVerify.Destroy.spec_notListed

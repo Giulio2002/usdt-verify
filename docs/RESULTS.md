@@ -91,6 +91,62 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   with a proved specification whose runs end with no error, the run stops with no error, unless the
   runner aborts.
 
+- **Nonzero call value** (`Nonpayable.lean`, `nonpayable`). All 32 functions are nonpayable. For
+  every entry `i` of the selector table, a call whose selector is the key of entry `i` and whose
+  value is not 0 reverts with empty output before reading storage: the state and substate are
+  unchanged and the run uses exactly `87 + 22 * (i + 1)` gas.
+
+- **The owner check** (`Owner.lean`). Every owner function starts with an inlined copy of
+  `require(msg.sender == owner)`, where `owner` is the low 160 bits of slot 0. One pair of
+  theorems covers all ten copies: if the caller is the owner the run goes on, and otherwise it
+  reverts with empty output after reading slot 0.
+- **pause() and unpause()** (`PauseSpec.lean`). `paused` is byte 20 of slot 0.
+  - A caller that is not the owner gets a revert with empty output.
+  - `pause()` reverts when already paused, and `unpause()` reverts when not paused.
+  - On success the run stops after exactly one storage write, to slot 0. The new word has byte
+    20 set to 1 (pause) or 0 (unpause), and every other bit unchanged, so the owner is unchanged
+    too. One log is appended, with the topic of `Pause()` or `Unpause()` and no data. The gas is
+    exact.
+- **addBlackList(a) and removeBlackList(a)** (`BlackListSpec.lean`). `isBlackListed[a]` is the low
+  byte of slot `keccak(a ++ 6)`.
+  - A caller that is not the owner gets a revert with empty output.
+  - The owner's call stops after exactly one storage write, to that slot. The low byte becomes 1
+    (add) or 0 (remove), and the other bits are unchanged. Every other slot is unchanged. One log
+    is appended: `AddedBlackList(a)` or `RemovedBlackList(a)`, with `a` as its data word. The old
+    flag is not read, so adding twice or removing an absent address also succeeds. The gas is
+    exact.
+- **issue(a) and redeem(a)** (`IssueSpec.lean`). `_totalSupply` is slot 1 and `balances[owner]`
+  is slot `O = keccak(owner ++ 2)`.
+  - A caller that is not the owner gets a revert with empty output.
+  - `issue` reverts unless `0 < a` and neither `_totalSupply + a` nor `balances[owner] + a`
+    reaches 2^256. In particular `issue(0)` reverts. `redeem` reverts when `a` exceeds
+    `_totalSupply` or `balances[owner]`.
+  - On success, the run stops after exactly two storage writes and one log:
+    - `issue` writes `balances[owner] + a`, then `_totalSupply + a`, and logs `Issue(a)`.
+    - `redeem` writes `_totalSupply - a`, then `balances[owner] - a`, and logs `Redeem(a)`.
+  - Assuming `O ≠ 1`, the new words are these sums and differences as plain numbers, and every
+    other slot is unchanged. The gas is exact.
+- **setParams(b, m)** (`SetParamsSpec.lean`). `basisPointsRate`, `maximumFee` and `decimals`
+  are slots 3, 4 and 9.
+  - A caller that is not the owner gets a revert with empty output. The owner's call reverts
+    when `b ≥ 20`, or when `b < 20` and `m ≥ 50`.
+  - Otherwise, if `m * 10^decimals < 2^256`, the run stops after writing `b` to slot 3 and
+    `m * 10^decimals` to slot 4. Every other slot is unchanged. One log `Params(b, f)` is
+    appended, with the two new words as data. The gas is exact.
+  - The overflow of that product is not covered. It needs `decimals ≥ 75`.
+- **deprecate(a) and transferOwnership(a)** (`AddrWriteSpec.lean`).
+  - A caller that is not the owner gets a revert with empty output.
+  - `deprecate` stops after two writes of slot 10. Afterwards `deprecated` (byte 20) is 1,
+    `upgradedAddress` (the low 160 bits) is `a`, and every other slot is unchanged. One log
+    `Deprecate(a)` is appended.
+  - `transferOwnership(0)` stops without writing anything. For `a ≠ 0` it stops after one write
+    of slot 0. Afterwards the owner is `a`, `paused` is unchanged, and so is every other slot.
+    No log is emitted (Ownable has no event here).
+  - The gas is exact.
+- **destroyBlackFunds(a), the reverts only** (`Destroy.lean`). A caller that is not the owner
+  gets a revert, and so does the owner when `a` is not blacklisted. The success path is not
+  covered yet.
+
 ## What is trusted
 
 - The Lean 4 kernel (v4.35.0).
@@ -106,9 +162,8 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
 
 ## What is not covered
 
-- A nonzero call value (the nonpayable revert).
-- The other functions: owner and admin functions, issue, redeem, setParams, blacklist management,
-  the remaining getters, and the fallback.
+- The success path of destroyBlackFunds, the getters other than totalSupply and balanceOf, and
+  the fallback.
 - Properties across several calls (invariants), and the global "sum of all balances =
   `_totalSupply`". The global statement needs a sum over a mapping and is not stated.
 - The output buffer after STOP. `At` does not track it, so for transfer the theorems do not say

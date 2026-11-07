@@ -21,5 +21,12 @@ import UsdtVerify.Functions.Deprecated
 import UsdtVerify.Functions.DeprecatedBalance
 import UsdtVerify.Functions.DeprecatedTransfer
 import UsdtVerify.Functions.DeprecatedTransferFrom
+import UsdtVerify.Functions.Nonpayable
+import UsdtVerify.Functions.PauseSpec
+import UsdtVerify.Functions.BlackListSpec
+import UsdtVerify.Functions.IssueSpec
+import UsdtVerify.Functions.SetParamsSpec
+import UsdtVerify.Functions.AddrWriteSpec
+import UsdtVerify.Functions.Destroy
 import UsdtVerify.Test.Axioms
 import UsdtVerify.Summary

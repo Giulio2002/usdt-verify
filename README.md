@@ -70,6 +70,15 @@ All of this holds from the Berlin fork onwards, and before Glamsterdam on paths 
   - On success, with or without a fee, it makes the exact writes and logs. An allowance of `2^256 - 1` is never decreased.
 - **Local conservation.** On every success path, the balance changes the path makes sum to zero. The payer changes by `-v`, the payee by `v - fee`, and the owner by `fee`. These theorems assume the slots involved are pairwise distinct. The slots are keccak outputs, and nothing about the hash function is assumed or proved.
 - **Deprecated paths.** For all five functions above, when the deprecated flag is set, USDT sends exactly one message, with no value, to the address in slot 10, with the stated call data. It then returns or stops on success, and reverts with empty output on failure. It reverts before calling if that address has no code.
+- **No ether accepted.** Every one of the 32 functions reverts with empty output when called with a nonzero value, before any storage read.
+- **Owner functions.** For each one, a caller that is not the owner (the low 160 bits of slot 0) gets a revert with empty output.
+  - `pause` and `unpause` set or clear the paused byte of slot 0, keep the owner bits, and emit `Pause` or `Unpause`. They revert if the contract is already in that state.
+  - `addBlackList` and `removeBlackList` set the blacklist byte of the address to 1 or 0 and emit the matching event. No other slot changes.
+  - `issue` and `redeem` change the total supply and the owner's balance in code order and emit `Issue` or `Redeem`. They revert in the cases the code checks, and `issue(0)` reverts.
+  - `setParams` sets the fee rate and the maximum fee and emits `Params`. It reverts when the rate is 20 or more, or the maximum is 50 or more. The overflow of the maximum fee times the decimals is not covered.
+  - `deprecate` sets the deprecated byte and the upgraded address and emits `Deprecate`.
+  - `transferOwnership` replaces the owner bits and keeps the paused byte. It does nothing for the zero address.
+  - `destroyBlackFunds` reverts for a non-owner and for an address that is not blacklisted. Its success path is not proved yet.
 
 ## What you have to trust
 
@@ -83,8 +92,8 @@ A few general opcode rules are proved locally in `UsdtVerify/Local/` while they 
 
 ## What is not covered yet
 
-- A nonzero call value.
-- The owner and admin functions, such as pause, blacklist management, issue, redeem and the fee parameters, and the fallback.
+- The success path of `destroyBlackFunds`.
+- The remaining getters, such as `allowance` and `getBlackListStatus`, and the fallback.
 - Properties across several calls, including the global statement that the balances sum to the total supply.
 - The returned bytes after a `STOP`, because EthLib's frame predicate does not track the output buffer.
 - Runs with less gas than the stated bounds, and forks outside the stated range.

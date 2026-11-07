@@ -14,6 +14,13 @@ import UsdtVerify.Functions.TransferFromFeeSpec
 import UsdtVerify.Functions.TransferFromFault2
 import UsdtVerify.Functions.DeprecatedBalance
 import UsdtVerify.Functions.DeprecatedTransferFrom
+import UsdtVerify.Functions.Nonpayable
+import UsdtVerify.Functions.PauseSpec
+import UsdtVerify.Functions.BlackListSpec
+import UsdtVerify.Functions.IssueSpec
+import UsdtVerify.Functions.SetParamsSpec
+import UsdtVerify.Functions.AddrWriteSpec
+import UsdtVerify.Functions.Destroy
 
 /-!
 # Summary: what is proved about the deployed USDT bytecode
@@ -147,8 +154,74 @@ StandardToken, which are not reached).
 What the upgraded contract does with the forwarded call (the balances it changes) is the callee's
 business: nothing is assumed or proved about it beyond the callee assumption.
 
+## Nonzero call value — `nonpayable`, `runFrame_nonpayable`
+Every one of the 32 functions is nonpayable, and each entry of the selector table starts with
+its own copy of `JUMPDEST CALLVALUE ISZERO PUSH2 JUMPI PUSH1 0 DUP1 REVERT`. For `i : Fin 32`,
+call data of 4 to 2^256 - 1 bytes whose selector is the key of entry `i` of `ENTRIES` (the table
+in bytecode order, docs/MAP.md) and a nonzero value ⇒ REVERT with no output, before any storage
+read: state and substate unchanged, gas left `gas - (87 + 22 * (i + 1))`.
+
+## Owner functions: the `onlyOwner` check (Owner.lean)
+`owner` = the low 160 bits of slot 0 (`ownerOf`); the caller is compared as
+`caller & (2^160 - 1)` (`callerWord`). The check is inlined in each owner function; `ownerOk` /
+`ownerRevert` cover all ten copies (`CHECKS`). A caller other than the owner gets REVERT with no
+output after reading slot 0.
+From round 7 on, the `runFrame` form of a `Spec` is EthLib's `Spec.runFrame` (as in every
+`runFrame_*` wrapper); the new specs are stated as `Spec` only.
+
+## pause() 0x8456cb59 / unpause() 0x3f4ba83a (PauseSpec.lean)
+`paused` is byte 20 of slot 0.
+- `pause_notOwner` / `unpause_notOwner`: caller ≠ owner ⇒ REVERT, no output.
+- `pause_paused`: owner, byte 20 ≠ 0 ⇒ REVERT (`whenNotPaused`).
+  `unpause_notPaused`: owner, byte 20 = 0 ⇒ REVERT (`whenPaused`).
+- `pause` (owner, byte 20 = 0) / `unpause` (owner, byte 20 ≠ 0): STOP; slot 0 :=
+  `withPaused w0 1` / `withPaused w0 0`; one log with the topic of `Pause()` / `Unpause()` and no
+  data. `withPaused w b` has byte 20 = b (`byte20_withPaused`), the same owner
+  (`owner_withPaused`), and every bit outside 160..167 of `w` (`bit_withPaused`).
+
+## addBlackList(a) 0x0ecb93c0 / removeBlackList(a) 0xe4997dc5 (BlackListSpec.lean)
+`a` = argument word 0 masked to 160 bits; `L = keccak(a ++ 6)` (`listSlot a`).
+- `addBlackList_notOwner` / `removeBlackList_notOwner`: caller ≠ owner ⇒ REVERT, no output.
+- `addBlackList` / `removeBlackList` (owner): STOP; slot 0 read; `L := setLow w 1` / `setLow w 0`
+  (`w` the word of `L`); one log `AddedBlackList(a)` / `RemovedBlackList(a)` with data the word
+  `a`. The old flag is not read. `listState_flag`: the low byte of `L` is then 1 / 0;
+  `listState_other`: every other slot is unchanged.
+
+## issue(a) 0xcc872b66 / redeem(a) 0xdb006a75 (IssueSpec.lean)
+`a` = argument word 0; `T` = slot 1 (`_totalSupply`); `O = keccak(owner ++ 2)` (`ownerBal`),
+`B` its word.
+- `issue_notOwner` / `redeem_notOwner`: caller ≠ owner ⇒ REVERT.
+- `issue_req1`: owner, `¬(0 < a ∧ T + a < 2^256)` ⇒ REVERT (so `issue(0)` reverts).
+  `issue_req2`: the first passes, `¬(0 < a ∧ B + a < 2^256)` ⇒ REVERT.
+- `redeem_req1`: owner, `T < a` ⇒ REVERT. `redeem_req2`: `a ≤ T`, `B < a` ⇒ REVERT.
+- `issue` (owner, `0 < a`, `T + a < 2^256`, `B + a < 2^256`): STOP; `O := B + a`, then
+  slot 1 `:= T' + a` (read after the first write); log `Issue(a)` (data the word `a`).
+- `redeem` (owner, `a ≤ T`, `a ≤ B`): STOP; slot 1 `:= T - a`, then `O := B' - a`; log
+  `Redeem(a)`.
+- `issue_effects` / `redeem_effects`: with `O ≠ 1` (assumed; `O` is a keccak output), the end
+  words are `B ± a` and `T ± a` as numbers, and every other slot is unchanged.
+
+## setParams(b, m) 0xc0324c77 (SetParamsSpec.lean)
+`b`, `m` = argument words 0, 1; `d` = slot 9 (`decimals`); `f = m * 10^d` (EVM words).
+- `setParams_notOwner`: caller ≠ owner ⇒ REVERT. `setParams_bpHigh`: owner, `b ≥ 20` ⇒ REVERT.
+  `setParams_feeHigh`: owner, `b < 20`, `m ≥ 50` ⇒ REVERT.
+- `setParams` (owner, `b < 20`, `m < 50`, `m * 10^d < 2^256`): STOP; slot 3 := `b`, slot 4 :=
+  `f` (SafeMath `mul`); log `Params(b, f)` (data the two words, read back from slots 3 and 4).
+  `params_effects`: slot 3 = `b`, slot 4 = `f`, every other slot unchanged.
+  The `mul` overflow (INVALID; needs `d ≥ 75`) is not covered.
+
+## deprecate(a) 0x0753c30c / transferOwnership(a) 0xf2fde38b (AddrWriteSpec.lean)
+`a` = argument word 0 masked to 160 bits. `withAddr w a` = `w` with its low 160 bits from `a`.
+- `deprecate_notOwner` / `transferOwnership_notOwner`: caller ≠ owner ⇒ REVERT.
+- `deprecate` (owner): STOP; slot 10 := `withPaused w10 1`, then slot 10 :=
+  `withAddr (withPaused w10 1) a`; log `Deprecate(a)`. `deprecate_effects`: `deprecated`
+  (byte 20 of slot 10) = 1, `upgradedAddress` (low 160 bits) = `a`, other slots unchanged.
+- `transferOwnership_zero` (owner, `a = 0`): STOP, only slot 0 read, nothing written, no log.
+  `transferOwnership` (owner, `a ≠ 0`): STOP; slot 0 := `withAddr w0 a`; no log.
+  `transferOwnership_effects`: the owner is `a`, `paused` is kept, other slots unchanged.
+
 ## Not proved
-A nonzero call value; the other functions; the fallback. The returned bytes of a STOP (`At` does
+The owner functions and the remaining getters (see docs/STATUS.md); the fallback. The returned bytes of a STOP (`At` does
 not track the output buffer).
 -/
 
@@ -211,6 +284,42 @@ alias transferFrom_dep_succeeds := DeprecatedTransferFrom.spec_depF_succeeds
 alias transferFrom_dep_fails := DeprecatedTransferFrom.spec_depF_fails
 alias transferFrom_dep_process := DeprecatedTransferFrom.runFrame_depF_process
 alias transferFrom_depNoCode := DeprecatedTransferFrom.spec_depFNoCode
+alias nonpayable := Nonpayable.spec
+alias runFrame_nonpayable := Nonpayable.runFrame_spec
+alias pause := PauseSpec.spec_pause
+alias unpause := PauseSpec.spec_unpause
+alias pause_notOwner := PauseSpec.spec_pause_notOwner
+alias unpause_notOwner := PauseSpec.spec_unpause_notOwner
+alias pause_paused := PauseSpec.spec_pause_paused
+alias unpause_notPaused := PauseSpec.spec_unpause_notPaused
+alias addBlackList := BlackListSpec.spec_add
+alias removeBlackList := BlackListSpec.spec_remove
+alias addBlackList_notOwner := BlackListSpec.spec_add_notOwner
+alias removeBlackList_notOwner := BlackListSpec.spec_remove_notOwner
+alias issue := IssueSpec.spec_issue
+alias redeem := IssueSpec.spec_redeem
+alias issue_notOwner := IssueSpec.spec_issue_notOwner
+alias redeem_notOwner := IssueSpec.spec_redeem_notOwner
+alias issue_req1 := IssueSpec.spec_issue_req1
+alias issue_req2 := IssueSpec.spec_issue_req2
+alias redeem_req1 := IssueSpec.spec_redeem_req1
+alias redeem_req2 := IssueSpec.spec_redeem_req2
+alias issue_effects := IssueSpec.issue_effects
+alias redeem_effects := IssueSpec.redeem_effects
+alias setParams := SetParamsSpec.spec_setParams
+alias setParams_notOwner := SetParamsSpec.spec_notOwner
+alias setParams_bpHigh := SetParamsSpec.spec_bpHigh
+alias setParams_feeHigh := SetParamsSpec.spec_feeHigh
+alias setParams_effects := SetParamsSpec.params_effects
+alias deprecate := AddrWriteSpec.spec_deprecate
+alias deprecate_notOwner := AddrWriteSpec.spec_deprecate_notOwner
+alias deprecate_effects := AddrWriteSpec.deprecate_effects
+alias transferOwnership := AddrWriteSpec.spec_transferOwnership
+alias transferOwnership_zero := AddrWriteSpec.spec_transferOwnership_zero
+alias transferOwnership_notOwner := AddrWriteSpec.spec_transferOwnership_notOwner
+alias transferOwnership_effects := AddrWriteSpec.transferOwnership_effects
+alias destroyBlackFunds_notOwner := Destroy.spec_notOwner
+alias destroyBlackFunds_notListed := Destroy.spec_notListed
 
 variable {fork : Fork} {message : Message fork}
 
