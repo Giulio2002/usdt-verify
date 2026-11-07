@@ -338,8 +338,9 @@ may be an EIP-7702 delegation). Static or not: `Complete.inv_call_all` (Complete
 static frame keeps the state, EthLib's `staticStep_runFrame`, under the named runner assumption
 `StaticKeeps`, proved for the interpreter's runner from Paris by `staticKeeps_process`). Along a
 finite sequence of such calls and of steps that keep the storage of `C`: `Complete.inv_calls`
-(Complete/Seq.lean); a successful top-level `processMessage` with no value is such a call from
-Paris (`Complete.goodCall_process`). None
+(Complete/Seq.lean); a successful top-level `processMessage` of `CODE` with no value and no
+precompile, from Paris (before Glamsterdam when deprecated), under the named assumptions, is such
+a call (`Complete.goodCall_process`). None
 has an alias here, since Invariant imports this file.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
@@ -388,7 +389,8 @@ the three getters, empty for the three writes), gas, and the state and substate 
 `incorporateChild`; and the upgraded account's code `c` is found in the state, and the CALL
 follows a route `r`: no delegation, or (from Pectra) `c` is an EIP-7702 indicator to an address
 whose code is found, the message runs that code with the precompiles disabled, and the CALL pays
-the access to the delegate (`routeCost`). Named hypotheses: the coldness flags only.
+the access to the delegate (`routeCost`). From Berlin to before Glamsterdam. Named hypotheses
+beyond the fork range, size, selector and flag: the coldness flags only.
 `destroyBlackFunds_dep_complete`: the owner's call, `a` blacklisted, the forward of
 `balanceOf(a)` answered with no error, then over the state `S` the call left and the word `d` at
 0x60: STOP with empty output in `tailState S C a d` (`balances[a] := 0`, `_totalSupply := T' - d`

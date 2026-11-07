@@ -862,7 +862,7 @@ entry; `DESTS` = the 32 destinations).
   `disablePrecompiles = r.isSome`, current target `to`; the caller's state and substate are wrapped
   in `routeState`/`routeSub`.
 - Every forward specification and its corollaries (`spec_dep*`, `spec_dep*_answers`,
-  `spec_dep*_fails`, `spec_dep*_succeeds`, `runFrame_dep*_answers`, `runFrame_dep*_process`, for
+  `spec_dep*_fails`, `spec_dep*_succeeds`, `runFrame_dep_answers` (totalSupply), `runFrame_dep*_process`, for
   totalSupply, balanceOf, allowance, transfer, approve, transferFrom, destroyBlackFunds) takes
   `{r : Route} (hroute : Routes fork state c r)` in place of `hdel` (`HypT`/`HypA`/`HypF`: the
   field `route` in place of `noDelegation`, and the structure takes `r`). The gas bound `hg` adds
@@ -906,7 +906,7 @@ entry; `DESTS` = the 32 destinations).
   `S'`, with every hypothesis of `inv_call_all` stated at `S`. `Untouched C S S'`: every storage
   word of `C` is the same. `Calls C`: the inductive finite sequences of both kinds of steps.
 - `inv_goodCall`, `inv_calls` (`KeccakSep`): `Inv C` is kept along `Calls C`.
-- `goodCall_process` (Paris ≤ fork < Glamsterdam): a message with `message.code = CODE`, no value
+- `goodCall_process` (from Paris; before Glamsterdam when deprecated): a message with `message.code = CODE`, no value
   transfer and no precompile, with `processMessage … = .ok ended` and `ended.val.error = none`, is
   a `GoodCall` from the start state to `ended.val.state` (EthLib's `processMessage_map_val`,
   `at_startFrame`; `StaticKeeps` by `staticKeeps_process`).
@@ -947,12 +947,12 @@ entry; `DESTS` = the 32 destinations).
   theorem for any gas and any runner (`dep_*_complete`), with or without an EIP-7702 delegation
   at the upgraded address (round 16). Named hypotheses that stay: for destroyBlackFunds,
   `hstatic` and `hkeep` (the contract keeps an account after a successful forwarded call).
-- Hypotheses the completeness theorems keep, by name: `hstatic` (frame not static; a static
+- Hypotheses the completeness theorems of the writing paths keep, by name: `hstatic` (frame not static; a static
   SSTORE/LOG fails, but no spec of that failure is proved per path; for the invariant the static
   case is done generically, round 17, `inv_static`), `hacc` (the contract has an account;
   the write needs it), size < 2^256; Berlin ≤ fork < Glamsterdam only on the deprecated paths
   (round 17: the non-deprecated writing paths hold at Glamsterdam too).
-- The deprecated paths in the invariant: done (round 15, `inv_call_all`) under the named runner
+- The deprecated paths in the invariant: done (round 15, now `inv_call_ns`; static frames too in `inv_call_all`, round 17) under the named runner
   assumptions `KeepsInv` and `HonestBalance`. Without `HonestBalance`, deprecated
   destroyBlackFunds keeps `Inv` exactly when the answer is the local balance
   (`inv_dep_destroy_iff`); `exists_breaks` gives a state where a different answer breaks it.
@@ -1046,6 +1046,10 @@ entry; `DESTS` = the 32 destinations).
    atom. (d) `if_neg`/`if_false` are deprecated in this toolchain (`ite_false`, or `split`).
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+- Round 17 (after commit e6d4b71, rm -rf .lake/build, EthLib oleans prebuilt): 123.62 s wall,
+  277.07 s user, 1421475840 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines, 1380
+  jobs; `#print axioms`: 367 [propext, Classical.choice, Quot.sound], 2 [propext, Quot.sound],
+  2 [propext], 1 with no axioms.
 - Round 16 (after commit e70c18b, rm -rf .lake/build, EthLib oleans prebuilt): 131.21 s wall,
   294.41 s user, 1425702912 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines, 1369
   jobs; `#print axioms`: 357 [propext, Classical.choice, Quot.sound], 2 [propext, Quot.sound],

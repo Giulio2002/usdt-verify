@@ -72,13 +72,15 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   hypothesis. USDT then:
   - sends exactly one message to the upgraded address, along the route, with no value and with the call data
     `0x18160ddd`, or `0x70a08231 ++ who` for balanceOf;
-  - returns the first word of the callee's output if the callee succeeds;
+  - if the callee succeeds, returns the word at 0x60 after the first `min 32 |output|` bytes of
+    its output are copied there (the first output word when the output has at least 32 bytes);
   - reverts with empty output if the callee fails;
   - reverts before any call if the address has no code.
 
   `runFrame_dep_process` instantiates this with EthLib's own message runner: for any code of the
-  route that has a proved specification, the run returns that code's answer, unless the
-  runner aborts.
+  route whose specification ends with no error and a fixed output `o` of at least 32 bytes, with
+  the route's address not a precompile and the forwarded message meeting the specification's
+  precondition, the run returns the first word of `o`, unless the runner aborts.
 - **Deprecated transfer / approve / transferFrom** (`DeprecatedTransfer.lean`,
   `DeprecatedTransferFrom.lean`). The same callee abstraction. With the flag set (and, for transfer,
   not paused and the caller not blacklisted; for transferFrom, not paused and `f` not blacklisted;
@@ -188,8 +190,8 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
     It sends the upgraded address `ua` one message with no value and the data
     `0x70a08231 ++ a` (`balanceOf(a)`). The theorem holds for every callee behaviour that meets
     a stated assumption: when the call ends with no error, the contract's account still exists
-    in the state the call left. It also needs at least 47,881 gas left after the price of the
-    CALL (`TAIL_MAX`, enough for both writes at their highest price).
+    in the state the call left. It also needs a frame that is not static, and at least 47,881 gas
+    left after the price of the CALL (`TAIL_MAX`, enough for both writes at their highest price).
     - If the call fails, the run reverts with no output.
     - If it succeeds, let `S` be the state the call left and `d` the first word of the reply
       (the word at 0x60 after the copy). The run stops after writing 0 to `B` and then
@@ -299,10 +301,12 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   - slots 7 and 8 hold strings in a form Solidity writes (`StrForm`);
   - `Inv`: the sum of the 2^160 balances equals `_totalSupply` at the start.
   If the interpreter loop ends with no error, `Inv` holds in the end state.
-- Deprecated totalSupply() (`Complete.dep_totalSupply_complete`, round 14), for any gas, any gas
+- Deprecated totalSupply() (`Complete.dep_totalSupply_complete`, round 14), from Berlin to before
+  Glamsterdam (as every `dep_*_complete` below), for any gas, any gas
   bound and ANY message runner (nothing is assumed of the runner). Every run that ends with no
   error is the forward to the upgraded address:
-  - the runner was called with the `Forwarded` message and returned a frame with no error;
+  - the runner was called with the forwarded message (`SendsVia`, along the route `r`) and
+    returned a frame with no error;
   - the run returns the word at 0x60 after the CALL wrote the start of that frame's output;
   - the gas left is exact, and the state and substate are those after the call.
   Also, the upgraded account's code `c` was found in the state (round 15: before, this was the
