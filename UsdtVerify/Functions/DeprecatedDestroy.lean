@@ -21,8 +21,10 @@ then writes, in THIS contract, `balances[a] := 0` and `_totalSupply := _totalSup
   160-byte memory, no growth).
 
 The state after the call is the callee's (EthLib's `incorporateChild`); the writes are stated
-over it. That the account of the contract still exists after the call is an assumption on the
-callee (`hkeep`).
+over it. In the forward specification (`spec_depD`) that the account of the contract still
+exists after the call is an assumption on the callee (`hkeep`). The completeness theorem
+(`Complete.dep_destroy_complete`) needs no such assumption: without the account, or in a static
+frame, the first SSTORE after the call is `Stuck` (`tailBadD`).
 -/
 
 namespace UsdtVerify.DeprecatedDestroy

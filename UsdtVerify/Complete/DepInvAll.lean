@@ -303,8 +303,8 @@ theorem inv_dep_destroy (K : KeccakSep) (hfork : .berlin ≤ fork)
 /-- **Every successful call keeps the invariant, deprecated or not.**
 
 `inv_call` with `hdep` replaced by what the deprecated paths need. From Berlin (Glamsterdam
-included), a fresh frame of `CODE` at pc 0 with any call data below 2^256 bytes, any value, any
-gas, any gas bound and any message runner (static or not since round 19). Under `KeccakSep`, with
+included), a fresh frame of `CODE` at pc 0, static or not (since round 19), with any call data
+below 2^256 bytes, any value, any gas, any gas bound and any message runner. Under `KeccakSep`, with
 string slots 7 and 8 of `StrForm`, and, when deprecated (byte 20 of slot 10 not 0): the contract
 has an account (`hacc`), the runner meets `KeepsInv` (`hkeeps`), and for destroyBlackFunds it
 meets `HonestBalance` (`hhonest`). If `Inv C state` holds and the interpreter loop ends with no error,

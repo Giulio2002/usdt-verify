@@ -539,8 +539,9 @@ theorem sstoreG_any (hfork : .berlin ≤ fork) {key new : U256}
   exact ⟨after, h, by rw [a1, hcode], by rw [a2, hj], a3, by rw [a4, hpc], a5, by rw [a6, hmem],
     a7, by rw [a8, hrun], by rw [a9, herr], by rw [ao, hout], a10, a11⟩
 
-/-- The local `sstoreW` over `StepG` at every fork from Berlin (Glamsterdam included), with the
-price `writeCost`. -/
+/-- SSTORE over slots (`writeSlot`, `storeSub`) over `StepG` at every fork from Berlin
+(Glamsterdam included), with the price `writeCost` (the pre-Glamsterdam `sstoreW` was deleted in
+round 19). -/
 theorem sstoreWG (hfork : .berlin ≤ fork) {key new : U256}
     {rest : List U256} {cold : Bool} (hlt : pc < code.size) (hbyte : code[pc] = 0x55)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)

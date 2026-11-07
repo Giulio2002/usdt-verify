@@ -270,7 +270,9 @@ Every `spec_*` of rounds 7 and 8 from pc 0 has a `runFrame_*` wrapper in the sam
   at 0x60 after the copy of its output: STOP in `tailState S C a d` (`B := 0` in THIS contract,
   then slot 1 `:= T' - d`, unchecked), substate `tailSub` (log `DestroyedBlackFunds(a, d)`), gas
   exact (`tailCost`; `B` may be cold). Hypotheses beyond the usual: at least `TAIL_MAX fork` (47881
-  before Glamsterdam, 223721 from Glamsterdam) gas after the CALL's price, and `hkeep` (the callee leaves the contract's account in place).
+  before Glamsterdam, 223721 from Glamsterdam) gas after the CALL's price, a frame that is not
+  static, and `hkeep` (the callee leaves the contract's account in place). (The completeness
+  theorem `destroyBlackFunds_dep_complete` below needs neither of the last two.)
   So `_totalSupply` drops by the balance that the UPGRADED contract reports, while the local
   `balances[a]` (whatever it held) becomes 0. `destroyBlackFunds_dep_answers` (a callee answering
   `o`, ≥ 32 bytes: STOP, state `tailState S C a (first word of o)` for some `S`),
@@ -414,7 +416,7 @@ beyond the fork range, size, selector and flag: the coldness flags only.
 0x60: STOP with empty output in `tailState S C a d` (`balances[a] := 0`, `_totalSupply := T' - d`
 unchecked), `tailSub`, gas exact; the frame is not static and the contract has an account in
 the child's end state (round 19: proved, the first SSTORE of the tail is `Stuck` otherwise;
-until round 18 these were the named hypotheses `hstatic` and `hkeep`). Named hypotheses: the
+through round 18 these were the named hypotheses `hstatic` and `hkeep`). Named hypotheses: the
 coldness flags only.
 -/
 

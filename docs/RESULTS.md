@@ -359,7 +359,7 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   word the call wrote at 0x60, and logging `DestroyedBlackFunds(a, d)`; gas exact. The frame was
   not static and the contract has an account in the child's end state: both are in the
   conclusion (round 19), since otherwise the first SSTORE after the call is `Stuck`
-  (`DeprecatedDestroy.tailBadD`). Until round 18 they were the hypotheses `hstatic` and `hkeep`
+  (`DeprecatedDestroy.tailBadD`). Through round 18 they were the hypotheses `hstatic` and `hkeep`
   (an assumption on the runner); no named hypothesis beyond the coldness flags remains.
 
 ## The invariant when deprecated: destroyBlackFunds (round 14)
@@ -396,10 +396,10 @@ left. The callee may call back into this contract, so `S` can differ from the st
 
 `UsdtVerify/Complete/DepInvAll.lean`, `Complete.inv_call_ns` (until round 16 named
 `inv_call_all`). It is `inv_call` without the
-hypothesis "not deprecated". From Berlin on (Glamsterdam included; until round 18 before Glamsterdam when deprecated), take a fresh frame of the
+hypothesis "not deprecated". From Berlin on (Glamsterdam included; through round 18 before Glamsterdam when deprecated), take a fresh frame of the
 deployed code at pc 0, with any call data below 2^256 bytes, any value, any gas, any gas bound
 and any message runner. Assume `KeccakSep`, `StrForm` of slots 7
-and 8, and `Inv` at the start (until round 18 also a frame that is not static). When the contract is deprecated, also assume an account for the
+and 8, and `Inv` at the start (through round 18 also a frame that is not static). When the contract is deprecated, also assume an account for the
 contract `C` (round 18: only when deprecated) and:
 - `KeepsInv` (`hkeeps`): whenever the runner ends a message from `C` to `ua` with no error, and
   `C` had an account and `Inv` held in the caller's state, then `C` still has an account and

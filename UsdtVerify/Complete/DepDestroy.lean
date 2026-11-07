@@ -23,8 +23,8 @@ gas bound and ANY message runner:
 The code found is in the conclusion, as for the other deprecated functions. Named hypotheses:
 the coldness flags only. The conclusion also states that the frame is not static and that the
 contract has an account in the child's end state (round 19): otherwise the first SSTORE of the
-tail is `Stuck` (`DeprecatedDestroy.tailBadD`), so no such run ends with no error. Until round 18
-both were hypotheses (`hstatic`, and `hkeep` on the runner).
+tail is `Stuck` (`DeprecatedDestroy.tailBadD`), so no such run ends with no error. Through round
+18 both were hypotheses (`hstatic`, and `hkeep` on the runner).
 -/
 
 namespace UsdtVerify.Complete

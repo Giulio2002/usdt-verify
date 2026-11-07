@@ -932,7 +932,8 @@ entry; `DESTS` = the 32 destinations).
 - Still before Glamsterdam: the deprecated paths (EthLib's EXTCODESIZE and CALL rules, and the
   Route lemmas, are pre-Glamsterdam; `tailD` uses EthLib's pre-Glamsterdam bound
   `sstoreCost_le`), so the `dep_*` theorems, `inv_call_ns`, `inv_call_all` (which take
-  `hglam` only when deprecated) and `GoodCall`/`goodCall_process` (the same).
+  `hglam` only when deprecated) and `GoodCall`/`goodCall_process` (the same). (Lifted in round
+  19, below.)
 - The Glamsterdam case rests on EthLib's model of Glamsterdam at the pin (fd3457dbf): its
   `sstoreCost` and `sstoreStateGas` for that fork, and its decoding of the opcodes used.
 
@@ -1070,9 +1071,9 @@ entry; `DESTS` = the 32 destinations).
   non-deprecated writing paths, round 19 for the deprecated paths).
 - Failed top-level calls and calls with value: done (round 18, `untouched_process_failed`,
   `process_value_fails`, `process_step`).
-- The deprecated paths in the invariant: done (round 15, now `inv_call_ns`; static frames too in `inv_call_all`, round 17) under the named runner
+- The deprecated paths in the invariant: done (round 15, now `inv_call_ns`; static frames too in `inv_call_all`, round 17, and in `inv_call_ns`, round 19) under the named runner
   assumptions `KeepsInv` and `HonestBalance`, and an account of the contract when deprecated and
-  not static (`hacc`; `inv_call_ns` took `hstatic` until round 18). Without `HonestBalance`, deprecated
+  not static (`hacc`; `inv_call_ns` took `hstatic` through round 18). Without `HonestBalance`, deprecated
   destroyBlackFunds keeps `Inv` exactly when the answer is the local balance
   (`inv_dep_destroy_iff`); `exists_breaks` gives a state where a different answer breaks it.
   `KeepsInv` is not proved for any concrete upgraded contract.
@@ -1102,7 +1103,7 @@ entry; `DESTS` = the 32 destinations).
    `evm.output = .empty`, so every STOP-ended spec states the empty output.
 9. Storage writes over slots (UsdtVerify/Spec/Write.lean, generic): `writeSlot` (the `.ok` branch
    of setStorage after the read is recorded, under `hasAccount`), `storeSub`, `sstoreW` (EthLib's
-   `sstore` restated), read/access idempotence (`readSlot_readSlot`, `accessSlot_accessSlot`),
+   `sstore` restated; deleted in round 19, `Gas.sstoreWG` replaces it), read/access idempotence (`readSlot_readSlot`, `accessSlot_accessSlot`),
    `storageAt_writeSlot_self/_of_ne`, `originalAt_writeSlot`, `hasAccount_writeSlot/_readSlot`.
 10. Tactic pitfall (Lean v4.35.0 `omega`): a goal `X + 2400 ≤ gas - (1034 + a0 + a1 + a2)` with
    ~6 atoms and a hypothesis of the same sum hits "maximum recursion depth"; the same fact without
@@ -1178,6 +1179,9 @@ entry; `DESTS` = the 32 destinations).
    a fork-generic `callWith`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+- Round 19 (after commit 776ae79, rm -rf .lake/build, EthLib oleans prebuilt): 126.69 s wall,
+  1432436736 B max RSS, exit 0, 1384 jobs; `#print axioms`: 396 with [propext, Classical.choice,
+  Quot.sound], 4 with [propext, Quot.sound], 5 with [propext], 1 with none.
 - Round 18 (after commit 8f76073, rm -rf .lake/build, EthLib oleans prebuilt): 125.64 s wall,
   286.32 s user, 1408958464 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines, 1383
   jobs; `#print axioms`: 392 [propext, Classical.choice, Quot.sound], 2 [propext, Quot.sound],
