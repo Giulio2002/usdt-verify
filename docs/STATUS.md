@@ -743,6 +743,27 @@ entry; `DESTS` = the 32 destinations).
   `accCost (decide …)` to `A` first. `rw [hext]` must come after `CallEnd` is unfolded, because
   the memory cost occurs only inside its body.
 
+### Round 15: deprecated transfer, approve, transferFrom (Complete/DepTransfer.lean)
+- `prefixG_transfer` (0 → 5739), `prefixG_approve` (0 → 3213), `prefixG_transferFrom`
+  (0 → 4200): the prefixes of `preCallT`, `preExtA`, `preExtF` restated over `StepG`
+  (`Gas.callerG`, `Gas.reshapeG`, `repc`), up to the EXTCODESIZE frame. `okTailAG`: `okTailA`
+  (3231) over `StepG` (`Gas.stopG`); `okTailT` and `okTailF` were already over `StepG`.
+- `dep_transfer_complete`, `dep_approve_complete`, `dep_transferFrom_complete`: for any gas,
+  any gas bound and ANY message runner, every run that ends with no error:
+  - passed the checks before the forward: not paused and the blacklist (transfer: the caller,
+    transferFrom: `_from`; excluded by `Transfer.spec_paused`/`spec_blacklisted` and
+    `TransferFrom.spec_paused`/`spec_blacklisted`), or at least 68 bytes of call data (approve;
+    `Approve.spec_payload`);
+  - the code size at the upgraded address is not 0, `preCost + 100 ≤ gas`, the depth is below the
+    limit;
+  - the runner was called with the message of `Sends … (dataT/dataA/dataF message)` and gas
+    `callGas*.subCall`, and returned a frame with no error;
+  - the run stopped with empty output, gas `gas - preCost - callGas.cost + child.gas - 51/53/53`
+    (at least that tail was left), and the state and substate of `incorporateChild`.
+  Named hypotheses: `hcode`, `hdel`, and the coldness flags (`hc0`, `hcB`, `hc10`, `hcU`).
+- Summary aliases: `totalSupply_dep_complete`, `balanceOf_dep_complete`,
+  `transfer_dep_complete`, `approve_dep_complete`, `transferFrom_dep_complete`.
+
 ## Open (not proved)
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
   transfer (round 12), approve, transferFrom, the ten owner functions (round 13), not deprecated
@@ -752,8 +773,8 @@ entry; `DESTS` = the 32 destinations).
 - The deprecated paths. Done: the split infrastructure, the generic part from EXTCODESIZE on
   (`fromExt`, round 14), and deprecated totalSupply() in full (`dep_totalSupply_complete`, round
   14), and deprecated balanceOf(address) in full (`dep_balanceOf_complete`, Complete/DepBalance.lean,
-  round 14; same hypotheses, the forward is `Sends … (dataB message)`, tail 126). Still open: transfer, approve, transferFrom (each needs its prefix split over
-  StepG to its EXTCODESIZE pc, then `fromExt` and its okTail), allowance (own pcs: `toCallA`, so
+  round 14; same hypotheses, the forward is `Sends … (dataB message)`, tail 126), and transfer,
+  approve, transferFrom (round 15, Complete/DepTransfer.lean). Still open: allowance (own pcs: `toCallA`, so
   a variant of `fromExt`), destroyBlackFunds (prefix to 4874, `fromExt`, then the tail `tailD`,
   whose cost depends on the state, via `ok_exact`). Delegation from Pectra stays a named
   hypothesis (`hdel`). Old plan, per deprecated function

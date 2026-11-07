@@ -6,6 +6,7 @@ import UsdtVerify.Complete.Approve
 import UsdtVerify.Complete.TransferFrom
 import UsdtVerify.Complete.Owner
 import UsdtVerify.Complete.Getters
+import UsdtVerify.Complete.DepTransfer
 import UsdtVerify.Functions.TotalSupply
 import UsdtVerify.Functions.BalanceOf
 import UsdtVerify.Functions.Transfer
@@ -359,6 +360,16 @@ Getters (round 13): `decimals_complete`, `maximumFee_complete`, `totalSupplyVar_
 `allowance_complete` (not deprecated): exact output, gas, state (reads only), substate.
 `name_complete`, `symbol_complete`: under the named hypothesis `Complete.StrForm w` on the slot
 word (empty, short 1..31 bytes, or long with 32 ≤ w / 2 < 2^180), the empty, short or long path.
+
+Deprecated (rounds 14, 15), for any gas, any gas bound and ANY message runner:
+`totalSupply_dep_complete`, `balanceOf_dep_complete`, `transfer_dep_complete`,
+`approve_dep_complete`, `transferFrom_dep_complete`. Every run that ends with no error passed the
+checks before the forward (transfer, transferFrom: not paused and the blacklist; approve: 68
+bytes), the upgraded address has code of nonzero size, the runner was called with the forwarded
+message and returned a frame with no error, and the end is exact: output (the word at 0x60 for
+the two getters, empty for the three writes), gas, and the state and substate of
+`incorporateChild`. Named hypotheses: `hcode` (the upgraded account's code `c` is found in the
+state), `hdel` (from Pectra, `c` is no delegation), and the coldness flags.
 -/
 
 namespace UsdtVerify.Summary
@@ -404,6 +415,11 @@ alias allowed_complete := Complete.ok_allowed
 alias allowance_complete := Complete.ok_allowance
 alias name_complete := Complete.ok_name
 alias symbol_complete := Complete.ok_symbol
+alias totalSupply_dep_complete := Complete.dep_totalSupply_complete
+alias balanceOf_dep_complete := Complete.dep_balanceOf_complete
+alias transfer_dep_complete := Complete.dep_transfer_complete
+alias approve_dep_complete := Complete.dep_approve_complete
+alias transferFrom_dep_complete := Complete.dep_transferFrom_complete
 alias totalSupply_spec := TotalSupply.spec
 alias balanceOf_spec := BalanceOf.spec
 alias transfer_paused := Transfer.spec_paused

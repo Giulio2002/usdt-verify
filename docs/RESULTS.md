@@ -300,10 +300,17 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
 - Deprecated balanceOf(address) (`Complete.dep_balanceOf_complete`, round 14): the same
   statement, for the forward of `balanceOf(a)` (data: the selector, then the word of `a`), with
   the same named hypotheses.
-- Not yet proved: the same completeness for the five other deprecated functions (the part from
-  EXTCODESIZE to after the CALL, `Complete.fromExt`, is proved for transfer, approve,
-  transferFrom and the call inside destroyBlackFunds), and so the invariant over every
-  deprecated call.
+- Deprecated transfer, approve and transferFrom (`Complete.dep_transfer_complete`,
+  `dep_approve_complete`, `dep_transferFrom_complete`, round 15), for any gas, any gas bound and
+  any runner. Every run that ends with no error passed the checks before the forward (transfer
+  and transferFrom: not paused, and the caller or `_from` not blacklisted; approve: at least 68
+  bytes of call data). The runner was called with the forward (`transferByLegacy`,
+  `approveByLegacy`, `transferFromByLegacy` with the caller as first argument) and returned a
+  frame with no error. The run stopped with no output, with the exact gas, and the state and
+  substate are those after the call. The same named hypotheses `hcode` and `hdel`.
+- Not yet proved: the same completeness for deprecated allowance and destroyBlackFunds (the part
+  from EXTCODESIZE to after the CALL, `Complete.fromExt`, is proved for the call inside
+  destroyBlackFunds), and so the invariant over every deprecated call.
 
 ## The invariant when deprecated: destroyBlackFunds (round 14)
 
