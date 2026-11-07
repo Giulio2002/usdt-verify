@@ -13,7 +13,7 @@ gas bound and ANY message runner:
   `Destroy.spec_notOwner` and `Destroy.spec_notListed`);
 - the code size at the upgraded address is not 0, the gas covers the path to the CALL and its
   access, the depth is below the limit;
-- the runner was called with the forward of `balanceOf(a)` (`Sends … (dataB message)`) and
+- the runner was called with the forward of `balanceOf(a)` (`SendsVia … (dataB message)`) and
   returned a frame `child` with no error;
 - writing `S` for the state after the call (`incorporateChild`) and `d` for the word at 0x60
   after CALL wrote the start of the child's output: the run stopped with empty output in
@@ -21,8 +21,9 @@ gas bound and ANY message runner:
   `tailSub`, gas exact (`tailCost`).
 
 The code found is in the conclusion, as for the other deprecated functions. Named hypotheses:
-`hstatic` (the frame is not static), `hdel` (as for the other deprecated functions), the coldness flags, and `hkeep`, a hypothesis on the runner: when it ends
-the forwarded message, sent from the caller state at the CALL, with no error, the contract still
+`hstatic` (the frame is not static), the coldness flags, and `hkeep`, a hypothesis on the
+runner: when it ends the forwarded message, sent along any route from the caller state at the
+CALL, with no error, the contract still
 has an account in the child's state (the SSTOREs of the tail need it; the case without an account
 is not covered).
 -/
@@ -82,46 +83,48 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamste
     (hstatic : message.isStatic = false)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    (hdel : ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
-      .pectra ≤ fork → delegatedAddress c = none)
     {c0 cL c10 cU : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (hcL : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
       (listSlot (addrArg message.data 0)) = cL)
     (hc10 : coldIn (preSub substate message) message.currentTarget 10 = c10)
     (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
-    (hkeep : ∀ caller msg lt child (c' : ByteArray), runChild caller msg lt = .ok child →
-      Sends message (upAddr state message) c' (dataB message) msg →
-      caller.state = ((callStateD state message).recordAccountRead
-        (upAddr state message)).recordAccountRead message.currentTarget →
+    (hkeep : ∀ caller msg lt child (c' : ByteArray) (r' : Route), runChild caller msg lt = .ok child →
+      SendsVia message (upAddr state message) c' r' (dataB message) msg →
+      caller.state = (routeState ((callStateD state message).recordAccountRead
+        (upAddr state message)) r').recordAccountRead message.currentTarget →
       child.1.error = none → hasAccount child.1.state message.currentTarget)
     {gas : Nat} {evm s : Evm fork Nat}
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
-    ∃ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c ∧
+    ∃ c r, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c ∧
+    Routes fork state c r ∧
     callerWord message = ownerOf state message.currentTarget ∧
     (storageAt state message.currentTarget (listSlot (addrArg message.data 0))).toNat % 256 ≠ 0 ∧
     BitVec.ofNat 256 c.size ≠ 0 ∧
-    preCostD c0 cL c10 cU + 100 ≤ gas ∧
+    preCostD c0 cL c10 cU + 100 + routeCost (callSubD substate state message).accessedAddresses r ≤ gas ∧
     message.depth + 1 ≤ STACK_DEPTH_LIMIT ∧
     ∃ caller msg lt child, runChild caller msg lt = .ok child ∧ child.1.error = none ∧
-      Sends message (upAddr state message) c (dataB message) msg ∧
-      msg.gas = (callGasD fork gas c0 cL c10 cU).subCall ∧
-      caller.state = ((callStateD state message).recordAccountRead
-        (upAddr state message)).recordAccountRead message.currentTarget ∧
-      caller.substate = { callSubD substate state message with
+      SendsVia message (upAddr state message) c r (dataB message) msg ∧
+      msg.gas = (depCallGas fork (askedOfD gas c0 cL c10 cU) (gas - preCostD c0 cL c10 cU)
+        (routeCost (callSubD substate state message).accessedAddresses r)).subCall ∧
+      caller.state = (routeState ((callStateD state message).recordAccountRead
+        (upAddr state message)) r).recordAccountRead message.currentTarget ∧
+      caller.substate = routeSub { callSubD substate state message with
         accessedAddresses :=
-          (callSubD substate state message).accessedAddresses.insert (upAddr state message) } ∧
+          (callSubD substate state message).accessedAddresses.insert (upAddr state message) } r ∧
       tailCost fork (incorporateChild fork caller child.1).state message.currentTarget
           (addrArg message.data 0) (resWord (outMemOf (memD message) child.1.output))
           (coldIn (incorporateChild fork caller child.1).substate message.currentTarget
             (balSlot message))
           (coldIn (accessSlot (incorporateChild fork caller child.1).substate
             message.currentTarget (balSlot message)) message.currentTarget 1) ≤
-        gas - preCostD c0 cL c10 cU - (callGasD fork gas c0 cL c10 cU).cost + child.1.gas ∧
+        gas - preCostD c0 cL c10 cU - (depCallGas fork (askedOfD gas c0 cL c10 cU) (gas - preCostD c0 cL c10 cU)
+        (routeCost (callSubD substate state message).accessedAddresses r)).cost + child.1.gas ∧
       s.running = false ∧ s.output = .empty ∧
-      s.gas = gas - preCostD c0 cL c10 cU - (callGasD fork gas c0 cL c10 cU).cost + child.1.gas -
+      s.gas = gas - preCostD c0 cL c10 cU - (depCallGas fork (askedOfD gas c0 cL c10 cU) (gas - preCostD c0 cL c10 cU)
+        (routeCost (callSubD substate state message).accessedAddresses r)).cost + child.1.gas -
         tailCost fork (incorporateChild fork caller child.1).state message.currentTarget
           (addrArg message.data 0) (resWord (outMemOf (memD message) child.1.output))
           (coldIn (incorporateChild fork caller child.1).substate message.currentTarget
@@ -146,14 +149,13 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamste
     (fun g hg => prefixG_destroy hfork h4 hsize' hsel hv hown hl hdep hc0 hcL hc10 hg)
     start within hrun hok
   obtain ⟨c, hcode⟩ := fromExt_found hfork (by decide) hz w hrunz hok
-  have hdel := hdel c hcode
-  obtain ⟨hw, hgc, hdepth, hCE⟩ := fromExt (U := upWord (storageAt state message.currentTarget 10))
+  obtain ⟨r, hroute, hw, hgc, hdepth, hCE⟩ := fromExt (U := upWord (storageAt state message.currentTarget 10))
     (rest := [0x84, 0x70a08231, upWord (storageAt state message.currentTarget 10), 0,
       addrArg message.data 0, 0x1f48, 0, addrArg message.data 0, 0x09b6,
       BitVec.ofNat 256 (selector message.data)])
     (st := readSlot (preState state message) message.currentTarget 10)
     (ss := accessSlot (preSub substate message) message.currentTarget 10)
-    hfork hglam (Or.inr (Or.inl ⟨rfl, rfl⟩)) (by simp) hcode hdel hz w hrunz hok
+    hfork hglam (Or.inr (Or.inl ⟨rfl, rfl⟩)) (by simp) hcode hz w hrunz hok
   have hB := size_memD message
   have hext : extendMemory (memD message).size
       [((0x60 : U256), (0x24 : U256)), ((0x60 : U256), (0x20 : U256))] = ⟨0, 0⟩ := by
@@ -161,6 +163,14 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamste
   have hcU' : decide (toAddressMasked (upWord (storageAt state message.currentTarget 10)) ∉
       (accessSlot (preSub substate message) message.currentTarget 10).accessedAddresses) =
       decide (upAddr state message ∉ substate.accessedAddresses) := rfl
+  unfold CallEnd at hCE
+  simp only [routeCost_insert_insert] at hCE
+  have hRe : routeCost ((accessSlot (preSub substate message) message.currentTarget 10).accessedAddresses.insert
+      (toAddressMasked (upWord (storageAt state message.currentTarget 10)))) r =
+      routeCost (callSubD substate state message).accessedAddresses r := rfl
+  rw [hRe] at hgc hCE
+  refine ⟨c, r, hcode, routes_congr (fun _ => rfl) hroute, ?_⟩
+  generalize hR : routeCost (callSubD substate state message).accessedAddresses r = R at hgc hCE ⊢
   rw [hcU', hcU] at hgc hCE
   rw [hext] at hgc
   simp only [accCost] at hgc hg0
@@ -171,18 +181,18 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamste
       gas - preCostD c0 cL c10 cU := by
     simp only [preCostD, accCost]; omega
   rw [e1, e2] at hCE
-  obtain ⟨caller, msg, lt, child, hch, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmd, hmv,
+  obtain ⟨caller, msg, lt, child, hch, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd, hmv,
     hmdep, hmst, after, wa, hat, hruna⟩ := hCE
   rw [hext] at hmg hmd hat
   simp only [Bool.false_eq_true, ↓reduceIte] at hmg hat
-  refine ⟨c, hcode, hown, hl, hw, by simp only [preCostD, accCost]; omega, hdepth, ?_⟩
-  have hfwd : Sends message (upAddr state message) c (dataB message) msg := by
-    refine ⟨hmc, hmt, hmtg, hmca, hmcode, ?_, hmv, hmdep, hmst⟩
+  refine ⟨hown, hl, hw, by simp only [preCostD, accCost]; omega, hdepth, ?_⟩
+  have hfwd : SendsVia message (upAddr state message) c r (dataB message) msg := by
+    refine ⟨hmc, hmt, hmtg, hmca, hmcode, hmdp, ?_, hmv, hmdep, hmst⟩
     rw [hmd, memoryExtend_zero]; exact data_memD message
   by_cases he : child.1.error = none
   · simp only [he, Option.isNone_none, ↓reduceIte] at hat
     have hacc : hasAccount (incorporateChild fork caller child.1).state message.currentTarget := by
-      rw [state_incorporateChild]; exact hkeep caller msg lt child c hch hfwd hcs he
+      rw [state_incorporateChild]; exact hkeep caller msg lt child c r hch hfwd hcs he
     obtain ⟨hcost, hr, ho, hgs, hst, hss⟩ := ok_exact2
       (fun g h1 _ => tailD (fork := fork) (message := message)
         hfork hglam (mkey_addrArg0 message.data) hstatic hacc

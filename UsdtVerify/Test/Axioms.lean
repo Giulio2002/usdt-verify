@@ -369,6 +369,14 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Complete.callStep_deep
 #print axioms UsdtVerify.Complete.step_call
 #print axioms UsdtVerify.Complete.call_ok
+#print axioms UsdtVerify.Complete.accountAccessCost_of_berlin
+#print axioms UsdtVerify.Complete.routes_congr
+#print axioms UsdtVerify.Complete.routes_rec
+#print axioms UsdtVerify.Complete.routeCost_insert_insert
+#print axioms UsdtVerify.Complete.callStep_child_r
+#print axioms UsdtVerify.Complete.callStep_low_r
+#print axioms UsdtVerify.Complete.callStep_deep_r
+#print axioms UsdtVerify.Complete.callStep_missing
 #print axioms UsdtVerify.Complete.midG
 #print axioms UsdtVerify.Complete.noCodeG
 #print axioms UsdtVerify.Complete.subG
@@ -391,6 +399,8 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Complete.dep_allowance_complete
 #print axioms UsdtVerify.Complete.prefixG_destroy
 #print axioms UsdtVerify.Complete.dep_destroy_complete
+#print axioms UsdtVerify.Complete.storageAt_route
+#print axioms UsdtVerify.Complete.hasAccount_route
 #print axioms UsdtVerify.Complete.inv_of_local
 #print axioms UsdtVerify.Complete.dep_totalSupply_local
 #print axioms UsdtVerify.Complete.dep_balanceOf_local

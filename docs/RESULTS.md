@@ -295,7 +295,13 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   - the run returns the word at 0x60 after the CALL wrote the start of that frame's output;
   - the gas left is exact, and the state and substate are those after the call.
   Also, the upgraded account's code `c` was found in the state (round 15: before, this was the
-  hypothesis `hcode`). Assumed by name: from Pectra, the code found is no delegation (`hdel`).
+  hypothesis `hcode`), and the CALL followed a route `r` (round 16: before, the hypothesis `hdel`
+  excluded delegation). Either `c` is no delegation (or the fork is before Pectra), and the message
+  runs `c`; or, from Pectra, `c` is an EIP-7702 delegation indicator to an address `d`, the code
+  `c'` of `d` was found in the state, and the message runs `c'` with `d` as its code address and
+  the precompiles disabled. Its current target is still the upgraded address. In the delegated
+  case the CALL also paid the access to `d` (2600 cold, 100 warm, `routeCost`), and the caller's
+  state and substate record the read and the access of `d`. No hypothesis on the code.
   Too little gas at EXTCODESIZE, GAS, SUB, CALL or after the call,
   no code, and the greatest depth are proved to end with an error.
 - Deprecated balanceOf(address) (`Complete.dep_balanceOf_complete`, round 14): the same
@@ -308,7 +314,7 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   bytes of call data). The runner was called with the forward (`transferByLegacy`,
   `approveByLegacy`, `transferFromByLegacy` with the caller as first argument) and returned a
   frame with no error. The run stopped with no output, with the exact gas, and the state and
-  substate are those after the call. The same named hypothesis `hdel`.
+  substate are those after the call. The same route, and no hypothesis on the code.
 - Deprecated allowance(address,address) (`Complete.dep_allowance_complete`, round 15): the
   statement of balanceOf, for the forward of `allowance(owner, spender)`.
 - Deprecated destroyBlackFunds(address) (`Complete.dep_destroy_complete`, round 15), for any
@@ -317,9 +323,9 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   no error. The run then stopped with no output, after setting, over the state `S` that the call
   left, `balances[a]` to 0 and `_totalSupply` to `_totalSupply - d` (unchecked), where `d` is the
   word the call wrote at 0x60, and logging `DestroyedBlackFunds(a, d)`; gas exact. Beyond
-  `hdel` and `hstatic`, it assumes by name (`hkeep`) that when the runner ends the
-  forwarded message (from the caller state at the CALL) with no error, the contract still has an account in the child's state.
-- Not yet proved: the invariant over every deprecated call.
+  `hstatic`, it assumes by name (`hkeep`) that when the runner ends the forwarded message (along
+  either route, from the caller state at the CALL) with no error, the contract still has an
+  account in the child's state.
 
 ## The invariant when deprecated: destroyBlackFunds (round 14)
 
@@ -359,8 +365,6 @@ deployed code at pc 0, with any call data below 2^256 bytes, any value, any gas,
 and any message runner. Assume `KeccakSep`, a frame that is not static, an account for the
 contract `C`, `StrForm` of slots 7 and 8, and `Inv` at the start. When the contract is
 deprecated, also assume:
-- `hdel`: from Pectra, the code found for the upgraded account `ua` is no delegation (that the
-  code is found is proved for every successful run);
 - `KeepsInv` (`hkeeps`): whenever the runner ends a message from `C` to `ua` with no error, and
   `C` had an account and `Inv` held in the caller's state, then `C` still has an account and
   `Inv` holds in the child's end state. The callee may call back into `C`; this assumption is
@@ -368,6 +372,9 @@ deprecated, also assume:
 - for destroyBlackFunds, `HonestBalance` (`hhonest`): the word that the forwarded `balanceOf(a)`
   writes at 0x60 is `balances[a]` in the child's end state.
 If the interpreter loop ends with no error, `Inv` holds in the end state.
+Nothing is assumed of the code of `ua` (round 16: the hypothesis `hdel` is gone). When that code
+is an EIP-7702 delegation, the message still has `ua` as its current target, so `KeepsInv` and
+`HonestBalance` apply to it as stated.
 
 On the way (`dep_*_local`): when deprecated, the six forwarders (totalSupply, balanceOf,
 allowance, approve, transfer, transferFrom) make one call, from a caller state with the start
@@ -390,8 +397,8 @@ call. destroyBlackFunds ends in `tailState S C a d` over the child's end state `
 ## What is not covered
 
 - name/symbol on slot words outside `StrForm`.
-- The deprecated paths when the upgraded account's code is a Pectra delegation (`hdel`), and deprecated destroyBlackFunds when the runner's child
-  state has no account for the contract (`hkeep`).
+- Deprecated destroyBlackFunds when the runner's child state has no account for the contract
+  (`hkeep`).
 - The invariant over deprecated calls without the runner assumptions `KeepsInv` and
   `HonestBalance` (destroyBlackFunds can break it, see above). No concrete upgraded contract is
   shown to meet them.

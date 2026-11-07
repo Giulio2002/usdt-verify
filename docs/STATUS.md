@@ -809,12 +809,45 @@ entry; `DESTS` = the 32 destinations).
   Each `dep_*_complete` now concludes `∃ c, state.getCode (state.getAccount ua).codeHash = .ok c ∧
   …` and takes `hdel : ∀ c, state.getCode … = .ok c → .pectra ≤ fork → delegatedAddress c =
   none`; `hkeep` (destroyBlackFunds) quantifies the code in `Sends`. `inv_call_all` drops `hcode`.
-  `hdel` stays: a delegated code would make CALL load the delegate's code at another price
-  (`accessDelegation`), and `call_ok`, `callStep_low`, `callStep_deep` are proved only without
-  delegation.
+  `hdel` stayed in round 15; round 16 removes it (below).
 - Summary aliases: `totalSupply_dep_complete`, `balanceOf_dep_complete`, `allowance_dep_complete`,
   `destroyBlackFunds_dep_complete`,
   `transfer_dep_complete`, `approve_dep_complete`, `transferFrom_dep_complete`.
+
+### Round 16: EIP-7702 delegation at the CALL, `hdel` removed (Complete/DepCall.lean and the Dep* files)
+- The route of a CALL (`Route := Option (Address × ByteArray)`, `Routes fork st c r`): `none` when
+  the fork is before Pectra or `delegatedAddress c = none`; `some (d, c')` when, from Pectra,
+  `delegatedAddress c = some d` and `st.getCode (st.getAccount d).codeHash = .ok c'`. Helpers
+  `routeAddr`, `routeCode`, `routeCost` (the access to `d`, `accCost`, in the set of accessed
+  addresses after the upgraded address), `routeState` (read of `d` recorded), `routeSub` (`d`
+  accessed). `routes_congr`, `routes_rec`, `routeCost_insert_insert`,
+  `accountAccessCost_of_berlin`.
+- Step lemmas through EthLib's `accessDelegation` (no `hdel`): `callStep_child_r` (below the
+  greatest depth with the gas of both accesses and memory: the step sends the message; caller
+  state/substate with `routeState`/`routeSub`, extra price `callBaseCost + routeCost`, message
+  with `codeAddress = routeAddr`, `code = routeCode`, `disablePrecompiles = r.isSome`, current
+  target and target the called address); `callStep_low_r` (gas below that: the charge fails, the
+  frame halts with an error); `callStep_deep_r` (greatest depth: 0 pushed); `callStep_missing`
+  (from Pectra, a delegation whose delegate's code lookup fails: the step fails, a state error
+  aborts). The `none` branches of the low/deep lemmas reuse `callStep_low`/`callStep_deep`.
+- `CallEnd` and `call_ok` take the route `r` (hypothesis `hroute : Routes …` instead of `hdel`).
+  `fromExt` has no `hdel`: it concludes `∃ r, Routes fork st c r ∧ …`, with the gas bound
+  `accCost + 128 + routeCost + memory ≤ G`; a missing delegate code is excluded by
+  `callStep_missing`.
+- Each `dep_*_complete` (totalSupply, balanceOf, allowance, transfer, approve, transferFrom,
+  destroyBlackFunds) drops `hdel` and concludes `∃ c r, getCode … = .ok c ∧ Routes fork state c r
+  ∧ …`, with `preCost + 100 + routeCost (callSub…).accessedAddresses r ≤ gas`, the message
+  `SendsVia message ua c r data msg` (as `Sends`, with the route's code address and code and
+  `disablePrecompiles = r.isSome`), `msg.gas = (depCallGas fork asked left R).subCall`
+  (`depCallGas` = `messageCallGas fork 0 asked left 0 (100 + R)`), and caller state/substate
+  wrapped in `routeState`/`routeSub`. For `r = none` these are the round-15 statements (with
+  `R = 0`). `hkeep` (destroyBlackFunds) now quantifies the route too.
+- DepInvAll: `storageAt_route`, `hasAccount_route`; every `dep_*_local`, `dep_destroy_local`,
+  `inv_dep_destroy_iff`, `inv_dep_destroy` and `inv_call_all` drop `hdel`. Under delegation the
+  message's current target is still `ua`, so `KeepsInv` and `HonestBalance` are unchanged.
+- Not changed: the forward specifications of round 5 to 10 (Functions/Deprecated*.lean, and the
+  `SpecUnder` corollaries in Complete/DepInv.lean) still take `hdel`; they are stated for a given
+  callee code.
 
 ## Open (not proved)
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
@@ -824,8 +857,8 @@ entry; `DESTS` = the 32 destinations).
   deprecated (`inv_call`).
 - The deprecated paths: done (rounds 14, 15). Every deprecated function (totalSupply,
   balanceOf, transfer, approve, transferFrom, allowance, destroyBlackFunds) has its completeness
-  theorem for any gas and any runner (`dep_*_complete`). Named hypotheses that stay: `hdel` (the
-  code found at the upgraded address is no Pectra delegation), and for destroyBlackFunds
+  theorem for any gas and any runner (`dep_*_complete`), with or without an EIP-7702 delegation
+  at the upgraded address (round 16). Named hypotheses that stay: for destroyBlackFunds,
   `hstatic` and `hkeep` (the contract keeps an account after a successful forwarded call).
 - Hypotheses the completeness theorems keep, by name: `hstatic` (frame not static; a static
   SSTORE/LOG fails, but no spec of that failure is proved), `hacc` (the contract has an account;

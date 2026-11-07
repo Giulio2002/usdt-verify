@@ -31,8 +31,11 @@ on the runner. Named assumptions:
   `balances[a]` in the child's end state.
 
 `inv_call_all`: `Complete.inv_call` without `hdep`: under `KeccakSep`, not static, an account,
-`StrForm` of slots 7 and 8, `Inv` at the start, and, when deprecated, `hdel`,
+`StrForm` of slots 7 and 8, `Inv` at the start, and, when deprecated,
 `KeepsInv` and (for destroyBlackFunds) `HonestBalance`, every successful call ends with `Inv`.
+No hypothesis on the code of the upgraded address: when it is an EIP-7702 delegation, the message
+still has `ua` as its current target (it runs the delegate's code), so both assumptions apply to
+it as stated.
 -/
 
 namespace UsdtVerify.Complete
@@ -86,6 +89,18 @@ theorem storageAt_rec (S : State.TransactionState) (u c : Address) (n : U256) :
 theorem hasAccount_rec {S : State.TransactionState} {c : Address} (u : Address)
     (h : hasAccount S c) : hasAccount (S.recordAccountRead u) c := h
 
+theorem storageAt_route (S : State.TransactionState) (r : Route) (c : Address) (n : U256) :
+    storageAt (routeState S r) c n = storageAt S c n := by
+  rcases r with _ | ⟨d, _⟩
+  · rfl
+  · exact storageAt_rec S d c n
+
+theorem hasAccount_route {S : State.TransactionState} {c : Address} (r : Route)
+    (h : hasAccount S c) : hasAccount (routeState S r) c := by
+  rcases r with _ | ⟨d, _⟩
+  · exact h
+  · exact hasAccount_rec d h
+
 /-- `LocalForward` keeps `Inv` under `KeepsInv`. -/
 theorem inv_of_local (hkeeps : KeepsInv runChild message.currentTarget (upAddr state message))
     (hacc : hasAccount state message.currentTarget) (hI : Inv message.currentTarget state)
@@ -100,107 +115,103 @@ theorem inv_of_local (hkeeps : KeepsInv runChild message.currentTarget (upAddr s
 theorem dep_totalSupply_local (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x18160ddd)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    (hdel : ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
-      .pectra ≤ fork → delegatedAddress c = none)
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : LocalForward runChild message state s := by
-  obtain ⟨_, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
-    dep_totalSupply_complete hfork hglam hsize' hsel hdep hdel start within hrun hok
+  obtain ⟨_, _, -, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
+    dep_totalSupply_complete hfork hglam hsize' hsel hdep start within hrun hok
   refine ⟨caller, msg, lt, child, hch, he, hfwd.1, hfwd.2.1, fun n => ?_, fun h => ?_, ?_⟩
-  · rw [hcs]; simp only [callState, storageAt_rec, storageAt_readSlot]
-  · rw [hcs]; exact hasAccount_rec _ (hasAccount_rec _ (hasAccount_rec _ (hasAccount_readSlot h)))
+  · rw [hcs]; simp only [callState, storageAt_rec, storageAt_route, storageAt_readSlot]
+  · rw [hcs]
+    exact hasAccount_rec _ (hasAccount_route _ (hasAccount_rec _ (hasAccount_rec _
+      (hasAccount_readSlot h))))
   · rw [hst, state_incorporateChild]
 
 theorem dep_balanceOf_local (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x70a08231)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    (hdel : ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
-      .pectra ≤ fork → delegatedAddress c = none)
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : LocalForward runChild message state s := by
-  obtain ⟨_, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
-    dep_balanceOf_complete hfork hglam hsize' hsel hdep hdel start within hrun hok
+  obtain ⟨_, _, -, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
+    dep_balanceOf_complete hfork hglam hsize' hsel hdep start within hrun hok
   refine ⟨caller, msg, lt, child, hch, he, hfwd.1, hfwd.2.1, fun n => ?_, fun h => ?_, ?_⟩
-  · rw [hcs]; simp only [callState, storageAt_rec, storageAt_readSlot]
-  · rw [hcs]; exact hasAccount_rec _ (hasAccount_rec _ (hasAccount_rec _ (hasAccount_readSlot h)))
+  · rw [hcs]; simp only [callState, storageAt_rec, storageAt_route, storageAt_readSlot]
+  · rw [hcs]
+    exact hasAccount_rec _ (hasAccount_route _ (hasAccount_rec _ (hasAccount_rec _
+      (hasAccount_readSlot h))))
   · rw [hst, state_incorporateChild]
 
 theorem dep_allowance_local (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xdd62ed3e)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    (hdel : ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
-      .pectra ≤ fork → delegatedAddress c = none)
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : LocalForward runChild message state s := by
-  obtain ⟨_, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
-    dep_allowance_complete hfork hglam hsize' hsel hdep hdel rfl rfl start within hrun hok
+  obtain ⟨_, _, -, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
+    dep_allowance_complete hfork hglam hsize' hsel hdep rfl rfl start within hrun hok
   refine ⟨caller, msg, lt, child, hch, he, hfwd.1, hfwd.2.1, fun n => ?_, fun h => ?_, ?_⟩
-  · rw [hcs]; simp only [callState, storageAt_rec, storageAt_readSlot]
-  · rw [hcs]; exact hasAccount_rec _ (hasAccount_rec _ (hasAccount_rec _ (hasAccount_readSlot h)))
+  · rw [hcs]; simp only [callState, storageAt_rec, storageAt_route, storageAt_readSlot]
+  · rw [hcs]
+    exact hasAccount_rec _ (hasAccount_route _ (hasAccount_rec _ (hasAccount_rec _
+      (hasAccount_readSlot h))))
   · rw [hst, state_incorporateChild]
 
 theorem dep_approve_local (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x095ea7b3)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    (hdel : ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
-      .pectra ≤ fork → delegatedAddress c = none)
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : LocalForward runChild message state s := by
-  obtain ⟨_, -, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
-    dep_approve_complete hfork hglam hsize' hsel hdep hdel rfl rfl start within hrun hok
+  obtain ⟨_, _, -, -, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
+    dep_approve_complete hfork hglam hsize' hsel hdep rfl rfl start within hrun hok
   refine ⟨caller, msg, lt, child, hch, he, hfwd.1, hfwd.2.1, fun n => ?_, fun h => ?_, ?_⟩
-  · rw [hcs]; simp only [callState, storageAt_rec, storageAt_readSlot]
-  · rw [hcs]; exact hasAccount_rec _ (hasAccount_rec _ (hasAccount_rec _ (hasAccount_readSlot h)))
+  · rw [hcs]; simp only [callState, storageAt_rec, storageAt_route, storageAt_readSlot]
+  · rw [hcs]
+    exact hasAccount_rec _ (hasAccount_route _ (hasAccount_rec _ (hasAccount_rec _
+      (hasAccount_readSlot h))))
   · rw [hst, state_incorporateChild]
 
 theorem dep_transfer_local (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xa9059cbb)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    (hdel : ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
-      .pectra ≤ fork → delegatedAddress c = none)
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : LocalForward runChild message state s := by
-  obtain ⟨_, -, -, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
-    dep_transfer_complete hfork hglam hsize' hsel hdep hdel rfl rfl rfl rfl start within
+  obtain ⟨_, _, -, -, -, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
+    dep_transfer_complete hfork hglam hsize' hsel hdep rfl rfl rfl rfl start within
       hrun hok
   refine ⟨caller, msg, lt, child, hch, he, hfwd.1, hfwd.2.1, fun n => ?_, fun h => ?_, ?_⟩
   · rw [hcs]
     simp only [DeprecatedTransfer.callStateT, Transfer.shortState, storageAt_rec,
-      storageAt_readSlot]
+      storageAt_route, storageAt_readSlot]
   · rw [hcs]
-    exact hasAccount_rec _ (hasAccount_rec _ (hasAccount_rec _ (hasAccount_readSlot
-      (hasAccount_readSlot (hasAccount_readSlot h)))))
+    exact hasAccount_rec _ (hasAccount_route _ (hasAccount_rec _ (hasAccount_rec _
+      (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot h))))))
   · rw [hst, state_incorporateChild]
 
 theorem dep_transferFrom_local (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x23b872dd)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    (hdel : ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
-      .pectra ≤ fork → delegatedAddress c = none)
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : LocalForward runChild message state s := by
-  obtain ⟨_, -, -, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
-    dep_transferFrom_complete hfork hglam hsize' hsel hdep hdel rfl rfl rfl rfl start within
+  obtain ⟨_, _, -, -, -, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
+    dep_transferFrom_complete hfork hglam hsize' hsel hdep rfl rfl rfl rfl start within
       hrun hok
   refine ⟨caller, msg, lt, child, hch, he, hfwd.1, hfwd.2.1, fun n => ?_, fun h => ?_, ?_⟩
   · rw [hcs]
     simp only [DeprecatedTransferFrom.callStateF, TransferFrom.checkState, storageAt_rec,
-      storageAt_readSlot]
+      storageAt_route, storageAt_readSlot]
   · rw [hcs]
-    exact hasAccount_rec _ (hasAccount_rec _ (hasAccount_rec _ (hasAccount_readSlot
-      (hasAccount_readSlot (hasAccount_readSlot h)))))
+    exact hasAccount_rec _ (hasAccount_route _ (hasAccount_rec _ (hasAccount_rec _
+      (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot h))))))
   · rw [hst, state_incorporateChild]
 
 /-! ## destroyBlackFunds -/
@@ -211,8 +222,6 @@ theorem dep_destroy_local (hfork : .berlin ≤ fork) (hglam : fork < .glamsterda
     (hstatic : message.isStatic = false)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    (hdel : ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
-      .pectra ≤ fork → delegatedAddress c = none)
     (hkeeps : KeepsInv runChild message.currentTarget (upAddr state message))
     (hacc : hasAccount state message.currentTarget) (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
@@ -225,25 +234,26 @@ theorem dep_destroy_local (hfork : .berlin ≤ fork) (hglam : fork < .glamsterda
       hasAccount child.1.state message.currentTarget ∧ Inv message.currentTarget child.1.state ∧
       s.state = tailState child.1.state message.currentTarget (addrArg message.data 0)
         (resWord (outMemOf (memD message) child.1.output)) := by
-  have hpre : ∀ caller : Evm fork Nat, caller.state = ((callStateD state message).recordAccountRead
-      (upAddr state message)).recordAccountRead message.currentTarget →
+  have hpre : ∀ (caller : Evm fork Nat) (r : Route), caller.state = (routeState
+      ((callStateD state message).recordAccountRead (upAddr state message)) r).recordAccountRead
+      message.currentTarget →
       hasAccount caller.state message.currentTarget ∧ Inv message.currentTarget caller.state := by
-    intro caller hcs
+    intro caller r hcs
     refine ⟨?_, (DepInv.inv_congr (fun n => ?_)).2 hI⟩
     · rw [hcs]
-      exact hasAccount_rec _ (hasAccount_rec _ (hasAccount_rec _ (hasAccount_readSlot
-        (hasAccount_readSlot (hasAccount_readSlot hacc)))))
+      exact hasAccount_rec _ (hasAccount_route _ (hasAccount_rec _ (hasAccount_rec _
+        (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc))))))
     · rw [hcs]
-      simp only [callStateD, preState, storageAt_rec, storageAt_readSlot]
-  obtain ⟨_, -, -, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
-    dep_destroy_complete hfork hglam hstatic hsize' hsel hdep hdel rfl rfl rfl rfl
-      (fun caller msg lt child _ hch hfwd hcs he =>
-        (hkeeps caller msg lt child hch hfwd.1 hfwd.2.1 he (hpre caller hcs).1
-          (hpre caller hcs).2).1)
+      simp only [callStateD, preState, storageAt_rec, storageAt_route, storageAt_readSlot]
+  obtain ⟨_, _, -, -, -, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
+    dep_destroy_complete hfork hglam hstatic hsize' hsel hdep rfl rfl rfl rfl
+      (fun caller msg lt child _ r' hch hfwd hcs he =>
+        (hkeeps caller msg lt child hch hfwd.1 hfwd.2.1 he (hpre caller r' hcs).1
+          (hpre caller r' hcs).2).1)
       start within hrun hok
-  obtain ⟨hacc', hI'⟩ := hkeeps caller msg lt child hch hfwd.1 hfwd.2.1 he (hpre caller hcs).1
-    (hpre caller hcs).2
-  refine ⟨caller, msg, lt, child, hch, he, hfwd.1, hfwd.2.1, hfwd.2.2.2.2.2.1, hacc', hI', ?_⟩
+  obtain ⟨hacc', hI'⟩ := hkeeps caller msg lt child hch hfwd.1 hfwd.2.1 he (hpre caller _ hcs).1
+    (hpre caller _ hcs).2
+  refine ⟨caller, msg, lt, child, hch, he, hfwd.1, hfwd.2.1, hfwd.2.2.2.2.2.2.1, hacc', hI', ?_⟩
   rw [hst, state_incorporateChild]
 
 /-- Deprecated destroyBlackFunds under `KeepsInv`: `Inv` holds at the end iff the answer `d` is
@@ -252,8 +262,6 @@ theorem inv_dep_destroy_iff (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : 
     (hstatic : message.isStatic = false)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    (hdel : ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
-      .pectra ≤ fork → delegatedAddress c = none)
     (hkeeps : KeepsInv runChild message.currentTarget (upAddr state message))
     (hacc : hasAccount state message.currentTarget) (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
@@ -266,7 +274,7 @@ theorem inv_dep_destroy_iff (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : 
       (Inv message.currentTarget s.state ↔ resWord (outMemOf (memD message) child.1.output) =
         storageAt child.1.state message.currentTarget (balSlot message)) := by
   obtain ⟨caller, msg, lt, child, hch, he, hmc, hmt, hmd, hacc', hI', hst⟩ :=
-    dep_destroy_local hfork hglam hstatic hsize' hsel hdep hdel hkeeps hacc hI start within
+    dep_destroy_local hfork hglam hstatic hsize' hsel hdep hkeeps hacc hI start within
       hrun hok
   refine ⟨caller, msg, lt, child, hch, he, hmc, hmt, hmd, ?_⟩
   rw [hst]
@@ -277,8 +285,6 @@ theorem inv_dep_destroy (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork
     (hstatic : message.isStatic = false)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    (hdel : ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
-      .pectra ≤ fork → delegatedAddress c = none)
     (hkeeps : KeepsInv runChild message.currentTarget (upAddr state message))
     (hhonest : HonestBalance runChild message state)
     (hacc : hasAccount state message.currentTarget) (hI : Inv message.currentTarget state)
@@ -287,7 +293,7 @@ theorem inv_dep_destroy (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨caller, msg, lt, child, hch, he, hmc, hmt, hmd, hiff⟩ :=
-    inv_dep_destroy_iff K hfork hglam hstatic hsize' hsel hdep hdel hkeeps hacc hI start
+    inv_dep_destroy_iff K hfork hglam hstatic hsize' hsel hdep hkeeps hacc hI start
       within hrun hok
   exact hiff.2 (hhonest caller msg lt child hch hmc hmt hmd he)
 
@@ -299,8 +305,7 @@ theorem inv_dep_destroy (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork
 Glamsterdam, a fresh frame of `CODE` at pc 0 with any call data below 2^256 bytes, any value, any
 gas, any gas bound and any message runner. Under `KeccakSep`, a frame that is not static, of a
 contract with an account, with string slots 7 and 8 of `StrForm`, and, when deprecated (byte 20
-of slot 10 not 0): the code `c` found for the upgraded account is no delegation from Pectra
-(`hdel`; that the code is found is proved, `fromExt_found`), the runner meets `KeepsInv` (`hkeeps`), and for destroyBlackFunds it meets
+of slot 10 not 0): the runner meets `KeepsInv` (`hkeeps`), and for destroyBlackFunds it meets
 `HonestBalance` (`hhonest`). If `Inv C state` holds and the interpreter loop ends with no error,
 then `Inv C s.state` holds. -/
 theorem inv_call_all (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
@@ -308,9 +313,6 @@ theorem inv_call_all (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < 
     (hsize' : message.data.size < 2 ^ 256)
     (h7 : StrForm (storageAt state message.currentTarget 7))
     (h8 : StrForm (storageAt state message.currentTarget 8))
-    (hdel : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
-        .pectra ≤ fork → delegatedAddress c = none)
     (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
       KeepsInv runChild message.currentTarget (upAddr state message))
     (hhonest : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
@@ -322,17 +324,16 @@ theorem inv_call_all (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < 
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   by_cases hdep : byte20 (storageAt state message.currentTarget 10) = 0
   · exact inv_call K hfork hglam hstatic hacc hsize' hdep h7 h8 hI start within hrun hok
-  have hd := hdel hdep
   have hk := hkeeps hdep
   obtain ⟨_, -, i, hi⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
   match i, hi with
   | ⟨0, _⟩, hi => exact inv_name hfork hsize' (hi.trans rfl) h7 hI start within hrun hok
   | ⟨1, _⟩, hi => exact inv_deprecate K hfork hglam hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨2, _⟩, hi => exact inv_of_local hk hacc hI (dep_approve_local hfork hglam hsize' (hi.trans rfl) hdep hd start within hrun hok)
+  | ⟨2, _⟩, hi => exact inv_of_local hk hacc hI (dep_approve_local hfork hglam hsize' (hi.trans rfl) hdep start within hrun hok)
   | ⟨3, _⟩, hi => exact inv_deprecated hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨4, _⟩, hi => exact inv_addBlackList K hfork hglam hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨5, _⟩, hi => exact inv_of_local hk hacc hI (dep_totalSupply_local hfork hglam hsize' (hi.trans rfl) hdep hd start within hrun hok)
-  | ⟨6, _⟩, hi => exact inv_of_local hk hacc hI (dep_transferFrom_local hfork hglam hsize' (hi.trans rfl) hdep hd start within hrun hok)
+  | ⟨5, _⟩, hi => exact inv_of_local hk hacc hI (dep_totalSupply_local hfork hglam hsize' (hi.trans rfl) hdep start within hrun hok)
+  | ⟨6, _⟩, hi => exact inv_of_local hk hacc hI (dep_transferFrom_local hfork hglam hsize' (hi.trans rfl) hdep start within hrun hok)
   | ⟨7, _⟩, hi => exact inv_upgradedAddress hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨8, _⟩, hi => exact inv_balances hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨9, _⟩, hi => exact inv_decimals hfork hsize' (hi.trans rfl) hI start within hrun hok
@@ -342,22 +343,22 @@ theorem inv_call_all (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < 
   | ⟨13, _⟩, hi => exact inv_getBlackListStatus hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨14, _⟩, hi => exact inv_allowed hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨15, _⟩, hi => exact inv_paused hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨16, _⟩, hi => exact inv_of_local hk hacc hI (dep_balanceOf_local hfork hglam hsize' (hi.trans rfl) hdep hd start within hrun hok)
+  | ⟨16, _⟩, hi => exact inv_of_local hk hacc hI (dep_balanceOf_local hfork hglam hsize' (hi.trans rfl) hdep start within hrun hok)
   | ⟨17, _⟩, hi => exact inv_pause K hfork hglam hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨18, _⟩, hi => exact inv_getOwner hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨19, _⟩, hi => exact inv_owner hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨20, _⟩, hi => exact inv_symbol hfork hsize' (hi.trans rfl) h8 hI start within hrun hok
-  | ⟨21, _⟩, hi => exact inv_of_local hk hacc hI (dep_transfer_local hfork hglam hsize' (hi.trans rfl) hdep hd start within hrun hok)
+  | ⟨21, _⟩, hi => exact inv_of_local hk hacc hI (dep_transfer_local hfork hglam hsize' (hi.trans rfl) hdep start within hrun hok)
   | ⟨22, _⟩, hi => exact inv_setParams K hfork hglam hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨23, _⟩, hi => exact inv_issue K hfork hglam hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨24, _⟩, hi => exact inv_redeem K hfork hglam hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨25, _⟩, hi => exact inv_of_local hk hacc hI (dep_allowance_local hfork hglam hsize' (hi.trans rfl) hdep hd start within hrun hok)
+  | ⟨25, _⟩, hi => exact inv_of_local hk hacc hI (dep_allowance_local hfork hglam hsize' (hi.trans rfl) hdep start within hrun hok)
   | ⟨26, _⟩, hi => exact inv_basisPointsRate hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨27, _⟩, hi => exact inv_isBlackListed hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨28, _⟩, hi => exact inv_removeBlackList K hfork hglam hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨29, _⟩, hi => exact inv_maxUint hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨30, _⟩, hi => exact inv_transferOwnership K hfork hglam hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨31, _⟩, hi => exact inv_dep_destroy K hfork hglam hstatic hsize' (hi.trans rfl) hdep hd hk (hhonest hdep (hi.trans rfl)) hacc hI start within hrun hok
+  | ⟨31, _⟩, hi => exact inv_dep_destroy K hfork hglam hstatic hsize' (hi.trans rfl) hdep hk (hhonest hdep (hi.trans rfl)) hacc hI start within hrun hok
   | ⟨n + 32, h⟩, _ => exact absurd h (by omega)
 
 end UsdtVerify.Complete

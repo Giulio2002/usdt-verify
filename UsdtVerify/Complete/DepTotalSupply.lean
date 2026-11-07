@@ -7,19 +7,24 @@ import UsdtVerify.Complete.DepCall
 with selector 0x18160ddd, deprecated (byte 20 of slot 10 not 0), ANY gas, ANY gas bound and ANY
 message runner `runChild`. If the loop ends with no error, then:
 
-- the upgraded address has a code of nonzero size (as a word), the gas covers the path to the
-  CALL plus the CALL's access (`preCost + 100`), and the depth is below the limit;
+- the code `c` of the upgraded address is found in the state, and the CALL follows a route `r`
+  (`Routes`): no delegation, or, from Pectra, `c` is an EIP-7702 delegation indicator to an
+  address `d` whose code is found;
+- `c` has a nonzero size (as a word), the gas covers the path to the CALL plus the CALL's access
+  and the access to the delegate (`preCost + 100 + routeCost`), and the depth is below the limit;
 - the runner ran a message `msg` from a frame `caller` to a frame `child` with no error, `msg` is
-  the forward of `totalSupply()` to the upgraded address (`Forwarded`), with the gas of
-  `callGas`;
+  the forward of `totalSupply()` to the upgraded address along the route (`SendsVia`: the code
+  and code address of the route, the precompiles disabled when delegated), with the gas of
+  `depCallGas`; the caller's state and substate record the access to the delegate (`routeState`,
+  `routeSub`);
 - the run stopped with the output the 32 bytes at 0x60 after CALL wrote the child's output there
-  (`resWord (outMem child.output)`), gas `gas - preCost - callGas.cost + child.gas - 121` (and at
-  least 121 was left after the CALL), and the state and substate of `incorporateChild caller child`.
+  (`resWord (outMem child.output)`), gas `gas - preCost - depCallGas.cost + child.gas - 121` (and
+  at least 121 was left after the CALL), and the state and substate of
+  `incorporateChild caller child`.
 
-The conclusion also states that the code `c` of the upgraded account is found in the state
-(round 15: a failed lookup makes EXTCODESIZE fail, `fromExt_found`). Named hypothesis: `hdel`
-(from Pectra, the code found is no delegation). The runner is arbitrary: nothing is assumed of
-what it returns.
+A failed lookup of the code of the upgraded address makes EXTCODESIZE fail (`fromExt_found`);
+a failed lookup of the code of the delegate makes CALL fail (`callStep_missing`). No hypothesis
+on the code or on the runner: nothing is assumed of what the runner returns.
 -/
 
 namespace UsdtVerify.Complete
@@ -38,49 +43,67 @@ variable {fork : Fork} {bound : Nat} {runChild : MessageRunner fork Nat bound}
 theorem dep_totalSupply_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x18160ddd)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    (hdel : ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
-      .pectra ≤ fork → delegatedAddress c = none)
     {gas : Nat} {evm s : Evm fork Nat}
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
-    ∃ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c ∧
+    ∃ c r, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c ∧
+    Routes fork state c r ∧
     BitVec.ofNat 256 c.size ≠ 0 ∧
     preCost (coldIn substate message.currentTarget 10)
-      (decide (upAddr state message ∉ substate.accessedAddresses)) + 100 ≤ gas ∧
+      (decide (upAddr state message ∉ substate.accessedAddresses)) + 100 +
+      routeCost (callSub substate state message).accessedAddresses r ≤ gas ∧
     message.depth + 1 ≤ STACK_DEPTH_LIMIT ∧
     ∃ caller msg lt child, runChild caller msg lt = .ok child ∧ child.1.error = none ∧
-      Forwarded message (upAddr state message) c msg ∧
-      msg.gas = (callGas fork gas (coldIn substate message.currentTarget 10)
-        (decide (upAddr state message ∉ substate.accessedAddresses))).subCall ∧
-      caller.state = ((callState state message).recordAccountRead (upAddr state message)).recordAccountRead
-        message.currentTarget ∧
-      caller.substate = { callSub substate state message with
+      SendsVia message (upAddr state message) c r SEL_TS msg ∧
+      msg.gas = (depCallGas fork (askedOf gas (coldIn substate message.currentTarget 10)
+          (decide (upAddr state message ∉ substate.accessedAddresses)))
+        (gas - preCost (coldIn substate message.currentTarget 10)
+          (decide (upAddr state message ∉ substate.accessedAddresses)))
+        (routeCost (callSub substate state message).accessedAddresses r)).subCall ∧
+      caller.state = (routeState ((callState state message).recordAccountRead
+        (upAddr state message)) r).recordAccountRead message.currentTarget ∧
+      caller.substate = routeSub { callSub substate state message with
         accessedAddresses :=
-          (callSub substate state message).accessedAddresses.insert (upAddr state message) } ∧
+          (callSub substate state message).accessedAddresses.insert (upAddr state message) } r ∧
       121 ≤ gas - preCost (coldIn substate message.currentTarget 10)
           (decide (upAddr state message ∉ substate.accessedAddresses)) -
-        (callGas fork gas (coldIn substate message.currentTarget 10)
-          (decide (upAddr state message ∉ substate.accessedAddresses))).cost + child.1.gas ∧
+        (depCallGas fork (askedOf gas (coldIn substate message.currentTarget 10)
+          (decide (upAddr state message ∉ substate.accessedAddresses)))
+        (gas - preCost (coldIn substate message.currentTarget 10)
+          (decide (upAddr state message ∉ substate.accessedAddresses)))
+        (routeCost (callSub substate state message).accessedAddresses r)).cost + child.1.gas ∧
       s.running = false ∧ s.output = wordBytes (resWord (outMem child.1.output)) ∧
       s.gas = gas - preCost (coldIn substate message.currentTarget 10)
           (decide (upAddr state message ∉ substate.accessedAddresses)) -
-        (callGas fork gas (coldIn substate message.currentTarget 10)
-          (decide (upAddr state message ∉ substate.accessedAddresses))).cost + child.1.gas - 121 ∧
+        (depCallGas fork (askedOf gas (coldIn substate message.currentTarget 10)
+          (decide (upAddr state message ∉ substate.accessedAddresses)))
+        (gas - preCost (coldIn substate message.currentTarget 10)
+          (decide (upAddr state message ∉ substate.accessedAddresses)))
+        (routeCost (callSub substate state message).accessedAddresses r)).cost +
+        child.1.gas - 121 ∧
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
   obtain ⟨hg0, z, w, hz, hrunz⟩ := dep_totalSupply_split hfork hsize' hsel hdep start within hrun hok
   obtain ⟨c, hcode⟩ := fromExt_found hfork (by decide) hz w hrunz hok
-  have hdel := hdel c hcode
-  obtain ⟨hw, hgc, hdepth, hCE⟩ := fromExt (U := upWord (storageAt state message.currentTarget 10))
+  obtain ⟨r, hroute, hw, hgc, hdepth, hCE⟩ :=
+    fromExt (U := upWord (storageAt state message.currentTarget 10))
     (rest := [0x64, 0x18160ddd, upWord (storageAt state message.currentTarget 10), 0, 0x031d,
       BitVec.ofNat 256 (selector message.data)])
     (st := readSlot state message.currentTarget 10) (ss := accessSlot substate message.currentTarget 10)
-    hfork hglam (Or.inl ⟨rfl, rfl⟩) (by simp) hcode hdel hz w hrunz hok
+    hfork hglam (Or.inl ⟨rfl, rfl⟩) (by simp) hcode hz w hrunz hok
   have hext : extendMemory M2.size [((0x60 : U256), (4 : U256)), ((0x60 : U256), (0x20 : U256))] =
       ⟨0, 0⟩ := by
     rw [size_M2]; decide
+  unfold CallEnd at hCE
+  simp only [routeCost_insert_insert] at hCE
+  have hRe : routeCost ((accessSlot substate message.currentTarget 10).accessedAddresses.insert
+      (toAddressMasked (upWord (storageAt state message.currentTarget 10)))) r =
+      routeCost (callSub substate state message).accessedAddresses r := rfl
+  rw [hRe] at hgc hCE
+  refine ⟨c, r, hcode, routes_congr (fun _ => rfl) hroute, ?_⟩
+  generalize hR : routeCost (callSub substate state message).accessedAddresses r = R at hgc hCE ⊢
   generalize hc10 : coldIn substate message.currentTarget 10 = c10 at *
   have hcU' : decide (toAddressMasked (upWord (storageAt state message.currentTarget 10)) ∉
       (accessSlot substate message.currentTarget 10).accessedAddresses) =
@@ -94,13 +117,13 @@ theorem dep_totalSupply_complete (hfork : .berlin ≤ fork) (hglam : fork < .gla
   have e2 : gas - (574 + slotCost c10) - (accCost cU + 28) = gas - preCost c10 cU := by
     simp only [preCost, accCost]; omega
   rw [e1, e2] at hCE
-  obtain ⟨caller, msg, lt, child, hch, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmd, hmv,
+  obtain ⟨caller, msg, lt, child, hch, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd, hmv,
     hmdep, hmst, after, wa, hat, hruna⟩ := hCE
   rw [hext] at hmg hmd hat
   simp only [Bool.false_eq_true, ↓reduceIte] at hmg hat
-  refine ⟨c, hcode, hw, by simp only [preCost, accCost]; omega, hdepth, ?_⟩
-  have hfwd : Forwarded message (upAddr state message) c msg := by
-    refine ⟨hmc, hmt, hmtg, hmca, hmcode, ?_, hmv, hmdep, hmst⟩
+  refine ⟨hw, by simp only [preCost, accCost]; omega, hdepth, ?_⟩
+  have hfwd : SendsVia message (upAddr state message) c r SEL_TS msg := by
+    refine ⟨hmc, hmt, hmtg, hmca, hmcode, hmdp, ?_, hmv, hmdep, hmst⟩
     rw [hmd]; exact data_M2
   by_cases he : child.1.error = none
   · simp only [he, Option.isNone_none, ↓reduceIte] at hat
