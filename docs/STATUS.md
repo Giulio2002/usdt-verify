@@ -882,6 +882,24 @@ entry; `DESTS` = the 32 destinations).
   delegation at the upgraded address (checked by grep of `delegatedAddress`: it occurs only in
   `Routes`, in proofs, and in `callStep_missing`, whose hypothesis is that `c` IS a delegation).
 
+### Round 17: static frames (Complete/Static.lean)
+- `StaticKeeps runChild`: the premise `runs` of EthLib's `staticStep_runFrame` (the runner ends
+  every static child message from a static frame in a state that differs from the caller's only
+  by reads, with the same block), as a named runner assumption. `staticKeeps_process`: from
+  Paris, `processRunner` meets it (EthLib's `processMessage_static`).
+- `static_run` (any fork): a fresh frame `At CODE message 0 …` with `message.isStatic = true`,
+  `message.code = CODE`, `StaticCode state message` (EthLib: a nonempty code runs at an account
+  whose code hash is not the empty one), under a runner with `StaticKeeps`: every run that ends
+  with `.ok` ends in a state with `SameOutside [] state s.state`. `inv_static`: `Inv C` is kept.
+- `inv_call_all` is now in Complete/Static.lean: `hstatic` is replaced by `hstat : isStatic = true
+  → message.code = CODE ∧ StaticCode state message ∧ StaticKeeps runChild`, and `hacc` is asked
+  only when not static. The round-15 theorem is renamed `inv_call_ns` (DepInvAll.lean).
+- Not done: `hacc` for a frame that is not static. Without an account, the first SSTORE of each
+  writing path fails (`setStorage` errors, an aborting state error), so no writing path succeeds;
+  proving it needs, per writing path, the prefix up to its first SSTORE as a `HoareG` and a fault
+  lemma for SSTORE without an account. The completeness theorems keep `hstatic` and `hacc` for the
+  same reason (per-path fault proofs at the first write).
+
 ## Open (not proved)
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
   transfer (round 12), approve, transferFrom, the ten owner functions (round 13), not deprecated
@@ -894,7 +912,8 @@ entry; `DESTS` = the 32 destinations).
   at the upgraded address (round 16). Named hypotheses that stay: for destroyBlackFunds,
   `hstatic` and `hkeep` (the contract keeps an account after a successful forwarded call).
 - Hypotheses the completeness theorems keep, by name: `hstatic` (frame not static; a static
-  SSTORE/LOG fails, but no spec of that failure is proved), `hacc` (the contract has an account;
+  SSTORE/LOG fails, but no spec of that failure is proved per path; for the invariant the static
+  case is done generically, round 17, `inv_static`), `hacc` (the contract has an account;
   the write needs it), Berlin ≤ fork < Glamsterdam on the writing paths, size < 2^256.
 - The deprecated paths in the invariant: done (round 15, `inv_call_all`) under the named runner
   assumptions `KeepsInv` and `HonestBalance`. Without `HonestBalance`, deprecated

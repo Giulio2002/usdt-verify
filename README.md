@@ -112,12 +112,14 @@ So in deprecated mode the supply invariant depends on the upgraded contract answ
 
 ### Every call, deprecated or not
 
-`inv_call_all` in `UsdtVerify/Complete/DepInvAll.lean` drops the "not deprecated" hypothesis. For any successful call to USDT, with any call data, value and gas, the invariant holds after if it held before. When the contract is deprecated it needs these named assumptions:
+`inv_call_all` in `UsdtVerify/Complete/Static.lean` drops the "not deprecated" hypothesis. For any successful call to USDT, with any call data, value and gas, the invariant holds after if it held before. When the contract is deprecated it needs these named assumptions:
 
 - `KeepsInv`: every message USDT sends to the upgraded contract, when it ends without an error, ends in a state where USDT still has its account and the invariant still holds. This covers an upgraded contract that calls back into USDT.
 - `HonestBalance`, only for `destroyBlackFunds`: the balance the upgraded contract reports equals the local balance.
 
 The six other forwarding functions write nothing locally after the forwarded call, which is also proved.
+
+`inv_call_all` also covers static calls, such as a `STATICCALL` into USDT. A static run of USDT changes no state, so the invariant holds trivially. This uses a named assumption, `StaticKeeps`, about the message runner, which is proved for EthLib's own runner from Paris. The account of the contract is now needed only for calls that are not static.
 
 ## What you have to trust
 

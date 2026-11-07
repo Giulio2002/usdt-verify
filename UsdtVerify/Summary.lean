@@ -329,9 +329,11 @@ finite sequence of steps; read-only paths only record reads (`inv_readSlot`, `in
 destroyBlackFunds keeps `Inv`: under `Inv`, `d ≤ _totalSupply`, so its unchecked subtraction does
 not wrap (`destroy_inv`).
 Every successful call, not deprecated: `Complete.inv_call`. Deprecated or not:
-`Complete.inv_call_all` (Complete/DepInvAll.lean; when deprecated, under the named assumptions
-`KeepsInv` on the runner and `HonestBalance` for destroyBlackFunds; the upgraded code may be an
-EIP-7702 delegation). Neither
+`Complete.inv_call_ns` (Complete/DepInvAll.lean, not static; when deprecated, under the named
+assumptions `KeepsInv` on the runner and `HonestBalance` for destroyBlackFunds; the upgraded code
+may be an EIP-7702 delegation). Static or not: `Complete.inv_call_all` (Complete/Static.lean; a
+static frame keeps the state, EthLib's `staticStep_runFrame`, under the named runner assumption
+`StaticKeeps`, proved for the interpreter's runner from Paris by `staticKeeps_process`). None
 has an alias here, since Invariant imports this file.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)

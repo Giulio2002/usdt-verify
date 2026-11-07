@@ -370,7 +370,8 @@ left. The callee may call back into this contract, so `S` can differ from the st
 
 ## The invariant over every successful call, deprecated or not (round 15)
 
-`UsdtVerify/Complete/DepInvAll.lean`, `Complete.inv_call_all`. It is `inv_call` without the
+`UsdtVerify/Complete/DepInvAll.lean`, `Complete.inv_call_ns` (until round 16 named
+`inv_call_all`). It is `inv_call` without the
 hypothesis "not deprecated". From Berlin to before Glamsterdam, take a fresh frame of the
 deployed code at pc 0, with any call data below 2^256 bytes, any value, any gas, any gas bound
 and any message runner. Assume `KeccakSep`, a frame that is not static, an account for the
@@ -386,6 +387,25 @@ If the interpreter loop ends with no error, `Inv` holds in the end state.
 Nothing is assumed of the code of `ua` (round 16: the hypothesis `hdel` is gone). When that code
 is an EIP-7702 delegation, the message still has `ua` as its current target, so `KeepsInv` and
 `HonestBalance` apply to it as stated.
+
+## Static frames, and the invariant over every successful call (round 17)
+
+`UsdtVerify/Complete/Static.lean`. EthLib proves that a run of a static frame keeps the state up
+to the records of reads (`staticStep_runFrame`), given that the runner ends every static child
+message so. That premise is named here `StaticKeeps runChild`, and `staticKeeps_process` proves
+it, from Paris, for the interpreter's own runner (EthLib's `processMessage_static`).
+- `static_run`: for any fork, a fresh static frame of the deployed code, for a message whose code
+  is that code (`message.code = CODE`) at an account that holds code (EthLib's `StaticCode`),
+  under a runner that meets `StaticKeeps`: if the loop ends with `.ok`, the end state reads as
+  the start state at every address (account, storage and transient storage).
+- `inv_static`: so `Inv C` at the start gives `Inv C` at the end.
+- `Complete.inv_call_all` now covers static frames: it takes `hstat` (when static:
+  `message.code = CODE`, `StaticCode`, `StaticKeeps`) and `hacc` only when not static, and is
+  `inv_static` or `inv_call_ns` by the flag. The hypothesis "not static" is gone from it. The
+  hypothesis that the contract has an account stays for frames that are not static: the case
+  without an account (where the first SSTORE fails) is not proved.
+- The completeness theorems of the writing functions still take `hstatic`: in a static frame a
+  successful run of a writing path does not exist, but this is not proved per function.
 
 On the way (`dep_*_local`): when deprecated, the six forwarders (totalSupply, balanceOf,
 allowance, approve, transfer, transferFrom) make one call, from a caller state with the start

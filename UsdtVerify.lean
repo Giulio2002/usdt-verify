@@ -58,3 +58,4 @@ import UsdtVerify.Complete.DepTransfer
 import UsdtVerify.Complete.DepAllowance
 import UsdtVerify.Complete.DepDestroy
 import UsdtVerify.Complete.DepInvAll
+import UsdtVerify.Complete.Static

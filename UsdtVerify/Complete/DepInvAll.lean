@@ -30,7 +30,7 @@ on the runner. Named assumptions:
   the data `balanceOf(a)` (`dataB message`) with no error, the word the call writes at 0x60 is
   `balances[a]` in the child's end state.
 
-`inv_call_all`: `Complete.inv_call` without `hdep`: under `KeccakSep`, not static, an account,
+`inv_call_ns`: `Complete.inv_call` without `hdep`: under `KeccakSep`, not static, an account,
 `StrForm` of slots 7 and 8, `Inv` at the start, and, when deprecated,
 `KeepsInv` and (for destroyBlackFunds) `HonestBalance`, every successful call ends with `Inv`.
 No hypothesis on the code of the upgraded address: when it is an EIP-7702 delegation, the message
@@ -308,7 +308,7 @@ contract with an account, with string slots 7 and 8 of `StrForm`, and, when depr
 of slot 10 not 0): the runner meets `KeepsInv` (`hkeeps`), and for destroyBlackFunds it meets
 `HonestBalance` (`hhonest`). If `Inv C state` holds and the interpreter loop ends with no error,
 then `Inv C s.state` holds. -/
-theorem inv_call_all (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem inv_call_ns (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256)
     (h7 : StrForm (storageAt state message.currentTarget 7))
