@@ -425,3 +425,13 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Complete.inv_goodCall
 #print axioms UsdtVerify.Complete.inv_calls
 #print axioms UsdtVerify.Complete.goodCall_process
+#print axioms UsdtVerify.Local.parent_instruction
+#print axioms UsdtVerify.Local.pResult_step
+#print axioms UsdtVerify.Local.parent_runFrame
+#print axioms UsdtVerify.Local.parent_process
+#print axioms UsdtVerify.Local.parent_processMessage
+#print axioms UsdtVerify.Local.parent_runner
+#print axioms UsdtVerify.Local.processMessage_failed_getStorage
+#print axioms UsdtVerify.Complete.untouched_process_failed
+#print axioms UsdtVerify.Complete.process_value_fails
+#print axioms UsdtVerify.Complete.process_step

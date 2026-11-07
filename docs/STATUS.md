@@ -914,7 +914,7 @@ entry; `DESTS` = the 32 destinations).
   `getStorage_restoreTxState` needs the block (`parent`) of the end state to be the start's, and
   EthLib proves that only for static runs. So failed calls enter a sequence as `Untouched` steps,
   an assumption. Messages with value (all of which revert, `nonpayable`) are not covered by
-  `goodCall_process` either.
+  `goodCall_process` either. (Both done in round 18, below.)
 
 ### Round 17: the writing paths at Glamsterdam (GasRules2.lean, every non-deprecated writing spec)
 - `Gas.writeCost fork orig cur new cold := sstoreCost … + sstoreStateGas …` (the state gas of a
@@ -936,6 +936,31 @@ entry; `DESTS` = the 32 destinations).
 - The Glamsterdam case rests on EthLib's model of Glamsterdam at the pin (fd3457dbf): its
   `sstoreCost` and `sstoreStateGas` for that fork, and its decoding of the opcodes used.
 
+### Round 18: failed top-level calls and calls with value (Local/Parent.lean, Complete/Seq.lean)
+- Local/Parent.lean (LOCAL, generic, proved from EthLib's semantics): every step of every frame,
+  static or not, keeps the block of the state (`parent`): `parent_instruction` (the ten groups of
+  instructions; SSTORE, TSTORE, SELFDESTRUCT through `parent_setStorage`, `parent_modifyState`,
+  `parent_selfdestructTransfer`), `pResult_step` (calls and creations: the caller keeps it, and the
+  frame that resumes keeps it when the child ended with the caller's block). `parent_runFrame`: a
+  run keeps it under a runner that does. `parent_process`: by strong induction on the gas, every
+  `processMessage` ends as `rollbackOnError state last` with `last` of the start block, and every
+  `processCreateMessage` keeps the block (`parent_prepareCreation`, `parent_depositCode`). Any
+  fork, any meter with `LawfulGasMeter`.
+- `processMessage_failed_getStorage`: a message that ends with an error has, at every address and
+  key, the storage word of the state it was sent from (EthLib's `getStorage_restoreTxState`, whose
+  premise on the block is now proved for every message, not only static ones).
+- `untouched_process_failed` (Complete/Seq.lean): so a failed top-level message, any code, is an
+  `Untouched` step for every address. Round 17 had these steps as an assumption.
+- `process_value_fails`: from Berlin, a top-level message of `CODE` with no precompile, call data
+  below 2^256 bytes and a nonzero value ends with an error (both cases of EthLib's
+  `processMessage`: value moved, `processMessage_map_val_value`; not moved,
+  `processMessage_map_val`; a failed move gives no `.ok`), by `runFrame_ok_dispatch`.
+- `process_step`: from Paris (before Glamsterdam when deprecated), every top-level message of
+  `CODE` with no precompile that `processMessage` ends is a `GoodCall` (no error; under the named
+  assumptions of `goodCall_process`) or an `Untouched` step (an error; nothing assumed).
+- Still assumed in a `Calls` sequence: the `Untouched` steps that are not a top-level message of
+  `CODE` (transactions to other accounts, fees).
+
 ## Open (not proved)
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
   transfer (round 12), approve, transferFrom, the ten owner functions (round 13), not deprecated
@@ -952,6 +977,8 @@ entry; `DESTS` = the 32 destinations).
   case is done generically, round 17, `inv_static`), `hacc` (the contract has an account;
   the write needs it), size < 2^256; Berlin ≤ fork < Glamsterdam only on the deprecated paths
   (round 17: the non-deprecated writing paths hold at Glamsterdam too).
+- Failed top-level calls and calls with value: done (round 18, `untouched_process_failed`,
+  `process_value_fails`, `process_step`).
 - The deprecated paths in the invariant: done (round 15, now `inv_call_ns`; static frames too in `inv_call_all`, round 17) under the named runner
   assumptions `KeepsInv` and `HonestBalance`. Without `HonestBalance`, deprecated
   destroyBlackFunds keeps `Inv` exactly when the answer is the local balance
@@ -1044,6 +1071,13 @@ entry; `DESTS` = the 32 destinations).
    stack are unified: pass `(gas := …)` or defer them the same way. (c) after SLOAD the word is
    `st.getStorage t (toBeBytes n)`; `rw [getStorage_eq]` turns it into `storageAt` so omega sees one
    atom. (d) `if_neg`/`if_false` are deprecated in this toolchain (`ite_false`, or `split`).
+
+17. Round 18 (LOCAL, UsdtVerify/Local/Parent.lean, no sorry): EthLib proves that a message keeps
+   the block of the state (`parent`) only for static messages (`processMessage_static`), so its
+   `getStorage_restoreTxState` could not be applied to the rollback of a failed message that is
+   not static. `parent_process` proves it for every message and creation from any fork.
+   Candidates for EthLib: the per-group lemmas, `pResult_step`, `parent_runFrame`,
+   `parent_process`, `processMessage_failed_getStorage`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
 - Round 17 (after commit e6d4b71, rm -rf .lake/build, EthLib oleans prebuilt): 123.62 s wall,

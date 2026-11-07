@@ -340,7 +340,11 @@ static frame keeps the state, EthLib's `staticStep_runFrame`, under the named ru
 finite sequence of such calls and of steps that keep the storage of `C`: `Complete.inv_calls`
 (Complete/Seq.lean); a successful top-level `processMessage` of `CODE` with no value and no
 precompile, from Paris (before Glamsterdam when deprecated), under the named assumptions, is such
-a call (`Complete.goodCall_process`). None
+a call (`Complete.goodCall_process`); a top-level `processMessage` (any code) that ends with an
+error keeps every storage word (`Complete.untouched_process_failed`), one of `CODE` with a nonzero
+value always ends with an error from Berlin (`Complete.process_value_fails`), and from Paris every
+top-level `processMessage` of `CODE` with no precompile is one of the two kinds of steps
+(`Complete.process_step`). None
 has an alias here, since Invariant imports this file.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)

@@ -423,9 +423,21 @@ gas and runner) or `Untouched` (any change that keeps every storage word of `C`)
   deployed code, no value and no precompile, run by EthLib's `processMessage`, that ends with no
   error, is a `GoodCall` from its start state to its end state, under the named assumptions for
   the interpreter's own runner (`StaticKeeps` is proved for it).
-- What the `Untouched` steps stand for is assumed, not proved: a call that failed and was rolled
-  back by the message layer, a transaction that does not reach `C`, fees. A transaction that
-  reaches `C` through another contract is not a top-level call and is not covered.
+- Failed top-level calls (round 18): `untouched_process_failed` proves that a top-level message
+  run by `processMessage` (any code, any fork) that ends with an error is an `Untouched` step for
+  every address. The rollback restores the storage of the start state because the run keeps the
+  block of the state (`parent`). EthLib proves that only for static messages; the local
+  `Local.parent_process` (UsdtVerify/Local/Parent.lean) proves it for every message and every
+  creation, static or not, from any fork, by induction on the gas, from EthLib's semantics.
+- Calls with value (round 18): `process_value_fails` proves that, from Berlin, a top-level message
+  of the deployed code (no precompile, call data below 2^256 bytes) with a nonzero value ends
+  with an error, whether the value is moved or not. `process_step` (from Paris; when deprecated,
+  before Glamsterdam) puts both together: every top-level message of the deployed code to `C`
+  with no precompile that `processMessage` ends is a `GoodCall` (no error, under the named
+  assumptions of `goodCall_process`) or an `Untouched` step (an error, nothing assumed).
+- What the remaining `Untouched` steps stand for is assumed, not proved: a transaction that does
+  not reach `C`, fees. A transaction that reaches `C` through another contract is not a
+  top-level call and is not covered.
 
 On the way (`dep_*_local`): when deprecated, the six forwarders (totalSupply, balanceOf,
 allowance, approve, transfer, transferFrom) make one call, from a caller state with the start
@@ -441,9 +453,9 @@ call. destroyBlackFunds ends in `tailState S C a d` over the child's end state `
 - EthLib's EVM model is a faithful EVM. The proofs are only as good as that model.
 - The bytecode file is the deployed code. The interpreted hash check ties `CODE` to the file,
   and `data/SOURCE.md` ties the file to the chain.
-- A few generic opcode rules are proved locally in this repository, and EthLib's model is not
-  modified. These rules are EXP with its price worked out and some instruction table
-  entries (`UsdtVerify/Local/`). STOP, GAS and EXTCODESIZE now come from EthLib. They are proved from EthLib's semantics, not assumed.
+- A few generic rules are proved locally in this repository, and EthLib's model is not
+  modified. These rules are EXP with its price worked out, some instruction table
+  entries, and that every message keeps the block of the state (`UsdtVerify/Local/`). STOP, GAS and EXTCODESIZE now come from EthLib. They are proved from EthLib's semantics, not assumed.
 
 ## What is not covered
 
