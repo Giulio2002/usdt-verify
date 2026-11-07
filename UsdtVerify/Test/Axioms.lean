@@ -1,3 +1,4 @@
+import UsdtVerify.Complete.DepTotalSupply
 import UsdtVerify.Complete.DepInv
 import UsdtVerify.Complete.Split
 import UsdtVerify.Complete.Inv
@@ -353,3 +354,18 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.DepInv.depD_inv
 #print axioms UsdtVerify.DepInv.depD_keeps
 #print axioms UsdtVerify.DepInv.depD_breaks
+#print axioms UsdtVerify.Complete.ok_step_error
+#print axioms UsdtVerify.Complete.ok_step_halt
+#print axioms UsdtVerify.Complete.ok_hoare
+#print axioms UsdtVerify.Complete.step_gas_low
+#print axioms UsdtVerify.Complete.step_sub_low
+#print axioms UsdtVerify.Complete.extcodesize_low
+#print axioms UsdtVerify.Complete.callStep_low
+#print axioms UsdtVerify.Complete.callStep_deep
+#print axioms UsdtVerify.Complete.step_call
+#print axioms UsdtVerify.Complete.call_ok
+#print axioms UsdtVerify.Complete.midG
+#print axioms UsdtVerify.Complete.noCodeG
+#print axioms UsdtVerify.Complete.subG
+#print axioms UsdtVerify.Complete.fromExt
+#print axioms UsdtVerify.Complete.dep_totalSupply_complete

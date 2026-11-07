@@ -712,14 +712,50 @@ entry; `DESTS` = the 32 destinations).
   remove those bounds, is still open.
 - No Summary alias: Invariant imports Summary (same as `inv_call`).
 
+### Round 14: the deprecated paths from EXTCODESIZE on (Complete/DepCall.lean, Complete/DepTotalSupply.lean)
+- Low-gas failures, computed from EthLib's step: `extcodesize_low` (gas below 2600/100, the code
+  found), `step_gas_low` (below 2), `step_sub_low` (below 3), `callStep_low` (below the access
+  plus memory: payCall's charge fails, `keepReads` halts the frame with outOfGas).
+  `callStep_deep` covers CALL at the greatest depth: `genericCall` runs no message and
+  `skipCall` pushes 0. Then `failTail` reverts.
+- `call_ok`: CALL under ANY runner (no `Meets`). The step is `.child caller msg resume`
+  (`callStep_child`). If the runner fails, the run fails (`runFrame_of_runChild_eq_error`).
+  Otherwise the loop goes on from `resumeCall … child` (`resumeCall_eq`,
+  `runFrame_of_step_eq_child`). The result is `CallEnd`, with the same message facts as `callWith`.
+- `fromExt` (pcs 3719, 4874, 5739, 3213, 4200, so totalSupply, balanceOf (also inside
+  destroyBlackFunds), transfer, approve and transferFrom): take a successful run from the
+  EXTCODESIZE frame with any gas. The code size word is not 0, `accCost + 128 + memory ≤ G`, the
+  depth is below the limit, and the run goes through `CallEnd`. The empty-code revert
+  (`noCodeG`) and the JUMPI block (`midG`) are over StepG (`no_ok`, `ok_split`), and so is SUB
+  (`subG`). Named hypotheses: `hcode` (the code `c` is found; `getCode` fails only for a code hash
+  the state does not hold) and `hdel` (no Pectra delegation).
+- `dep_totalSupply_complete`: every successful deprecated totalSupply() run, with any gas and any
+  runner, is the forward. Its conclusion:
+  - the runner returned a child with no error, for the `Forwarded` message with gas
+    `callGas.subCall`;
+  - the output is `resWord (outMem child.output)`;
+  - the gas is exact: `gas - preCost - callGas.cost + child.gas - 121`, with at least 121 left
+    after the CALL;
+  - the state and substate are `incorporateChild`'s.
+  Hypotheses: Berlin ≤ fork < Glamsterdam, data size < 2^256, the selector, deprecated, `hcode`,
+  `hdel`.
+- Pitfall: in `fromExt` the stack and gas terms must be in one form for omega. Generalize
+  `accCost (decide …)` to `A` first. `rw [hext]` must come after `CallEnd` is unfolded, because
+  the memory cost occurs only inside its body.
+
 ## Open (not proved)
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
   transfer (round 12), approve, transferFrom, the ten owner functions (round 13), not deprecated
   where the function reads the flag, and every getter and name/symbol (round 13, name/symbol
   under the named hypothesis `StrForm`), and the invariant over every successful call when not
   deprecated (`inv_call`). Not covered: the deprecated paths (below).
-- The deprecated paths. Done: the split infrastructure and the prefix of deprecated
-  totalSupply() (`dep_totalSupply_split`, round 13). To do, per deprecated function
+- The deprecated paths. Done: the split infrastructure, the generic part from EXTCODESIZE on
+  (`fromExt`, round 14), and deprecated totalSupply() in full (`dep_totalSupply_complete`, round
+  14). Still open: balanceOf, transfer, approve, transferFrom (each needs its prefix split over
+  StepG to its EXTCODESIZE pc, then `fromExt` and its okTail), allowance (own pcs: `toCallA`, so
+  a variant of `fromExt`), destroyBlackFunds (prefix to 4874, `fromExt`, then the tail `tailD`,
+  whose cost depends on the state, via `ok_exact`). Delegation from Pectra stays a named
+  hypothesis (`hdel`). Old plan, per deprecated function
   (totalSupply, balanceOf, transfer, approve, transferFrom, allowance, destroyBlackFunds):
   (1) the prefix over `StepG` to the EXTCODESIZE pc and its `*_split`; (2) from that frame with
   ANY gas: the empty-code revert, the failing cases with too little gas for EXTCODESIZE, GAS,

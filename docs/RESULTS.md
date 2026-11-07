@@ -288,8 +288,19 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   - slots 7 and 8 hold strings in a form Solidity writes (`StrForm`);
   - `Inv`: the sum of the 2^160 balances equals `_totalSupply` at the start.
   If the interpreter loop ends with no error, `Inv` holds in the end state.
-- Not yet proved: the completeness of the deprecated paths (every successful deprecated run is
-  the forwarding path), and so the invariant over every deprecated call.
+- Deprecated totalSupply() (`Complete.dep_totalSupply_complete`, round 14), for any gas, any gas
+  bound and ANY message runner (nothing is assumed of the runner). Every run that ends with no
+  error is the forward to the upgraded address:
+  - the runner was called with the `Forwarded` message and returned a frame with no error;
+  - the run returns the word at 0x60 after the CALL wrote the start of that frame's output;
+  - the gas left is exact, and the state and substate are those after the call.
+  Assumed by name: the upgraded account's code is found in the state (`hcode`), and from Pectra
+  it is no delegation (`hdel`). Too little gas at EXTCODESIZE, GAS, SUB, CALL or after the call,
+  no code, and the greatest depth are proved to end with an error.
+- Not yet proved: the same completeness for the six other deprecated functions (the part from
+  EXTCODESIZE to after the CALL, `Complete.fromExt`, is proved for balanceOf, transfer, approve,
+  transferFrom and the call inside destroyBlackFunds), and so the invariant over every
+  deprecated call.
 
 ## The invariant when deprecated: destroyBlackFunds (round 14)
 
