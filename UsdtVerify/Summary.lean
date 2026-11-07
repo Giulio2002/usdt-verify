@@ -45,8 +45,11 @@ import UsdtVerify.Functions.StringsGen
 
 All theorems are about the 11075-byte runtime code `CODE` (data/usdt.runtime.hex), run by
 EthLib's EVM semantics from pc 0 in a fresh frame (`At CODE message 0 [] .empty gas state
-substate`), for every fork from Berlin on (the paths that write storage: Berlin ≤ fork <
-Glamsterdam, EthLib's SSTORE rule). Each non-deprecated path is a `SpecG` (round 12: a `Spec` over
+substate`), for every fork from Berlin on. The paths that write storage hold from Berlin on,
+Glamsterdam included, since round 17: each SSTORE costs `Gas.writeCost` (`sstoreCost` plus the
+state gas of a new slot, `sstoreStateGas`, 0 before Glamsterdam), by the local rule
+`Gas.sstoreWG`. The deprecated paths (EXTCODESIZE and CALL, EthLib's rules) hold before
+Glamsterdam. Each non-deprecated path is a `SpecG` (round 12: a `Spec` over
 the steps from frames where the same step with less gas fails or gives the same frame with that
 much less gas; it implies the `Spec`), each deprecated path a `Spec`: every run from such a
 frame reaches an end
@@ -351,8 +354,7 @@ are steps of `Gas.StepG`, from frames whose instruction is `Gas.RunMono`).
 See docs/STATUS.md ("Open").
 
 ## Completeness per function — `totalSupply_complete`, `balanceOf_complete`, `transfer_complete`
-Not deprecated, Berlin on (transfer: also before Glamsterdam, not static, the contract has an
-account): every run of the loop that ends with no error, for any gas, is the success path of the
+Not deprecated, Berlin on (transfer: not static, the contract has an account): every run of the loop that ends with no error, for any gas, is the success path of the
 specification, with the exact output, gas, state and substate. For transfer, the conclusion
 also lists every check the run passed, and the end is the fee-0 path or the fee path.
 
@@ -364,7 +366,7 @@ functions `pause_complete`, `unpause_complete`, `addBlackList_complete`,
 INVALID spec `SetParamsSpec.spec_mulOv` excludes the overflow of `m * 10^d`),
 `deprecate_complete`, `transferOwnership_complete`, `destroyBlackFunds_complete` (not
 deprecated). Each conclusion states that the caller is the owner and the `require`s passed.
-Hypotheses of each: Berlin ≤ fork < Glamsterdam, `hstatic` (not static), `hacc` (the contract
+Hypotheses of each: Berlin ≤ fork (Glamsterdam included), `hstatic` (not static), `hacc` (the contract
 has an account), size < 2^256, the selector, the coldness flags as named in the specs, and
 `hdep` (not deprecated) for approve, transferFrom and destroyBlackFunds.
 

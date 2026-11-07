@@ -80,13 +80,13 @@ theorem spec_transferOwnership_zero (hfork : .berlin ≤ fork) (hsize : 4 ≤ me
 
 /-- The price of the write of slot 0 in transferOwnership (warm). -/
 abbrev ownCost (fork : Fork) (state : State.TransactionState) (message : Message fork) : Nat :=
-  sstoreCost fork (originalAt state message.currentTarget 0) (storageAt state message.currentTarget 0)
+  Gas.writeCost fork (originalAt state message.currentTarget 0) (storageAt state message.currentTarget 0)
     (withAddr (storageAt state message.currentTarget 0) (addrArg message.data 0)) false
 
 /-- The specification of `transferOwnership(a)` by the owner with `a ≠ 0`: the run stops after
 one write, slot 0 := `withAddr w0 a` (the owner replaced, `paused` kept), no log; gas left
 `gas - (1114 + price(slot 0) + price(write))`; more than 2300 gas at the SSTORE. -/
-theorem spec_transferOwnership (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_transferOwnership (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf2fde38b)
@@ -109,7 +109,7 @@ theorem spec_transferOwnership (hfork : .berlin ≤ fork) (hglam : fork < .glams
   at_pc 7696
   step ownTest (by simp) (by gas_ok)
   step ownGo (by rw [addrArg, mask_mask, ← addrArg]; exact hnz) (by simp) (by gas_ok)
-  step addrTail hfork hglam (Or.inr rfl) (by simp) hstatic (hasAccount_readSlot hacc)
+  step addrTail hfork (Or.inr rfl) (by simp) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   rw [originalAt_readSlot, storageAt_readSlot, writeSlot_readSlot _ _ hacc, storeSub_accessSlot]
@@ -156,22 +156,22 @@ abbrev depSub (fork : Fork) (substate : Substate) (state : State.TransactionStat
 
 /-- The prices of the two writes of slot 10 in deprecate (cold or warm first, warm second). -/
 abbrev depCost (fork : Fork) (state : State.TransactionState) (message : Message fork) : Nat :=
-  sstoreCost fork (originalAt state message.currentTarget 10)
+  Gas.writeCost fork (originalAt state message.currentTarget 10)
     (storageAt state message.currentTarget 10)
     (withPaused (storageAt state message.currentTarget 10) 1) false +
-  sstoreCost fork (originalAt state message.currentTarget 10)
+  Gas.writeCost fork (originalAt state message.currentTarget 10)
     (withPaused (storageAt state message.currentTarget 10) 1) (depWord state message) false
 
 /-- The specification of `deprecate(a)` by the owner.
 
-Hypotheses: Berlin ≤ fork < Glamsterdam; a frame that may write, of an existing account `C`;
+Hypotheses: Berlin ≤ fork (Glamsterdam included); a frame that may write, of an existing account `C`;
 call data of 4 to 2^256 - 1 bytes with selector 0x0753c30c; no value; the caller is the owner;
 enough gas, and more than 2300 left at each SSTORE.
 
 Then the run stops normally: slot 10 := `withPaused w10 1` (deprecated), then slot 10 :=
 `withAddr (withPaused w10 1) a` (upgradedAddress); one log `Deprecate(a)` (topic 0xcc358699…,
 data the word `a`); gas left `gas - (1628 + price(slot 0) + price(slot 10) + the two writes)`. -/
-theorem spec_deprecate (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_deprecate (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x0753c30c)
@@ -179,7 +179,7 @@ theorem spec_deprecate (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     {c0 c10 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (hc10 : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget 10 = c10)
     {gas : Nat}
-    (hstip : 2840 + slotCost c0 + slotCost c10 + sstoreCost fork
+    (hstip : 2840 + slotCost c0 + slotCost c10 + Gas.writeCost fork
       (originalAt state message.currentTarget 10) (storageAt state message.currentTarget 10)
       (withPaused (storageAt state message.currentTarget 10) 1) false ≤ gas)
     (hg : 1628 + slotCost c0 + slotCost c10 + depCost fork state message ≤ gas) :
@@ -192,13 +192,13 @@ theorem spec_deprecate (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
   step ownerOk hfork (mem_CHECKS (by decide)) (by simp) hc0 hown (by gas_ok)
   at_pc 2737
-  step depFlag hfork hglam (by simp) hstatic hacc0 hc10 (by gas_ok)
+  step depFlag hfork (by simp) hstatic hacc0 hc10 (by gas_ok)
     (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   rw [originalAt_readSlot, storageAt_readSlot]
   refine Triple.seq (depPrefix ?hr1 ?hg1) ?_
   case hr1 => simp
   case hg1 => gas_ok
-  refine Triple.seq (addrTail hfork hglam (Or.inl rfl) ?hr2 hstatic (hasAccount_writeSlot hacc0)
+  refine Triple.seq (addrTail hfork (Or.inl rfl) ?hr2 hstatic (hasAccount_writeSlot hacc0)
     ?hk2 ?hs2 ?hg2) ?_
   case hr2 => simp
   case hk2 => exact coldIn_accessSlot_self _ _ _

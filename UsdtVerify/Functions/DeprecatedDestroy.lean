@@ -324,16 +324,16 @@ theorem hashTail160 {x base : U256} {rest : List U256} (hrest : rest.length ≤ 
 
 /-- At 8008 on a memory of 160 bytes, back from the forward with the answer `b`:
 `balances[a] := 0`. The slot was not read by the getter, so it may be cold (`cB`). -/
-theorem zeroBalD (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a b : U256}
+theorem zeroBalD (hfork : .berlin ≤ fork) {a b : U256}
     {rest : List U256} (hrest : rest.length ≤ 800) (hstatic : message.isStatic = false)
     (hacc : hasAccount state message.currentTarget) {cB : Bool}
     (hcB : coldIn substate message.currentTarget (mapSlot (mkey a) 2) = cB) {M : ByteArray}
     (hM : M.size = 160) {gas : Nat} (hstip : 2409 ≤ gas)
-    (hg : 110 + sstoreCost fork (originalAt state message.currentTarget (mapSlot (mkey a) 2))
+    (hg : 110 + Gas.writeCost fork (originalAt state message.currentTarget (mapSlot (mkey a) 2))
       (storageAt state message.currentTarget (mapSlot (mkey a) 2)) 0 cB ≤ gas) :
     Gas.HoareG fork (At CODE message 8008 (b :: 0 :: a :: rest) M gas state substate)
       (At CODE message 8080 (b :: a :: rest) (mapMem M (mkey a) 2)
-        (gas - (110 + sstoreCost fork (originalAt state message.currentTarget (mapSlot (mkey a) 2))
+        (gas - (110 + Gas.writeCost fork (originalAt state message.currentTarget (mapSlot (mkey a) 2))
           (storageAt state message.currentTarget (mapSlot (mkey a) 2)) 0 cB))
         (writeSlot state message.currentTarget (mapSlot (mkey a) 2) 0)
         (storeSub fork substate message.currentTarget (mapSlot (mkey a) 2)
@@ -351,7 +351,7 @@ theorem zeroBalD (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a b :
   step dupR 1
   step swapR 0
   norm
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic hacc hcB (by gas_ok) (by gas_ok)
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic hacc hcB (by gas_ok) (by gas_ok)
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
@@ -472,8 +472,8 @@ abbrev tailSub (fork : Fork) (ss : Substate) (S : State.TransactionState)
 after the first write. -/
 abbrev tailCost (fork : Fork) (S : State.TransactionState) (C : EthLib.Base.Address) (a d : U256)
     (cB c1 : Bool) : Nat :=
-  1581 + sstoreCost fork (originalAt S C (mapSlot a 2)) (storageAt S C (mapSlot a 2)) 0 cB +
-    slotCost c1 + sstoreCost fork (originalAt S C 1) (storageAt (writeSlot S C (mapSlot a 2) 0) C 1)
+  1581 + Gas.writeCost fork (originalAt S C (mapSlot a 2)) (storageAt S C (mapSlot a 2)) 0 cB +
+    slotCost c1 + Gas.writeCost fork (originalAt S C 1) (storageAt (writeSlot S C (mapSlot a 2) 0) C 1)
       (sub (storageAt (writeSlot S C (mapSlot a 2) 0) C 1) d) false
 
 /-- An upper bound of the gas that the tail needs (both writes at their highest price). -/
@@ -499,17 +499,18 @@ theorem tailD (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a x U : 
     (storageAt (writeSlot S message.currentTarget (mapSlot a 2) 0) message.currentTarget 1)
     (sub (storageAt (writeSlot S message.currentTarget (mapSlot a 2) 0) message.currentTarget 1)
       (resWord M)) false
+  rw [← Gas.writeCost_of_lt hglam] at hb1 hb2
   simp only [COLD_STORAGE_ACCESS, STORAGE_SET] at hb1 hb2
   simp only [TAIL_MAX] at hg
   have hs1 : slotCost c1 ≤ 2100 := by unfold slotCost; split <;> omega
   have hM1 : (mapMem M (mkey a) 2).size = 160 := size_mapMem160 hM _ _
   have hp1 := ptr_mapMem160 hM hptr (mkey a) 2
   step okTailD hM hptr (rest := [0, a, 0x09b6, x]) (by simp) (by omega)
-  step zeroBalD hfork hglam (by simp) hstatic hacc (cB := cB) (by rw [ha]; exact hcB) hM
+  step zeroBalD hfork (by simp) hstatic hacc (cB := cB) (by rw [ha]; exact hcB) hM
     (by omega) (by rw [ha]; omega)
   rw [ha]
   rw [ha] at hM1 hp1
-  step subTotal hfork hglam (by simp) hstatic (hasAccount_writeSlot hacc) (c1 := c1)
+  step subTotal hfork (by simp) hstatic (hasAccount_writeSlot hacc) (c1 := c1)
     (by rw [TransferFee.coldIn_storeSub']; exact hc1) (by omega)
     (by rw [originalAt_writeSlot hacc]; omega)
   rw [originalAt_writeSlot hacc]

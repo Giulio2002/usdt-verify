@@ -446,22 +446,129 @@ theorem sstoreG (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {key ne
   exact ⟨after, h, by rw [a1, hcode], by rw [a2, hj], a3, by rw [a4, hpc], a5, by rw [a6, hmem],
     a7, by rw [a8, hrun], by rw [a9, herr], by rw [ao, hout], a10, a11⟩
 
-/-- The local `sstoreW` over `StepG`. -/
-theorem sstoreWG (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {key new : U256}
+/-- The price of an SSTORE for the one-counter meter, at every fork from Berlin: the price of the
+write (`sstoreCost`) plus the state gas of a new slot (`sstoreStateGas`, 0 before Glamsterdam).
+The meter `Nat` has no reservoir: its refill of state gas is no change. -/
+abbrev writeCost (fork : Fork) (orig cur new : U256) (cold : Bool) : Nat :=
+  sstoreCost fork orig cur new cold + sstoreStateGas fork orig cur new
+
+theorem writeCost_of_lt (hglam : fork < .glamsterdam) (orig cur new : U256) (cold : Bool) :
+    writeCost fork orig cur new cold = sstoreCost fork orig cur new cold := by
+  have hng : ¬fork ≥ .glamsterdam := Nat.not_le_of_lt hglam
+  simp [writeCost, sstoreStateGas, hng]
+
+/-- The step of SSTORE at every fork from Berlin (Glamsterdam included), in a frame that may
+change the state: EthLib's `sstoreStep_eq`, with the state gas of a new slot in the price. -/
+theorem sstoreStep_eq_any (hfork : .berlin ≤ fork)
+    {evm : Evm fork Nat} {key new : U256} {rest : List U256} {state' : State.TransactionState}
+    (hst : evm.stack.val = key :: new :: rest) (hstatic : evm.message.isStatic = false)
+    (hstipend : CALL_STIPEND < evm.gas)
+    (hgas : writeCost fork
+      (evm.state.getStorageOriginal evm.message.currentTarget (U256.toBeBytes key))
+      (evm.state.getStorage evm.message.currentTarget (U256.toBeBytes key)) new
+      (decide (U256.toBeBytes key ∉
+        evm.substate.accessedStorageKeys.getD evm.message.currentTarget ∅)) ≤ evm.gas)
+    (hset : (evm.state.recordStorageRead evm.message.currentTarget (U256.toBeBytes key)).setStorage
+      evm.message.currentTarget (U256.toBeBytes key) new = .ok state') :
+    ∃ after, sstoreStep evm = .ok after ∧
+      after.code = evm.code ∧ after.validJumpDestinations = evm.validJumpDestinations ∧
+      after.message = evm.message ∧ after.pc = evm.pc + 1 ∧ after.stack.val = rest ∧
+      after.memory = evm.memory ∧
+      after.gas = evm.gas - writeCost fork
+        (evm.state.getStorageOriginal evm.message.currentTarget (U256.toBeBytes key))
+        (evm.state.getStorage evm.message.currentTarget (U256.toBeBytes key)) new
+        (decide (U256.toBeBytes key ∉
+          evm.substate.accessedStorageKeys.getD evm.message.currentTarget ∅)) ∧
+      after.running = evm.running ∧ after.error = evm.error ∧ after.output = evm.output ∧
+      after.state = state' ∧ after.substate = { evm.substate with
+        accessedStorageKeys := evm.substate.accessedStorageKeys.insert evm.message.currentTarget
+          ((evm.substate.accessedStorageKeys.getD evm.message.currentTarget ∅).insert
+            (U256.toBeBytes key))
+        refundCounter := evm.substate.refundCounter + sstoreRefund fork
+          (evm.state.getStorageOriginal evm.message.currentTarget (U256.toBeBytes key))
+          (evm.state.getStorage evm.message.currentTarget (U256.toBeBytes key)) new } := by
+  have hist : Fork.istanbul ≤ fork := Nat.le_trans (by decide) hfork
+  rcases evm with ⟨pc, ⟨l, hl⟩, memory, code, valid, gas, running, message, output, returnData,
+    state, substate, error⟩
+  simp only at hst hstatic hstipend hgas hset ⊢
+  subst hst
+  generalize hC : sstoreCost fork
+      (state.getStorageOriginal message.currentTarget (U256.toBeBytes key))
+      (state.getStorage message.currentTarget (U256.toBeBytes key)) new
+      (!decide (U256.toBeBytes key ∈ substate.accessedStorageKeys.getD message.currentTarget ∅))
+      = C
+  have hC' : sstoreCost fork
+      (state.getStorageOriginal message.currentTarget (U256.toBeBytes key))
+      (state.getStorage message.currentTarget (U256.toBeBytes key)) new
+      (decide (U256.toBeBytes key ∉ substate.accessedStorageKeys.getD message.currentTarget ∅))
+      = C := by simpa using hC
+  generalize hS : sstoreStateGas fork
+      (state.getStorageOriginal message.currentTarget (U256.toBeBytes key))
+      (state.getStorage message.currentTarget (U256.toBeBytes key)) new = S at hgas ⊢
+  rw [writeCost, hC', hS] at hgas
+  simp only [writeCost, hC', hS]
+  have hrefill : ∀ g : Nat, GasMeter.refill g (sstoreStateRefill fork
+      (state.getStorageOriginal message.currentTarget (U256.toBeBytes key))
+      (state.getStorage message.currentTarget (U256.toBeBytes key)) new) = g := fun _ => rfl
+  have h1 : ¬ gas < C := by omega
+  have h2 : ¬ gas - C < S := by omega
+  have hsub : gas - C - S = gas - (C + S) := by omega
+  simp [sstoreStep, popWord, Stack.pop, bind, Except.bind, pure, Except.pure, hist,
+    GasMeter.gasLeft, Nat.not_le.mpr hstipend, accessStorageKey, hfork, recordStorageRead,
+    keepReads, refillStateGas, hrefill, chargeGas, GasMeter.charge, h1, hC,
+    chargeStateGas, GasMeter.chargeState, hS, h2, hstatic, hset, Except.mapError, advance, hsub]
+
+/-- SSTORE over `StepG` at every fork from Berlin, Glamsterdam included, with the price
+`writeCost`. -/
+theorem sstoreG_any (hfork : .berlin ≤ fork) {key new : U256}
+    {rest : List U256} {cold : Bool} {state' : State.TransactionState}
+    (hlt : pc < code.size) (hbyte : code[pc] = 0x55) (hstatic : message.isStatic = false)
+    (hcold : decide (U256.toBeBytes key ∉
+      substate.accessedStorageKeys.getD message.currentTarget ∅) = cold)
+    (hstipend : CALL_STIPEND < gas)
+    (hgas : writeCost fork (state.getStorageOriginal message.currentTarget (U256.toBeBytes key))
+      (state.getStorage message.currentTarget (U256.toBeBytes key)) new cold ≤ gas)
+    (hset : (state.recordStorageRead message.currentTarget (U256.toBeBytes key)).setStorage
+      message.currentTarget (U256.toBeBytes key) new = .ok state') :
+    HoareG fork (At code message pc (key :: new :: rest) memory gas state substate)
+      (At code message (pc + 1) rest memory
+        (gas - writeCost fork
+          (state.getStorageOriginal message.currentTarget (U256.toBeBytes key))
+          (state.getStorage message.currentTarget (U256.toBeBytes key)) new cold)
+        state'
+        { substate with
+          accessedStorageKeys := substate.accessedStorageKeys.insert message.currentTarget
+            ((substate.accessedStorageKeys.getD message.currentTarget ∅).insert
+              (U256.toBeBytes key))
+          refundCounter := substate.refundCounter + sstoreRefund fork
+            (state.getStorageOriginal message.currentTarget (U256.toBeBytes key))
+            (state.getStorage message.currentTarget (U256.toBeBytes key)) new }) := by
+  apply At.ruleG hlt hbyte (ofByte_of_decode (op := .sstore) rfl (Fork.frontier_le _))
+    instruction_sstore runMono_sstore
+  rintro evm ⟨hcode, hj, hm, hpc, hst, hmem, hg, hrun, herr, hout, hs, hss⟩
+  subst hm hg hs hss hcold
+  obtain ⟨after, h, a1, a2, a3, a4, a5, a6, a7, a8, a9, ao, a10, a11⟩ :=
+    sstoreStep_eq_any hfork hst hstatic hstipend hgas hset
+  exact ⟨after, h, by rw [a1, hcode], by rw [a2, hj], a3, by rw [a4, hpc], a5, by rw [a6, hmem],
+    a7, by rw [a8, hrun], by rw [a9, herr], by rw [ao, hout], a10, a11⟩
+
+/-- The local `sstoreW` over `StepG` at every fork from Berlin (Glamsterdam included), with the
+price `writeCost`. -/
+theorem sstoreWG (hfork : .berlin ≤ fork) {key new : U256}
     {rest : List U256} {cold : Bool} (hlt : pc < code.size) (hbyte : code[pc] = 0x55)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hcold : coldIn substate message.currentTarget key = cold) (hstipend : 2300 < gas)
-    (hgas : sstoreCost fork (originalAt state message.currentTarget key)
+    (hgas : writeCost fork (originalAt state message.currentTarget key)
       (storageAt state message.currentTarget key) new cold ≤ gas) :
     HoareG fork (At code message pc (key :: new :: rest) memory gas state substate)
       (At code message (pc + 1) rest memory
-        (gas - sstoreCost fork (originalAt state message.currentTarget key)
+        (gas - writeCost fork (originalAt state message.currentTarget key)
           (storageAt state message.currentTarget key) new cold)
         (writeSlot state message.currentTarget key new)
         (storeSub fork substate message.currentTarget key
           (originalAt state message.currentTarget key)
           (storageAt state message.currentTarget key) new)) :=
-  sstoreG hfork hglam hlt hbyte hstatic hcold hstipend hgas (setStorage_writeSlot hacc)
+  sstoreG_any hfork hlt hbyte hstatic hcold hstipend hgas (setStorage_writeSlot hacc)
 
 /-- EthLib's `log` over `StepG`. -/
 theorem logG {n : Fin 5} {byte : UInt8} {start size : U256} {words rest : List U256}

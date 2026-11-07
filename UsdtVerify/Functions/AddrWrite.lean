@@ -77,17 +77,17 @@ theorem mul_one' (x : U256) : mul x 1 = x := by simp [mul]
 
 /-- The shared tail of the two address writes, at 2770 (slot 10) and 7755 (slot 0): with
 `0 :: k :: a :: a` on the stack, slot `k` (warm) gets its low 160 bits from `a`. -/
-theorem addrTail (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {p : Nat}
+theorem addrTail (hfork : .berlin ≤ fork) {p : Nat}
     (hp : p = 2770 ∨ p = 7755) {k a : U256} {rest : List U256} (hrest : rest.length ≤ 16)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hk : coldIn substate message.currentTarget k = false) {M : ByteArray} {gas : Nat}
     (hstip : 2457 ≤ gas)
-    (hg : 158 + sstoreCost fork (originalAt state message.currentTarget k)
+    (hg : 158 + Gas.writeCost fork (originalAt state message.currentTarget k)
       (storageAt state message.currentTarget k)
       (withAddr (storageAt state message.currentTarget k) a) false ≤ gas) :
     Gas.HoareG fork (At CODE message p (0 :: k :: a :: a :: rest) M gas state substate)
       (At CODE message (p + 60) (a :: rest) M
-        (gas - (158 + sstoreCost fork (originalAt state message.currentTarget k)
+        (gas - (158 + Gas.writeCost fork (originalAt state message.currentTarget k)
           (storageAt state message.currentTarget k)
           (withAddr (storageAt state message.currentTarget k) a) false))
         (writeSlot state message.currentTarget k
@@ -121,7 +121,7 @@ theorem addrTail (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {p : N
     step binR 0x17 Local.instruction_or
     step swapR 0
     norm
-    step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
+    step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
       (coldIn_accessSlot_self _ _ _) (by gas_ok)
       (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
     rw [originalAt_readSlot, storageAt_readSlot, writeSlot_readSlot _ _ hacc, storeSub_accessSlot]
@@ -129,17 +129,17 @@ theorem addrTail (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {p : N
     exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
 /-- At 2737 (deprecate): `deprecated = true`, slot 10 with byte 20 set to 1. -/
-theorem depFlag (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a : U256}
+theorem depFlag (hfork : .berlin ≤ fork) {a : U256}
     {rest : List U256} (hrest : rest.length ≤ 16) (hstatic : message.isStatic = false)
     (hacc : hasAccount state message.currentTarget) {c10 : Bool}
     (hc10 : coldIn substate message.currentTarget 10 = c10) {M : ByteArray} {gas : Nat}
     (hstip : 2417 + slotCost c10 ≤ gas)
-    (hg : 118 + slotCost c10 + sstoreCost fork (originalAt state message.currentTarget 10)
+    (hg : 118 + slotCost c10 + Gas.writeCost fork (originalAt state message.currentTarget 10)
       (storageAt state message.currentTarget 10)
       (withPaused (storageAt state message.currentTarget 10) 1) false ≤ gas) :
     Gas.HoareG fork (At CODE message 2737 (a :: rest) M gas state substate)
       (At CODE message 2765 (a :: rest) M
-        (gas - (118 + slotCost c10 + sstoreCost fork (originalAt state message.currentTarget 10)
+        (gas - (118 + slotCost c10 + Gas.writeCost fork (originalAt state message.currentTarget 10)
           (storageAt state message.currentTarget 10)
           (withPaused (storageAt state message.currentTarget 10) 1) false))
         (writeSlot state message.currentTarget 10
@@ -175,7 +175,7 @@ theorem depFlag (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a : U2
   step binR 0x17 Local.instruction_or
   step swapR 0
   norm
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   rw [originalAt_readSlot, storageAt_readSlot, writeSlot_readSlot _ _ hacc, storeSub_accessSlot]

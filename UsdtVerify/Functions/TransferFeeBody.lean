@@ -96,7 +96,7 @@ abbrev feeSubB (fork : Fork) (ss : Substate) (st : State.TransactionState)
         (bitwiseAnd ADDR_MASK a) send) }
 
 /-- From 10298, the owner's credit, both logs and the STOP at 1931. -/
-theorem ownerPart (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem ownerPart (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) {st : State.TransactionState} {ss : Substate}
     (hacc : hasAccount st message.currentTarget) {send fee v a sel o : U256} {M : ByteArray}
     (hM : M.size = 96) (hptr : loadWord (memoryReadBytes M 64 32) 0 32 = 0x60)
@@ -104,10 +104,10 @@ theorem ownerPart (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hcO : coldIn ss message.currentTarget (ownerSlotOf st message.currentTarget) = cO)
     (ho : originalAt st message.currentTarget (ownerSlotOf st message.currentTarget) = o)
     (hown : (balOf st message.currentTarget).toNat + fee.toNat < 2 ^ 256) {gas : Nat}
-    (hg : 4409 + slotCost cO + sstoreCost fork o (balOf st message.currentTarget)
+    (hg : 4409 + slotCost cO + Gas.writeCost fork o (balOf st message.currentTarget)
       (add (balOf st message.currentTarget) fee) false ≤ gas) :
     Gas.SpecG fork (At CODE message 10298 [0x40, send, fee, v, a, 0x1699, v, a, 0x078a, sel] M gas st ss)
-      (Halted false .empty (gas - (4409 + slotCost cO + sstoreCost fork o (balOf st message.currentTarget)
+      (Halted false .empty (gas - (4409 + slotCost cO + Gas.writeCost fork o (balOf st message.currentTarget)
           (add (balOf st message.currentTarget) fee) false))
         (readSlot (ownedB st message.currentTarget fee) message.currentTarget 0)
         (feeSubB fork ss st message o fee send a)) := by
@@ -116,7 +116,7 @@ theorem ownerPart (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (by gas_ok) hM
   step addBlock (by simp) (by valid_dest) hown (by gas_ok)
   at_pc 10412
-  step ownerStore hfork (by rw [storageAt_readSlot, storageAt_readSlot]) hglam (by simp) hstatic
+  step ownerStore hfork (by rw [storageAt_readSlot, storageAt_readSlot]) (by simp) hstatic
     (hasAccount_readSlot (hasAccount_readSlot hacc))
     (coldIn_accessSlot_false (coldIn_accessSlot_false hc0)) (coldIn_accessSlot_self _ _ _)
     (by rw [originalAt_readSlot, originalAt_readSlot, storageAt_readSlot, storageAt_readSlot, ho]
@@ -139,7 +139,7 @@ theorem ownerPart (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
 /-- The price of the recipient's write (warm). -/
 abbrev creditCostFee (fork : Fork) (state : State.TransactionState) (message : Message fork)
     (v a : U256) : Nat :=
-  sstoreCost fork (originalAt state message.currentTarget (recipientSlot a))
+  Gas.writeCost fork (originalAt state message.currentTarget (recipientSlot a))
     (balT state message v a) (add (balT state message v a) (sendOf state message v)) false
 
 /-- The memory at 10298: the four lookups of the debit and the credit. -/
@@ -148,7 +148,7 @@ abbrev memA (M : ByteArray) (message : Message fork) (a : U256) : ByteArray :=
     (mkey a) 2
 
 /-- From 9883, with a fee above 0, up to the owner's credit at 10298. -/
-theorem feeHead (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem feeHead (hfork : .berlin ≤ fork)
     (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {v a sel : U256} {M : ByteArray} (hM : M.size = 96)
@@ -198,14 +198,14 @@ theorem feeHead (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   simp only [storageAt_readSlot]
   step subBlock (by simp) (by valid_dest) hbal (by gas_ok)
   at_pc 10072
-  step debitStore hfork hglam (by simp) hstatic hacc3 (coldIn_accessSlot_self _ _ _) (by gas_ok)
+  step debitStore hfork (by simp) hstatic hacc3 (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by simp only [storageAt_readSlot, originalAt_readSlot]; gas_ok) (size_mapMem hM _ _)
   simp only [storageAt_readSlot, originalAt_readSlot]
   step creditCall hfork (by simp) (cT := cT) (by rw [coldIn_storeSub]; exact hcT) (by gas_ok)
     (size_mapMem (size_mapMem hM _ _) _ _)
   step addBlock (by simp) (by valid_dest) hto (by gas_ok)
   at_pc 10221
-  step creditStoreFee hfork hglam hfee (by simp) hstatic hacc4 (coldIn_accessSlot_self _ _ _)
+  step creditStoreFee hfork hfee (by simp) hstatic hacc4 (coldIn_accessSlot_self _ _ _)
     (by gas_ok)
     (by simp only [storageAt_readSlot, originalAt_readSlot, originalAt_writeSlot hacc3]; gas_ok)
     (size_mapMem (size_mapMem (size_mapMem hM _ _) _ _) _ _)
@@ -236,11 +236,11 @@ abbrev feeSub (fork : Fork) (substate : Substate) (state : State.TransactionStat
 /-- The price of the owner's write (warm). -/
 abbrev ownerCost (fork : Fork) (state : State.TransactionState) (message : Message fork)
     (v a : U256) : Nat :=
-  sstoreCost fork (originalAt state message.currentTarget (ownerSlot (ownerWord state message v a)))
+  Gas.writeCost fork (originalAt state message.currentTarget (ownerSlot (ownerWord state message v a)))
     (balO state message v a) (add (balO state message v a) (feeOf state message v)) false
 
 /-- From 9883, with a fee above 0, the success path of `transfer` up to the STOP at 1931. -/
-theorem bodyFee (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem bodyFee (hfork : .berlin ≤ fork)
     (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {v a sel : U256} {M : ByteArray} (hM : M.size = 96)
@@ -284,11 +284,11 @@ theorem bodyFee (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       false :=
     coldIn_storeSub_false (coldIn_accessSlot_false (coldIn_storeSub_false
       (coldIn_accessSlot_false (coldIn_accessSlot_false (coldIn_accessSlot_false hc0)))))
-  have hA := feeHead (sel := sel) hfork hglam hlong hsz hstatic hacc hM hov hfee hfv hbal hto hc3
+  have hA := feeHead (sel := sel) hfork hlong hsz hstatic hacc hM hov hfee hfv hbal hto hc3
     hc4 hcS hcT (gas := gas) (by simp only [ownerCost] at hg; omega)
   have hB := ownerPart (message := message) (st := creditedFee state message v a)
     (ss := creditedSubFee fork substate state message v a) (send := sendOf state message v)
-    (v := v) (a := a) (sel := sel) (M := memA M message a) hfork hglam hstatic (hasAccount_writeSlot hacc4)
+    (v := v) (a := a) (sel := sel) (M := memA M message a) hfork hstatic (hasAccount_writeSlot hacc4)
     (size_mapMem (size_mapMem (size_mapMem (size_mapMem hM _ _) _ _) _ _) _ _)
     (ptr_mapMem (size_mapMem (size_mapMem (size_mapMem hM _ _) _ _) _ _)
       (ptr_mapMem (size_mapMem (size_mapMem hM _ _) _ _)

@@ -46,7 +46,7 @@ SSTORE cost more than 2300.
 Then the run stops normally with gas left `gas - feeCost`, the state `feeState S` (sender := balS -
 v; recipient := balT + (v - fee); owner := balO + fee; slot 0 read where the code reads it), and
 the substate `feeSub` with both logs. -/
-theorem spec_fee (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_fee (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xa9059cbb) (hv : message.value = 0)
@@ -92,7 +92,7 @@ theorem spec_fee (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (substate := shortSubstate substate message)
     (sel := BitVec.ofNat 256 (selector message.data))
     (gas := gas - (PRE_COST + slotCost c0 + slotCost cB + slotCost c10))
-    hfork hglam hlong hsz hstatic
+    hfork hlong hsz hstatic
     (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
     (size_MEMK (callerKey message) 6) (ptr_MEMK _ _) hov hfee hfv hbal hto hown
     (coldIn_accessSlot_false (coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
@@ -126,7 +126,7 @@ theorem spec_fee (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
 
 /-- The loop of the interpreter runs a successful `transfer` call with a fee above 0 to its
 specification, for every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_fee (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_fee (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xa9059cbb) (hv : message.value = 0)
@@ -172,7 +172,7 @@ theorem runFrame_fee (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
           (addrArg message.data 0))
         (feeSub fork (shortSubstate substate message) (shortState state message) message
           (wordArg message.data 1) (addrArg message.data 0)) stopped :=
-  (spec_fee hfork hglam hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hfee hfv hbal hto hown hc0
+  (spec_fee hfork hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hfee hfv hbal hto hown hc0
     hcB hc10 hc3 hc4 hcS hcT hcO hg).runFrame start within
 
 end UsdtVerify.TransferFee

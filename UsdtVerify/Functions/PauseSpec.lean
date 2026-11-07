@@ -133,13 +133,13 @@ abbrev UNPAUSE_COST : Nat := 1671
 /-- The price of the write of slot 0 to `withPaused w0 b` (the slot is warm then). -/
 abbrev flagCost (fork : Fork) (state : State.TransactionState) (message : Message fork)
     (b : U256) : Nat :=
-  sstoreCost fork (originalAt state message.currentTarget 0)
+  Gas.writeCost fork (originalAt state message.currentTarget 0)
     (storageAt state message.currentTarget 0)
     (withPaused (storageAt state message.currentTarget 0) b) false
 
 /-- The specification of `pause()` by the owner, when not paused.
 
-Hypotheses: Berlin ≤ fork < Glamsterdam; a frame that may write, of an existing account `C`;
+Hypotheses: Berlin ≤ fork (Glamsterdam included); a frame that may write, of an existing account `C`;
 call data of 4 to 2^256 - 1 bytes with selector 0x8456cb59; no value; the caller (masked to 160
 bits) is the low 160 bits of slot 0; byte 20 of slot 0 is 0; enough gas, and more than 2300
 left at the SSTORE.
@@ -148,7 +148,7 @@ Then the run stops normally, with slot 0 written to `withPaused w0 1` (byte 20 s
 other bytes kept: `byte20_withPaused`, `owner_withPaused`), slot 0 accessed, the refund of that
 write added, and the log `Pause()` (topic 0x6985a022…, no data) appended. Gas left:
 `gas - (1784 + price(slot 0) + price(write))`. -/
-theorem spec_pause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_pause (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x8456cb59)
@@ -172,7 +172,7 @@ theorem spec_pause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   step pauseTest hfork (by simp) (coldIn_accessSlot_self _ _ _) (by gas_ok)
   rw [readSlot_readSlot, accessSlot_accessSlot, storageAt_readSlot]
   step flagPass (Or.inl ⟨rfl, rfl⟩) (isZero3_flag_ne hnp) (by simp) (by gas_ok)
-  step pauseWrite hfork hglam (by simp) hstatic (hasAccount_readSlot hacc)
+  step pauseWrite hfork (by simp) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   rw [originalAt_readSlot, storageAt_readSlot, readSlot_readSlot, writeSlot_readSlot _ _ hacc,
@@ -187,7 +187,7 @@ theorem spec_pause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
 The same as `spec_pause`, with selector 0x3f4ba83a, byte 20 of slot 0 not 0, slot 0 written to
 `withPaused w0 0` (byte 20 set to 0), the log `Unpause()` (topic 0x7805862f…, no data), and gas
 left `gas - (1671 + price(slot 0) + price(write))`. -/
-theorem spec_unpause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_unpause (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x3f4ba83a)
@@ -211,7 +211,7 @@ theorem spec_unpause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   step unpauseTest hfork (by simp) (coldIn_accessSlot_self _ _ _) (by gas_ok)
   rw [readSlot_readSlot, accessSlot_accessSlot, storageAt_readSlot]
   step flagPass (Or.inr ⟨rfl, rfl⟩) (isZero2_flag hp) (by simp) (by gas_ok)
-  step unpauseWrite hfork hglam (by simp) hstatic (hasAccount_readSlot hacc)
+  step unpauseWrite hfork (by simp) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   rw [originalAt_readSlot, storageAt_readSlot, readSlot_readSlot, writeSlot_readSlot _ _ hacc,

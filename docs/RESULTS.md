@@ -11,8 +11,9 @@ what they state. Theorem names in parentheses; the one-place index is `UsdtVerif
   compares `CODE` with the hex file and its keccak256 with `b44fb4e9…ea55`. The interpreter runs
   this check; it is a test, not a kernel-checked theorem.
 - The semantics is EthLib's EVM model (pinned commit fd3457dbf), with its program logic and the
-  one-counter gas meter. Forks: Berlin onwards, and before Glamsterdam where storage is written or a
-  call is made.
+  one-counter gas meter. Forks: Berlin onwards. Since round 17 the paths that write storage
+  hold at Glamsterdam too (each SSTORE costs `writeCost`, EthLib's `sstoreCost` plus its state gas
+  of a new slot); the paths that make a call (deprecated) hold before Glamsterdam.
 
 ## What a theorem says
 
@@ -273,8 +274,8 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   ends with no error, with any gas, is one of the proved success paths, with the exact output,
   gas left, state and substate. For transfer, the run also passed every check (paused,
   blacklist, payload size, the SafeMath overflows, the balance), and it is the fee-0 path or
-  the fee path. Its hypotheses: Berlin ≤ fork < Glamsterdam, the frame not static, the contract
-  has an account.
+  the fee path. Its hypotheses: Berlin ≤ fork (Glamsterdam included since round 17), the frame
+  not static, the contract has an account.
 - Round 13 adds the same for approve(address,uint256) and transferFrom(address,address,uint256)
   (not deprecated), and for the owner functions pause, unpause, addBlackList, removeBlackList,
   issue, redeem, setParams, deprecate, transferOwnership and destroyBlackFunds (the last not
@@ -282,14 +283,14 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   caller is the owner, and each `require`). Two new specifications were needed to exclude
   cases: approve with call data shorter than 68 bytes reverts (`Approve.spec_payload`), and
   setParams with `m * 10^d ≥ 2^256` ends in INVALID (`SetParamsSpec.spec_mulOv`).
-  Hypotheses: Berlin ≤ fork < Glamsterdam, the frame not static, the contract has an account,
-  call data below 2^256 bytes, and not deprecated for approve, transferFrom, destroyBlackFunds.
+  Hypotheses: Berlin ≤ fork (Glamsterdam included since round 17), the frame not static, the
+  contract has an account, call data below 2^256 bytes, and not deprecated for approve, transferFrom, destroyBlackFunds.
 - Round 13 also covers every getter (allowance: not deprecated) and name() / symbol(). For
   name and symbol the slot word must have one of the shapes Solidity writes (`StrForm`: empty,
   1 to 31 bytes in the short form, or the long form with a length below 2^180); this is a named
   hypothesis, since the other words have no specification.
 - **The invariant over every successful call, not deprecated** (`Complete.inv_call`,
-  `UsdtVerify/Complete/Inv.lean`). From Berlin to before Glamsterdam, take a fresh frame of the deployed
+  `UsdtVerify/Complete/Inv.lean`). From Berlin on (Glamsterdam included since round 17), take a fresh frame of the deployed
   code at pc 0, with any call data below 2^256 bytes, any value, any gas, any gas bound and any
   message runner. Assume:
   - `KeccakSep` (keccak keeps the storage slots apart; not proved);
@@ -372,7 +373,7 @@ left. The callee may call back into this contract, so `S` can differ from the st
 
 `UsdtVerify/Complete/DepInvAll.lean`, `Complete.inv_call_ns` (until round 16 named
 `inv_call_all`). It is `inv_call` without the
-hypothesis "not deprecated". From Berlin to before Glamsterdam, take a fresh frame of the
+hypothesis "not deprecated". From Berlin on (before Glamsterdam when deprecated, round 17), take a fresh frame of the
 deployed code at pc 0, with any call data below 2^256 bytes, any value, any gas, any gas bound
 and any message runner. Assume `KeccakSep`, a frame that is not static, an account for the
 contract `C`, `StrForm` of slots 7 and 8, and `Inv` at the start. When the contract is
@@ -414,7 +415,7 @@ it, from Paris, for the interpreter's own runner (EthLib's `processMessage_stati
 that point, under the hypotheses of `inv_call_all` for that run, each with its own fork, message,
 gas and runner) or `Untouched` (any change that keeps every storage word of `C`).
 - `inv_calls`: under `KeccakSep`, `Inv C S` and `Calls C S S'` give `Inv C S'`.
-- `goodCall_process`: from Paris to before Glamsterdam, a top-level message to `C` with the
+- `goodCall_process`: from Paris on (before Glamsterdam when deprecated), a top-level message to `C` with the
   deployed code, no value and no precompile, run by EthLib's `processMessage`, that ends with no
   error, is a `GoodCall` from its start state to its end state, under the named assumptions for
   the interpreter's own runner (`StaticKeeps` is proved for it).
@@ -450,4 +451,4 @@ call. destroyBlackFunds ends in `tailState S C a d` over the child's end state `
   shown to meet them.
 - `KeccakSep` (a hypothesis of the invariant theorems, about keccak).
 - Runs that run out of gas below the stated bounds, except at the dispatcher (see above).
-- Forks before Berlin, and Glamsterdam onwards on the writing and calling paths.
+- Forks before Berlin, and Glamsterdam onwards on the calling (deprecated) paths.

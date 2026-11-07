@@ -109,18 +109,18 @@ abbrev allowCostF (fork : Fork) (state : State.TransactionState) (message : Mess
 /-- The price of the write of `_from` (warm). -/
 abbrev debitCostF (fork : Fork) (state : State.TransactionState) (message : Message fork)
     (v f : U256) : Nat :=
-  sstoreCost fork (originalAt state message.currentTarget (recipientSlot f))
+  Gas.writeCost fork (originalAt state message.currentTarget (recipientSlot f))
     (balFrom state message v f) (sub (balFrom state message v f) v) false
 
 /-- The price of the write of `_to` (warm). -/
 abbrev creditCostF (fork : Fork) (state : State.TransactionState) (message : Message fork)
     (v t f : U256) : Nat :=
-  sstoreCost fork (originalAt state message.currentTarget (recipientSlot t))
+  Gas.writeCost fork (originalAt state message.currentTarget (recipientSlot t))
     (balTo state message v t f) (add (balTo state message v t f) v) false
 
 /-- From 8648, with a fee of 0, the success path of StandardToken's `transferFrom` up to the STOP
 at 915. -/
-theorem body (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem body (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {v t f sel : U256} {M : ByteArray} (hM : M.size = 96)
     (hptr : loadWord (memoryReadBytes M 64 32) 0 32 = 0x60)
@@ -189,7 +189,7 @@ theorem body (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   step Gas.reshapeG (s' := (0x60 : U256) :: 0 :: 0 ::
       storageAt state message.currentTarget (allowFrom message f) :: v :: t :: f ::
       [0x1097, v, t, f, 0x0392, sel]) (by rw [hfee]) rfl rfl
-  step allowStep hfork hglam hstatic hacc3 (by simp) (by simp only [storageAt_readSlot]) hallow
+  step allowStep hfork hstatic hacc3 (by simp) (by simp only [storageAt_readSlot]) hallow
     (coldIn_accessSlot_false (coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
     (by simp only [originalAt_readSlot]; gas_ok)
     (size_allowMem hM f)
@@ -208,14 +208,14 @@ theorem body (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   step debitCall hfork (by simp) hcF (by gas_ok) hMb
   step subBlock (by simp) (by valid_dest) hbal (by gas_ok)
   at_pc 9125
-  step debitStore hfork hglam (by simp) hstatic hacc4 (coldIn_accessSlot_self _ _ _)
+  step debitStore hfork (by simp) hstatic hacc4 (coldIn_accessSlot_self _ _ _)
     (by simp only [storageAt_readSlot, originalAt_readSlot, horig]; gas_ok) (size_mapMem hMb _ _)
   simp only [storageAt_readSlot, originalAt_readSlot, horig]
   step creditCall hfork (by simp) (cT := cT) (by rw [coldIn_storeSub]; exact hcT) (by gas_ok)
     (size_mapMem (size_mapMem hMb _ _) _ _)
   step addBlock (by simp) (by valid_dest) hto (by gas_ok)
   at_pc 9274
-  step creditStore hfork hglam (by simp) hstatic hacc5 (coldIn_accessSlot_self _ _ _) (by gas_ok)
+  step creditStore hfork (by simp) hstatic hacc5 (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by simp only [storageAt_readSlot, originalAt_readSlot, horig2]; gas_ok)
     (size_mapMem (size_mapMem (size_mapMem hMb _ _) _ _) _ _)
   simp only [storageAt_readSlot, originalAt_readSlot, horig2]

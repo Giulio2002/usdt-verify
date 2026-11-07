@@ -300,6 +300,9 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Gas.runMono_sstore
 #print axioms UsdtVerify.Gas.runMono_log
 #print axioms UsdtVerify.Gas.sstoreWG
+#print axioms UsdtVerify.Gas.sstoreStep_eq_any
+#print axioms UsdtVerify.Gas.sstoreG_any
+#print axioms UsdtVerify.Gas.writeCost_of_lt
 #print axioms UsdtVerify.Gas.logG
 #print axioms UsdtVerify.Gas.Triple.seqL
 #print axioms UsdtVerify.Complete.ok_exact

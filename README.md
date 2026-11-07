@@ -55,7 +55,7 @@ When USDT is deprecated, it forwards each call to an upgraded contract. Those pa
 
 ## What is proved
 
-All of this holds from the Berlin fork onwards, and before Glamsterdam on paths that write storage or make a call. Every theorem has explicit hypotheses, such as enough gas and a call value of 0. The index of all theorems is `UsdtVerify/Summary.lean`, and `docs/RESULTS.md` gives the full statements in prose.
+All of this holds from the Berlin fork onwards. Paths that write storage hold at Glamsterdam too, where a storage write also pays the new state gas. Paths that make a call, which are the deprecated paths, hold before Glamsterdam. Every theorem has explicit hypotheses, such as enough gas and a call value of 0. The index of all theorems is `UsdtVerify/Summary.lean`, and `docs/RESULTS.md` gives the full statements in prose.
 
 - **totalSupply and balanceOf.** They return slot 1, or `balances[who]` at slot `keccak(who ++ 2)`.
 - **transfer(to, v).**
@@ -98,7 +98,7 @@ All of this holds from the Berlin fork onwards, and before Glamsterdam on paths 
 
 These theorems assume a hypothesis called `KeccakSep`, which is stated and not proved. It says that distinct addresses get distinct balance slots, and that balance slots and slot 1 never collide with the fixed slots 0 to 10 or with the slots of the other mappings. Since the slots are keccak outputs, this is a claim about the hash function.
 
-The main theorem is `inv_call` in `UsdtVerify/Complete/Inv.lean`. From Berlin and before Glamsterdam, take any call to USDT, with any call data, any value and any gas. If the invariant holds before and the call ends without an error, the invariant holds after. Its hypotheses are `KeccakSep`, a call frame that is not static, an existing account for the contract, the contract not being deprecated, and the name and symbol slots being in a form Solidity writes.
+The main theorem is `inv_call` in `UsdtVerify/Complete/Inv.lean`. From Berlin, Glamsterdam included, take any call to USDT, with any call data, any value and any gas. If the invariant holds before and the call ends without an error, the invariant holds after. Its hypotheses are `KeccakSep`, a call frame that is not static, an existing account for the contract, the contract not being deprecated, and the name and symbol slots being in a form Solidity writes.
 
 ### When the contract is deprecated
 
@@ -137,7 +137,7 @@ A few general opcode rules are proved locally in `UsdtVerify/Local/` while they 
 
 ## What is not covered yet
 
-- Forks before Berlin, and Glamsterdam onwards on paths that write storage or make a call.
+- Forks before Berlin, and Glamsterdam onwards on the deprecated paths, which make a call.
 - `KeccakSep` is a hypothesis about keccak, not a theorem.
 - `KeepsInv` and `HonestBalance` are not shown to hold for any real upgraded contract. They say what the upgraded contract must do.
 - Slot words for `name` and `symbol` in a form Solidity never writes.

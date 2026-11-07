@@ -293,7 +293,7 @@ theorem bodyAllowLow (hfork : .berlin ≤ fork) {v t f sel : U256} {M : ByteArra
 
 /-- From 8648, the allowance step passes (`A = MAX_UINT` or `v ≤ A`), the fee is at most `v`, and
 `balances[_from]` (read after the allowance step) is below `v`: INVALID at the debit's `sub`. -/
-theorem bodyBalLow (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem bodyBalLow (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {v t f sel : U256} {M : ByteArray} (hM : M.size = 96)
     (hov : v.toNat * (storageAt state message.currentTarget 3).toNat < 2 ^ 256)
@@ -335,7 +335,7 @@ theorem bodyBalLow (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   at_pc 8816
   step capBlock hfork (by simp) hc4 (by simp only [storageAt_readSlot]; gas_ok)
   simp only [storageAt_readSlot]
-  step allowStep hfork hglam hstatic hacc3 (by simp) (by simp only [storageAt_readSlot]) hallow
+  step allowStep hfork hstatic hacc3 (by simp) (by simp only [storageAt_readSlot]) hallow
     (coldIn_accessSlot_false (coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
     (by simp only [originalAt_readSlot]; gas_ok)
     (size_allowMem hM f)
@@ -507,14 +507,14 @@ theorem spec_allowLow (hfork : .berlin ≤ fork)
 
 /-- The specification of `transferFrom(f, t, v)` when `balances[f]` is below `v`.
 
-Hypotheses: Berlin ≤ fork < Glamsterdam, not static, the contract has an account; the checks pass
+Hypotheses: Berlin ≤ fork (Glamsterdam included), not static, the contract has an account; the checks pass
 as in `spec_allowLow`; `v * rate < 2^256`; `fee ≤ v` (any fee); `A = MAX_UINT ∨ v ≤ A`;
 `balances[f] < v`, read after the allowance step (`balFrom`); more than 2300 gas left at the
 allowance's SSTORE when `A ≠ MAX_UINT` (`hstip`), and enough gas to reach the assert.
 
 Then INVALID at the debit's `sub`: no output, no gas left, in the state after the allowance step
 (`A - v` written unless `A = MAX_UINT`) and the read of `balances[f]` (the caller discards it). -/
-theorem spec_balLow (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_balLow (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 100 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x23b872dd) (hv : message.value = 0)
@@ -565,7 +565,7 @@ theorem spec_balLow (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
           (recipientSlot (fromArg message)))) :=
   Triple.seq (preF hfork hlong hsz hsel hv hnp hnb hdep hc0 hcB hc10
       (Nat.le_trans (Nat.le_add_right _ _) hg))
-    (bodyBalLow hfork hglam hstatic
+    (bodyBalLow hfork hstatic
       (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
       (size_mapMem size_MEM0 _ _) hov hfv hallow hlow hcA hc3 hc4 hcF
       (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hstip))
@@ -705,7 +705,7 @@ theorem runFrame_allowLow (hfork : .berlin ≤ fork)
 
 /-- The loop of the interpreter runs the case of `spec_balLow` to its end condition. It holds for
 every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_balLow (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_balLow (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 100 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x23b872dd) (hv : message.value = 0)
@@ -758,7 +758,7 @@ theorem runFrame_balLow (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
           (accessSlot (allowedSubF fork (checkSub substate message) (checkState state message)
             message (valArg message) (fromArg message)) message.currentTarget
             (recipientSlot (fromArg message))) stopped :=
-  (spec_balLow hfork hglam hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hfv hallow hlow hc0 hcB
+  (spec_balLow hfork hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hfv hallow hlow hc0 hcB
     hc10 hcA hc3 hc4 hcF hstip hg).runFrame start within
 
 /-- The loop of the interpreter runs the case of `spec_mulOv` to its end condition. It holds for

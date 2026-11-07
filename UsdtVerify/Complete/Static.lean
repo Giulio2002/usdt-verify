@@ -95,7 +95,8 @@ theorem inv_static (hst : message.isStatic = true) (hmc : message.code = CODE)
 
 /-- The invariant over every successful call, static or not.
 
-From Berlin to before Glamsterdam, a fresh frame of `CODE` at pc 0 with any call data below
+From Berlin (Glamsterdam included when not deprecated; before Glamsterdam when deprecated, the
+CALL rules being pre-Glamsterdam), a fresh frame of `CODE` at pc 0 with any call data below
 2^256 bytes, any value, any gas, any gas bound and any message runner, under `KeccakSep`, with
 string slots 7 and 8 of `StrForm`, and:
 - when the frame is static (`hstat`): the code of the message is `CODE`, it runs at an account
@@ -104,7 +105,8 @@ string slots 7 and 8 of `StrForm`, and:
 - when deprecated (byte 20 of slot 10 not 0): the runner meets `KeepsInv` (`hkeeps`), and for
   destroyBlackFunds `HonestBalance` (`hhonest`).
 If `Inv C state` holds and the interpreter loop ends with no error, then `Inv C s.state` holds. -/
-theorem inv_call_all (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem inv_call_all (K : KeccakSep) (hfork : .berlin ≤ fork)
+    (hglam : byte20 (storageAt state message.currentTarget 10) ≠ 0 → fork < .glamsterdam)
     (hstat : message.isStatic = true →
       message.code = CODE ∧ StaticCode state message ∧ StaticKeeps runChild)
     (hacc : message.isStatic = false → hasAccount state message.currentTarget)

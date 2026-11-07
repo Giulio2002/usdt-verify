@@ -45,19 +45,19 @@ theorem coldIn_accessSlot_of_warm {ss : Substate} {target : EthLib.Base.Address}
 
 /-- At 10221, the code writes the new balance of the recipient; with a fee above 0 it goes on to
 the owner's credit at 10298. -/
-theorem creditStoreFee (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem creditStoreFee (hfork : .berlin ≤ fork)
     {nt send fee v a : U256} (hfee : fee ≠ 0)
     {rest : List U256} (hrest : rest.length ≤ 800) (hstatic : message.isStatic = false)
     (hacc : hasAccount state message.currentTarget) {cT : Bool}
     (hcT : coldIn substate message.currentTarget (recipientSlot a) = cT) {gas : Nat}
     (hstip : 2401 ≤ gas)
-    (hg : 127 + sstoreCost fork (originalAt state message.currentTarget (recipientSlot a))
+    (hg : 127 + Gas.writeCost fork (originalAt state message.currentTarget (recipientSlot a))
       (storageAt state message.currentTarget (recipientSlot a)) nt cT ≤ gas)
     {M : ByteArray} (hM : M.size = 96) :
     Gas.HoareG fork (At CODE message 10221 (nt :: 0x40 :: send :: fee :: v :: a :: rest) M gas state
         substate)
       (At CODE message 10298 (0x40 :: send :: fee :: v :: a :: rest) (mapMem M (mkey a) 2)
-        (gas - (127 + sstoreCost fork (originalAt state message.currentTarget (recipientSlot a))
+        (gas - (127 + Gas.writeCost fork (originalAt state message.currentTarget (recipientSlot a))
           (storageAt state message.currentTarget (recipientSlot a)) nt cT))
         (writeSlot state message.currentTarget (recipientSlot a) nt)
         (storeSub fork substate message.currentTarget (recipientSlot a)
@@ -78,7 +78,7 @@ theorem creditStoreFee (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   step dupR 1
   step swapR 0
   norm
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic hacc hcT (by gas_ok) (by gas_ok)
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic hacc hcT (by gas_ok) (by gas_ok)
   step popR
   step pushR 1 (0 : U256)
   step dupR 3
@@ -161,13 +161,13 @@ theorem ownerCall (hfork : .berlin ≤ fork) {w0 : U256}
 
 /-- At 10412, the code reads `owner` again (warm) and writes the new balance of the owner. -/
 theorem ownerStore (hfork : .berlin ≤ fork) {w0 : U256}
-    (hw0 : storageAt state message.currentTarget 0 = w0) (hglam : fork < .glamsterdam)
+    (hw0 : storageAt state message.currentTarget 0 = w0)
     {no send fee v a : U256} {rest : List U256} (hrest : rest.length ≤ 800)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hc0 : coldIn substate message.currentTarget 0 = false) {cO : Bool}
     (hcO : coldIn substate message.currentTarget
       (ownerSlot (w0)) = cO) {gas : Nat}
-    (hg : 238 + sstoreCost fork
+    (hg : 238 + Gas.writeCost fork
       (originalAt state message.currentTarget (ownerSlot (w0)))
       (storageAt state message.currentTarget (ownerSlot (w0)))
       no cO + 2300 ≤ gas)
@@ -176,7 +176,7 @@ theorem ownerStore (hfork : .berlin ≤ fork) {w0 : U256}
         substate)
       (At CODE message 10513 (0x40 :: send :: fee :: v :: a :: rest)
         (mapMem M (mkey (ownerKey (w0))) 2)
-        (gas - (238 + sstoreCost fork (originalAt state message.currentTarget
+        (gas - (238 + Gas.writeCost fork (originalAt state message.currentTarget
           (ownerSlot (w0)))
           (storageAt state message.currentTarget (ownerSlot (w0)))
           no cO))
@@ -216,7 +216,7 @@ theorem ownerStore (hfork : .berlin ≤ fork) {w0 : U256}
   step dupR 1
   step swapR 0
   norm
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc) hcO'
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc) hcO'
     (by gas_ok) (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   rw [originalAt_readSlot, storageAt_readSlot]
   step popR

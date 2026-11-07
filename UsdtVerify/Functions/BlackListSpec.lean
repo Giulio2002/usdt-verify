@@ -79,7 +79,7 @@ theorem spec_remove_notOwner (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.d
 /-- The price of the write of `isBlackListed[a]` to `setLow w v`. -/
 abbrev listCost (fork : Fork) (state : State.TransactionState) (message : Message fork)
     (v : U256) : Nat :=
-  sstoreCost fork (originalAt state message.currentTarget (listSlot (addrArg message.data 0)))
+  Gas.writeCost fork (originalAt state message.currentTarget (listSlot (addrArg message.data 0)))
     (storageAt state message.currentTarget (listSlot (addrArg message.data 0)))
     (setLow (storageAt state message.currentTarget (listSlot (addrArg message.data 0))) v) false
 
@@ -101,7 +101,7 @@ abbrev listSub (fork : Fork) (substate : Substate) (state : State.TransactionSta
     logs := substate.logs.push (log1W message.currentTarget t (addrArg message.data 0)) }
 
 /-- The two success paths, from the owner check on. -/
-theorem listTail (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {s p q : Nat} {v t : U256}
+theorem listTail (hfork : .berlin ≤ fork) {s p q : Nat} {v t : U256}
     {r : Nat}
     (hp : (s = 3288 ∧ p = 3375 ∧ q = 3464 ∧ v = 1 ∧ t = ADDED_TOPIC ∧ r = 0x0308) ∨
       (s = 7292 ∧ p = 7379 ∧ q = 7468 ∧ v = 0 ∧ t = REMOVED_TOPIC ∧ r = 0x091b))
@@ -127,7 +127,7 @@ theorem listTail (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {s p q
     rcases hp with ⟨-, h1, -, h2, -⟩ | ⟨-, h1, -, h2, -⟩
     · exact Or.inl ⟨h1, h2⟩
     · exact Or.inr ⟨h1, h2⟩
-  step listWrite hfork hglam hpv (by simp) hstatic (hasAccount_readSlot hacc) hcB size_MEM0
+  step listWrite hfork hpv (by simp) hstatic (hasAccount_readSlot hacc) hcB size_MEM0
     (by gas_ok) (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   rw [hpq, originalAt_readSlot, storageAt_readSlot, storeSub_accessSlot]
   have hqt : (q = 3464 ∧ t = ADDED_TOPIC ∧ r = 0x0308) ∨ (q = 7468 ∧ t = REMOVED_TOPIC ∧ r = 0x091b) ∨
@@ -143,7 +143,7 @@ theorem listTail (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {s p q
 
 /-- The specification of `addBlackList(a)` by the owner.
 
-Hypotheses: Berlin ≤ fork < Glamsterdam; a frame that may write, of an existing account `C`;
+Hypotheses: Berlin ≤ fork (Glamsterdam included); a frame that may write, of an existing account `C`;
 call data of 4 to 2^256 - 1 bytes with selector 0x0ecb93c0; no value; the caller (masked) is the
 low 160 bits of slot 0; enough gas, and more than 2300 left at the SSTORE.
 
@@ -151,7 +151,7 @@ Then the run stops normally. Slot 0 is read, then slot `L = keccak(a ++ 6)` is w
 `setLow w 1` (`w` its word: low byte 1, the other bits kept); both slots accessed, the refund of
 the write added; one log `AddedBlackList(a)` (topic 0x42e16015…, data the 32-byte word `a`).
 Gas left: `gas - (1567 + price(slot 0) + price(L) + price(write))`. -/
-theorem spec_add (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_add (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x0ecb93c0) (hv : message.value = 0)
@@ -166,7 +166,7 @@ theorem spec_add (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
         (listState state message 1) (listSub fork substate state message 1 ADDED_TOPIC)) := by
   refine Gas.SpecG.seq (toBody1 (e := 721) (r := 0x0308) (b := 3284) (t := 5) (by decide) (by decide)
     (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
-  refine (listTail hfork hglam (Or.inl ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩) hstatic hacc hown hc0 hcB
+  refine (listTail hfork (Or.inl ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩) hstatic hacc hown hc0 hcB
     (by omega) (by omega)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; omega, hs, hss⟩
@@ -174,7 +174,7 @@ theorem spec_add (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
 /-- The specification of `removeBlackList(a)` by the owner: as `spec_add`, with selector
 0xe4997dc5, the word written `setLow w 0` (low byte 0), the log `RemovedBlackList(a)` (topic
 0xd7e9ec6e…), and gas left `gas - (2095 + price(slot 0) + price(L) + price(write))`. -/
-theorem spec_remove (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_remove (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xe4997dc5) (hv : message.value = 0)
@@ -189,7 +189,7 @@ theorem spec_remove (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
         (listState state message 0) (listSub fork substate state message 0 REMOVED_TOPIC)) := by
   refine Gas.SpecG.seq (toBody1 (e := 2276) (r := 0x091b) (b := 7288) (t := 29) (by decide)
     (by decide) (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
-  refine (listTail hfork hglam (Or.inr ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩) hstatic hacc hown hc0 hcB
+  refine (listTail hfork (Or.inr ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩) hstatic hacc hown hc0 hcB
     (by omega) (by omega)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; omega, hs, hss⟩

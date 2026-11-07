@@ -287,19 +287,19 @@ theorem debitCall (hfork : .berlin ≤ fork) {send fee v a : U256} {rest : List 
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
 /-- At 10072, the code writes the new balance of the sender to `balances[msg.sender]`. -/
-theorem debitStore (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {nb send fee v a : U256}
+theorem debitStore (hfork : .berlin ≤ fork) {nb send fee v a : U256}
     {rest : List U256} (hrest : rest.length ≤ 800) (hstatic : message.isStatic = false)
     (hacc : hasAccount state message.currentTarget) {cS : Bool}
     (hcS : coldIn substate message.currentTarget (senderSlot message) = cS) {gas : Nat}
     (hstip : 2400 ≤ gas)
-    (hg : 101 + sstoreCost fork (originalAt state message.currentTarget (senderSlot message))
+    (hg : 101 + Gas.writeCost fork (originalAt state message.currentTarget (senderSlot message))
       (storageAt state message.currentTarget (senderSlot message)) nb cS ≤ gas)
     {M : ByteArray} (hM : M.size = 96) :
     Gas.HoareG fork (At CODE message 10072 (nb :: 0x40 :: send :: fee :: v :: a :: rest) M gas state
         substate)
       (At CODE message 10140 (0x40 :: send :: fee :: v :: a :: rest)
         (mapMem M (callerKey message) 2)
-        (gas - (101 + sstoreCost fork (originalAt state message.currentTarget (senderSlot message))
+        (gas - (101 + Gas.writeCost fork (originalAt state message.currentTarget (senderSlot message))
           (storageAt state message.currentTarget (senderSlot message)) nb cS))
         (writeSlot state message.currentTarget (senderSlot message) nb)
         (storeSub fork substate message.currentTarget (senderSlot message)
@@ -316,7 +316,7 @@ theorem debitStore (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {nb 
   step dupR 1
   step swapR 0
   norm
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic hacc hcS (by gas_ok) (by gas_ok)
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic hacc hcS (by gas_ok) (by gas_ok)
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
@@ -357,18 +357,18 @@ theorem creditCall (hfork : .berlin ≤ fork) {send fee v a : U256} {rest : List
 
 /-- At 10221, the code writes the new balance of the recipient to `balances[_to]`; with a fee of
 0 it skips the owner's credit and goes to the log at 10647. -/
-theorem creditStore (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {nt send v a : U256}
+theorem creditStore (hfork : .berlin ≤ fork) {nt send v a : U256}
     {rest : List U256} (hrest : rest.length ≤ 800) (hstatic : message.isStatic = false)
     (hacc : hasAccount state message.currentTarget) {cT : Bool}
     (hcT : coldIn substate message.currentTarget (recipientSlot a) = cT) {gas : Nat}
     (hstip : 2401 ≤ gas)
-    (hg : 127 + sstoreCost fork (originalAt state message.currentTarget (recipientSlot a))
+    (hg : 127 + Gas.writeCost fork (originalAt state message.currentTarget (recipientSlot a))
       (storageAt state message.currentTarget (recipientSlot a)) nt cT ≤ gas)
     {M : ByteArray} (hM : M.size = 96) :
     Gas.HoareG fork (At CODE message 10221 (nt :: 0x40 :: send :: 0 :: v :: a :: rest) M gas state
         substate)
       (At CODE message 10647 (0x40 :: send :: 0 :: v :: a :: rest) (mapMem M (mkey a) 2)
-        (gas - (127 + sstoreCost fork (originalAt state message.currentTarget (recipientSlot a))
+        (gas - (127 + Gas.writeCost fork (originalAt state message.currentTarget (recipientSlot a))
           (storageAt state message.currentTarget (recipientSlot a)) nt cT))
         (writeSlot state message.currentTarget (recipientSlot a) nt)
         (storeSub fork substate message.currentTarget (recipientSlot a)
@@ -385,7 +385,7 @@ theorem creditStore (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {nt
   step dupR 1
   step swapR 0
   norm
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic hacc hcT (by gas_ok) (by gas_ok)
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic hacc hcT (by gas_ok) (by gas_ok)
   step popR
   step pushR 1 (0 : U256)
   step dupR 3

@@ -88,13 +88,13 @@ abbrev loggedSub (fork : Fork) (substate : Substate) (state : State.TransactionS
 /-- The price of the sender's write (the slot is warm: the code has just read it). -/
 abbrev debitCost (fork : Fork) (state : State.TransactionState) (message : Message fork)
     (v : U256) : Nat :=
-  sstoreCost fork (originalAt state message.currentTarget (senderSlot message))
+  Gas.writeCost fork (originalAt state message.currentTarget (senderSlot message))
     (balS state message) (sub (balS state message) v) false
 
 /-- The price of the recipient's write (warm too). -/
 abbrev creditCost (fork : Fork) (state : State.TransactionState) (message : Message fork)
     (v a : U256) : Nat :=
-  sstoreCost fork (originalAt state message.currentTarget (recipientSlot a))
+  Gas.writeCost fork (originalAt state message.currentTarget (recipientSlot a))
     (balT state message v a) (add (balT state message v a) v) false
 
 /-- The coldness accessed by the reads: `c3`, `c4`, the sender's slot `cS`, the recipient's `cT`. -/
@@ -109,7 +109,7 @@ theorem coldIn_storeSub {fork : Fork} {ss : Substate} {target : EthLib.Base.Addr
   rw [accessSlot_accessSlot]
 
 /-- From 9883, with a fee of 0, the success path of `transfer` up to the STOP at 1931. -/
-theorem body (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem body (hfork : .berlin ≤ fork)
     (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {v a sel : U256} {M : ByteArray} (hM : M.size = 96)
@@ -164,14 +164,14 @@ theorem body (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   simp only [storageAt_readSlot]
   step subBlock (by simp) (by valid_dest) hbal (by gas_ok)
   at_pc 10072
-  step debitStore hfork hglam (by simp) hstatic hacc3 (coldIn_accessSlot_self _ _ _) (by gas_ok)
+  step debitStore hfork (by simp) hstatic hacc3 (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by simp only [storageAt_readSlot, originalAt_readSlot]; gas_ok) (size_mapMem hM _ _)
   simp only [storageAt_readSlot, originalAt_readSlot]
   step creditCall hfork (by simp) (cT := cT) (by rw [coldIn_storeSub]; exact hcT) (by gas_ok)
     (size_mapMem (size_mapMem hM _ _) _ _)
   step addBlock (by simp) (by valid_dest) hto (by gas_ok)
   at_pc 10221
-  step creditStore hfork hglam (by simp) hstatic hacc4 (coldIn_accessSlot_self _ _ _) (by gas_ok)
+  step creditStore hfork (by simp) hstatic hacc4 (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by simp only [storageAt_readSlot, originalAt_readSlot, originalAt_writeSlot hacc3]; gas_ok)
     (size_mapMem (size_mapMem (size_mapMem hM _ _) _ _) _ _)
   simp only [storageAt_readSlot, originalAt_readSlot, originalAt_writeSlot hacc3]

@@ -3,8 +3,8 @@ import UsdtVerify.Invariant
 /-!
 # The invariant over every successful call (contract not deprecated)
 
-`inv_X` for each of the 32 functions of the table, and `inv_call` for any call: from Berlin to
-before Glamsterdam, a fresh frame of `CODE` at pc 0, ANY call data (below 2^256 bytes), ANY
+`inv_X` for each of the 32 functions of the table, and `inv_call` for any call: from Berlin on
+(Glamsterdam included, round 17), a fresh frame of `CODE` at pc 0, ANY call data (below 2^256 bytes), ANY
 value, ANY gas, any gas bound and any message runner. If the loop of the interpreter ends with no
 error and `Inv C state` holds at the start (`C` the contract: the sum of the 2^160 balance words
 equals `_totalSupply`), then `Inv C s.state` holds at the end.
@@ -267,7 +267,7 @@ theorem inv_symbol (hfork : .berlin ≤ fork)
   · rw [hst]; simp only [inv_readSlot, inv_rdSt]; exact hI
 
 /-- A successful `transfer` call keeps `Inv`. -/
-theorem inv_transfer (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem inv_transfer (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xa9059cbb)
@@ -277,14 +277,14 @@ theorem inv_transfer (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < 
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, -, -, hfv, hbal, hto, -, h⟩ := ok_transfer hfork hglam hstatic hacc hsize' hsel hdep
+  obtain ⟨-, -, -, -, hfv, hbal, hto, -, h⟩ := ok_transfer hfork hstatic hacc hsize' hsel hdep
     rfl rfl rfl rfl rfl rfl rfl rfl start within hrun hok
   rcases h with ⟨hfee, -, hst, -⟩ | ⟨-, hown, -, hst, -⟩
   · rw [hst]; rw [sendOf_zero hfee] at hto; exact steps_inv K (reach_transfer_ok hacc hbal hto) hI
   · rw [hst]; exact steps_inv K (reach_transfer_fee hacc hfv hbal hto hown) hI
 
 /-- A successful `transferFrom` call keeps `Inv`. -/
-theorem inv_transferFrom (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem inv_transferFrom (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x23b872dd)
@@ -294,7 +294,7 @@ theorem inv_transferFrom (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : for
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, -, -, -, hfv, hbal, hto, -, h⟩ := ok_transferFrom hfork hglam hstatic hacc hsize'
+  obtain ⟨-, -, -, -, -, hfv, hbal, hto, -, h⟩ := ok_transferFrom hfork hstatic hacc hsize'
     hsel hdep rfl rfl rfl rfl rfl rfl rfl rfl rfl start within hrun hok
   rcases h with ⟨hfee, -, hst, -⟩ | ⟨-, hown, -, hst, -⟩
   · rw [hst]; rw [sendOf_zero hfee] at hto
@@ -302,7 +302,7 @@ theorem inv_transferFrom (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : for
   · rw [hst]; exact steps_inv K (reach_transferFrom_fee hacc hfv hbal hto hown) hI
 
 /-- A successful `approve` call keeps `Inv`. -/
-theorem inv_approve (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem inv_approve (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x095ea7b3)
@@ -312,14 +312,14 @@ theorem inv_approve (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, h⟩ := ok_approve hfork hglam hstatic hacc hsize' hsel hdep rfl rfl start within
+  obtain ⟨-, -, h⟩ := ok_approve hfork hstatic hacc hsize' hsel hdep rfl rfl start within
     hrun hok
   rcases h with ⟨-, -, hst, -⟩ | ⟨-, -, -, hst, -⟩
   · rw [hst]; exact steps_inv K (reach_approve_zero hacc) hI
   · rw [hst]; exact steps_inv K (reach_approve_set hacc) hI
 
 /-- A successful `pause` call keeps `Inv`. -/
-theorem inv_pause (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem inv_pause (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x8456cb59)
@@ -328,11 +328,11 @@ theorem inv_pause (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .gl
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, -, -, hst, -⟩ := ok_pause hfork hglam hstatic hacc hsize' hsel rfl start within hrun hok
+  obtain ⟨-, -, -, -, hst, -⟩ := ok_pause hfork hstatic hacc hsize' hsel rfl start within hrun hok
   rw [hst]; exact steps_inv K (reach_pause hacc 1) hI
 
 /-- A successful `unpause` call keeps `Inv`. -/
-theorem inv_unpause (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem inv_unpause (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x3f4ba83a)
@@ -341,12 +341,12 @@ theorem inv_unpause (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, -, -, hst, -⟩ := ok_unpause hfork hglam hstatic hacc hsize' hsel rfl start within hrun
+  obtain ⟨-, -, -, -, hst, -⟩ := ok_unpause hfork hstatic hacc hsize' hsel rfl start within hrun
     hok
   rw [hst]; exact steps_inv K (reach_pause hacc 0) hI
 
 /-- A successful `addBlackList` call keeps `Inv`. -/
-theorem inv_addBlackList (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem inv_addBlackList (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x0ecb93c0)
@@ -355,12 +355,12 @@ theorem inv_addBlackList (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : for
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, -, hst, -⟩ := ok_addBlackList hfork hglam hstatic hacc hsize' hsel rfl rfl start
+  obtain ⟨-, -, -, hst, -⟩ := ok_addBlackList hfork hstatic hacc hsize' hsel rfl rfl start
     within hrun hok
   rw [hst]; exact steps_inv K (reach_list hacc 1) hI
 
 /-- A successful `removeBlackList` call keeps `Inv`. -/
-theorem inv_removeBlackList (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem inv_removeBlackList (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xe4997dc5)
@@ -369,12 +369,12 @@ theorem inv_removeBlackList (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : 
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, -, hst, -⟩ := ok_removeBlackList hfork hglam hstatic hacc hsize' hsel rfl rfl start
+  obtain ⟨-, -, -, hst, -⟩ := ok_removeBlackList hfork hstatic hacc hsize' hsel rfl rfl start
     within hrun hok
   rw [hst]; exact steps_inv K (reach_list hacc 0) hI
 
 /-- A successful `issue` call keeps `Inv`. -/
-theorem inv_issue (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem inv_issue (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xcc872b66)
@@ -383,12 +383,12 @@ theorem inv_issue (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .gl
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, h0, hT, hB, -, -, hst, -⟩ := ok_issue hfork hglam hstatic hacc hsize' hsel rfl rfl rfl
+  obtain ⟨-, h0, hT, hB, -, -, hst, -⟩ := ok_issue hfork hstatic hacc hsize' hsel rfl rfl rfl
     start within hrun hok
   rw [hst]; exact steps_inv K (reach_issue hacc ⟨h0, hT⟩ hB) hI
 
 /-- A successful `redeem` call keeps `Inv`. -/
-theorem inv_redeem (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem inv_redeem (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xdb006a75)
@@ -397,12 +397,12 @@ theorem inv_redeem (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .g
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, hT, hB, -, -, hst, -⟩ := ok_redeem hfork hglam hstatic hacc hsize' hsel rfl rfl rfl
+  obtain ⟨-, hT, hB, -, -, hst, -⟩ := ok_redeem hfork hstatic hacc hsize' hsel rfl rfl rfl
     start within hrun hok
   rw [hst]; exact steps_inv K (reach_redeem hacc hT hB) hI
 
 /-- A successful `setParams` call keeps `Inv`. -/
-theorem inv_setParams (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem inv_setParams (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xc0324c77)
@@ -411,12 +411,12 @@ theorem inv_setParams (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork <
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, -, -, -, -, hst, -⟩ := ok_setParams hfork hglam hstatic hacc hsize' hsel rfl rfl rfl
+  obtain ⟨-, -, -, -, -, -, hst, -⟩ := ok_setParams hfork hstatic hacc hsize' hsel rfl rfl rfl
     rfl start within hrun hok
   rw [hst]; exact steps_inv K (reach_setParams hacc) hI
 
 /-- A successful `deprecate` call keeps `Inv`. -/
-theorem inv_deprecate (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem inv_deprecate (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x0753c30c)
@@ -425,12 +425,12 @@ theorem inv_deprecate (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork <
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, -, hst, -⟩ := ok_deprecate hfork hglam hstatic hacc hsize' hsel rfl rfl start within
+  obtain ⟨-, -, -, hst, -⟩ := ok_deprecate hfork hstatic hacc hsize' hsel rfl rfl start within
     hrun hok
   rw [hst]; exact steps_inv K (reach_deprecate hacc) hI
 
 /-- A successful `transferOwnership` call keeps `Inv`. -/
-theorem inv_transferOwnership (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem inv_transferOwnership (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xf2fde38b)
@@ -439,14 +439,14 @@ theorem inv_transferOwnership (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam 
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, h⟩ := ok_transferOwnership hfork hglam hstatic hacc hsize' hsel rfl start within hrun
+  obtain ⟨-, -, h⟩ := ok_transferOwnership hfork hstatic hacc hsize' hsel rfl start within hrun
     hok
   rcases h with ⟨-, -, hst, -⟩ | ⟨-, -, hst, -⟩
   · rw [hst]; simp only [inv_readSlot]; exact hI
   · rw [hst]; exact steps_inv K (reach_transferOwnership hacc) hI
 
 /-- A successful `destroyBlackFunds` call keeps `Inv`. -/
-theorem inv_destroyBlackFunds (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem inv_destroyBlackFunds (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xf3bdc228)
@@ -456,19 +456,19 @@ theorem inv_destroyBlackFunds (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam 
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, -, -, hst, -⟩ := ok_destroyBlackFunds hfork hglam hstatic hacc hsize' hsel hdep rfl
+  obtain ⟨-, -, -, -, hst, -⟩ := ok_destroyBlackFunds hfork hstatic hacc hsize' hsel hdep rfl
     rfl rfl rfl rfl start within hrun hok
   rw [hst]; exact steps_inv K (reach_destroy hacc) hI
 
 
 /-- **Every successful call keeps the invariant** (contract not deprecated).
 
-From Berlin to before Glamsterdam, a fresh frame of `CODE` at pc 0 with any call data below
+From Berlin on (Glamsterdam included), a fresh frame of `CODE` at pc 0 with any call data below
 2^256 bytes, any value, any gas, any gas bound and any message runner. Under `KeccakSep`, a frame
 that is not static, of a contract with an account, not deprecated, and with string slots 7 and 8
 of `StrForm`: if `Inv C state` holds and the interpreter loop ends with no error, then
 `Inv C s.state` holds. -/
-theorem inv_call (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem inv_call (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
@@ -482,37 +482,37 @@ theorem inv_call (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .gla
   obtain ⟨-, -, i, hi⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
   match i, hi with
   | ⟨0, _⟩, hi => exact inv_name hfork hsize' (hi.trans rfl) h7 hI start within hrun hok
-  | ⟨1, _⟩, hi => exact inv_deprecate K hfork hglam hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨2, _⟩, hi => exact inv_approve K hfork hglam hstatic hacc hsize' (hi.trans rfl) hdep hI start within hrun hok
+  | ⟨1, _⟩, hi => exact inv_deprecate K hfork hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨2, _⟩, hi => exact inv_approve K hfork hstatic hacc hsize' (hi.trans rfl) hdep hI start within hrun hok
   | ⟨3, _⟩, hi => exact inv_deprecated hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨4, _⟩, hi => exact inv_addBlackList K hfork hglam hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨4, _⟩, hi => exact inv_addBlackList K hfork hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨5, _⟩, hi => exact inv_totalSupply hfork hsize' (hi.trans rfl) hdep hI start within hrun hok
-  | ⟨6, _⟩, hi => exact inv_transferFrom K hfork hglam hstatic hacc hsize' (hi.trans rfl) hdep hI start within hrun hok
+  | ⟨6, _⟩, hi => exact inv_transferFrom K hfork hstatic hacc hsize' (hi.trans rfl) hdep hI start within hrun hok
   | ⟨7, _⟩, hi => exact inv_upgradedAddress hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨8, _⟩, hi => exact inv_balances hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨9, _⟩, hi => exact inv_decimals hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨10, _⟩, hi => exact inv_maximumFee hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨11, _⟩, hi => exact inv_totalSupplyVar hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨12, _⟩, hi => exact inv_unpause K hfork hglam hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨12, _⟩, hi => exact inv_unpause K hfork hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨13, _⟩, hi => exact inv_getBlackListStatus hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨14, _⟩, hi => exact inv_allowed hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨15, _⟩, hi => exact inv_paused hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨16, _⟩, hi => exact inv_balanceOf hfork hsize' (hi.trans rfl) hdep hI start within hrun hok
-  | ⟨17, _⟩, hi => exact inv_pause K hfork hglam hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨17, _⟩, hi => exact inv_pause K hfork hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨18, _⟩, hi => exact inv_getOwner hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨19, _⟩, hi => exact inv_owner hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨20, _⟩, hi => exact inv_symbol hfork hsize' (hi.trans rfl) h8 hI start within hrun hok
-  | ⟨21, _⟩, hi => exact inv_transfer K hfork hglam hstatic hacc hsize' (hi.trans rfl) hdep hI start within hrun hok
-  | ⟨22, _⟩, hi => exact inv_setParams K hfork hglam hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨23, _⟩, hi => exact inv_issue K hfork hglam hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨24, _⟩, hi => exact inv_redeem K hfork hglam hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨21, _⟩, hi => exact inv_transfer K hfork hstatic hacc hsize' (hi.trans rfl) hdep hI start within hrun hok
+  | ⟨22, _⟩, hi => exact inv_setParams K hfork hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨23, _⟩, hi => exact inv_issue K hfork hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨24, _⟩, hi => exact inv_redeem K hfork hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨25, _⟩, hi => exact inv_allowance hfork hsize' (hi.trans rfl) hdep hI start within hrun hok
   | ⟨26, _⟩, hi => exact inv_basisPointsRate hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨27, _⟩, hi => exact inv_isBlackListed hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨28, _⟩, hi => exact inv_removeBlackList K hfork hglam hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨28, _⟩, hi => exact inv_removeBlackList K hfork hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨29, _⟩, hi => exact inv_maxUint hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨30, _⟩, hi => exact inv_transferOwnership K hfork hglam hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨31, _⟩, hi => exact inv_destroyBlackFunds K hfork hglam hstatic hacc hsize' (hi.trans rfl) hdep hI start within hrun hok
+  | ⟨30, _⟩, hi => exact inv_transferOwnership K hfork hstatic hacc hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨31, _⟩, hi => exact inv_destroyBlackFunds K hfork hstatic hacc hsize' (hi.trans rfl) hdep hI start within hrun hok
   | ⟨n + 32, h⟩, _ => exact absurd h (by omega)
 
 end UsdtVerify.Complete

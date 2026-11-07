@@ -113,16 +113,16 @@ theorem toGetter (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
 /-- At 8008, back from the getter with `b = balances[a]`: `balances[a] := 0`. -/
-theorem zeroBal (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a b : U256}
+theorem zeroBal (hfork : .berlin ≤ fork) {a b : U256}
     {rest : List U256} (hrest : rest.length ≤ 800) (hstatic : message.isStatic = false)
     (hacc : hasAccount state message.currentTarget)
     (hcB : coldIn substate message.currentTarget (mapSlot (mkey a) 2) = false) {M : ByteArray}
     (hM : M.size = 96) {gas : Nat} (hstip : 2409 ≤ gas)
-    (hg : 110 + sstoreCost fork (originalAt state message.currentTarget (mapSlot (mkey a) 2))
+    (hg : 110 + Gas.writeCost fork (originalAt state message.currentTarget (mapSlot (mkey a) 2))
       (storageAt state message.currentTarget (mapSlot (mkey a) 2)) 0 false ≤ gas) :
     Gas.HoareG fork (At CODE message 8008 (b :: 0 :: a :: rest) M gas state substate)
       (At CODE message 8080 (b :: a :: rest) (mapMem M (mkey a) 2)
-        (gas - (110 + sstoreCost fork (originalAt state message.currentTarget (mapSlot (mkey a) 2))
+        (gas - (110 + Gas.writeCost fork (originalAt state message.currentTarget (mapSlot (mkey a) 2))
           (storageAt state message.currentTarget (mapSlot (mkey a) 2)) 0 false))
         (writeSlot state message.currentTarget (mapSlot (mkey a) 2) 0)
         (storeSub fork substate message.currentTarget (mapSlot (mkey a) 2)
@@ -140,22 +140,22 @@ theorem zeroBal (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a b : 
   step dupR 1
   step swapR 0
   norm
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic hacc hcB (by gas_ok) (by gas_ok)
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic hacc hcB (by gas_ok) (by gas_ok)
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
 /-- At 8080: `_totalSupply -= b` (unchecked), reading slot 1 first. -/
-theorem subTotal (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a b : U256}
+theorem subTotal (hfork : .berlin ≤ fork) {a b : U256}
     {rest : List U256} (hrest : rest.length ≤ 800) (hstatic : message.isStatic = false)
     (hacc : hasAccount state message.currentTarget) {c1 : Bool}
     (hc1 : coldIn substate message.currentTarget 1 = c1) {M : ByteArray} {gas : Nat}
     (hstip : 2332 + slotCost c1 ≤ gas)
-    (hg : 33 + slotCost c1 + sstoreCost fork (originalAt state message.currentTarget 1)
+    (hg : 33 + slotCost c1 + Gas.writeCost fork (originalAt state message.currentTarget 1)
       (storageAt state message.currentTarget 1) (sub (storageAt state message.currentTarget 1) b)
       false ≤ gas) :
     Gas.HoareG fork (At CODE message 8080 (b :: a :: rest) M gas state substate)
       (At CODE message 8096 (b :: a :: rest) M
-        (gas - (33 + slotCost c1 + sstoreCost fork (originalAt state message.currentTarget 1)
+        (gas - (33 + slotCost c1 + Gas.writeCost fork (originalAt state message.currentTarget 1)
           (storageAt state message.currentTarget 1)
           (sub (storageAt state message.currentTarget 1) b) false))
         (writeSlot state message.currentTarget 1 (sub (storageAt state message.currentTarget 1) b))
@@ -177,7 +177,7 @@ theorem subTotal (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a b :
   step dupR 1
   step swapR 0
   norm
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   rw [originalAt_readSlot, storageAt_readSlot, writeSlot_readSlot _ _ hacc, storeSub_accessSlot]
@@ -319,12 +319,12 @@ abbrev destroyState (state : State.TransactionState) (message : Message fork) :
 
 /-- The price of the write of `balances[a]` (warm). -/
 abbrev costB (fork : Fork) (state : State.TransactionState) (message : Message fork) : Nat :=
-  sstoreCost fork (originalAt state message.currentTarget (balSlot message))
+  Gas.writeCost fork (originalAt state message.currentTarget (balSlot message))
     (dirty state message) 0 false
 
 /-- The price of the write of slot 1 (warm after its read). -/
 abbrev costT (fork : Fork) (state : State.TransactionState) (message : Message fork) : Nat :=
-  sstoreCost fork (originalAt state message.currentTarget 1)
+  Gas.writeCost fork (originalAt state message.currentTarget 1)
     (storageAt (state1 state message) message.currentTarget 1)
     (sub (storageAt (state1 state message) message.currentTarget 1) (dirty state message)) false
 
@@ -342,7 +342,7 @@ abbrev destroySub (fork : Fork) (substate : Substate) (state : State.Transaction
 
 /-- The specification of a successful `destroyBlackFunds(a)`.
 
-Hypotheses: Berlin ≤ fork < Glamsterdam; a frame that may write, of an existing account `C`;
+Hypotheses: Berlin ≤ fork (Glamsterdam included); a frame that may write, of an existing account `C`;
 call data of 4 to 2^256 - 1 bytes with selector 0xf3bdc228; no value; the caller is the owner;
 `a` (argument word 0 masked to 160 bits) blacklisted (the low byte of `isBlackListed[a]` is not
 0); not deprecated (byte 20 of slot 10 is 0); enough gas, and more than 2300 left at each SSTORE.
@@ -352,7 +352,7 @@ is the old word of `balances[a]` (unchecked subtraction); one log `DestroyedBlac
 (topic 0x61e6e66b…, data the address word and `d`). Gas left:
 `gas - (2865 + prices of the reads of slots 0, isBlackListed[a], 10, balances[a], 1 + prices of
 the two writes)`. -/
-theorem spec (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
@@ -392,11 +392,11 @@ theorem spec (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   step BalanceOf.lookup hfork (by simp) hM1 (cB := cB) (by rw [hkey]; exact hcB) (by gas_ok)
   rw [hkey, storageAt_readSlot, storageAt_readSlot, storageAt_readSlot]
   step BalanceOf.back (Or.inr rfl) (by gas_ok)
-  step zeroBal hfork hglam (by simp) hstatic hacc1 (by rw [hk]; exact coldIn_accessSlot_self _ _ _)
+  step zeroBal hfork (by simp) hstatic hacc1 (by rw [hk]; exact coldIn_accessSlot_self _ _ _)
     (BalanceOf.size_lookMem hM1 _) (by gas_ok)
     (by simp only [hk, originalAt_readSlot, storageAt_readSlot]; gas_ok)
   simp only [hk, originalAt_readSlot, storageAt_readSlot]
-  step subTotal hfork hglam (by simp) hstatic (hasAccount_writeSlot hacc1) (c1 := c1)
+  step subTotal hfork (by simp) hstatic (hasAccount_writeSlot hacc1) (c1 := c1)
     (by rw [TransferFee.coldIn_storeSub', accessSlot_accessSlot]; exact hc1) (by gas_ok)
     (by rw [originalAt_writeSlot hacc1]; simp only [originalAt_readSlot]; gas_ok)
   rw [originalAt_writeSlot hacc1]
@@ -442,7 +442,7 @@ theorem destroy_effects (hacc : hasAccount state message.currentTarget)
     simp only [storageAt_readSlot]
 
 /-- The loop of the interpreter runs a successful `destroyBlackFunds(a)` to `spec`'s end. -/
-theorem runFrame_spec (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_spec (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
@@ -470,7 +470,7 @@ theorem runFrame_spec (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       Halted false .empty (gas - (2865 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB +
           slotCost c1 + costB fork state message + costT fork state message))
         (destroyState state message) (destroySub fork substate state message) stopped :=
-  (spec hfork hglam hstatic hacc hsize hsize' hsel hv hown hl hdep hc0 hcL hc10 hcB hc1 hstip1
+  (spec hfork hstatic hacc hsize hsize' hsel hv hown hl hdep hc0 hcL hc10 hcB hc1 hstip1
     hstip2 hg).runFrame start within
 
 end UsdtVerify.DestroySpec

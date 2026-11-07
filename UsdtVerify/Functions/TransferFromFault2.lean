@@ -23,7 +23,7 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
   {substate : Substate}
 
 /-- From 8648, the allowance step passes and the fee is above `v`: INVALID at `sub(v, fee)`. -/
-theorem bodyFeeGtF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem bodyFeeGtF (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {v t f sel : U256} {M : ByteArray} (hM : M.size = 96)
     (hov : v.toNat * (storageAt state message.currentTarget 3).toNat < 2 ^ 256)
@@ -57,7 +57,7 @@ theorem bodyFeeGtF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   at_pc 8816
   step capBlock hfork (by simp) hc4 (by simp only [storageAt_readSlot]; gas_ok)
   simp only [storageAt_readSlot]
-  step allowStep hfork hglam hstatic hacc3 (by simp) (by simp only [storageAt_readSlot]) hallow
+  step allowStep hfork hstatic hacc3 (by simp) (by simp only [storageAt_readSlot]) hallow
     (coldIn_accessSlot_false (coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
     (by simp only [originalAt_readSlot]; gas_ok)
     (size_allowMem hM f)
@@ -67,7 +67,7 @@ theorem bodyFeeGtF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
 
 /-- From 8648, `balances[_to]` (read after the write of `_from`) plus `v - fee` overflows:
 INVALID at the `add`. -/
-theorem bodyToOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem bodyToOvF (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {v t f sel : U256} {M : ByteArray} (hM : M.size = 96)
     (hov : v.toNat * (storageAt state message.currentTarget 3).toNat < 2 ^ 256)
@@ -120,7 +120,7 @@ theorem bodyToOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   at_pc 8816
   step capBlock hfork (by simp) hc4 (by simp only [storageAt_readSlot]; gas_ok)
   simp only [storageAt_readSlot]
-  step allowStep hfork hglam hstatic hacc3 (by simp) (by simp only [storageAt_readSlot]) hallow
+  step allowStep hfork hstatic hacc3 (by simp) (by simp only [storageAt_readSlot]) hallow
     (coldIn_accessSlot_false (coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
     (by simp only [originalAt_readSlot]; gas_ok)
     (size_allowMem hM f)
@@ -134,7 +134,7 @@ theorem bodyToOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   step debitCall hfork (by simp) hcF (by gas_ok) hMb
   step subBlock (by simp) (by valid_dest) hbal (by gas_ok)
   at_pc 9125
-  step debitStore hfork hglam (by simp) hstatic hacc4 (coldIn_accessSlot_self _ _ _)
+  step debitStore hfork (by simp) hstatic hacc4 (coldIn_accessSlot_self _ _ _)
     (by simp only [storageAt_readSlot, originalAt_readSlot, horig]; gas_ok) (size_mapMem hMb _ _)
   simp only [storageAt_readSlot, originalAt_readSlot, horig]
   step creditCall hfork (by simp) (cT := cT) (by rw [coldIn_storeSub]; exact hcT) (by gas_ok)
@@ -143,7 +143,7 @@ theorem bodyToOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
 
 /-- From 8648, with a fee above 0 and the transfer to `_to` done, `balances[owner]` (read after
 the write of `_to`) plus the fee overflows: INVALID at the owner's `add`. -/
-theorem bodyOwnerOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem bodyOwnerOvF (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {v t f sel : U256} {M : ByteArray} (hM : M.size = 96)
     (hov : v.toNat * (storageAt state message.currentTarget 3).toNat < 2 ^ 256)
@@ -190,7 +190,7 @@ theorem bodyOwnerOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
         (coldIn_accessSlot_false (coldIn_accessSlot_false hc0)))))))
   have hMa : (allowMem message M f).size = 96 := size_allowMem hM f
   have hMb := size_allowMem2 (message := message) hMa (allowOf state message f) f
-  have hA := headF (sel := sel) hfork hglam hstatic hacc hM hov hfee hfv hallow hbal hto hcA hc3
+  have hA := headF (sel := sel) hfork hstatic hacc hM hov hfee hfv hallow hbal hto hcA hc3
     hc4 hcF hcT (gas := gas) hstip
   refine Triple.seq hA ?_
   have hO := ownerCallF (message := message) (state := creditedFeeF state message v t f)
@@ -210,13 +210,13 @@ theorem bodyOwnerOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
 
 /-- The specification of `transferFrom(f, t, v)` when the fee is above `v`.
 
-Hypotheses: Berlin ≤ fork < Glamsterdam, not static, the contract has an account; the checks pass
+Hypotheses: Berlin ≤ fork (Glamsterdam included), not static, the contract has an account; the checks pass
 (call data ≥ 100 bytes, not paused, `f` not blacklisted, not deprecated); `v * rate < 2^256`;
 `A = MAX_UINT ∨ v ≤ A`; `v < fee`; more than 2300 gas left at the allowance's SSTORE, which also
 covers the rest of the path.
 
 Then INVALID at `sub(v, fee)`, after the allowance step (`A - v` written unless `A = MAX_UINT`). -/
-theorem spec_feeGtF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_feeGtF (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 100 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x23b872dd) (hv : message.value = 0)
@@ -250,7 +250,7 @@ theorem spec_feeGtF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
           (fromArg message))) :=
   Triple.seq (preF hfork hlong hsz hsel hv hnp hnb hdep hc0 hcB hc10
       (Nat.le_trans (Nat.le_add_right _ _) hg))
-    (bodyFeeGtF hfork hglam hstatic (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
+    (bodyFeeGtF hfork hstatic (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
       (size_mapMem size_MEM0 _ _) hov hgt hallow hcA hc3 hc4
       (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hg)))
 
@@ -261,7 +261,7 @@ allowance step); `balances[t] + (v - fee) ≥ 2^256` (read after the write of `f
 gas left at the SSTORE of `balances[f]` (`hstip`), and enough gas to reach the assert.
 
 Then INVALID at the `add`, after the allowance step and the write `balances[f] := balF - v`. -/
-theorem spec_toOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_toOvF (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 100 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x23b872dd) (hv : message.value = 0)
@@ -314,7 +314,7 @@ theorem spec_toOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
           (valArg message) (fromArg message)) message.currentTarget (recipientSlot (toArg message)))) :=
   Triple.seq (preF hfork hlong hsz hsel hv hnp hnb hdep hc0 hcB hc10
       (Nat.le_trans (Nat.le_add_right _ _) hg))
-    (bodyToOvF hfork hglam hstatic (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
+    (bodyToOvF hfork hstatic (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
       (size_mapMem size_MEM0 _ _) hov hfv hallow hbal hto hcA hc3 hc4 hcF hcT
       (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hstip))
       (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hg)))
@@ -329,7 +329,7 @@ Hypotheses: as `spec_feeF` up to `t` (`0 < fee ≤ v`, the allowance step, `v �
 
 Then INVALID at the owner's `add`, after the writes of the allowance (unless `MAX_UINT`),
 `balances[f]` and `balances[t]`, and the reads of slot 0 and the owner's slot. -/
-theorem spec_ownerOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_ownerOvF (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 100 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x23b872dd) (hv : message.value = 0)
@@ -398,7 +398,7 @@ theorem spec_ownerOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
             (fromArg message))))) :=
   Triple.seq (preF hfork hlong hsz hsel hv hnp hnb hdep hc0 hcB hc10
       (Nat.le_trans (Nat.le_add_right _ _) hg))
-    (bodyOwnerOvF hfork hglam hstatic (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
+    (bodyOwnerOvF hfork hstatic (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
       (size_mapMem size_MEM0 _ _) hov hfee hfv hallow hbal hto hown
       (coldIn_accessSlot_false (coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
       hcA hc3 hc4 hcF hcT hcO
@@ -407,7 +407,7 @@ theorem spec_ownerOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
 
 /-- The loop of the interpreter runs the case of `spec_feeGtF` to its end condition. It holds for
 every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_feeGtF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_feeGtF (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 100 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x23b872dd) (hv : message.value = 0)
@@ -443,12 +443,12 @@ theorem runFrame_feeGtF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       Faulted (.invalidOpcode 0xfe) (allowedF (checkState state message) message (valArg message) (fromArg message))
           (allowedSubF fork (checkSub substate message) (checkState state message) message (valArg message)
             (fromArg message)) stopped :=
-  (spec_feeGtF hfork hglam hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hallow hgt hc0 hcB hc10
+  (spec_feeGtF hfork hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hallow hgt hc0 hcB hc10
     hcA hc3 hc4 hg).runFrame start within
 
 /-- The loop of the interpreter runs the case of `spec_toOvF` to its end condition. It holds for
 every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_toOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_toOvF (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 100 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x23b872dd) (hv : message.value = 0)
@@ -504,12 +504,12 @@ theorem runFrame_toOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
           (accessSlot (debitedSubF fork (checkSub substate message) (checkState state message) message
             (valArg message) (fromArg message)) message.currentTarget (recipientSlot (toArg message)))
             stopped :=
-  (spec_toOvF hfork hglam hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hallow hfv hbal hto hc0
+  (spec_toOvF hfork hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hallow hfv hbal hto hc0
     hcB hc10 hcA hc3 hc4 hcF hcT hstip hg).runFrame start within
 
 /-- The loop of the interpreter runs the case of `spec_ownerOvF` to its end condition. It holds for
 every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_ownerOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_ownerOvF (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 100 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x23b872dd) (hv : message.value = 0)
@@ -580,7 +580,7 @@ theorem runFrame_ownerOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterda
             message.currentTarget 0) message.currentTarget
             (ownerSlot (ownerWordF (checkState state message) message (valArg message) (toArg message)
               (fromArg message)))) stopped :=
-  (spec_ownerOvF hfork hglam hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hallow hfee hfv hbal
+  (spec_ownerOvF hfork hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hallow hfee hfv hbal
     hto hown hc0 hcB hc10 hcA hc3 hc4 hcF hcT hcO hstip hg).runFrame start within
 
 end UsdtVerify.TransferFrom

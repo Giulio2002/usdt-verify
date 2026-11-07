@@ -56,7 +56,7 @@ theorem mulCallFault (hfork : .berlin ≤ fork) {b m x : U256} {c9 : Bool}
 
 /-- The specification of `setParams(b, m)` by the owner when `m * 10^d` overflows.
 
-Hypotheses: Berlin ≤ fork < Glamsterdam; a frame that may write, of an existing account `C`;
+Hypotheses: Berlin ≤ fork (Glamsterdam included); a frame that may write, of an existing account `C`;
 call data of 4 to 2^256 - 1 bytes with selector 0xc0324c77; no value; the caller is the owner;
 `b < 20`, `m < 50`, `m * 10^d ≥ 2^256` (as numbers, `10^d` the EVM word); more than 2300 gas left
 at the SSTORE of slot 3, and enough gas.
@@ -64,7 +64,7 @@ at the SSTORE of slot 3, and enough gas.
 Then the run ends in INVALID (`Faulted (.invalidOpcode 0xfe)`): the error of the frame is set,
 all its gas is consumed, and its state is the one it had before the write of slot 3 was undone
 by the caller of the frame. -/
-theorem spec_mulOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_mulOv (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xc0324c77)
@@ -77,7 +77,7 @@ theorem spec_mulOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hc9 : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget 3)
       message.currentTarget 9 = c9)
     {gas : Nat}
-    (hstip : 3168 + slotCost c0 + sstoreCost fork (originalAt state message.currentTarget 3)
+    (hstip : 3168 + slotCost c0 + Gas.writeCost fork (originalAt state message.currentTarget 3)
       (storageAt state message.currentTarget 3) (wordArg message.data 0) c3 + slotCost c9 +
       50 * exponentBytes (storageAt state message.currentTarget 9) ≤ gas) :
     Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
@@ -103,7 +103,7 @@ theorem spec_mulOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   step pass (Or.inl ⟨rfl, rfl⟩) (lt_ne (by simpa using hb)) (by simp) (by gas_ok)
   step test2 (by simp) (by gas_ok)
   step pass (Or.inr ⟨rfl, rfl⟩) (lt_ne (by simpa using hm)) (by simp) (by gas_ok)
-  step write3 hfork hglam (by simp) hstatic hacc0 hc3 (by gas_ok)
+  step write3 hfork (by simp) hstatic hacc0 hc3 (by gas_ok)
     (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   rw [originalAt_readSlot, storageAt_readSlot]
   refine mulCallFault hfork hc9' ?_ ?_

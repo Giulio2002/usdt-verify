@@ -202,7 +202,7 @@ abbrev toOvSub (fork : Fork) (substate : Substate) (state : State.TransactionSta
 
 /-- From 9883, for any fee `≤ v`, the recipient's balance (read after the sender's write) plus
 `sendAmount = v - fee` overflows: INVALID at the `add`, after the sender's write. -/
-theorem bodyToOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem bodyToOv (hfork : .berlin ≤ fork)
     (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {v a sel : U256} {M : ByteArray} (hM : M.size = 96)
@@ -244,7 +244,7 @@ theorem bodyToOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   simp only [storageAt_readSlot]
   step subBlock (by simp) (by valid_dest) hbal (by gas_ok)
   at_pc 10072
-  step debitStore hfork hglam (by simp) hstatic hacc3 (coldIn_accessSlot_self _ _ _) (by gas_ok)
+  step debitStore hfork (by simp) hstatic hacc3 (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by simp only [storageAt_readSlot, originalAt_readSlot]; gas_ok) (size_mapMem hM _ _)
   simp only [storageAt_readSlot, originalAt_readSlot]
   step creditCall hfork (by simp) (cT := cT) (by rw [coldIn_storeSub]; exact hcT) (by gas_ok)
@@ -265,7 +265,7 @@ abbrev ownerOvSub (fork : Fork) (substate : Substate) (state : State.Transaction
 
 /-- From 9883, with a fee above 0 and the transfer to `_to` done, the owner's balance (read after
 the recipient's write) plus the fee overflows: INVALID at the `add` of the owner's credit. -/
-theorem bodyOwnerOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem bodyOwnerOv (hfork : .berlin ≤ fork)
     (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {v a sel : U256} {M : ByteArray} (hM : M.size = 96)
@@ -298,7 +298,7 @@ theorem bodyOwnerOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       false :=
     coldIn_storeSub_false (coldIn_accessSlot_false (coldIn_storeSub_false
       (coldIn_accessSlot_false (coldIn_accessSlot_false (coldIn_accessSlot_false hc0)))))
-  have hA := feeHead (sel := sel) hfork hglam hlong hsz hstatic hacc hM hov hfee hfv hbal hto hc3
+  have hA := feeHead (sel := sel) hfork hlong hsz hstatic hacc hM hov hfee hfv hbal hto hc3
     hc4 hcS hcT (gas := gas) hstip
   refine Triple.seq hA ?_
   have hO := ownerCall (message := message) (state := creditedFee state message v a)
@@ -389,7 +389,7 @@ theorem spec_feeGt (hfork : .berlin ≤ fork)
 
 /-- The specification of `transfer(to, v)` when the recipient's balance overflows.
 
-Hypotheses: Berlin ≤ fork < Glamsterdam, not static, the contract has an account; the checks pass
+Hypotheses: Berlin ≤ fork (Glamsterdam included), not static, the contract has an account; the checks pass
 as in `spec_ok`; `v * rate < 2^256`; `fee ≤ v` (any fee, 0 included); `v ≤ balances[caller]`;
 `balances[to] + (v - fee) ≥ 2^256`, with `balances[to]` read after the sender's write (`balT`);
 more than 2300 gas left at the sender's SSTORE (`hstip`), and enough gas to reach the assert.
@@ -397,7 +397,7 @@ more than 2300 gas left at the sender's SSTORE (`hstip`), and enough gas to reac
 Then INVALID at the recipient's `add`: no output, no gas left, in the state after the sender's
 write `balances[caller] := balS - v` and the read of the recipient's slot (the caller discards
 it). -/
-theorem spec_toOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_toOv (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xa9059cbb) (hv : message.value = 0)
@@ -441,7 +441,7 @@ theorem spec_toOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
           (wordArg message.data 1) (addrArg message.data 0))) :=
   Triple.seq (pre hfork (by omega) hsz hsel hv hnp hnb hdep hc0 hcB hc10
       (Nat.le_trans (Nat.le_add_right _ _) hg))
-    (bodyToOv hfork hglam hlong hsz hstatic
+    (bodyToOv hfork hlong hsz hstatic
       (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
       (size_MEMK (callerKey message) 6) hov hfv hbal hto hc3 hc4 hcS hcT
       (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hstip))
@@ -458,7 +458,7 @@ sender's follows), and enough gas to reach the assert.
 
 Then INVALID at the owner's `add`: no output, no gas left, in the state after the sender's and
 the recipient's writes and the reads of slot 0 and the owner's slot. -/
-theorem spec_ownerOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_ownerOv (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xa9059cbb) (hv : message.value = 0)
@@ -514,7 +514,7 @@ theorem spec_ownerOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
           (wordArg message.data 1) (addrArg message.data 0))) :=
   Triple.seq (pre hfork (by omega) hsz hsel hv hnp hnb hdep hc0 hcB hc10
       (Nat.le_trans (Nat.le_add_right _ _) hg))
-    (bodyOwnerOv hfork hglam hlong hsz hstatic
+    (bodyOwnerOv hfork hlong hsz hstatic
       (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
       (size_MEMK (callerKey message) 6) hov hfee hfv hbal hto hown
       (coldIn_accessSlot_false (coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
@@ -587,7 +587,7 @@ theorem runFrame_feeGt (hfork : .berlin ≤ fork)
 
 /-- The loop of the interpreter runs the case of `spec_toOv` to its end condition. It holds for
 every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_toOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_toOv (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xa9059cbb) (hv : message.value = 0)
@@ -633,12 +633,12 @@ theorem runFrame_toOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
             (addrArg message.data 0))
           (toOvSub fork (shortSubstate substate message) (shortState state message) message
             (wordArg message.data 1) (addrArg message.data 0)) stopped :=
-  (spec_toOv hfork hglam hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hfv hbal hto hc0 hcB hc10
+  (spec_toOv hfork hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hfv hbal hto hc0 hcB hc10
     hc3 hc4 hcS hcT hstip hg).runFrame start within
 
 /-- The loop of the interpreter runs the case of `spec_ownerOv` to its end condition. It holds for
 every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_ownerOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_ownerOv (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xa9059cbb) (hv : message.value = 0)
@@ -696,7 +696,7 @@ theorem runFrame_ownerOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam
             (addrArg message.data 0))
           (ownerOvSub fork (shortSubstate substate message) (shortState state message) message
             (wordArg message.data 1) (addrArg message.data 0)) stopped :=
-  (spec_ownerOv hfork hglam hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hfee hfv hbal hto hown
+  (spec_ownerOv hfork hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hfee hfv hbal hto hown
     hc0 hcB hc10 hc3 hc4 hcS hcT hcO hstip hg).runFrame start within
 
 end UsdtVerify.TransferOk

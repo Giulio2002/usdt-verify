@@ -20,7 +20,7 @@ Each other case is excluded by a specification over `StepG` that ends with an er
 reverts (`spec_paused`, `spec_blacklisted`, `spec_short`) and the INVALID paths (`spec_mulOv`,
 `spec_allowLow`, `spec_feeGtF`, `spec_balLow`, `spec_toOvF`, `spec_ownerOvF`).
 
-Hypotheses beyond the call: Berlin ≤ fork < Glamsterdam, the frame is not static (`hstatic`),
+Hypotheses beyond the call: Berlin ≤ fork (Glamsterdam included), the frame is not static (`hstatic`),
 and the contract has an account (`hacc`).
 -/
 
@@ -39,7 +39,7 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
 
 /-- Every successful `transferFrom(f, t, v)` call, not deprecated, is the fee-0 or the fee
 path. -/
-theorem ok_transferFrom (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem ok_transferFrom (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x23b872dd)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
@@ -128,20 +128,20 @@ theorem ok_transferFrom (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     .inr (Nat.le_of_not_lt hlt)
   by_cases hgt : (valArg message).toNat <
       (feeOf (checkState state message) message (valArg message)).toNat
-  · exact (no_ok (fun g hg => spec_feeGtF hfork hglam hstatic hacc hl hsize' hsel hv hp hb hdep
+  · exact (no_ok (fun g hg => spec_feeGtF hfork hstatic hacc hl hsize' hsel hv hp hb hdep
       hov hallow hgt hc0 hcB hc10 hcA hc3 hc4 hg)
       (fun _ e h => faulted_error e h) start within hrun hok).elim
   have hfv := Nat.le_of_not_lt hgt
   by_cases hlow : (balFrom (checkState state message) message (valArg message)
       (fromArg message)).toNat < (valArg message).toNat
-  · exact (no_ok2 (fun g h1 h2 => spec_balLow hfork hglam hstatic hacc hl hsize' hsel hv hp hb
+  · exact (no_ok2 (fun g h1 h2 => spec_balLow hfork hstatic hacc hl hsize' hsel hv hp hb
       hdep hov hfv hallow hlow hc0 hcB hc10 hcA hc3 hc4 hcF h1 h2)
       (fun _ e h => faulted_error e h) start within hrun hok).elim
   have hbal := Nat.le_of_not_lt hlow
   by_cases hto : 2 ^ 256 ≤ (balTo (checkState state message) message (valArg message)
       (toArg message) (fromArg message)).toNat +
       (sendOf (checkState state message) message (valArg message)).toNat
-  · exact (no_ok2 (fun g h1 h2 => spec_toOvF hfork hglam hstatic hacc hl hsize' hsel hv hp hb
+  · exact (no_ok2 (fun g h1 h2 => spec_toOvF hfork hstatic hacc hl hsize' hsel hv hp hb
       hdep hov hallow hfv hbal hto hc0 hcB hc10 hcA hc3 hc4 hcF hcT h1 h2)
       (fun _ e h => faulted_error e h) start within hrun hok).elim
   have hto := Nat.lt_of_not_le hto
@@ -150,19 +150,19 @@ theorem ok_transferFrom (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   · have hto' := hto
     rw [sendOf_zero hfee] at hto'
     obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
-      (fun g h1 h2 => spec_ok hfork hglam hstatic hacc hl hsize' hsel hv hp hb hdep hov hfee
+      (fun g h1 h2 => spec_ok hfork hstatic hacc hl hsize' hsel hv hp hb hdep hov hfee
         hallow hbal hto' hc0 hcB hc10 hcA hc3 hc4 hcF hcT h1 h2)
       start within hrun hok
     exact ⟨ho, .inl ⟨hfee, hg, hst, hss⟩⟩
   by_cases hown : 2 ^ 256 ≤ (balOF (checkState state message) message (valArg message)
       (toArg message) (fromArg message)).toNat +
       (feeOf (checkState state message) message (valArg message)).toNat
-  · exact (no_ok2 (fun g h1 h2 => spec_ownerOvF hfork hglam hstatic hacc hl hsize' hsel hv hp hb
+  · exact (no_ok2 (fun g h1 h2 => spec_ownerOvF hfork hstatic hacc hl hsize' hsel hv hp hb
       hdep hov hallow hfee hfv hbal hto hown hc0 hcB hc10 hcA hc3 hc4 hcF hcT hcO h1 h2)
       (fun _ e h => faulted_error e h) start within hrun hok).elim
   have hown := Nat.lt_of_not_le hown
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => spec_feeF hfork hglam hstatic hacc hl hsize' hsel hv hp hb hdep hov hfee hfv
+    (fun g hg => spec_feeF hfork hstatic hacc hl hsize' hsel hv hp hb hdep hov hfee hfv
       hallow hbal hto hown hc0 hcB hc10 hcA hc3 hc4 hcF hcT hcO hg)
     start within hrun hok
   exact ⟨ho, .inr ⟨hfee, hown, hg, hst, hss⟩⟩

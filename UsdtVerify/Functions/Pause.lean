@@ -251,7 +251,7 @@ macro "flag_write" : tactic => `(tactic| (
   step binR 0x17 Local.instruction_or
   step swapR 0
   norm
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   rw [originalAt_readSlot, storageAt_readSlot]
@@ -259,17 +259,17 @@ macro "flag_write" : tactic => `(tactic| (
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl))
 
 /-- At 5055 (pause), the code writes slot 0 with byte 20 set to 1. -/
-theorem pauseWrite (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {rest : List U256}
+theorem pauseWrite (hfork : .berlin ≤ fork) {rest : List U256}
     (hrest : rest.length ≤ 16) (hstatic : message.isStatic = false)
     (hacc : hasAccount state message.currentTarget)
     (hc0 : coldIn substate message.currentTarget 0 = false) {M : ByteArray} {gas : Nat}
     (hstip : 2517 ≤ gas)
-    (hg : 218 + sstoreCost fork (originalAt state message.currentTarget 0)
+    (hg : 218 + Gas.writeCost fork (originalAt state message.currentTarget 0)
       (storageAt state message.currentTarget 0)
       (withPaused (storageAt state message.currentTarget 0) 1) false ≤ gas) :
     Gas.HoareG fork (At CODE message 5055 rest M gas state substate)
       (At CODE message 5083 rest M
-        (gas - (218 + sstoreCost fork (originalAt state message.currentTarget 0)
+        (gas - (218 + Gas.writeCost fork (originalAt state message.currentTarget 0)
           (storageAt state message.currentTarget 0)
           (withPaused (storageAt state message.currentTarget 0) 1) false))
         (writeSlot (readSlot state message.currentTarget 0) message.currentTarget 0
@@ -288,17 +288,17 @@ theorem pauseWrite (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {res
   flag_write
 
 /-- At 4451 (unpause), the code writes slot 0 with byte 20 set to 0. -/
-theorem unpauseWrite (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {rest : List U256}
+theorem unpauseWrite (hfork : .berlin ≤ fork) {rest : List U256}
     (hrest : rest.length ≤ 16) (hstatic : message.isStatic = false)
     (hacc : hasAccount state message.currentTarget)
     (hc0 : coldIn substate message.currentTarget 0 = false) {M : ByteArray} {gas : Nat}
     (hstip : 2517 ≤ gas)
-    (hg : 218 + sstoreCost fork (originalAt state message.currentTarget 0)
+    (hg : 218 + Gas.writeCost fork (originalAt state message.currentTarget 0)
       (storageAt state message.currentTarget 0)
       (withPaused (storageAt state message.currentTarget 0) 0) false ≤ gas) :
     Gas.HoareG fork (At CODE message 4451 rest M gas state substate)
       (At CODE message 4478 rest M
-        (gas - (218 + sstoreCost fork (originalAt state message.currentTarget 0)
+        (gas - (218 + Gas.writeCost fork (originalAt state message.currentTarget 0)
           (storageAt state message.currentTarget 0)
           (withPaused (storageAt state message.currentTarget 0) 0) false))
         (writeSlot (readSlot state message.currentTarget 0) message.currentTarget 0

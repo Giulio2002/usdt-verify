@@ -31,18 +31,18 @@ abbrev listSlot (a : U256) : U256 := mapSlot (mkey a) 6
 theorem exp0 : exp (0x0100 : U256) (0 : U256) = 1 := by decide +kernel
 
 /-- At 3375 / 7379: the code writes `isBlackListed[a]` with its low byte set to `v`. -/
-theorem listWrite (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {p : Nat} {v : U256}
+theorem listWrite (hfork : .berlin ≤ fork) {p : Nat} {v : U256}
     (hp : (p = 3375 ∧ v = 1) ∨ (p = 7379 ∧ v = 0)) {a : U256} {rest : List U256}
     (hrest : rest.length ≤ 16) (hstatic : message.isStatic = false)
     (hacc : hasAccount state message.currentTarget) {cB : Bool}
     (hcB : coldIn substate message.currentTarget (listSlot a) = cB) {M : ByteArray}
     (hM : M.size = 96) {gas : Nat} (hstip : 2457 + slotCost cB ≤ gas)
-    (hg : 158 + slotCost cB + sstoreCost fork (originalAt state message.currentTarget (listSlot a))
+    (hg : 158 + slotCost cB + Gas.writeCost fork (originalAt state message.currentTarget (listSlot a))
       (storageAt state message.currentTarget (listSlot a))
       (setLow (storageAt state message.currentTarget (listSlot a)) v) false ≤ gas) :
     Gas.HoareG fork (At CODE message p (a :: rest) M gas state substate)
       (At CODE message (p + 89) (a :: rest) (mapMem M (mkey a) 6)
-        (gas - (158 + slotCost cB + sstoreCost fork
+        (gas - (158 + slotCost cB + Gas.writeCost fork
           (originalAt state message.currentTarget (listSlot a))
           (storageAt state message.currentTarget (listSlot a))
           (setLow (storageAt state message.currentTarget (listSlot a)) v) false))
@@ -92,7 +92,7 @@ theorem listWrite (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {p : 
     step binR 0x17 Local.instruction_or
     step swapR 0
     norm
-    step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
+    step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
       (coldIn_accessSlot_self _ _ _) (by gas_ok)
       (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
     rw [originalAt_readSlot, storageAt_readSlot, writeSlot_readSlot _ _ hacc]

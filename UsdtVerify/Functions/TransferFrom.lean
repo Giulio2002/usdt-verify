@@ -387,7 +387,7 @@ def allowSub (fork : Fork) (substate : Substate) (target : EthLib.Base.Address)
 
 /-- The gas of the allowance step: 26 at `MAX_UINT`, else 320 and the price of the (warm) write. -/
 def allowCost (fork : Fork) (orig A v : U256) : Nat :=
-  if A = MAX_UINT then 26 else 320 + sstoreCost fork orig A (sub A v) false
+  if A = MAX_UINT then 26 else 320 + Gas.writeCost fork orig A (sub A v) false
 
 /-- The memory after the allowance step. -/
 def allowMem2 (message : Message fork) (M : ByteArray) (A f : U256) : ByteArray :=
@@ -423,7 +423,7 @@ theorem originalAt_allowState {state : State.TransactionState} {target other : E
 /-- At 8834, the allowance step: with `_allowance = A`, either `A = MAX_UINT` (nothing is
 written) or `v ≤ A` and `allowed[_from][msg.sender] := A - v`. The slot was read at 8773 and is
 warm. -/
-theorem allowStep (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem allowStep (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {fee A v t f : U256} {rest : List U256} (hrest : rest.length ≤ 8)
     (hA : storageAt state message.currentTarget (allowFrom message f) = A)
@@ -497,7 +497,7 @@ theorem allowStep (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     step dupR 1
     step swapR 0
     norm
-    step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic hacc hw (by gas_ok) (by gas_ok)
+    step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic hacc hw (by gas_ok) (by gas_ok)
     step popR
     exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
@@ -563,18 +563,18 @@ theorem debitCall (hfork : .berlin ≤ fork) {send fee A v t f : U256} {rest : L
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
 /-- At 9125, the code writes the new balance of `_from`. -/
-theorem debitStore (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem debitStore (hfork : .berlin ≤ fork)
     {nb send fee A v t f : U256} {rest : List U256} (hrest : rest.length ≤ 8)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {cF : Bool} (hcF : coldIn substate message.currentTarget (recipientSlot f) = cF) {gas : Nat}
-    (hg : 102 + sstoreCost fork (originalAt state message.currentTarget (recipientSlot f))
+    (hg : 102 + Gas.writeCost fork (originalAt state message.currentTarget (recipientSlot f))
       (storageAt state message.currentTarget (recipientSlot f)) nb cF + 2300 ≤ gas)
     {M : ByteArray} (hM : M.size = 96) :
     Gas.HoareG fork (At CODE message 9125 (nb :: 0x60 :: send :: fee :: A :: v :: t :: f :: rest) M
         gas state substate)
       (At CODE message 9193 (0x60 :: send :: fee :: A :: v :: t :: f :: rest)
         (mapMem M (mkey f) 2)
-        (gas - (102 + sstoreCost fork (originalAt state message.currentTarget (recipientSlot f))
+        (gas - (102 + Gas.writeCost fork (originalAt state message.currentTarget (recipientSlot f))
           (storageAt state message.currentTarget (recipientSlot f)) nb cF))
         (writeSlot state message.currentTarget (recipientSlot f) nb)
         (storeSub fork substate message.currentTarget (recipientSlot f)
@@ -591,7 +591,7 @@ theorem debitStore (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   step dupR 1
   step swapR 0
   norm
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic hacc hcF (by gas_ok) (by gas_ok)
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic hacc hcF (by gas_ok) (by gas_ok)
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
@@ -630,19 +630,19 @@ theorem creditCall (hfork : .berlin ≤ fork) {send fee A v t f : U256} {rest : 
 
 /-- At 9274, the code writes the new balance of `_to`; with a fee of 0 it skips the owner's
 credit and goes to the log at 9700. -/
-theorem creditStore (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem creditStore (hfork : .berlin ≤ fork)
     {nt send A v t f : U256} {rest : List U256} (hrest : rest.length ≤ 8)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {cT : Bool} (hcT : coldIn substate message.currentTarget (recipientSlot t) = cT) {gas : Nat}
     (hstip : 2401 ≤ gas)
-    (hg : 127 + sstoreCost fork (originalAt state message.currentTarget (recipientSlot t))
+    (hg : 127 + Gas.writeCost fork (originalAt state message.currentTarget (recipientSlot t))
       (storageAt state message.currentTarget (recipientSlot t)) nt cT ≤ gas)
     {M : ByteArray} (hM : M.size = 96) :
     Gas.HoareG fork (At CODE message 9274 (nt :: 0x60 :: send :: 0 :: A :: v :: t :: f :: rest) M
         gas state substate)
       (At CODE message 9700 (0x60 :: send :: 0 :: A :: v :: t :: f :: rest)
         (mapMem M (mkey t) 2)
-        (gas - (127 + sstoreCost fork (originalAt state message.currentTarget (recipientSlot t))
+        (gas - (127 + Gas.writeCost fork (originalAt state message.currentTarget (recipientSlot t))
           (storageAt state message.currentTarget (recipientSlot t)) nt cT))
         (writeSlot state message.currentTarget (recipientSlot t) nt)
         (storeSub fork substate message.currentTarget (recipientSlot t)
@@ -659,7 +659,7 @@ theorem creditStore (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   step dupR 1
   step swapR 0
   norm
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic hacc hcT (by gas_ok) (by gas_ok)
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic hacc hcT (by gas_ok) (by gas_ok)
   step popR
   step pushR 1 (0 : U256)
   step dupR 3

@@ -13,7 +13,7 @@ conclusion: call data of at least 68 bytes, and for `v ≠ 0` an allowance of 0.
 The other cases are excluded by the reverts `Approve.spec_payload` (call data shorter than 68
 bytes) and `Approve.spec_revert` (`v ≠ 0` over a nonzero allowance).
 
-Hypotheses beyond the call: Berlin ≤ fork < Glamsterdam, the frame is not static (`hstatic`),
+Hypotheses beyond the call: Berlin ≤ fork (Glamsterdam included), the frame is not static (`hstatic`),
 and the contract has an account (`hacc`); the write of the success paths needs both.
 -/
 
@@ -31,7 +31,7 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
   {evm s : Evm fork Nat} {gas : Nat}
 
 /-- Every successful `approve(s, v)` call, not deprecated, is the `v = 0` or the `v ≠ 0` path. -/
-theorem ok_approve (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem ok_approve (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x095ea7b3)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
@@ -44,7 +44,7 @@ theorem ok_approve (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hok : s.error = none) :
     68 ≤ message.data.size ∧ s.output = .empty ∧
       ((wordArg message.data 1 = 0 ∧
-        s.gas = gas - (2560 + slotCost c10 + sstoreCost fork
+        s.gas = gas - (2560 + slotCost c10 + Gas.writeCost fork
           (originalAt state message.currentTarget (allowArg message))
           (storageAt state message.currentTarget (allowArg message)) 0 cA) ∧
         s.state = writeSlot (readSlot state message.currentTarget 10) message.currentTarget
@@ -58,7 +58,7 @@ theorem ok_approve (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
             (bitwiseAnd ADDR_MASK (addrArg message.data 0)) 0) }) ∨
       (wordArg message.data 1 ≠ 0 ∧
         storageAt state message.currentTarget (allowArg message) = 0 ∧
-        s.gas = gas - (2753 + slotCost c10 + slotCost cA + sstoreCost fork
+        s.gas = gas - (2753 + slotCost c10 + slotCost cA + Gas.writeCost fork
           (originalAt state message.currentTarget (allowArg message)) 0
           (wordArg message.data 1) false) ∧
         s.state = writeSlot (readSlot (readSlot state message.currentTarget 10)
@@ -78,10 +78,10 @@ theorem ok_approve (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   have hl : 68 ≤ message.data.size := by omega
   by_cases hz : wordArg message.data 1 = 0
   · obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_add_left _ _)
-      (B := (2997 + slotCost c10) + (2560 + slotCost c10 + sstoreCost fork
+      (B := (2997 + slotCost c10) + (2560 + slotCost c10 + Gas.writeCost fork
           (originalAt state message.currentTarget (allowArg message))
           (storageAt state message.currentTarget (allowArg message)) 0 cA))
-      (fun g hg => spec_zero hfork hglam hstatic hacc hl hsize' hsel hv hdep hz hc10 hcA
+      (fun g hg => spec_zero hfork hstatic hacc hl hsize' hsel hv hdep hz hc10 hcA
         (le_l hg) (le_r hg))
       start within hrun hok
     exact ⟨hl, ho, .inl ⟨hz, hg, hst, hss⟩⟩
@@ -91,10 +91,10 @@ theorem ok_approve (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   have ha : storageAt state message.currentTarget (allowArg message) = 0 := by
     simpa using ha
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_add_left _ _)
-    (B := (3190 + slotCost c10 + slotCost cA) + (2753 + slotCost c10 + slotCost cA + sstoreCost fork
+    (B := (3190 + slotCost c10 + slotCost cA) + (2753 + slotCost c10 + slotCost cA + Gas.writeCost fork
         (originalAt state message.currentTarget (allowArg message)) 0
         (wordArg message.data 1) false))
-    (fun g hg => spec_set hfork hglam hstatic hacc hl hsize' hsel hv hdep hz ha hc10 hcA
+    (fun g hg => spec_set hfork hstatic hacc hl hsize' hsel hv hdep hz ha hc10 hcA
       (le_l hg) (le_r hg))
     start within hrun hok
   exact ⟨hl, ho, .inr ⟨hz, ha, hg, hst, hss⟩⟩

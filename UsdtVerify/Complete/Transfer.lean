@@ -18,7 +18,7 @@ Each other case is excluded by a specification over `StepG` that ends with an er
 reverts (`spec_paused`, `spec_blacklisted`, `spec_short`) and the INVALID paths (`spec_mulOv`,
 `spec_feeGt`, `spec_low`, `spec_toOv`, `spec_ownerOv`).
 
-Hypotheses beyond the call: Berlin ≤ fork < Glamsterdam, the frame is not static, and the
+Hypotheses beyond the call: Berlin ≤ fork (Glamsterdam included), the frame is not static, and the
 contract has an account (the writes of the success paths and of the INVALID paths after a write
 need them).
 -/
@@ -41,7 +41,7 @@ theorem sendOf_zero {S : State.TransactionState} {v : U256} (h : feeOf S message
   simp [sendOf, h, sub]
 
 /-- Every successful `transfer(a, v)` call, not deprecated, is the fee-0 or the fee path. -/
-theorem ok_transfer (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem ok_transfer (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xa9059cbb)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
@@ -130,7 +130,7 @@ theorem ok_transfer (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
         capCost (rawFee (shortState state message) message (wordArg message.data 1))
           (storageAt (shortState state message) message.currentTarget 4) +
         debitCost fork (shortState state message) message (wordArg message.data 1))))
-      (fun g hg => spec_toOv hfork hglam hstatic hacc hl hsize' hsel hv hp hb hdep hov hfv hbal hto
+      (fun g hg => spec_toOv hfork hstatic hacc hl hsize' hsel hv hp hb hdep hov hfv hbal hto
         hc0 hcB hc10 hc3 hc4 hcS hcT (le_l hg) (le_r hg))
       (fun _ e h => faulted_error e h) start within hrun hok).elim
   have hto := Nat.lt_of_not_le hto
@@ -149,7 +149,7 @@ theorem ok_transfer (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
         capCost (rawFee (shortState state message) message (wordArg message.data 1))
           (storageAt (shortState state message) message.currentTarget 4) +
         debitCost fork (shortState state message) message (wordArg message.data 1) + 2401))))
-      (fun g hg => spec_ok hfork hglam hstatic hacc hl hsize' hsel hv hp hb hdep hov hfee hbal
+      (fun g hg => spec_ok hfork hstatic hacc hl hsize' hsel hv hp hb hdep hov hfee hbal
         hto' hc0 hcB hc10 hc3 hc4 hcS hcT (le_l (le_r hg)) (le_r (le_r hg)) (le_l hg))
       start within hrun hok
     exact ⟨ho, .inl ⟨hfee, hg, hst, hss⟩⟩
@@ -169,12 +169,12 @@ theorem ok_transfer (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
         debitCost fork (shortState state message) message (wordArg message.data 1) +
         creditCostFee fork (shortState state message) message (wordArg message.data 1)
           (addrArg message.data 0) + 313 + slotCost cO)))
-      (fun g hg => spec_ownerOv hfork hglam hstatic hacc hl hsize' hsel hv hp hb hdep hov hfee hfv
+      (fun g hg => spec_ownerOv hfork hstatic hacc hl hsize' hsel hv hp hb hdep hov hfee hfv
         hbal hto hown hc0 hcB hc10 hc3 hc4 hcS hcT hcO (le_l hg) (le_r hg))
       (fun _ e h => faulted_error e h) start within hrun hok).elim
   have hown := Nat.lt_of_not_le hown
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => spec_fee hfork hglam hstatic hacc hl hsize' hsel hv hp hb hdep hov hfee hfv hbal
+    (fun g hg => spec_fee hfork hstatic hacc hl hsize' hsel hv hp hb hdep hov hfee hfv hbal
       hto hown hc0 hcB hc10 hc3 hc4 hcS hcT hcO hg)
     start within hrun hok
   exact ⟨ho, .inr ⟨hfee, hown, hg, hst, hss⟩⟩

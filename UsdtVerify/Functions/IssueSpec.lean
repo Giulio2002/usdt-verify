@@ -291,14 +291,14 @@ abbrev issueState (state : State.TransactionState) (message : Message fork) :
 
 /-- The price of the write of `balances[owner]` in issue (the slot is warm). -/
 abbrev issueCostO (fork : Fork) (state : State.TransactionState) (message : Message fork) : Nat :=
-  sstoreCost fork (originalAt state message.currentTarget (ownerBal state message.currentTarget))
+  Gas.writeCost fork (originalAt state message.currentTarget (ownerBal state message.currentTarget))
     (storageAt state message.currentTarget (ownerBal state message.currentTarget))
     (add (storageAt state message.currentTarget (ownerBal state message.currentTarget))
       (wordArg message.data 0)) false
 
 /-- The price of the write of `_totalSupply` in issue (the slot is warm). -/
 abbrev issueCostT (fork : Fork) (state : State.TransactionState) (message : Message fork) : Nat :=
-  sstoreCost fork (originalAt state message.currentTarget 1)
+  Gas.writeCost fork (originalAt state message.currentTarget 1)
     (storageAt (issueState1 state message) message.currentTarget 1)
     (add (storageAt (issueState1 state message) message.currentTarget 1) (wordArg message.data 0))
     false
@@ -320,7 +320,7 @@ abbrev issueSub (fork : Fork) (substate : Substate) (state : State.TransactionSt
 
 /-- The specification of a successful `issue(a)`.
 
-Hypotheses: Berlin ≤ fork < Glamsterdam; a frame that may write, of an existing account `C`;
+Hypotheses: Berlin ≤ fork (Glamsterdam included); a frame that may write, of an existing account `C`;
 call data of 4 to 2^256 - 1 bytes with selector 0xcc872b66; no value; the caller is the owner;
 `0 < a` and `T + a < 2^256`; `B + a < 2^256` (`B` the word of `balances[owner]`); enough gas,
 and more than 2300 left at each SSTORE.
@@ -329,7 +329,7 @@ Then the run stops normally: `balances[owner] := B + a`, then `_totalSupply := T
 after the first write; `T' = T` unless the two slots coincide, see `issue_effects`); one log
 `Issue(a)` (topic 0xcb8241ad…, data the word `a`). Gas left:
 `gas - (3024 + prices of the reads of slots 0, 1, O + prices of the two writes)`. -/
-theorem spec_issue (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_issue (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xcc872b66)
@@ -374,11 +374,11 @@ theorem spec_issue (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (TransferFrom.coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
   refine Gas.SpecG.seq (issuePre hfork hsize hsize' hsel hv hown hT hc0 hc1 hcO (by omega)) ?_
   step reqPass (Or.inr (Or.inl ⟨rfl, rfl⟩)) (gtAdd_ne ⟨hT.1, hB⟩) (by simp) (by gas_ok)
-  step issueOwner hfork hglam (by simp) hstatic hacc2 hw0 hwO
+  step issueOwner hfork (by simp) hstatic hacc2 hw0 hwO
     (size_mapMem (size_mapMem size_MEM0 _ _) _ _) (by gas_ok)
     (by simp only [ownerBal_readSlot, storageAt_readSlot, originalAt_readSlot]; gas_ok)
   simp only [ownerBal_readSlot, ownerOf_readSlot, storageAt_readSlot, originalAt_readSlot]
-  step issueTotal hfork hglam (by simp) hstatic (hasAccount_writeSlot hacc1) hw1 (by gas_ok)
+  step issueTotal hfork (by simp) hstatic (hasAccount_writeSlot hacc1) hw1 (by gas_ok)
     (by rw [originalAt_writeSlot hacc1, originalAt_readSlot, originalAt_readSlot,
       originalAt_readSlot, originalAt_readSlot]; gas_ok)
   rw [originalAt_writeSlot hacc1, originalAt_readSlot, originalAt_readSlot,
@@ -466,12 +466,12 @@ abbrev redeemState (state : State.TransactionState) (message : Message fork) :
       (ownerBal state message.currentTarget)) (wordArg message.data 0))
 
 abbrev redeemCostT (fork : Fork) (state : State.TransactionState) (message : Message fork) : Nat :=
-  sstoreCost fork (originalAt state message.currentTarget 1)
+  Gas.writeCost fork (originalAt state message.currentTarget 1)
     (storageAt state message.currentTarget 1)
     (sub (storageAt state message.currentTarget 1) (wordArg message.data 0)) false
 
 abbrev redeemCostO (fork : Fork) (state : State.TransactionState) (message : Message fork) : Nat :=
-  sstoreCost fork (originalAt state message.currentTarget (ownerBal state message.currentTarget))
+  Gas.writeCost fork (originalAt state message.currentTarget (ownerBal state message.currentTarget))
     (storageAt (redeemState1 state message) message.currentTarget
       (ownerBal state message.currentTarget))
     (sub (storageAt (redeemState1 state message) message.currentTarget
@@ -497,7 +497,7 @@ abbrev redeemSub (fork : Fork) (substate : Substate) (state : State.TransactionS
 `a ≤ T` and `a ≤ B`; `_totalSupply := T - a` first, then `balances[owner] := B' - a` (`B'` read
 after the first write); log `Redeem(a)` (topic 0x702d5967…); gas left
 `gas - (2614 + prices of the reads of slots 0, 1, O + prices of the two writes)`. -/
-theorem spec_redeem (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_redeem (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xdb006a75)
@@ -545,10 +545,10 @@ theorem spec_redeem (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     exact TransferFee.coldIn_storeSub_false (coldIn_accessSlot_self _ _ _)
   refine Gas.SpecG.seq (redeemPre hfork hsize hsize' hsel hv hown hT hc0 hc1 hcO (by omega)) ?_
   step reqPass (Or.inr (Or.inr (Or.inr ⟨rfl, rfl⟩))) (ge_ne hB) (by simp) (by gas_ok)
-  step redeemTotal hfork hglam (by simp) hstatic hacc2 hw1 (by gas_ok)
+  step redeemTotal hfork (by simp) hstatic hacc2 hw1 (by gas_ok)
     (by simp only [storageAt_readSlot, originalAt_readSlot]; gas_ok)
   simp only [storageAt_readSlot, originalAt_readSlot]
-  step redeemOwner hfork hglam (by simp) hstatic hacc3 hw0 hwO (size_mapMem size_MEM0 _ _)
+  step redeemOwner hfork (by simp) hstatic hacc3 hw0 hwO (size_mapMem size_MEM0 _ _)
     (by gas_ok)
     (by rw [ownerBal_writeSlot hacc2 (by decide), ownerBal_readSlot, ownerBal_readSlot,
       ownerBal_readSlot, originalAt_writeSlot hacc2, originalAt_readSlot, originalAt_readSlot,

@@ -337,24 +337,24 @@ macro "op_write " b:term:max i:term:max hcold:term:max : tactic => `(tactic| (
   step dupR 1
   step swapR 0
   norm
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   rw [originalAt_readSlot, storageAt_readSlot, writeSlot_readSlot _ _ hacc, storeSub_accessSlot]
   step popR))
 
 /-- At 6449 (issue): `_totalSupply += amount`. -/
-theorem issueTotal (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a : U256}
+theorem issueTotal (hfork : .berlin ≤ fork) {a : U256}
     {rest : List U256} (hrest : rest.length ≤ 800) (hstatic : message.isStatic = false)
     (hacc : hasAccount state message.currentTarget)
     (hc1 : coldIn substate message.currentTarget 1 = false) {M : ByteArray} {gas : Nat}
     (hstip : 2432 ≤ gas)
-    (hg : 133 + sstoreCost fork (originalAt state message.currentTarget 1)
+    (hg : 133 + Gas.writeCost fork (originalAt state message.currentTarget 1)
       (storageAt state message.currentTarget 1) (add (storageAt state message.currentTarget 1) a)
       false ≤ gas) :
     Gas.HoareG fork (At CODE message 6449 (a :: rest) M gas state substate)
       (At CODE message 6465 (a :: rest) M
-        (gas - (133 + sstoreCost fork (originalAt state message.currentTarget 1)
+        (gas - (133 + Gas.writeCost fork (originalAt state message.currentTarget 1)
           (storageAt state message.currentTarget 1)
           (add (storageAt state message.currentTarget 1) a) false))
         (writeSlot state message.currentTarget 1 (add (storageAt state message.currentTarget 1) a))
@@ -368,17 +368,17 @@ theorem issueTotal (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a :
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
 /-- At 6741 (redeem): `_totalSupply -= amount`. -/
-theorem redeemTotal (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a : U256}
+theorem redeemTotal (hfork : .berlin ≤ fork) {a : U256}
     {rest : List U256} (hrest : rest.length ≤ 800) (hstatic : message.isStatic = false)
     (hacc : hasAccount state message.currentTarget)
     (hc1 : coldIn substate message.currentTarget 1 = false) {M : ByteArray} {gas : Nat}
     (hstip : 2433 ≤ gas)
-    (hg : 134 + sstoreCost fork (originalAt state message.currentTarget 1)
+    (hg : 134 + Gas.writeCost fork (originalAt state message.currentTarget 1)
       (storageAt state message.currentTarget 1) (sub (storageAt state message.currentTarget 1) a)
       false ≤ gas) :
     Gas.HoareG fork (At CODE message 6741 (a :: rest) M gas state substate)
       (At CODE message 6758 (a :: rest) M
-        (gas - (134 + sstoreCost fork (originalAt state message.currentTarget 1)
+        (gas - (134 + Gas.writeCost fork (originalAt state message.currentTarget 1)
           (storageAt state message.currentTarget 1)
           (sub (storageAt state message.currentTarget 1) a) false))
         (writeSlot state message.currentTarget 1 (sub (storageAt state message.currentTarget 1) a))
@@ -393,20 +393,20 @@ theorem redeemTotal (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a 
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
 /-- At 6338 (issue): `balances[owner] += amount`. -/
-theorem issueOwner (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a : U256}
+theorem issueOwner (hfork : .berlin ≤ fork) {a : U256}
     {rest : List U256} (hrest : rest.length ≤ 800) (hstatic : message.isStatic = false)
     (hacc : hasAccount state message.currentTarget)
     (hc0 : coldIn substate message.currentTarget 0 = false)
     (hcO : coldIn substate message.currentTarget (ownerBal state message.currentTarget) = false)
     {M : ByteArray} (hM : M.size = 96) {gas : Nat} (hstip : 2659 ≤ gas)
-    (hg : 360 + sstoreCost fork
+    (hg : 360 + Gas.writeCost fork
       (originalAt state message.currentTarget (ownerBal state message.currentTarget))
       (storageAt state message.currentTarget (ownerBal state message.currentTarget))
       (add (storageAt state message.currentTarget (ownerBal state message.currentTarget)) a)
       false ≤ gas) :
     Gas.HoareG fork (At CODE message 6338 (a :: rest) M gas state substate)
       (At CODE message 6449 (a :: rest) (mapMem M (ownerOf state message.currentTarget) 2)
-        (gas - (360 + sstoreCost fork
+        (gas - (360 + Gas.writeCost fork
           (originalAt state message.currentTarget (ownerBal state message.currentTarget))
           (storageAt state message.currentTarget (ownerBal state message.currentTarget))
           (add (storageAt state message.currentTarget (ownerBal state message.currentTarget)) a)
@@ -441,7 +441,7 @@ theorem issueOwner (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a :
       (ownerBal state message.currentTarget))
     (ss' := accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
       (ownerBal state message.currentTarget)) rfl rfl rfl rfl rfl rfl
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by simp only [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   simp only [originalAt_readSlot, storageAt_readSlot]
@@ -450,20 +450,20 @@ theorem issueOwner (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a :
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
 /-- At 6758 (redeem): `balances[owner] -= amount`. -/
-theorem redeemOwner (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a : U256}
+theorem redeemOwner (hfork : .berlin ≤ fork) {a : U256}
     {rest : List U256} (hrest : rest.length ≤ 800) (hstatic : message.isStatic = false)
     (hacc : hasAccount state message.currentTarget)
     (hc0 : coldIn substate message.currentTarget 0 = false)
     (hcO : coldIn substate message.currentTarget (ownerBal state message.currentTarget) = false)
     {M : ByteArray} (hM : M.size = 96) {gas : Nat} (hstip : 2658 ≤ gas)
-    (hg : 359 + sstoreCost fork
+    (hg : 359 + Gas.writeCost fork
       (originalAt state message.currentTarget (ownerBal state message.currentTarget))
       (storageAt state message.currentTarget (ownerBal state message.currentTarget))
       (sub (storageAt state message.currentTarget (ownerBal state message.currentTarget)) a)
       false ≤ gas) :
     Gas.HoareG fork (At CODE message 6758 (a :: rest) M gas state substate)
       (At CODE message 6868 (a :: rest) (mapMem M (ownerOf state message.currentTarget) 2)
-        (gas - (359 + sstoreCost fork
+        (gas - (359 + Gas.writeCost fork
           (originalAt state message.currentTarget (ownerBal state message.currentTarget))
           (storageAt state message.currentTarget (ownerBal state message.currentTarget))
           (sub (storageAt state message.currentTarget (ownerBal state message.currentTarget)) a)
@@ -497,7 +497,7 @@ theorem redeemOwner (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a 
       (ownerBal state message.currentTarget))
     (ss' := accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
       (ownerBal state message.currentTarget)) rfl rfl rfl rfl rfl rfl
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by simp only [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   simp only [originalAt_readSlot, storageAt_readSlot]

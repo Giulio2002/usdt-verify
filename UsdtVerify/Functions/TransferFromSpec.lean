@@ -75,7 +75,7 @@ argument word 2, `S` for the state after the reads of the checks (slot 0, `isBla
 slot 10; reads change no word), `A` for `allowed[f][caller]` (slot
 `keccak(caller ++ keccak(f ++ 5))`) in `S`.
 
-Hypotheses: Berlin ≤ fork < Glamsterdam; not static; `C` has an account; call data of 100 to
+Hypotheses: Berlin ≤ fork (Glamsterdam included); not static; `C` has an account; call data of 100 to
 2^256 - 1 bytes with selector 0x23b872dd; no value; not paused; `f` not blacklisted (low byte of
 `isBlackListed[f]` is 0; the caller and `t` are not checked); not deprecated;
 `v * basisPointsRate` does not overflow; the fee is 0; `A = MAX_UINT` or `v ≤ A`;
@@ -87,7 +87,7 @@ Then the run stops normally (STOP) with gas left `gas - okCostF`; the state `cre
 `A ≠ MAX_UINT` the allowance slot := `A - v` (else untouched), then `balances[f] := balF - v`,
 then `balances[t] := balT + v`; the substate with the slots accessed, the refunds of the writes,
 and the log `Transfer(f, t, v)` (topic 0xddf252ad…, data the 32 bytes of `v`) appended. -/
-theorem spec_ok (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_ok (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 100 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x23b872dd) (hv : message.value = 0)
@@ -131,7 +131,7 @@ theorem spec_ok (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   have hB := body (state := checkState state message) (substate := checkSub substate message)
     (sel := BitVec.ofNat 256 (selector message.data))
     (gas := gas - (PRE_COST_F + slotCost c0 + slotCost cB + slotCost c10))
-    hfork hglam hstatic
+    hfork hstatic
     (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
     (size_mapMem size_MEM0 (mkey (fromArg message)) 6)
     (ptr_mapMem size_MEM0 mload_MEM0 _ _) hov hfee hallow hbal hto hcA hc3 hc4 hcF hcT
@@ -164,7 +164,7 @@ theorem spec_ok (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
 
 /-- The loop of the interpreter runs a successful `transferFrom` call with a fee of 0 to its
 specification. It holds for every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_ok (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_ok (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 100 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x23b872dd) (hv : message.value = 0)
@@ -209,7 +209,7 @@ theorem runFrame_ok (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
           (fromArg message))
         (loggedSubF fork (checkSub substate message) (checkState state message) message
           (valArg message) (toArg message) (fromArg message)) stopped :=
-  (spec_ok hfork hglam hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hfee hallow hbal hto hc0 hcB
+  (spec_ok hfork hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hfee hallow hbal hto hc0 hcB
     hc10 hcA hc3 hc4 hcF hcT hstip hg).runFrame start within
 
 end UsdtVerify.TransferFrom

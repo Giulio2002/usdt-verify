@@ -244,7 +244,7 @@ theorem runFrame_unpause_notPaused (hfork : .berlin ≤ fork) (hsize : 4 ≤ mes
   (spec_unpause_notPaused hfork hsize hsize' hsel hv hown hnp hc0 hg).runFrame start within
 
 /-- `spec_pause` for the interpreter loop. -/
-theorem runFrame_pause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_pause (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x8456cb59)
@@ -265,10 +265,10 @@ theorem runFrame_pause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
               (originalAt state message.currentTarget 0) (storageAt state message.currentTarget 0)
               (withPaused (storageAt state message.currentTarget 0) 1) with
             logs := substate.logs.push (log0 message.currentTarget PAUSE_TOPIC) }) stopped :=
-  (spec_pause hfork hglam hstatic hacc hsize hsize' hsel hv hown hnp hc0 hstip hg).runFrame start within
+  (spec_pause hfork hstatic hacc hsize hsize' hsel hv hown hnp hc0 hstip hg).runFrame start within
 
 /-- `spec_unpause` for the interpreter loop. -/
-theorem runFrame_unpause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_unpause (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x3f4ba83a)
@@ -289,7 +289,7 @@ theorem runFrame_unpause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam
               (originalAt state message.currentTarget 0) (storageAt state message.currentTarget 0)
               (withPaused (storageAt state message.currentTarget 0) 0) with
             logs := substate.logs.push (log0 message.currentTarget UNPAUSE_TOPIC) }) stopped :=
-  (spec_unpause hfork hglam hstatic hacc hsize hsize' hsel hv hown hp hc0 hstip hg).runFrame start within
+  (spec_unpause hfork hstatic hacc hsize hsize' hsel hv hown hp hc0 hstip hg).runFrame start within
 
 end UsdtVerify.PauseSpec
 
@@ -336,7 +336,7 @@ theorem runFrame_remove_notOwner (hfork : .berlin ≤ fork) (hsize : 4 ≤ messa
   (spec_remove_notOwner hfork hsize hsize' hsel hv hown hc0 hg).runFrame start within
 
 /-- `spec_add` for the interpreter loop. -/
-theorem runFrame_add (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_add (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x0ecb93c0) (hv : message.value = 0)
@@ -353,10 +353,10 @@ theorem runFrame_add (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       .ok stopped ∧
       (Halted false .empty (gas - (1567 + slotCost c0 + slotCost cB + listCost fork state message 1))
           (listState state message 1) (listSub fork substate state message 1 ADDED_TOPIC)) stopped :=
-  (spec_add hfork hglam hstatic hacc hsize hsize' hsel hv hown hc0 hcB hstip hg).runFrame start within
+  (spec_add hfork hstatic hacc hsize hsize' hsel hv hown hc0 hcB hstip hg).runFrame start within
 
 /-- `spec_remove` for the interpreter loop. -/
-theorem runFrame_remove (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_remove (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xe4997dc5) (hv : message.value = 0)
@@ -373,7 +373,7 @@ theorem runFrame_remove (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       .ok stopped ∧
       (Halted false .empty (gas - (2095 + slotCost c0 + slotCost cB + listCost fork state message 0))
           (listState state message 0) (listSub fork substate state message 0 REMOVED_TOPIC)) stopped :=
-  (spec_remove hfork hglam hstatic hacc hsize hsize' hsel hv hown hc0 hcB hstip hg).runFrame start within
+  (spec_remove hfork hstatic hacc hsize hsize' hsel hv hown hc0 hcB hstip hg).runFrame start within
 
 end UsdtVerify.BlackListSpec
 
@@ -480,7 +480,7 @@ theorem runFrame_issue_req2 (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.da
   (spec_issue_req2 hfork hsize hsize' hsel hv hown hT hB hc0 hc1 hcO hg).runFrame start within
 
 /-- `spec_issue` for the interpreter loop. -/
-theorem runFrame_issue (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_issue (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xcc872b66)
@@ -505,7 +505,7 @@ theorem runFrame_issue (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (Halted false .empty (gas - (3024 + slotCost c0 + slotCost c1 + slotCost cO +
             issueCostO fork state message + issueCostT fork state message))
           (issueState state message) (issueSub fork substate state message)) stopped :=
-  (spec_issue hfork hglam hstatic hacc hsize hsize' hsel hv hown hT hB hc0 hc1 hcO hstip hg).runFrame start within
+  (spec_issue hfork hstatic hacc hsize hsize' hsel hv hown hT hB hc0 hc1 hcO hstip hg).runFrame start within
 
 /-- `spec_redeem_req2` for the interpreter loop. -/
 theorem runFrame_redeem_req2 (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
@@ -529,7 +529,7 @@ theorem runFrame_redeem_req2 (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.d
   (spec_redeem_req2 hfork hsize hsize' hsel hv hown hT hB hc0 hc1 hcO hg).runFrame start within
 
 /-- `spec_redeem` for the interpreter loop. -/
-theorem runFrame_redeem (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_redeem (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xdb006a75)
@@ -553,7 +553,7 @@ theorem runFrame_redeem (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (Halted false .empty (gas - (2614 + slotCost c0 + slotCost c1 + slotCost cO +
             redeemCostT fork state message + redeemCostO fork state message))
           (redeemState state message) (redeemSub fork substate state message)) stopped :=
-  (spec_redeem hfork hglam hstatic hacc hsize hsize' hsel hv hown hT hB hc0 hc1 hcO hstip hg).runFrame start within
+  (spec_redeem hfork hstatic hacc hsize hsize' hsel hv hown hT hB hc0 hc1 hcO hstip hg).runFrame start within
 
 end UsdtVerify.IssueSpec
 
@@ -617,7 +617,7 @@ theorem runFrame_feeHigh (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.
   (spec_feeHigh hfork hsize hsize' hsel hv hown hb hm hc0 hg).runFrame start within
 
 /-- `spec_setParams` for the interpreter loop. -/
-theorem runFrame_setParams (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_setParams (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xc0324c77)
@@ -632,7 +632,7 @@ theorem runFrame_setParams (hfork : .berlin ≤ fork) (hglam : fork < .glamsterd
     (hc4 : coldIn (accessSlot (accessSlot (accessSlot substate message.currentTarget 0)
       message.currentTarget 3) message.currentTarget 9) message.currentTarget 4 = c4)
     {gas : Nat}
-    (hstip : 3168 + slotCost c0 + sstoreCost fork (originalAt state message.currentTarget 3)
+    (hstip : 3168 + slotCost c0 + Gas.writeCost fork (originalAt state message.currentTarget 3)
       (storageAt state message.currentTarget 3) (wordArg message.data 0) c3 + slotCost c9 +
       50 * exponentBytes (storageAt state message.currentTarget 9) +
       mulCost (wordArg message.data 1) ≤ gas)
@@ -644,7 +644,7 @@ theorem runFrame_setParams (hfork : .berlin ≤ fork) (hglam : fork < .glamsterd
       .ok stopped ∧
       (Halted false .empty (gas - (2425 + paramsCost fork state message c0 c3 c9 c4))
           (paramsState state message) (paramsSub fork substate state message)) stopped :=
-  (spec_setParams hfork hglam hstatic hacc hsize hsize' hsel hv hown hb hm hov hc0 hc3 hc9 hc4 hstip hg).runFrame start within
+  (spec_setParams hfork hstatic hacc hsize hsize' hsel hv hown hb hm hov hc0 hc3 hc9 hc4 hstip hg).runFrame start within
 
 end UsdtVerify.SetParamsSpec
 
@@ -707,7 +707,7 @@ theorem runFrame_transferOwnership_zero (hfork : .berlin ≤ fork) (hsize : 4 �
   (spec_transferOwnership_zero hfork hsize hsize' hsel hv hown hz hc0 hg).runFrame start within
 
 /-- `spec_transferOwnership` for the interpreter loop. -/
-theorem runFrame_transferOwnership (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_transferOwnership (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf2fde38b)
@@ -727,10 +727,10 @@ theorem runFrame_transferOwnership (hfork : .berlin ≤ fork) (hglam : fork < .g
           (storeSub fork substate message.currentTarget 0 (originalAt state message.currentTarget 0)
             (storageAt state message.currentTarget 0)
             (withAddr (storageAt state message.currentTarget 0) (addrArg message.data 0)))) stopped :=
-  (spec_transferOwnership hfork hglam hstatic hacc hsize hsize' hsel hv hown hnz hc0 hstip hg).runFrame start within
+  (spec_transferOwnership hfork hstatic hacc hsize hsize' hsel hv hown hnz hc0 hstip hg).runFrame start within
 
 /-- `spec_deprecate` for the interpreter loop. -/
-theorem runFrame_deprecate (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_deprecate (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x0753c30c)
@@ -738,7 +738,7 @@ theorem runFrame_deprecate (hfork : .berlin ≤ fork) (hglam : fork < .glamsterd
     {c0 c10 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (hc10 : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget 10 = c10)
     {gas : Nat}
-    (hstip : 2840 + slotCost c0 + slotCost c10 + sstoreCost fork
+    (hstip : 2840 + slotCost c0 + slotCost c10 + Gas.writeCost fork
       (originalAt state message.currentTarget 10) (storageAt state message.currentTarget 10)
       (withPaused (storageAt state message.currentTarget 10) 1) false ≤ gas)
     (hg : 1628 + slotCost c0 + slotCost c10 + depCost fork state message ≤ gas)
@@ -749,7 +749,7 @@ theorem runFrame_deprecate (hfork : .berlin ≤ fork) (hglam : fork < .glamsterd
       .ok stopped ∧
       (Halted false .empty (gas - (1628 + slotCost c0 + slotCost c10 + depCost fork state message))
           (depState state message) (depSub fork substate state message)) stopped :=
-  (spec_deprecate hfork hglam hstatic hacc hsize hsize' hsel hv hown hc0 hc10 hstip hg).runFrame start within
+  (spec_deprecate hfork hstatic hacc hsize hsize' hsel hv hown hc0 hc10 hstip hg).runFrame start within
 
 end UsdtVerify.AddrWriteSpec
 

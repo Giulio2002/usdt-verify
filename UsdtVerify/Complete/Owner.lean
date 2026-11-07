@@ -22,7 +22,7 @@ The other cases are excluded by the reverts (`*_notOwner`, `spec_pause_paused`,
 `spec_feeHigh`, `Destroy.spec_notListed`) and, for setParams, by the INVALID of the overflow of
 `m * 10^d` (`SetParamsSpec.spec_mulOv`).
 
-Hypotheses beyond the call: Berlin ≤ fork < Glamsterdam, the frame is not static (`hstatic`),
+Hypotheses beyond the call: Berlin ≤ fork (Glamsterdam included), the frame is not static (`hstatic`),
 the contract has an account (`hacc`); destroyBlackFunds also takes `hdep` (byte 20 of slot 10 is
 0: the deprecated path calls out, see DeprecatedDestroy.lean).
 -/
@@ -44,7 +44,7 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
 theorem not_ne {a b : U256} (h : ¬ a ≠ b) : a = b := by simpa using h
 
 /-- Every successful `pause()` call is the owner's, when not paused. -/
-theorem ok_pause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem ok_pause (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x8456cb59)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
@@ -71,12 +71,12 @@ theorem ok_pause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hp : byte20 (storageAt state message.currentTarget 0) = 0 := by omega
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
-    (fun g h1 h2 => spec_pause hfork hglam hstatic hacc h4 hsize' hsel hv hown hp hc0 h1 h2)
+    (fun g h1 h2 => spec_pause hfork hstatic hacc h4 hsize' hsel hv hown hp hc0 h1 h2)
     start within hrun hok
   exact ⟨hown, hp, ho, hg, hst, hss⟩
 
 /-- Every successful `unpause()` call is the owner's, when paused. -/
-theorem ok_unpause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem ok_unpause (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x3f4ba83a)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
@@ -102,12 +102,12 @@ theorem ok_unpause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   · exact (no_ok (fun g hg => spec_unpause_notPaused hfork h4 hsize' hsel hv hown hp hc0 hg)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
-    (fun g h1 h2 => spec_unpause hfork hglam hstatic hacc h4 hsize' hsel hv hown hp hc0 h1 h2)
+    (fun g h1 h2 => spec_unpause hfork hstatic hacc h4 hsize' hsel hv hown hp hc0 h1 h2)
     start within hrun hok
   exact ⟨hown, hp, ho, hg, hst, hss⟩
 
 /-- Every successful `addBlackList(a)` call is the owner's. -/
-theorem ok_addBlackList (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem ok_addBlackList (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x0ecb93c0)
     {c0 cB : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
@@ -127,12 +127,12 @@ theorem ok_addBlackList (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hown := not_ne hown
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
-    (fun g h1 h2 => spec_add hfork hglam hstatic hacc h4 hsize' hsel hv hown hc0 hcB h1 h2)
+    (fun g h1 h2 => spec_add hfork hstatic hacc h4 hsize' hsel hv hown hc0 hcB h1 h2)
     start within hrun hok
   exact ⟨hown, ho, hg, hst, hss⟩
 
 /-- Every successful `removeBlackList(a)` call is the owner's. -/
-theorem ok_removeBlackList (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem ok_removeBlackList (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xe4997dc5)
     {c0 cB : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
@@ -152,13 +152,13 @@ theorem ok_removeBlackList (hfork : .berlin ≤ fork) (hglam : fork < .glamsterd
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hown := not_ne hown
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
-    (fun g h1 h2 => spec_remove hfork hglam hstatic hacc h4 hsize' hsel hv hown hc0 hcB h1 h2)
+    (fun g h1 h2 => spec_remove hfork hstatic hacc h4 hsize' hsel hv hown hc0 hcB h1 h2)
     start within hrun hok
   exact ⟨hown, ho, hg, hst, hss⟩
 
 /-- Every successful `issue(a)` call is the owner's, with `0 < a` and no overflow of
 `_totalSupply + a` nor of `balances[owner] + a`. -/
-theorem ok_issue (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem ok_issue (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xcc872b66)
     {c0 c1 cO : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
@@ -195,14 +195,14 @@ theorem ok_issue (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hB := Classical.not_not.mp hB
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
-    (fun g h1 h2 => spec_issue hfork hglam hstatic hacc h4 hsize' hsel hv hown hT hB.2 hc0 hc1 hcO
+    (fun g h1 h2 => spec_issue hfork hstatic hacc h4 hsize' hsel hv hown hT hB.2 hc0 hc1 hcO
       h1 h2)
     start within hrun hok
   exact ⟨hown, hT.1, hT.2, hB.2, ho, hg, hst, hss⟩
 
 /-- Every successful `redeem(a)` call is the owner's, with `a ≤ _totalSupply` and
 `a ≤ balances[owner]`. -/
-theorem ok_redeem (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem ok_redeem (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xdb006a75)
     {c0 c1 cO : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
@@ -236,14 +236,14 @@ theorem ok_redeem (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hB := Nat.le_of_not_lt hB
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
-    (fun g h1 h2 => spec_redeem hfork hglam hstatic hacc h4 hsize' hsel hv hown hT hB hc0 hc1 hcO
+    (fun g h1 h2 => spec_redeem hfork hstatic hacc h4 hsize' hsel hv hown hT hB hc0 hc1 hcO
       h1 h2)
     start within hrun hok
   exact ⟨hown, hT, hB, ho, hg, hst, hss⟩
 
 /-- Every successful `setParams(b, m)` call is the owner's, with `b < 20`, `m < 50` and no
 overflow of `m * 10^d`. -/
-theorem ok_setParams (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem ok_setParams (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xc0324c77)
     {c0 c3 c9 c4 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
@@ -278,17 +278,17 @@ theorem ok_setParams (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   have hm := Nat.lt_of_not_le hm
   by_cases hov : 2 ^ 256 ≤ (wordArg message.data 1).toNat *
       (exp (0x0a : U256) (storageAt state message.currentTarget 9)).toNat
-  · exact (no_ok (fun g hg => SetParamsSpec.spec_mulOv hfork hglam hstatic hacc h4 hsize' hsel hv
+  · exact (no_ok (fun g hg => SetParamsSpec.spec_mulOv hfork hstatic hacc h4 hsize' hsel hv
       hown hb hm hov hc0 hc3 hc9 hg) (fun _ e h => faulted_error e h) start within hrun hok).elim
   have hov := Nat.lt_of_not_le hov
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
-    (fun g h1 h2 => spec_setParams hfork hglam hstatic hacc h4 hsize' hsel hv hown hb hm hov hc0
+    (fun g h1 h2 => spec_setParams hfork hstatic hacc h4 hsize' hsel hv hown hb hm hov hc0
       hc3 hc9 hc4 h1 h2)
     start within hrun hok
   exact ⟨hown, hb, hm, hov, ho, hg, hst, hss⟩
 
 /-- Every successful `deprecate(a)` call is the owner's. -/
-theorem ok_deprecate (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem ok_deprecate (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x0753c30c)
     {c0 c10 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
@@ -306,13 +306,13 @@ theorem ok_deprecate (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hown := not_ne hown
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
-    (fun g h1 h2 => spec_deprecate hfork hglam hstatic hacc h4 hsize' hsel hv hown hc0 hc10 h1 h2)
+    (fun g h1 h2 => spec_deprecate hfork hstatic hacc h4 hsize' hsel hv hown hc0 hc10 h1 h2)
     start within hrun hok
   exact ⟨hown, ho, hg, hst, hss⟩
 
 /-- Every successful `transferOwnership(a)` call is the owner's: with `a = 0` nothing is written,
 otherwise the owner becomes `a`. -/
-theorem ok_transferOwnership (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem ok_transferOwnership (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf2fde38b)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
@@ -342,14 +342,14 @@ theorem ok_transferOwnership (hfork : .berlin ≤ fork) (hglam : fork < .glamste
       start within hrun hok
     exact ⟨hown, ho, .inl ⟨hz, hg, hst, hss⟩⟩
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
-    (fun g h1 h2 => spec_transferOwnership hfork hglam hstatic hacc h4 hsize' hsel hv hown hz hc0
+    (fun g h1 h2 => spec_transferOwnership hfork hstatic hacc h4 hsize' hsel hv hown hz hc0
       h1 h2)
     start within hrun hok
   exact ⟨hown, ho, .inr ⟨hz, hg, hst, hss⟩⟩
 
 /-- Every successful `destroyBlackFunds(a)` call, not deprecated, is the owner's, with `a`
 blacklisted. -/
-theorem ok_destroyBlackFunds (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem ok_destroyBlackFunds (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
@@ -380,7 +380,7 @@ theorem ok_destroyBlackFunds (hfork : .berlin ≤ fork) (hglam : fork < .glamste
   · exact (no_ok (fun g hg => Destroy.spec_notListed hfork h4 hsize' hsel hv hown hl hc0 hcL hg)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact3
-    (fun g h1 h2 h3 => DestroySpec.spec hfork hglam hstatic hacc h4 hsize' hsel hv hown hl hdep hc0
+    (fun g h1 h2 h3 => DestroySpec.spec hfork hstatic hacc h4 hsize' hsel hv hown hl hdep hc0
       hcL hc10 hcB hc1 h1 h2 h3)
     start within hrun hok
   exact ⟨hown, hl, ho, hg, hst, hss⟩

@@ -916,6 +916,26 @@ entry; `DESTS` = the 32 destinations).
   an assumption. Messages with value (all of which revert, `nonpayable`) are not covered by
   `goodCall_process` either.
 
+### Round 17: the writing paths at Glamsterdam (GasRules2.lean, every non-deprecated writing spec)
+- `Gas.writeCost fork orig cur new cold := sstoreCost … + sstoreStateGas …` (the state gas of a
+  new slot, 0 before Glamsterdam; `writeCost_of_lt`). EthLib's one-counter meter `Nat` has no
+  reservoir: its `refill` is the identity and `chargeState` subtracts from the same counter.
+- `sstoreStep_eq_any` (any fork from Berlin): the step of SSTORE in a frame that may write, with
+  the price `writeCost` (from Glamsterdam the static check comes first and passes; the stipend
+  check, the charge of `sstoreCost`, the charge of the state gas, the write). `sstoreG_any`, and
+  `sstoreWG` now without `hglam` (the old pre-Glamsterdam `sstoreWG` is replaced).
+- Every `sstoreCost fork` in the specifications is now `Gas.writeCost fork`; before Glamsterdam
+  the two are equal. `hglam` was removed from every theorem (107 names) that needed it only through
+  `sstoreWG` (found by a script over the call graph, checked by the build): every non-deprecated
+  writing spec, its `runFrame_*` form, every completeness theorem of rounds 12 and 13, every
+  `inv_X` and `inv_call`. They hold from Berlin on, Glamsterdam included.
+- Still before Glamsterdam: the deprecated paths (EthLib's EXTCODESIZE and CALL rules, and the
+  Route lemmas, are pre-Glamsterdam; `tailD` uses EthLib's pre-Glamsterdam bound
+  `sstoreCost_le`), so the `dep_*` theorems, `inv_call_ns`, `inv_call_all` (which take
+  `hglam` only when deprecated) and `GoodCall`/`goodCall_process` (the same).
+- The Glamsterdam case rests on EthLib's model of Glamsterdam at the pin (fd3457dbf): its
+  `sstoreCost` and `sstoreStateGas` for that fork, and its decoding of the opcodes used.
+
 ## Open (not proved)
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
   transfer (round 12), approve, transferFrom, the ten owner functions (round 13), not deprecated
@@ -930,7 +950,8 @@ entry; `DESTS` = the 32 destinations).
 - Hypotheses the completeness theorems keep, by name: `hstatic` (frame not static; a static
   SSTORE/LOG fails, but no spec of that failure is proved per path; for the invariant the static
   case is done generically, round 17, `inv_static`), `hacc` (the contract has an account;
-  the write needs it), Berlin ≤ fork < Glamsterdam on the writing paths, size < 2^256.
+  the write needs it), size < 2^256; Berlin ≤ fork < Glamsterdam only on the deprecated paths
+  (round 17: the non-deprecated writing paths hold at Glamsterdam too).
 - The deprecated paths in the invariant: done (round 15, `inv_call_all`) under the named runner
   assumptions `KeepsInv` and `HonestBalance`. Without `HonestBalance`, deprecated
   destroyBlackFunds keeps `Inv` exactly when the answer is the local balance

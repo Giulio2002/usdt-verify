@@ -8,7 +8,7 @@ between states, each of which is:
 
 - `GoodCall C S S'`: a successful run of a fresh frame of `CODE` for a message to `C`, from the
   state `S`, that ends in `S'`, with the hypotheses of `inv_call_all` for that run (its own fork
-  in Berlin ≤ fork < Glamsterdam, message, gas, gas bound, runner, and the named assumptions
+  from Berlin (before Glamsterdam when deprecated), message, gas, gas bound, runner, and the named assumptions
   `StrForm`, `hstat`/`hacc`, `KeepsInv`, `HonestBalance`, each at the state `S` of that call);
 - or `Untouched C S S'`: any change that keeps every storage word of `C`. This is where the
   model puts what happens between the top-level calls to `C` and is not a run of `C`'s code: a
@@ -16,7 +16,7 @@ between states, each of which is:
   step keeps the storage of `C` is the assumption of this step, not proved here.
 
 `inv_calls`: under `KeccakSep`, `Inv C` at the start of a `Calls` sequence gives `Inv C` at its
-end. `goodCall_process`: from Paris, a top-level message to `C` with no value and no precompile,
+end. `goodCall_process`: from Paris (before Glamsterdam when deprecated), a top-level message to `C` with no value and no precompile,
 run by EthLib's `processMessage`, that ends with no error, is a `GoodCall` from its start state
 to its end state, under the same named assumptions for the interpreter's runner
 (`StaticKeeps` is then proved, `staticKeeps_process`).
@@ -36,7 +36,8 @@ def GoodCall (C : Address) (S S' : State.TransactionState) : Prop :=
   ∃ (fork : Fork) (message : Message fork) (substate : Substate) (gas bound : Nat)
     (runChild : MessageRunner fork Nat bound) (evm s : Evm fork Nat)
     (within : GasMeter.gasHeld evm.gas ≤ bound),
-    message.currentTarget = C ∧ .berlin ≤ fork ∧ fork < .glamsterdam ∧
+    message.currentTarget = C ∧ .berlin ≤ fork ∧
+    (byte20 (storageAt S C 10) ≠ 0 → fork < .glamsterdam) ∧
     (message.isStatic = true →
       message.code = CODE ∧ StaticCode S message ∧ StaticKeeps runChild) ∧
     (message.isStatic = false → hasAccount S C) ∧
@@ -81,7 +82,7 @@ theorem inv_calls (K : KeccakSep) {C : Address} {S S' : State.TransactionState}
 `processMessage`, that ends with no error, is a `GoodCall` from its start state to its end state,
 under the named assumptions for the interpreter's runner. The static case needs only
 `StaticCode`: `StaticKeeps` holds for this runner (`staticKeeps_process`). -/
-theorem goodCall_process {fork : Fork} (hparis : .paris ≤ fork) (hglam : fork < .glamsterdam)
+theorem goodCall_process {fork : Fork} (hparis : .paris ≤ fork)
     {message : Message fork} {state : State.TransactionState} {substate : Substate}
     (hmc : message.code = CODE)
     (noValue : ¬(message.shouldTransferValue = true ∧ message.value ≠ 0))
@@ -89,6 +90,7 @@ theorem goodCall_process {fork : Fork} (hparis : .paris ≤ fork) (hglam : fork 
     (hstat : message.isStatic = true → StaticCode state message)
     (hacc : message.isStatic = false → hasAccount state message.currentTarget)
     (hsize : message.data.size < 2 ^ 256)
+    (hglam : byte20 (storageAt state message.currentTarget 10) ≠ 0 → fork < .glamsterdam)
     (h7 : StrForm (storageAt state message.currentTarget 7))
     (h8 : StrForm (storageAt state message.currentTarget 8))
     (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →

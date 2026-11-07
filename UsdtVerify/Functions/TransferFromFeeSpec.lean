@@ -48,7 +48,7 @@ abbrev creditedSubFeeF (fork : Fork) (substate : Substate) (state : State.Transa
 /-- The price of the write of `_to` (warm). -/
 abbrev creditCostFeeF (fork : Fork) (state : State.TransactionState) (message : Message fork)
     (v t f : U256) : Nat :=
-  sstoreCost fork (originalAt state message.currentTarget (recipientSlot t))
+  Gas.writeCost fork (originalAt state message.currentTarget (recipientSlot t))
     (balTo state message v t f) (add (balTo state message v t f) (sendOf state message v)) false
 
 /-- The memory at 9351. -/
@@ -57,7 +57,7 @@ abbrev memAF (message : Message fork) (M : ByteArray) (A f t : U256) : ByteArray
     (mkey f) 2) (mkey t) 2) (mkey t) 2
 
 /-- From 8648, with a fee above 0, up to the owner's credit at 9351. -/
-theorem headF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem headF (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {v t f sel : U256} {M : ByteArray} (hM : M.size = 96)
     (hov : v.toNat * (storageAt state message.currentTarget 3).toNat < 2 ^ 256)
@@ -122,7 +122,7 @@ theorem headF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   at_pc 8816
   step capBlock hfork (by simp) hc4 (by simp only [storageAt_readSlot]; gas_ok)
   simp only [storageAt_readSlot]
-  step allowStep hfork hglam hstatic hacc3 (by simp) (by simp only [storageAt_readSlot]) hallow
+  step allowStep hfork hstatic hacc3 (by simp) (by simp only [storageAt_readSlot]) hallow
     (coldIn_accessSlot_false (coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
     (by simp only [originalAt_readSlot]; gas_ok)
     (size_allowMem hM f)
@@ -136,14 +136,14 @@ theorem headF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   step debitCall hfork (by simp) hcF (by gas_ok) hMb
   step subBlock (by simp) (by valid_dest) hbal (by gas_ok)
   at_pc 9125
-  step debitStore hfork hglam (by simp) hstatic hacc4 (coldIn_accessSlot_self _ _ _)
+  step debitStore hfork (by simp) hstatic hacc4 (coldIn_accessSlot_self _ _ _)
     (by simp only [storageAt_readSlot, originalAt_readSlot, horig]; gas_ok) (size_mapMem hMb _ _)
   simp only [storageAt_readSlot, originalAt_readSlot, horig]
   step creditCall hfork (by simp) (cT := cT) (by rw [coldIn_storeSub]; exact hcT) (by gas_ok)
     (size_mapMem (size_mapMem hMb _ _) _ _)
   step addBlock (by simp) (by valid_dest) hto (by gas_ok)
   at_pc 9274
-  step creditStoreFeeF hfork hglam hfee (by simp) hstatic hacc5 (coldIn_accessSlot_self _ _ _)
+  step creditStoreFeeF hfork hfee (by simp) hstatic hacc5 (coldIn_accessSlot_self _ _ _)
     (by gas_ok)
     (by simp only [storageAt_readSlot, originalAt_readSlot, horig2]; gas_ok)
     (size_mapMem (size_mapMem (size_mapMem hMb _ _) _ _) _ _)
@@ -168,7 +168,7 @@ abbrev feeSubBF (fork : Fork) (ss : Substate) (st : State.TransactionState)
       (transferLog message.currentTarget (bitwiseAnd ADDR_MASK f) (bitwiseAnd ADDR_MASK t) send) }
 
 /-- From 9351, the owner's credit, both logs and the STOP at 915. -/
-theorem ownerPartF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem ownerPartF (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) {st : State.TransactionState} {ss : Substate}
     (hacc : hasAccount st message.currentTarget) {send fee A v t f sel o : U256} {M : ByteArray}
     (hM : M.size = 96) (hptr : loadWord (memoryReadBytes M 64 32) 0 32 = 0x60)
@@ -176,11 +176,11 @@ theorem ownerPartF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hcO : coldIn ss message.currentTarget (ownerSlotOf st message.currentTarget) = cO)
     (ho : originalAt st message.currentTarget (ownerSlotOf st message.currentTarget) = o)
     (hown : (balOf st message.currentTarget).toNat + fee.toNat < 2 ^ 256) {gas : Nat}
-    (hg : 4417 + slotCost cO + sstoreCost fork o (balOf st message.currentTarget)
+    (hg : 4417 + slotCost cO + Gas.writeCost fork o (balOf st message.currentTarget)
       (add (balOf st message.currentTarget) fee) false ≤ gas) :
     Gas.SpecG fork (At CODE message 9351 [0x60, send, fee, A, v, t, f, 0x1097, v, t, f, 0x0392, sel]
         M gas st ss)
-      (Halted false .empty (gas - (4417 + slotCost cO + sstoreCost fork o (balOf st message.currentTarget)
+      (Halted false .empty (gas - (4417 + slotCost cO + Gas.writeCost fork o (balOf st message.currentTarget)
           (add (balOf st message.currentTarget) fee) false))
         (readSlot (ownedB st message.currentTarget fee) message.currentTarget 0)
         (feeSubBF fork ss st message o fee send t f)) := by
@@ -189,7 +189,7 @@ theorem ownerPartF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (by rw [coldIn_accessSlot_of_warm hc0]; exact hcO) (by gas_ok) hM
   step addBlock (by simp) (by valid_dest) hown (by gas_ok)
   at_pc 9465
-  step ownerStoreF hfork (by rw [storageAt_readSlot, storageAt_readSlot]) hglam (by simp) hstatic
+  step ownerStoreF hfork (by rw [storageAt_readSlot, storageAt_readSlot]) (by simp) hstatic
     (hasAccount_readSlot (hasAccount_readSlot hacc))
     (coldIn_accessSlot_false (coldIn_accessSlot_false hc0)) (coldIn_accessSlot_self _ _ _)
     (by rw [originalAt_readSlot, originalAt_readSlot, storageAt_readSlot, storageAt_readSlot, ho]
@@ -235,12 +235,12 @@ abbrev feeSubF (fork : Fork) (substate : Substate) (state : State.TransactionSta
 /-- The price of the owner's write (warm). -/
 abbrev ownerCostF (fork : Fork) (state : State.TransactionState) (message : Message fork)
     (v t f : U256) : Nat :=
-  sstoreCost fork (originalAt state message.currentTarget
+  Gas.writeCost fork (originalAt state message.currentTarget
       (ownerSlot (ownerWordF state message v t f)))
     (balOF state message v t f) (add (balOF state message v t f) (feeOf state message v)) false
 
 /-- From 8648, with a fee above 0, the success path of `transferFrom` up to the STOP at 915. -/
-theorem bodyFeeF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem bodyFeeF (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {v t f sel : U256} {M : ByteArray} (hM : M.size = 96)
     (hptr : loadWord (memoryReadBytes M 64 32) 0 32 = 0x60)
@@ -301,12 +301,12 @@ theorem bodyFeeF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   have hMb := size_allowMem2 (message := message) hMa (allowOf state message f) f
   have hPb := ptr_allowMem2 (message := message) hMa (ptr_allowMem hM hptr f)
     (allowOf state message f) f
-  have hA := headF (sel := sel) hfork hglam hstatic hacc hM hov hfee hfv hallow hbal hto hcA hc3
+  have hA := headF (sel := sel) hfork hstatic hacc hM hov hfee hfv hallow hbal hto hcA hc3
     hc4 hcF hcT (gas := gas) (by simp only [ownerCostF] at hg; omega)
   have hB := ownerPartF (message := message) (st := creditedFeeF state message v t f)
     (ss := creditedSubFeeF fork substate state message v t f) (send := sendOf state message v)
     (A := allowOf state message f) (v := v) (t := t) (f := f) (sel := sel)
-    (M := memAF message M (allowOf state message f) f t) hfork hglam hstatic
+    (M := memAF message M (allowOf state message f) f t) hfork hstatic
     (hasAccount_writeSlot hacc5)
     (size_mapMem (size_mapMem (size_mapMem (size_mapMem hMb _ _) _ _) _ _) _ _)
     (ptr_mapMem (size_mapMem (size_mapMem (size_mapMem hMb _ _) _ _) _ _)
@@ -356,7 +356,7 @@ allowance step (`A - v` unless `A = MAX_UINT`), `balances[f] := balF - v`,
 `balances[t] := balT + (v - fee)`, `balances[owner] := balO + fee`, slot 0 recorded read; the
 substate with the accesses and refunds, and the logs `Transfer(f, owner', fee)` (owner' read from
 slot 0 after the owner's write) then `Transfer(f, t, v - fee)`. -/
-theorem spec_feeF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_feeF (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 100 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x23b872dd) (hv : message.value = 0)
@@ -409,7 +409,7 @@ theorem spec_feeF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   have hB := bodyFeeF (state := checkState state message) (substate := checkSub substate message)
     (sel := BitVec.ofNat 256 (selector message.data))
     (gas := gas - (PRE_COST_F + slotCost c0 + slotCost cB + slotCost c10))
-    hfork hglam hstatic
+    hfork hstatic
     (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
     (size_mapMem size_MEM0 (mkey (fromArg message)) 6)
     (ptr_mapMem size_MEM0 mload_MEM0 _ _) hov hfee hfv hallow hbal hto hown
@@ -425,7 +425,7 @@ theorem spec_feeF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
 
 /-- The loop of the interpreter runs a successful `transferFrom` call with a fee above 0 to its
 specification. It holds for every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_feeF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem runFrame_feeF (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hlong : 100 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x23b872dd) (hv : message.value = 0)
@@ -479,7 +479,7 @@ theorem runFrame_feeF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
           (fromArg message))
         (feeSubF fork (checkSub substate message) (checkState state message) message
           (valArg message) (toArg message) (fromArg message))) stopped :=
-  (spec_feeF hfork hglam hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hfee hfv hallow hbal hto
+  (spec_feeF hfork hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hfee hfv hallow hbal hto
     hown hc0 hcB hc10 hcA hc3 hc4 hcF hcT hcO hg).runFrame start within
 
 end UsdtVerify.TransferFrom

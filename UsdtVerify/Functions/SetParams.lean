@@ -147,16 +147,16 @@ theorem fail (hfork : .berlin ≤ fork) {p : Nat} (hp : p = 5888 ∨ p = 5903) {
     · rw [hgas, hz]; gas_ok
 
 /-- At 5911: `basisPointsRate = newBasisPoints` (slot 3). -/
-theorem write3 (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {b m : U256}
+theorem write3 (hfork : .berlin ≤ fork) {b m : U256}
     {rest : List U256} (hrest : rest.length ≤ 16) (hstatic : message.isStatic = false)
     (hacc : hasAccount state message.currentTarget) {c3 : Bool}
     (hc3 : coldIn substate message.currentTarget 3 = c3) {M : ByteArray} {gas : Nat}
     (hstip : 2314 ≤ gas)
-    (hg : 15 + sstoreCost fork (originalAt state message.currentTarget 3)
+    (hg : 15 + Gas.writeCost fork (originalAt state message.currentTarget 3)
       (storageAt state message.currentTarget 3) b c3 ≤ gas) :
     Gas.HoareG fork (At CODE message 5911 (m :: b :: rest) M gas state substate)
       (At CODE message 5919 (m :: b :: rest) M
-        (gas - (15 + sstoreCost fork (originalAt state message.currentTarget 3)
+        (gas - (15 + Gas.writeCost fork (originalAt state message.currentTarget 3)
           (storageAt state message.currentTarget 3) b c3))
         (writeSlot state message.currentTarget 3 b)
         (storeSub fork substate message.currentTarget 3 (originalAt state message.currentTarget 3)
@@ -167,7 +167,7 @@ theorem write3 (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {b m : U
   step dupR 1
   step swapR 0
   norm
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic hacc hc3 (by gas_ok) (by gas_ok)
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic hacc hc3 (by gas_ok) (by gas_ok)
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
@@ -207,16 +207,16 @@ theorem mulCall (hfork : .berlin ≤ fork) {b m x : U256} {c9 : Bool}
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
 /-- At 5942: `maximumFee = ...` (slot 4). -/
-theorem write4 (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {f b m : U256}
+theorem write4 (hfork : .berlin ≤ fork) {f b m : U256}
     {rest : List U256} (hrest : rest.length ≤ 16) (hstatic : message.isStatic = false)
     (hacc : hasAccount state message.currentTarget) {c4 : Bool}
     (hc4 : coldIn substate message.currentTarget 4 = c4) {M : ByteArray} {gas : Nat}
     (hstip : 2311 ≤ gas)
-    (hg : 12 + sstoreCost fork (originalAt state message.currentTarget 4)
+    (hg : 12 + Gas.writeCost fork (originalAt state message.currentTarget 4)
       (storageAt state message.currentTarget 4) f c4 ≤ gas) :
     Gas.HoareG fork (At CODE message 5942 (f :: m :: b :: rest) M gas state substate)
       (At CODE message 5949 (m :: b :: rest) M
-        (gas - (12 + sstoreCost fork (originalAt state message.currentTarget 4)
+        (gas - (12 + Gas.writeCost fork (originalAt state message.currentTarget 4)
           (storageAt state message.currentTarget 4) f c4))
         (writeSlot state message.currentTarget 4 f)
         (storeSub fork substate message.currentTarget 4 (originalAt state message.currentTarget 4)
@@ -226,7 +226,7 @@ theorem write4 (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {f b m :
   step dupR 1
   step swapR 0
   norm
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic hacc hc4 (by gas_ok) (by gas_ok)
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic hacc hc4 (by gas_ok) (by gas_ok)
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 

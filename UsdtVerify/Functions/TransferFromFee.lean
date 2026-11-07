@@ -83,19 +83,19 @@ theorem hashTailF {p : Nat} (hp : p ∈ HASH_PCS_F) {x base : U256}
 
 /-- At 9274, the code writes the new balance of `_to`; with a fee above 0 it goes on to the
 owner's credit at 9351. -/
-theorem creditStoreFeeF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem creditStoreFeeF (hfork : .berlin ≤ fork)
     {nt send fee A v t f : U256} (hfee : fee ≠ 0) {rest : List U256} (hrest : rest.length ≤ 8)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     {cT : Bool} (hcT : coldIn substate message.currentTarget (recipientSlot t) = cT) {gas : Nat}
     (hstip : 2401 ≤ gas)
-    (hg : 127 + sstoreCost fork (originalAt state message.currentTarget (recipientSlot t))
+    (hg : 127 + Gas.writeCost fork (originalAt state message.currentTarget (recipientSlot t))
       (storageAt state message.currentTarget (recipientSlot t)) nt cT ≤ gas)
     {M : ByteArray} (hM : M.size = 96) :
     Gas.HoareG fork (At CODE message 9274 (nt :: 0x60 :: send :: fee :: A :: v :: t :: f :: rest) M
         gas state substate)
       (At CODE message 9351 (0x60 :: send :: fee :: A :: v :: t :: f :: rest)
         (mapMem M (mkey t) 2)
-        (gas - (127 + sstoreCost fork (originalAt state message.currentTarget (recipientSlot t))
+        (gas - (127 + Gas.writeCost fork (originalAt state message.currentTarget (recipientSlot t))
           (storageAt state message.currentTarget (recipientSlot t)) nt cT))
         (writeSlot state message.currentTarget (recipientSlot t) nt)
         (storeSub fork substate message.currentTarget (recipientSlot t)
@@ -116,7 +116,7 @@ theorem creditStoreFeeF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   step dupR 1
   step swapR 0
   norm
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic hacc hcT (by gas_ok) (by gas_ok)
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic hacc hcT (by gas_ok) (by gas_ok)
   step popR
   step pushR 1 (0 : U256)
   step dupR 3
@@ -183,19 +183,19 @@ theorem ownerCallF (hfork : .berlin ≤ fork) {w0 : U256}
 
 /-- At 9465, the code reads `owner` again (warm) and writes the new balance of the owner. -/
 theorem ownerStoreF (hfork : .berlin ≤ fork) {w0 : U256}
-    (hw0 : storageAt state message.currentTarget 0 = w0) (hglam : fork < .glamsterdam)
+    (hw0 : storageAt state message.currentTarget 0 = w0)
     {no send fee A v t f : U256} {rest : List U256} (hrest : rest.length ≤ 800)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hc0 : coldIn substate message.currentTarget 0 = false) {cO : Bool}
     (hcO : coldIn substate message.currentTarget (ownerSlot w0) = cO) {gas : Nat}
-    (hg : 238 + sstoreCost fork (originalAt state message.currentTarget (ownerSlot w0))
+    (hg : 238 + Gas.writeCost fork (originalAt state message.currentTarget (ownerSlot w0))
       (storageAt state message.currentTarget (ownerSlot w0)) no cO + 2300 ≤ gas)
     {M : ByteArray} (hM : M.size = 96) :
     Gas.HoareG fork (At CODE message 9465 (no :: 0x60 :: send :: fee :: A :: v :: t :: f :: rest) M gas
         state substate)
       (At CODE message 9566 (0x60 :: send :: fee :: A :: v :: t :: f :: rest)
         (mapMem M (mkey (ownerKey w0)) 2)
-        (gas - (238 + sstoreCost fork (originalAt state message.currentTarget (ownerSlot w0))
+        (gas - (238 + Gas.writeCost fork (originalAt state message.currentTarget (ownerSlot w0))
           (storageAt state message.currentTarget (ownerSlot w0)) no cO))
         (writeSlot (readSlot state message.currentTarget 0) message.currentTarget
           (ownerSlot w0) no)
@@ -231,7 +231,7 @@ theorem ownerStoreF (hfork : .berlin ≤ fork) {w0 : U256}
   step dupR 1
   step swapR 0
   norm
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc) hcO'
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc) hcO'
     (by gas_ok) (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   rw [originalAt_readSlot, storageAt_readSlot]
   step popR

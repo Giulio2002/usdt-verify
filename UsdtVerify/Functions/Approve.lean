@@ -225,19 +225,19 @@ theorem checkNonzero (hfork : .berlin ≤ fork) {v s : U256} (hv0 : v ≠ 0) {re
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
 /-- At 8384, the code writes `_value` to `allowed[msg.sender][_spender]`. -/
-theorem store (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {v s : U256}
+theorem store (hfork : .berlin ≤ fork) {v s : U256}
     {rest : List U256} (hrest : rest.length ≤ 800) (hstatic : message.isStatic = false)
     (hacc : hasAccount state message.currentTarget) {cA : Bool}
     (hcA : coldIn substate message.currentTarget (allowSlot message s) = cA) {gas : Nat}
     (hstip : 2493 ≤ gas)
-    (hg : 194 + sstoreCost fork (originalAt state message.currentTarget (allowSlot message s))
+    (hg : 194 + Gas.writeCost fork (originalAt state message.currentTarget (allowSlot message s))
       (storageAt state message.currentTarget (allowSlot message s)) v cA ≤ gas)
     {M : ByteArray} (hM : M.size = 96) :
     Gas.HoareG fork (At CODE message 8384 (0x40 :: v :: s :: rest) M gas state substate)
       (At CODE message 8514 (0x40 :: v :: s :: rest)
         (mapMem (mapMem M (mkey message.caller.toU256) 5) (mkey s)
           (mapSlot (mkey message.caller.toU256) 5))
-        (gas - (194 + sstoreCost fork (originalAt state message.currentTarget (allowSlot message s))
+        (gas - (194 + Gas.writeCost fork (originalAt state message.currentTarget (allowSlot message s))
           (storageAt state message.currentTarget (allowSlot message s)) v cA))
         (writeSlot state message.currentTarget (allowSlot message s) v)
         (storeSub fork substate message.currentTarget (allowSlot message s)
@@ -260,7 +260,7 @@ theorem store (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {v s : U2
   step dupR 1
   step swapR 0
   norm
-  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic hacc hcA (by gas_ok) (by gas_ok)
+  step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic hacc hcA (by gas_ok) (by gas_ok)
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 

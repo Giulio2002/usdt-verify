@@ -130,22 +130,22 @@ abbrev paramsSub (fork : Fork) (substate : Substate) (state : State.TransactionS
 the two writes (slots 3 and 4, cold or warm). -/
 abbrev paramsCost (fork : Fork) (state : State.TransactionState) (message : Message fork)
     (c0 c3 c9 c4 : Bool) : Nat :=
-  slotCost c0 + sstoreCost fork (originalAt state message.currentTarget 3)
+  slotCost c0 + Gas.writeCost fork (originalAt state message.currentTarget 3)
     (storageAt state message.currentTarget 3) (wordArg message.data 0) c3 + slotCost c9 +
     50 * exponentBytes (storageAt state message.currentTarget 9) +
     mulCost (wordArg message.data 1) +
-    sstoreCost fork (originalAt state message.currentTarget 4)
+    Gas.writeCost fork (originalAt state message.currentTarget 4)
       (storageAt state message.currentTarget 4) (feeWord state message) c4
 
 /-- The specification of a successful `setParams(b, m)`.
 
-Hypotheses: Berlin ≤ fork < Glamsterdam; a frame that may write, of an existing account `C`;
+Hypotheses: Berlin ≤ fork (Glamsterdam included); a frame that may write, of an existing account `C`;
 call data of 4 to 2^256 - 1 bytes with selector 0xc0324c77; no value; the caller is the owner;
 `b < 20`, `m < 50`, `m * 10^d < 2^256`; enough gas, and more than 2300 left at each SSTORE.
 
 Then the run stops normally: slot 3 := `b`, slot 4 := `f = m * 10^d`; one log `Params(b, f)`
 (topic 0xb044a1e4…, data the two words); gas left `gas - (2425 + paramsCost)`. -/
-theorem spec_setParams (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_setParams (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xc0324c77)
@@ -160,7 +160,7 @@ theorem spec_setParams (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hc4 : coldIn (accessSlot (accessSlot (accessSlot substate message.currentTarget 0)
       message.currentTarget 3) message.currentTarget 9) message.currentTarget 4 = c4)
     {gas : Nat}
-    (hstip : 3168 + slotCost c0 + sstoreCost fork (originalAt state message.currentTarget 3)
+    (hstip : 3168 + slotCost c0 + Gas.writeCost fork (originalAt state message.currentTarget 3)
       (storageAt state message.currentTarget 3) (wordArg message.data 0) c3 + slotCost c9 +
       50 * exponentBytes (storageAt state message.currentTarget 9) +
       mulCost (wordArg message.data 1) ≤ gas)
@@ -190,13 +190,13 @@ theorem spec_setParams (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   step pass (Or.inl ⟨rfl, rfl⟩) (lt_ne (by simpa using hb)) (by simp) (by gas_ok)
   step test2 (by simp) (by gas_ok)
   step pass (Or.inr ⟨rfl, rfl⟩) (lt_ne (by simpa using hm)) (by simp) (by gas_ok)
-  step write3 hfork hglam (by simp) hstatic hacc0 hc3 (by gas_ok)
+  step write3 hfork (by simp) hstatic hacc0 hc3 (by gas_ok)
     (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   rw [originalAt_readSlot, storageAt_readSlot]
   refine Triple.seq (mulCall hfork (c9 := c9) hc9' (by rw [h9]; exact hov) ?hgm) ?_
   case hgm => rw [h9]; gas_ok
   rw [h9]
-  step write4 hfork hglam (by simp) hstatic hacc2 (c4 := c4) hc4' (by gas_ok)
+  step write4 hfork (by simp) hstatic hacc2 (c4 := c4) hc4' (by gas_ok)
     (by rw [originalAt_readSlot, storageAt_readSlot, originalAt_writeSlot hacc0,
       originalAt_readSlot, storageAt_writeSlot_of_ne hacc0 (by decide), storageAt_readSlot]; gas_ok)
   rw [originalAt_readSlot, storageAt_readSlot, originalAt_writeSlot hacc0,
