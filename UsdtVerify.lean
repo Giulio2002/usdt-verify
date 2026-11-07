@@ -55,3 +55,4 @@ import UsdtVerify.Complete.DepTotalSupply
 import UsdtVerify.Complete.DepBalance
 import UsdtVerify.Complete.DepTransfer
 import UsdtVerify.Complete.DepAllowance
+import UsdtVerify.Complete.DepDestroy

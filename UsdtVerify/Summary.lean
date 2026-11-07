@@ -8,6 +8,7 @@ import UsdtVerify.Complete.Owner
 import UsdtVerify.Complete.Getters
 import UsdtVerify.Complete.DepTransfer
 import UsdtVerify.Complete.DepAllowance
+import UsdtVerify.Complete.DepDestroy
 import UsdtVerify.Functions.TotalSupply
 import UsdtVerify.Functions.BalanceOf
 import UsdtVerify.Functions.Transfer
@@ -371,6 +372,12 @@ message and returned a frame with no error, and the end is exact: output (the wo
 the three getters, empty for the three writes), gas, and the state and substate of
 `incorporateChild`. Named hypotheses: `hcode` (the upgraded account's code `c` is found in the
 state), `hdel` (from Pectra, `c` is no delegation), and the coldness flags.
+`destroyBlackFunds_dep_complete`: the owner's call, `a` blacklisted, the forward of
+`balanceOf(a)` answered with no error, then over the state `S` the call left and the word `d` at
+0x60: STOP with empty output in `tailState S C a d` (`balances[a] := 0`, `_totalSupply := T' - d`
+unchecked), `tailSub`, gas exact. Extra named hypotheses: `hstatic` and `hkeep` (when the runner
+ends the forwarded message with no error, the contract still has an account in the child's
+state).
 -/
 
 namespace UsdtVerify.Summary
@@ -422,6 +429,7 @@ alias transfer_dep_complete := Complete.dep_transfer_complete
 alias approve_dep_complete := Complete.dep_approve_complete
 alias transferFrom_dep_complete := Complete.dep_transferFrom_complete
 alias allowance_dep_complete := Complete.dep_allowance_complete
+alias destroyBlackFunds_dep_complete := Complete.dep_destroy_complete
 alias totalSupply_spec := TotalSupply.spec
 alias balanceOf_spec := BalanceOf.spec
 alias transfer_paused := Transfer.spec_paused

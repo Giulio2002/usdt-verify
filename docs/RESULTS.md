@@ -310,9 +310,15 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   substate are those after the call. The same named hypotheses `hcode` and `hdel`.
 - Deprecated allowance(address,address) (`Complete.dep_allowance_complete`, round 15): the
   statement of balanceOf, for the forward of `allowance(owner, spender)`.
-- Not yet proved: the same completeness for deprecated destroyBlackFunds (the part
-  from EXTCODESIZE to after the CALL, `Complete.fromExt`, is proved for the call inside
-  destroyBlackFunds), and so the invariant over every deprecated call.
+- Deprecated destroyBlackFunds(address) (`Complete.dep_destroy_complete`, round 15), for any
+  gas, any gas bound and any runner. Every run that ends with no error is the owner's, with `a`
+  blacklisted. The runner was called with the forward of `balanceOf(a)` and returned a frame with
+  no error. The run then stopped with no output, after setting, over the state `S` that the call
+  left, `balances[a]` to 0 and `_totalSupply` to `_totalSupply - d` (unchecked), where `d` is the
+  word the call wrote at 0x60, and logging `DestroyedBlackFunds(a, d)`; gas exact. Beyond
+  `hcode`, `hdel` and `hstatic`, it assumes by name (`hkeep`) that when the runner ends the
+  forwarded message with no error, the contract still has an account in the child's state.
+- Not yet proved: the invariant over every deprecated call.
 
 ## The invariant when deprecated: destroyBlackFunds (round 14)
 

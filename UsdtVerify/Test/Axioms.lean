@@ -1,4 +1,5 @@
 import UsdtVerify.Complete.DepAllowance
+import UsdtVerify.Complete.DepDestroy
 import UsdtVerify.Complete.DepTransfer
 import UsdtVerify.Complete.DepBalance
 import UsdtVerify.Complete.DepTotalSupply
@@ -385,3 +386,5 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Complete.dep_transferFrom_complete
 #print axioms UsdtVerify.Complete.prefixG_allowance
 #print axioms UsdtVerify.Complete.dep_allowance_complete
+#print axioms UsdtVerify.Complete.prefixG_destroy
+#print axioms UsdtVerify.Complete.dep_destroy_complete

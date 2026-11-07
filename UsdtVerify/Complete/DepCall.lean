@@ -307,7 +307,7 @@ theorem call_ok (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
 theorem midG {p q : Nat} (hp : (p = 3720 ∧ q = 3734) ∨ (p = 4875 ∧ q = 4889) ∨
       (p = 5740 ∧ q = 5754) ∨ (p = 3214 ∧ q = 3228) ∨ (p = 4201 ∧ q = 4215) ∨
       (p = 7187 ∧ q = 7201))
-    {w : U256} (hw : w ≠ 0) {rest : List U256} (hrest : rest.length ≤ 15) {M : ByteArray}
+    {w : U256} (hw : w ≠ 0) {rest : List U256} (hrest : rest.length ≤ 16) {M : ByteArray}
     {st : State.TransactionState} {ss : Substate} {g : Nat} (hg : 23 ≤ g) :
     HoareG fork (At CODE message p (w :: rest) M g st ss)
       (At CODE message q (0x02c6 :: rest) M (g - 23) st ss) := by
@@ -371,7 +371,7 @@ Hypotheses: the code `c` of the address is found (`hcode`) and is no delegation 
 theorem fromExt (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {p q : Nat}
     (hp : (p = 3719 ∧ q = 3736) ∨ (p = 4874 ∧ q = 4891) ∨ (p = 5739 ∧ q = 5756) ∨
       (p = 3213 ∧ q = 3230) ∨ (p = 4200 ∧ q = 4217) ∨ (p = 7186 ∧ q = 7203))
-    {U i isz o osz : U256} {rest : List U256} (hrest : rest.length ≤ 9) {M : ByteArray}
+    {U i isz o osz : U256} {rest : List U256} (hrest : rest.length ≤ 10) {M : ByteArray}
     {st : State.TransactionState} {ss : Substate} {c : ByteArray}
     (hcode : st.getCode (st.getAccount (toAddressMasked U)).codeHash = .ok c)
     (hdel : .pectra ≤ fork → delegatedAddress c = none) {G : Nat} {evm s : Evm fork Nat}

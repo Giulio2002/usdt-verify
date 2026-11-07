@@ -767,7 +767,20 @@ entry; `DESTS` = the 32 destinations).
   and `dep_allowance_complete`: the statement of `dep_balanceOf_complete` for the forward
   `Sends … (dataAl message)` (selector 0xdd62ed3e, owner, spender), output
   `wordBytes (resWord (outMemOf (memAl message) child.output))`, tail 128.
+- destroyBlackFunds (Complete/DepDestroy.lean): `fromExt` now takes up to 10 words below the
+  CALL operands (`midG` up to 16), so it covers the call inside destroyBlackFunds (4874).
+  `prefixG_destroy` (0 → 4874: `toGetter`, `depSet`, `fwdArgsD`) and `dep_destroy_complete`: for
+  any gas, any gas bound and ANY runner, every successful run is the owner's (`spec_notOwner`
+  excluded), with `a` blacklisted (`spec_notListed` excluded), the forward of `balanceOf(a)`
+  answered with no error, then (via `ok_exact2` over `tailD`, bound `TAIL_MAX`) STOP with empty
+  output in `tailState S C a d`, substate `tailSub`, gas `… - tailCost …` (the coldness of
+  `balances[a]` and slot 1 taken in the substate after the call), with `S` the state of
+  `incorporateChild` and `d = resWord (outMemOf (memD message) child.output)`. Named hypotheses:
+  `hstatic`, `hcode`, `hdel`, the coldness flags, and `hkeep`: whenever the runner ends a
+  forwarded message (`Sends … (dataB message)`) with no error, the contract has an account in the
+  child's state. The case without an account (where the SSTORE fails) is not covered.
 - Summary aliases: `totalSupply_dep_complete`, `balanceOf_dep_complete`, `allowance_dep_complete`,
+  `destroyBlackFunds_dep_complete`,
   `transfer_dep_complete`, `approve_dep_complete`, `transferFrom_dep_complete`.
 
 ## Open (not proved)
@@ -775,24 +788,12 @@ entry; `DESTS` = the 32 destinations).
   transfer (round 12), approve, transferFrom, the ten owner functions (round 13), not deprecated
   where the function reads the flag, and every getter and name/symbol (round 13, name/symbol
   under the named hypothesis `StrForm`), and the invariant over every successful call when not
-  deprecated (`inv_call`). Not covered: the deprecated paths (below).
-- The deprecated paths. Done: the split infrastructure, the generic part from EXTCODESIZE on
-  (`fromExt`, round 14), and deprecated totalSupply() in full (`dep_totalSupply_complete`, round
-  14), and deprecated balanceOf(address) in full (`dep_balanceOf_complete`, Complete/DepBalance.lean,
-  round 14; same hypotheses, the forward is `Sends … (dataB message)`, tail 126), and transfer,
-  approve, transferFrom, allowance (round 15, Complete/DepTransfer.lean, DepAllowance.lean).
-  Still open: destroyBlackFunds (prefix to 4874, `fromExt`, then the tail `tailD`,
-  whose cost depends on the state, via `ok_exact`). Delegation from Pectra stays a named
-  hypothesis (`hdel`). Old plan, per deprecated function
-  (totalSupply, balanceOf, transfer, approve, transferFrom, allowance, destroyBlackFunds):
-  (1) the prefix over `StepG` to the EXTCODESIZE pc and its `*_split`; (2) from that frame with
-  ANY gas: the empty-code revert, the failing cases with too little gas for EXTCODESIZE, GAS,
-  SUB and the CALL charge (no OOG lemma for these yet), the CALL with the runner (`spec_dep*` give
-  the result under a runner that meets a callee predicate; the run is deterministic, so
-  `runFrame z' w = .ok s` equals it), and the tail with too little gas (`htail` false); the
-  depth limit and Pectra delegation cases. (3) The invariant when deprecated needs a callee
-  assumption: the child may reenter `C`, and deprecated destroyBlackFunds subtracts the balance
-  that the upgraded contract reports, so `Inv` can fail without one.
+  deprecated (`inv_call`).
+- The deprecated paths: done (rounds 14, 15). Every deprecated function (totalSupply,
+  balanceOf, transfer, approve, transferFrom, allowance, destroyBlackFunds) has its completeness
+  theorem for any gas and any runner (`dep_*_complete`). Named hypotheses that stay: `hcode` (the
+  upgraded account's code is found), `hdel` (no Pectra delegation), and for destroyBlackFunds
+  `hstatic` and `hkeep` (the contract keeps an account after a successful forwarded call).
 - Hypotheses the completeness theorems keep, by name: `hstatic` (frame not static; a static
   SSTORE/LOG fails, but no spec of that failure is proved), `hacc` (the contract has an account;
   the write needs it), Berlin ≤ fork < Glamsterdam on the writing paths, size < 2^256.
