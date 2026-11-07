@@ -3,6 +3,7 @@ import UsdtVerify.Functions.Strings
 import UsdtVerify.Functions.DeprecatedAllowance
 import UsdtVerify.Functions.Fallback
 import UsdtVerify.Functions.DeprecatedDestroy
+import UsdtVerify.Functions.StringsGen
 import UsdtVerify.Functions.BalanceOf
 import UsdtVerify.Functions.Transfer
 import UsdtVerify.Functions.TransferSuccess
@@ -210,3 +211,14 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.DeprecatedDestroy.spec_depDNoCode
 #print axioms UsdtVerify.DeprecatedDestroy.runFrame_depDNoCode
 #print axioms UsdtVerify.DeprecatedDestroy.tailD
+#print axioms UsdtVerify.StringsGen.spec_strEmpty
+#print axioms UsdtVerify.StringsGen.spec_strLong
+#print axioms UsdtVerify.StringsGen.retG
+#print axioms UsdtVerify.StringsGen.spec_nameEmpty
+#print axioms UsdtVerify.StringsGen.spec_symbolEmpty
+#print axioms UsdtVerify.StringsGen.spec_nameLong
+#print axioms UsdtVerify.StringsGen.spec_symbolLong
+#print axioms UsdtVerify.StringsGen.runFrame_nameEmpty
+#print axioms UsdtVerify.StringsGen.runFrame_symbolEmpty
+#print axioms UsdtVerify.StringsGen.runFrame_nameLong
+#print axioms UsdtVerify.StringsGen.runFrame_symbolLong

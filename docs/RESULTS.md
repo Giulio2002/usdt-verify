@@ -211,7 +211,18 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
     the slot three times, writes nothing, and the gas is exact.
   - For the slot words of "Tether USD" and "USDT", the third word is the UTF-8 bytes of the
     string followed by zero bytes (`spec_name_tether`, `spec_symbol_usdt`).
-  - The empty string and strings of 32 bytes or more are not covered.
+  - The empty string (`StringsGen.lean`; the low byte of the slot is 0): the call returns
+    64 bytes, the word 0x20 and the word 0. It reads the slot twice, writes nothing, and the gas
+    is exact.
+  - The long form (`StringsGen.lean`): the slot word is odd and `N` = word / 2 is at least 32.
+    Solidity stores such a string from slot `keccak(k)` on. The call returns the word 0x20, the
+    word `N`, then the words of the slots `keccak(k) + i` for i < ceil(N / 32). The last word
+    keeps only its first `N mod 32` bytes followed by zeros, when `N` is not a multiple of 32.
+    The run goes through the code's two copy loops (storage to memory, then memory to memory)
+    and reads each data slot once. The gas is exact, with the price of each data read cold or
+    warm. A bound `N < 2^180` is a hypothesis.
+  - Together these cover every slot word that Solidity writes for a string. Odd words with
+    `word / 2 < 32` are not covered; Solidity never writes them.
 
 ## What is trusted
 
@@ -228,7 +239,6 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
 
 ## What is not covered
 
-- name() and symbol() for the empty string or a string of 32 bytes or more.
 - Properties across several calls (invariants), and the global "sum of all balances =
   `_totalSupply`". The global statement needs a sum over a mapping and is not stated.
 - Runs that run out of gas below the stated bounds.

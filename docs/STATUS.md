@@ -536,8 +536,29 @@ entry; `DESTS` = the 32 destinations).
 - Finding (stated by `spec_depD`): when deprecated, `_totalSupply` of this contract drops by the
   balance that the UPGRADED contract reports, and this contract's `balances[a]` becomes 0.
 
+### Round 10: name() and symbol() for the empty string and the long form (StringsGen.lean)
+- Generic local rules (any code): `mloadIn`, `mstoreIn` (a word within a memory whose size is a
+  multiple of 32: no growth), `mstoreApp` (a word at the end: appended, price
+  `memoryGasCost (s + 32) - memoryGasCost s`), `returnIn`, `ext_in`, `ext_app`, `write_last`,
+  `read_cat`; words `wd`, `add_wd`, `sub_wd`, `and31w`, `maskTop` (the padding mask keeps the
+  first m bytes of any word).
+- The return block for any string (`retG`): memory `Mb` of `P` bytes (P ≡ 0 mod 32) with the free
+  pointer `P` at 0x40, `N` at 0x60 and the words `dw i` at `0x80 + 32 i`, i < W = ceil(N/32):
+  `retAG` (offset and length appended), `retLG` / `loopG` (the copy loop at 467 / 1780 by
+  induction on the rounds), `retXZ` / `retZG` (32 | N: on at 539 / 1852, RETURN) or `retXP` /
+  `retPG` (padding: the last word masked in place, RETURN). Output `wordBytes 0x20 ++ wordBytes N
+  ++ strData dw N`, gas `retCost P N` = 170 + 75 W + (30 or 146) + memory growth.
+- The body for any length: `body1G` (length `lenOf w`, free pointer `128 + 32 W`), `body2E` (N = 0:
+  JUMPI at 2567 / 5285 taken), `body2L` (N ≥ 32: JUMPI at 2575 / 5293 taken, `keccak(wordBytes k)`
+  at 2607 / 5325), `roundC` / `roundX` / `loopL` (storage loop at 2609 / 5327, one SLOAD per word,
+  `rdSt` / `rdSs` / `rdGas` record the reads and their prices; exit 46 gas).
+- `spec_strEmpty`, `spec_strLong`, corollaries `spec_nameEmpty` (643 + slot), `spec_symbolEmpty`
+  (1083 + slot), `spec_nameLong`, `spec_symbolLong`, and `runFrame_*` for all four. The long
+  form needs `N < 2^180` (stated). Odd slot words with `w / 2 < 32` (never written by Solidity)
+  are not covered.
+
 ## Open (not proved)
-- name()/symbol() for the empty or long strings, invariants across calls, the global
+- invariants across calls, the global
   "sum of balances = totalSupply" (needs a sum over a mapping).
 
 ## Generic gaps found (for the EthLib program-logic agent)

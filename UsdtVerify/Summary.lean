@@ -28,6 +28,7 @@ import UsdtVerify.Functions.Strings
 import UsdtVerify.Functions.DeprecatedAllowance
 import UsdtVerify.Functions.Fallback
 import UsdtVerify.Functions.DeprecatedDestroy
+import UsdtVerify.Functions.StringsGen
 
 /-!
 # Summary: what is proved about the deployed USDT bytecode
@@ -275,8 +276,17 @@ with `n` bytes, 1 ≤ n ≤ 31 (`w mod 256 = 2n`): the run returns 96 bytes, the
 the word n (length), and `topBytes w n` (the first n bytes of `w`, then zeros); the slot is read
 three times (first at the cold/warm price, then warm); gas `1010 + slot` / `1450 + slot`.
 For the words of "Tether USD" and "USDT" (`NAME_WORD`, `SYMBOL_WORD`) the data word is the UTF-8
-bytes of the string padded with zeros. Not covered: the empty string and strings of 32 bytes or
-more (the long form).
+bytes of the string padded with zeros.
+Empty string (`name_empty`, `symbol_empty`; StringsGen.lean): low byte of the slot 0 ⇒ returns
+the word 0x20 and the word 0; slot read twice; gas `643 + slot` / `1083 + slot`.
+Long form (`name_long`, `symbol_long`): slot word odd, `N = w / 2`, 32 ≤ N < 2^180 ⇒ returns the
+word 0x20, the word N, and `strData` of the words of slots `keccak(k) + i`, i < ceil(N/32): the
+N/32 whole words, then (when 32 ∤ N) the first N mod 32 bytes of the next word followed by zeros.
+Slot `k` read twice, the data slots once each in order (`rdSt`, `rdSs`); gas exact (`rdGas` for
+the data reads, EthLib's `memoryGasCost` for the memory). With `spec_name`/`spec_symbol` this
+covers every slot word that Solidity writes for a string (short form `2n`, n ≤ 31; long form
+`2n + 1`, n ≥ 32, below the 2^180 bound). Not covered: odd words with `w / 2 < 32` (Solidity
+never writes them).
 
 ## allowance(owner, spender) when deprecated — `allowance_dep`, `allowance_dep_answers`, ...
 With byte 20 of slot 10 set and `ua` holding a code `c`: the frame sends `ua` one message
@@ -435,6 +445,14 @@ alias destroyBlackFunds_dep_fails := DeprecatedDestroy.spec_depD_fails
 alias runFrame_destroyBlackFunds_dep_process := DeprecatedDestroy.runFrame_depD_process
 alias destroyBlackFunds_depNoCode := DeprecatedDestroy.spec_depDNoCode
 alias runFrame_destroyBlackFunds_depNoCode := DeprecatedDestroy.runFrame_depDNoCode
+alias name_empty := StringsGen.spec_nameEmpty
+alias symbol_empty := StringsGen.spec_symbolEmpty
+alias name_long := StringsGen.spec_nameLong
+alias symbol_long := StringsGen.spec_symbolLong
+alias runFrame_name_empty := StringsGen.runFrame_nameEmpty
+alias runFrame_symbol_empty := StringsGen.runFrame_symbolEmpty
+alias runFrame_name_long := StringsGen.runFrame_nameLong
+alias runFrame_symbol_long := StringsGen.runFrame_symbolLong
 
 variable {fork : Fork} {message : Message fork}
 

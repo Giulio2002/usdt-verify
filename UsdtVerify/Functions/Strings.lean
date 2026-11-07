@@ -19,8 +19,7 @@ word with `NOT(256 ^ (32 - len) - 1)` and returns the 96 bytes from 0xa0.
 - `spec_name_tether` / `spec_symbol_usdt`: for the words of "Tether USD" and "USDT", the bytes
   are the UTF-8 bytes of the string padded with zeros (checked by `decide +kernel`).
 
-Not covered: the empty string and strings of 32 bytes or more (the long form: the loop over
-`keccak(slot)` at 2595).
+The empty string and the long form (32 bytes or more) are in StringsGen.lean.
 -/
 
 namespace UsdtVerify.Strings

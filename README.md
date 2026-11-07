@@ -71,7 +71,7 @@ All of this holds from the Berlin fork onwards, and before Glamsterdam on paths 
 - **Local conservation.** On every success path, the balance changes the path makes sum to zero. The payer changes by `-v`, the payee by `v - fee`, and the owner by `fee`. These theorems assume the slots involved are pairwise distinct. The slots are keccak outputs, and nothing about the hash function is assumed or proved.
 - **Deprecated paths.** For all five functions above, when the deprecated flag is set, USDT sends exactly one message, with no value, to the address in slot 10, with the stated call data. It then returns or stops on success, and reverts with empty output on failure. It reverts before calling if that address has no code.
 - **Getters.** `decimals`, `maximumFee`, `_totalSupply`, `basisPointsRate`, `MAX_UINT`, `deprecated`, `paused`, `upgradedAddress`, `owner`, `getOwner`, `balances`, `isBlackListed`, `getBlackListStatus`, `allowed` and `allowance` (when not deprecated) each return exactly the stated 32 bytes, read only the named slots and write nothing.
-- **name and symbol.** For a string of 1 to 31 bytes stored in Solidity's short form, they return the word 32, the length `n`, then the first `n` bytes of the slot padded with zeros, with exact gas. For the slot words of "Tether USD" and "USDT" the output is proved to be those strings. That mainnet stores those words is a hypothesis.
+- **name and symbol.** Every slot word Solidity writes for a string is covered. An empty string returns the word 32 and the word 0. A string of 1 to 31 bytes in the short form returns the word 32, the length `n`, then the first `n` bytes of the slot padded with zeros. A string of 32 bytes or more in the long form returns the word 32, the length, then the bytes read in order from the data slots at `keccak(slot) + i`, with the last word padded with zeros. Both copy loops are proved by induction, and the gas is exact. For "Tether USD" and "USDT" the output is proved to be those strings. That mainnet stores those words is a hypothesis.
 - **allowance when deprecated.** It forwards `0xdd62ed3e ++ owner ++ spender` to the upgraded address, for any callee, with the same cases as the other deprecated paths.
 - **destroyBlackFunds when deprecated.** Its internal `balanceOf(a)` is forwarded as one message, with no value, to the upgraded address. If that call fails, the run reverts with empty output. If it succeeds, the run sets the local `balances[a]` to 0 and lowers the local total supply by the balance the upgraded contract reported, with an unchecked subtraction. So the local total supply drops by the upgraded contract's answer, not by the local balance. This is proved for any callee that leaves USDT's own account unchanged.
 - **Fallback.** A selector that is not in the table reverts with no output and no state change after exactly 773 gas. Call data shorter than 4 bytes reverts the same way after 46 gas.
@@ -97,7 +97,6 @@ A few general opcode rules are proved locally in `UsdtVerify/Local/` while they 
 
 ## What is not covered yet
 
-- The string getters for the empty string and for strings of 32 bytes or more.
 - Properties across several calls, including the global statement that the balances sum to the total supply.
 - Runs with less gas than the stated bounds, and forks outside the stated range.
 
