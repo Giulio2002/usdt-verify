@@ -241,17 +241,17 @@ theorem data_memFD (message : Message fork) :
   simp only [fromArg, toArg, DeprecatedTransfer.mkey_addrArg]
 
 /-- The gas of the path from pc 0 to the CALL, for `transferFrom`. -/
-abbrev preCostF (c0 cB c10 cU : Bool) : Nat :=
-  1093 + slotCost c0 + slotCost cB + slotCost c10 + accCost cU
+abbrev preCostF (fork : Fork) (c0 cB c10 cU : Bool) : Nat :=
+  1093 + slotCost c0 + slotCost cB + slotCost c10 + extCost fork cU
 
 /-- The gas that the code asks CALL to pass on, for a frame that starts with `gas`. -/
-abbrev askedOfF (gas : Nat) (c0 cB c10 cU : Bool) : U256 :=
-  asked (gas - (1090 + slotCost c0 + slotCost cB + slotCost c10 + accCost cU))
+abbrev askedOfF (fork : Fork) (gas : Nat) (c0 cB c10 cU : Bool) : U256 :=
+  asked (gas - (1090 + slotCost c0 + slotCost cB + slotCost c10 + extCost fork cU))
 
 /-- What CALL pays and passes on, for `transferFrom`. -/
 abbrev callGasF (fork : Fork) (gas : Nat) (c0 cB c10 cU : Bool) (R : Nat) :
     MessageCallGas :=
-  messageCallGas fork 0 (askedOfF gas c0 cB c10 cU).toNat (gas - preCostF c0 cB c10 cU) 0 (100 + R)
+  messageCallGas fork 0 (askedOfF fork gas c0 cB c10 cU).toNat (gas - preCostF fork c0 cB c10 cU) 0 (100 + R)
 
 /-- The state when `transferFrom` calls: slots 0, `isBlackListed[_from]`, 10, then the upgraded
 account recorded read. -/
@@ -268,7 +268,7 @@ abbrev callSubF (substate : Substate) (state : State.TransactionState) (message 
 /-- The extra price of the CALL along the route `r` (the access to the delegate, or 0). -/
 abbrev callRF (substate : Substate) (state : State.TransactionState) (message : Message fork)
     (r : Route) : Nat :=
-  routeCost (callSubF substate state message).accessedAddresses r
+  routeCost fork (callSubF substate state message).accessedAddresses r
 
 /-- The hypotheses shared by the deprecated `transferFrom` theorems, besides the gas: as `HypT`
 with the selector 0x23b872dd and the blacklist slot of `_from` (`blackFrom (fromArg message)`),
@@ -276,7 +276,6 @@ not of the caller. -/
 structure HypF (fork : Fork) (message : Message fork) (state : State.TransactionState)
     (substate : Substate) (c : ByteArray) (r : Route) (c0 cB c10 cU : Bool) : Prop where
   berlin : .berlin ≤ fork
-  glam : fork < .glamsterdam
   size : 4 ≤ message.data.size
   size' : message.data.size < 2 ^ 256
   sel : selector message.data = 0x23b872dd
@@ -350,8 +349,8 @@ path (`preCostF`, `callGasF`, 53 gas after the price of the CALL), and the state
 `callStateF`/`callSubF` (slots 0, `isBlackListed[_from]`, 10 and `ua` read and accessed) at the CALL. -/
 theorem spec_depF {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
     (h : HypF fork message state substate c r c0 cB c10 cU) {gas : Nat}
-    (hg : preCostF c0 cB c10 cU + 100 + callRF substate state message r ≤ gas)
-    (htail : 53 ≤ gas - preCostF c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost)
+    (hg : preCostF fork c0 cB c10 cU + 100 + callRF substate state message r ≤ gas)
+    (htail : 53 ≤ gas - preCostF fork c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost)
     {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop} :
     SpecUnder fork callee (At CODE message 0 [] .empty gas state substate)
       fun evm => ∃ caller msg child, callee caller msg child ∧
@@ -364,12 +363,12 @@ theorem spec_depF {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
             (callSubF substate state message).accessedAddresses.insert (upAddr state message) } r ∧
         (child.error = none →
           Halted false .empty
-            (gas - preCostF c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost + child.gas - 53)
+            (gas - preCostF fork c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost + child.gas - 53)
             (incorporateChild fork caller child).state
             (incorporateChild fork caller child).substate evm) ∧
         (child.error ≠ none →
           Halted true .empty
-            (gas - preCostF c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost + child.gas - 25)
+            (gas - preCostF fork c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost + child.gas - 25)
             (incorporateChild fork caller child).state
             (incorporateChild fork caller child).substate evm) := by
   have hext : extendMemory (memFD message).size
@@ -377,13 +376,13 @@ theorem spec_depF {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
     rw [memFD, size_W5 (size_memF message)]; decide
   have hpre : Hoare fork (At CODE message 0 [] .empty gas state substate)
       (At CODE message 4217
-        [askedOfF gas c0 cB c10 cU, upWord (storageAt state message.currentTarget 10), 0, 0x60,
+        [askedOfF fork gas c0 cB c10 cU, upWord (storageAt state message.currentTarget 10), 0, 0x60,
           0x84, 0x60, 0, 0xe4, 0x8b477adb, upWord (storageAt state message.currentTarget 10),
           valArg message, toArg message, fromArg message, 0x0392,
           BitVec.ofNat 256 (selector message.data)]
-        (memFD message) (gas - preCostF c0 cB c10 cU) (callStateF state message)
+        (memFD message) (gas - preCostF fork c0 cB c10 cU) (callStateF state message)
         (callSubF substate state message)) := by
-    simp only [preCostF, askedOfF, accCost] at hg ⊢
+    simp only [preCostF, askedOfF, extCost] at hg ⊢
     refine (preExtF h.berlin h.size h.size' h.sel h.value h.notPaused h.notBlack h.deprecated
       h.cold0 h.coldB h.cold10 (by gas_ok)).seq ?_
     refine (toCall (gas := gas - (1065 + slotCost c0 + slotCost cB + slotCost c10))
@@ -392,27 +391,27 @@ theorem spec_depF {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
       (rest := [upWord (storageAt state message.currentTarget 10), 0, 0x60, 0x84, 0x60, 0, 0xe4,
       0x8b477adb, upWord (storageAt state message.currentTarget 10), valArg message,
       toArg message, fromArg message, 0x0392, BitVec.ofNat 256 (selector message.data)])
-      h.berlin h.glam (Or.inr (Or.inr (Or.inr (Or.inr ⟨rfl, rfl⟩)))) (by simp) h.code
-      h.codeSize h.codeSize' h.coldU (by simp only [accCost]; gas_ok)).seq ?_
-    refine Logic.reshape ?_ rfl (by simp only [accCost]; gas_ok)
+      h.berlin (Or.inr (Or.inr (Or.inr (Or.inr ⟨rfl, rfl⟩)))) (by simp) h.code
+      h.codeSize h.codeSize' h.coldU (by simp only [extCost]; gas_ok)).seq ?_
+    refine Logic.reshape ?_ rfl (by simp only [extCost]; gas_ok)
     simp only [List.cons.injEq, and_true]
-    exact congrArg asked (by unfold accCost; omega)
-  have hR : routeCost ((callSubF substate state message).accessedAddresses.insert
+    exact congrArg asked (by unfold extCost; omega)
+  have hR : routeCost fork ((callSubF substate state message).accessedAddresses.insert
       (toAddressMasked (upWord (storageAt state message.currentTarget 10)))) r =
       callRF substate state message r := routeCost_insert_insert _ _ _
   have hcall := callWithR (fork := fork) (code := CODE) (message := message) (pc := 4217)
-    (memory := memFD message) (gas := gas - preCostF c0 cB c10 cU)
+    (memory := memFD message) (gas := gas - preCostF fork c0 cB c10 cU)
     (state := callStateF state message)
     (substate := callSubF substate state message) (callee := callee)
-    (asked := askedOfF gas c0 cB c10 cU) (to := upWord (storageAt state message.currentTarget 10))
+    (asked := askedOfF fork gas c0 cB c10 cU) (to := upWord (storageAt state message.currentTarget 10))
     (i := 0x60) (isz := 0x84) (o := 0x60) (osz := 0)
     (rest := [0xe4, 0x8b477adb, upWord (storageAt state message.currentTarget 10),
       valArg message, toArg message, fromArg message, 0x0392,
       BitVec.ofNat 256 (selector message.data)]) (cold := false)
-    h.berlin h.glam (by code_fact) (by code_fact) h.code (routes_congr (fun _ => rfl) h.route) h.depth
-    (by simp [upAddr]) (by rw [hext, hR]; simp only [Bool.false_eq_true, ↓reduceIte]; omega)
+    h.berlin (by code_fact) (by code_fact) h.code (routes_congr (fun _ => rfl) h.route) h.depth
+    (by simp [upAddr]) (by rw [hext, hR]; simp only [accCost_false]; omega)
   rw [hext, hR] at hcall
-  simp only [Bool.false_eq_true, ↓reduceIte] at hcall
+  simp only [accCost_false] at hcall
   refine SpecUnder.seq (HoareUnder.of_hoare hpre) (HoareUnder.seq hcall (HoareUnder.of_hoare ?_))
   rintro evm ⟨caller, msg, child, hcal, -, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd, hmv,
     hmdep, hmst, hat⟩
@@ -424,7 +423,7 @@ theorem spec_depF {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
     obtain ⟨after, hreach, hrun, hq⟩ := okTailF (fork := fork) (message := message)
       (state := (incorporateChild fork caller child).state)
       (substate := (incorporateChild fork caller child).substate)
-      (gas := gas - preCostF c0 cB c10 cU - ((callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost + 0) + child.gas)
+      (gas := gas - preCostF fork c0 cB c10 cU - ((callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost + 0) + child.gas)
       (by omega) evm hat
     refine ⟨after, Gas.reaches_toStep hreach, hrun, caller, msg, child, hcal, hfwd, hmg, hcs, hcss, fun _ => ?_,
       fun h => absurd he h⟩
@@ -442,7 +441,7 @@ theorem spec_depF {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
       (rest := [0xe4, 0x8b477adb, upWord (storageAt state message.currentTarget 10),
         valArg message, toArg message, fromArg message, 0x0392,
         BitVec.ofNat 256 (selector message.data)]) (by simp)
-      (gas := gas - preCostF c0 cB c10 cU - ((callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost + 0) + child.gas)
+      (gas := gas - preCostF fork c0 cB c10 cU - ((callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost + 0) + child.gas)
       (by omega) evm hat
     refine ⟨after, Gas.reaches_toStep hreach, hrun, caller, msg, child, hcal, hfwd, hmg, hcs, hcss,
       fun h => absurd h he, fun _ => ?_⟩
@@ -453,15 +452,15 @@ theorem spec_depF {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
 the run STOPs with no error after the call (state and substate from `incorporateChild`). -/
 theorem spec_depF_succeeds {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
     (h : HypF fork message state substate c r c0 cB c10 cU) {gas : Nat}
-    (hg : preCostF c0 cB c10 cU + 100 + callRF substate state message r ≤ gas)
-    (htail : 53 ≤ gas - preCostF c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost)
+    (hg : preCostF fork c0 cB c10 cU + 100 + callRF substate state message r ≤ gas)
+    (htail : 53 ≤ gas - preCostF fork c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost)
     {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop}
     (hok : SucceedsD message (upAddr state message) c r (dataF message) callee) :
     SpecUnder fork callee (At CODE message 0 [] .empty gas state substate)
       fun evm => ∃ caller msg child, callee caller msg child ∧
         SendsVia message (upAddr state message) c r (dataF message) msg ∧ child.error = none ∧
         Halted false .empty
-          (gas - preCostF c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost + child.gas - 53)
+          (gas - preCostF fork c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost + child.gas - 53)
           (incorporateChild fork caller child).state
           (incorporateChild fork caller child).substate evm := by
   refine (spec_depF h hg htail).consequence (fun _ h => h) ?_
@@ -473,8 +472,8 @@ theorem spec_depF_succeeds {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
 run reverts with no output. -/
 theorem spec_depF_fails {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
     (h : HypF fork message state substate c r c0 cB c10 cU) {gas : Nat}
-    (hg : preCostF c0 cB c10 cU + 100 + callRF substate state message r ≤ gas)
-    (htail : 53 ≤ gas - preCostF c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost)
+    (hg : preCostF fork c0 cB c10 cU + 100 + callRF substate state message r ≤ gas)
+    (htail : 53 ≤ gas - preCostF fork c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost)
     {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop}
     (hfail : FailsD message (upAddr state message) c r (dataF message) callee) :
     SpecUnder fork callee (At CODE message 0 [] .empty gas state substate)
@@ -490,8 +489,8 @@ with no error after the forwarded call, or the runner aborts. -/
 theorem runFrame_depF_process {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
     (h : HypF fork message state substate c r c0 cB c10 cU)
     (hpre : Precompiles.isPrecompile fork (routeAddr (upAddr state message) r).toU256.toNat = false)
-    {gas : Nat} (hg : preCostF c0 cB c10 cU + 100 + callRF substate state message r ≤ gas)
-    (htail : 53 ≤ gas - preCostF c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost)
+    {gas : Nat} (hg : preCostF fork c0 cB c10 cU + 100 + callRF substate state message r ≤ gas)
+    (htail : 53 ≤ gas - preCostF fork c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost)
     {G : Message fork → State.TransactionState → Substate → Prop}
     {Q : Message fork → State.TransactionState → Substate → Evm fork Nat → Prop}
     (hspec : ∀ msg st ss, msg.code = routeCode c r → G msg st ss →
@@ -506,7 +505,7 @@ theorem runFrame_depF_process {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
         within = .ok stopped ∧ ∃ caller msg child, RunsAs (routeCode c r) G Q caller msg child ∧
         SendsVia message (upAddr state message) c r (dataF message) msg ∧ child.error = none ∧
         Halted false .empty
-          (gas - preCostF c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost + child.gas - 53)
+          (gas - preCostF fork c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost + child.gas - 53)
           (incorporateChild fork caller child).state
           (incorporateChild fork caller child).substate stopped) ∨
     ∃ e, runFrame (step fork) (step_decreases fork) bound (processRunner fork bound) evm
@@ -517,7 +516,7 @@ theorem runFrame_depF_process {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
 /-- The specification of `transferFrom(from, to, value)` when deprecated and the upgraded
 address has no code: the run reverts with no output before any call.
 Gas `1090 + the three slot prices + price(ua)`. -/
-theorem spec_depFNoCode (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem spec_depFNoCode (hfork : .berlin ≤ fork)
     (hsize : 4 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x23b872dd) (hv : message.value = 0)
     (hnp : byte20 (storageAt state message.currentTarget 0) = 0)
@@ -530,11 +529,11 @@ theorem spec_depFNoCode (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hc10 : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
       (blackFrom (fromArg message))) message.currentTarget 10 = c10)
     (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
-    {gas : Nat} (hg : 1090 + slotCost c0 + slotCost cB + slotCost c10 + accCost cU ≤ gas) :
+    {gas : Nat} (hg : 1090 + slotCost c0 + slotCost cB + slotCost c10 + extCost fork cU ≤ gas) :
     Spec fork (At CODE message 0 [] .empty gas state substate)
-      (Halted true .empty (gas - (1090 + slotCost c0 + slotCost cB + slotCost c10 + accCost cU))
+      (Halted true .empty (gas - (1090 + slotCost c0 + slotCost cB + slotCost c10 + extCost fork cU))
         (callStateF state message) (callSubF substate state message)) := by
-  simp only [accCost] at hg ⊢
+  simp only [extCost] at hg ⊢
   refine (preExtF hfork hsize hsz hsel hv hnp hnb hdep hc0 hcB hc10 (by gas_ok)).seq ?_
   refine (noCode (gas := gas - (1065 + slotCost c0 + slotCost cB + slotCost c10))
     (st := checkState state message) (ss := checkSub substate message) (message := message)
@@ -542,9 +541,9 @@ theorem spec_depFNoCode (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (rest := [upWord (storageAt state message.currentTarget 10), 0, 0x60, 0x84, 0x60, 0, 0xe4,
       0x8b477adb, upWord (storageAt state message.currentTarget 10), valArg message,
       toArg message, fromArg message, 0x0392, BitVec.ofNat 256 (selector message.data)])
-    hfork hglam (Or.inr (Or.inr (Or.inr (Or.inr rfl)))) (by simp) hcode hcU
-    (by simp only [accCost]; gas_ok)).consequence (fun _ h => h) ?_
+    hfork (Or.inr (Or.inr (Or.inr (Or.inr rfl)))) (by simp) hcode hcU
+    (by simp only [extCost]; gas_ok)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
-  exact ⟨hr, he, ho, by rw [hgas]; simp only [accCost]; gas_ok, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; simp only [extCost]; gas_ok, hs, hss⟩
 
 end UsdtVerify.DeprecatedTransferFrom

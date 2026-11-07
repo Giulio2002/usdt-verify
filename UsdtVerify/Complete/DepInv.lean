@@ -145,7 +145,7 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
 
 /-- Deprecated `destroyBlackFunds(a)`: a successful end is `tailState S C a d` over a state `S`
 with `Inv` (by `hcallee`), and there `Inv` holds iff `d = balances[a]` in `S`. -/
-theorem depD_inv (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem depD_inv (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false)
     (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xf3bdc228) (hv : message.value = 0)
@@ -161,8 +161,8 @@ theorem depD_inv (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .gla
       (listSlot (addrArg message.data 0)) = cL)
     (hc10 : coldIn (preSub substate message) message.currentTarget 10 = c10)
     (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
-    {gas : Nat} (hg : preCostD c0 cL c10 cU + 100 + callRD substate state message r ≤ gas)
-    (htail : TAIL_MAX ≤ gas - preCostD c0 cL c10 cU - (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).cost)
+    {gas : Nat} (hg : preCostD fork c0 cL c10 cU + 100 + callRD substate state message r ≤ gas)
+    (htail : TAIL_MAX fork ≤ gas - preCostD fork c0 cL c10 cU - (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).cost)
     {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop}
     (hcallee : ∀ caller msg child, callee caller msg child →
       SendsVia message (upAddr state message) c r (dataB message) msg → child.error = none →
@@ -171,7 +171,7 @@ theorem depD_inv (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .gla
       fun evm => evm.error = none → ∃ S d, Inv message.currentTarget S ∧
         evm.state = tailState S message.currentTarget (addrArg message.data 0) d ∧
         (Inv message.currentTarget evm.state ↔ d = storageAt S message.currentTarget (balSlot message)) := by
-  refine (spec_depD hfork hglam hstatic hsize hsize' hsel hv hown hl hdep hcode hsz hszl hroute
+  refine (spec_depD hfork hstatic hsize hsize' hsel hv hown hl hdep hcode hsz hszl hroute
     hdepth hc0 hcL hc10 hcU hg htail
     (fun cl m ch h1 h2 h3 => (hcallee cl m ch h1 h2 h3).1)).consequence (fun _ h => h) ?_
   rintro evm ⟨caller, msg, child, hcal, hfwd, -, -, -, hok, hko⟩ herr
@@ -188,7 +188,7 @@ theorem depD_inv (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .gla
 
 /-- Deprecated `destroyBlackFunds(a)` with a callee that keeps `Inv` and answers the local
 balance of `a` in its end state (`hans`): every successful end keeps `Inv`. -/
-theorem depD_keeps (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem depD_keeps (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false)
     (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xf3bdc228) (hv : message.value = 0)
@@ -204,8 +204,8 @@ theorem depD_keeps (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .g
       (listSlot (addrArg message.data 0)) = cL)
     (hc10 : coldIn (preSub substate message) message.currentTarget 10 = c10)
     (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
-    {gas : Nat} (hg : preCostD c0 cL c10 cU + 100 + callRD substate state message r ≤ gas)
-    (htail : TAIL_MAX ≤ gas - preCostD c0 cL c10 cU - (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).cost)
+    {gas : Nat} (hg : preCostD fork c0 cL c10 cU + 100 + callRD substate state message r ≤ gas)
+    (htail : TAIL_MAX fork ≤ gas - preCostD fork c0 cL c10 cU - (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).cost)
     {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop}
     (hcallee : ∀ caller msg child, callee caller msg child →
       SendsVia message (upAddr state message) c r (dataB message) msg → child.error = none →
@@ -216,7 +216,7 @@ theorem depD_keeps (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .g
           storageAt child.state message.currentTarget (balSlot message)) :
     SpecUnder fork callee (At CODE message 0 [] .empty gas state substate)
       fun evm => evm.error = none → Inv message.currentTarget evm.state := by
-  refine (spec_depD hfork hglam hstatic hsize hsize' hsel hv hown hl hdep hcode hsz hszl hroute
+  refine (spec_depD hfork hstatic hsize hsize' hsel hv hown hl hdep hcode hsz hszl hroute
     hdepth hc0 hcL hc10 hcU hg htail
     (fun cl m ch h1 h2 h3 => (hcallee cl m ch h1 h2 h3).1)).consequence (fun _ h => h) ?_
   rintro evm ⟨caller, msg, child, hcal, hfwd, -, -, -, hok, hko⟩ herr
@@ -233,7 +233,7 @@ theorem depD_keeps (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .g
 /-- The counterexample, for every start state with `Inv`: a callee that succeeds with the output
 `o`, keeps every word of `C`'s storage, and answers a word other than `balances[a]` at the start
 (`hne`). Every run ends with no error, and `Inv` fails at its end. -/
-theorem depD_breaks (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem depD_breaks (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false)
     (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xf3bdc228) (hv : message.value = 0)
@@ -249,8 +249,8 @@ theorem depD_breaks (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .
       (listSlot (addrArg message.data 0)) = cL)
     (hc10 : coldIn (preSub substate message) message.currentTarget 10 = c10)
     (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
-    {gas : Nat} (hg : preCostD c0 cL c10 cU + 100 + callRD substate state message r ≤ gas)
-    (htail : TAIL_MAX ≤ gas - preCostD c0 cL c10 cU - (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).cost)
+    {gas : Nat} (hg : preCostD fork c0 cL c10 cU + 100 + callRD substate state message r ≤ gas)
+    (htail : TAIL_MAX fork ≤ gas - preCostD fork c0 cL c10 cU - (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).cost)
     (hI : Inv message.currentTarget state)
     {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop} {o : ByteArray}
     (hans : AnswersD message (upAddr state message) c r (dataB message) o callee)
@@ -263,7 +263,7 @@ theorem depD_breaks (K : KeccakSep) (hfork : .berlin ≤ fork) (hglam : fork < .
     (hne : loadWord o 0 32 ≠ storageAt state message.currentTarget (balSlot message)) :
     SpecUnder fork callee (At CODE message 0 [] .empty gas state substate)
       fun evm => evm.error = none ∧ ¬ Inv message.currentTarget evm.state := by
-  refine (spec_depD hfork hglam hstatic hsize hsize' hsel hv hown hl hdep hcode hsz hszl hroute
+  refine (spec_depD hfork hstatic hsize hsize' hsel hv hown hl hdep hcode hsz hszl hroute
     hdepth hc0 hcL hc10 hcU hg htail
     (fun cl m ch h1 h2 _ => (hsame cl m ch h1 h2).1)).consequence (fun _ h => h) ?_
   rintro evm ⟨caller, msg, child, hcal, hfwd, -, hcs, -, hok, -⟩

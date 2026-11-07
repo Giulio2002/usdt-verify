@@ -79,7 +79,7 @@ theorem prefixG_destroy (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.s
 `hkeep`: the owner's call, `a` blacklisted, the forward of `balanceOf(a)` answered with no error,
 then the two writes over the state the call left and the log; output, gas, state and substate
 exact. -/
-theorem dep_destroy_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+theorem dep_destroy_complete (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
@@ -103,12 +103,12 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamste
     callerWord message = ownerOf state message.currentTarget ∧
     (storageAt state message.currentTarget (listSlot (addrArg message.data 0))).toNat % 256 ≠ 0 ∧
     BitVec.ofNat 256 c.size ≠ 0 ∧
-    preCostD c0 cL c10 cU + 100 + routeCost (callSubD substate state message).accessedAddresses r ≤ gas ∧
+    preCostD fork c0 cL c10 cU + 100 + routeCost fork (callSubD substate state message).accessedAddresses r ≤ gas ∧
     message.depth + 1 ≤ STACK_DEPTH_LIMIT ∧
     ∃ caller msg lt child, runChild caller msg lt = .ok child ∧ child.1.error = none ∧
       SendsVia message (upAddr state message) c r (dataB message) msg ∧
-      msg.gas = (depCallGas fork (askedOfD gas c0 cL c10 cU) (gas - preCostD c0 cL c10 cU)
-        (routeCost (callSubD substate state message).accessedAddresses r)).subCall ∧
+      msg.gas = (depCallGas fork (askedOfD fork gas c0 cL c10 cU) (gas - preCostD fork c0 cL c10 cU)
+        (routeCost fork (callSubD substate state message).accessedAddresses r)).subCall ∧
       caller.state = (routeState ((callStateD state message).recordAccountRead
         (upAddr state message)) r).recordAccountRead message.currentTarget ∧
       caller.substate = routeSub { callSubD substate state message with
@@ -120,11 +120,11 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamste
             (balSlot message))
           (coldIn (accessSlot (incorporateChild fork caller child.1).substate
             message.currentTarget (balSlot message)) message.currentTarget 1) ≤
-        gas - preCostD c0 cL c10 cU - (depCallGas fork (askedOfD gas c0 cL c10 cU) (gas - preCostD c0 cL c10 cU)
-        (routeCost (callSubD substate state message).accessedAddresses r)).cost + child.1.gas ∧
+        gas - preCostD fork c0 cL c10 cU - (depCallGas fork (askedOfD fork gas c0 cL c10 cU) (gas - preCostD fork c0 cL c10 cU)
+        (routeCost fork (callSubD substate state message).accessedAddresses r)).cost + child.1.gas ∧
       s.running = false ∧ s.output = .empty ∧
-      s.gas = gas - preCostD c0 cL c10 cU - (depCallGas fork (askedOfD gas c0 cL c10 cU) (gas - preCostD c0 cL c10 cU)
-        (routeCost (callSubD substate state message).accessedAddresses r)).cost + child.1.gas -
+      s.gas = gas - preCostD fork c0 cL c10 cU - (depCallGas fork (askedOfD fork gas c0 cL c10 cU) (gas - preCostD fork c0 cL c10 cU)
+        (routeCost fork (callSubD substate state message).accessedAddresses r)).cost + child.1.gas -
         tailCost fork (incorporateChild fork caller child.1).state message.currentTarget
           (addrArg message.data 0) (resWord (outMemOf (memD message) child.1.output))
           (coldIn (incorporateChild fork caller child.1).substate message.currentTarget
@@ -155,7 +155,7 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamste
       BitVec.ofNat 256 (selector message.data)])
     (st := readSlot (preState state message) message.currentTarget 10)
     (ss := accessSlot (preSub substate message) message.currentTarget 10)
-    hfork hglam (Or.inr (Or.inl ⟨rfl, rfl⟩)) (by simp) hcode hz w hrunz hok
+    hfork (Or.inr (Or.inl ⟨rfl, rfl⟩)) (by simp) hcode hz w hrunz hok
   have hB := size_memD message
   have hext : extendMemory (memD message).size
       [((0x60 : U256), (0x24 : U256)), ((0x60 : U256), (0x20 : U256))] = ⟨0, 0⟩ := by
@@ -165,27 +165,27 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamste
       decide (upAddr state message ∉ substate.accessedAddresses) := rfl
   unfold CallEnd at hCE
   simp only [routeCost_insert_insert] at hCE
-  have hRe : routeCost ((accessSlot (preSub substate message) message.currentTarget 10).accessedAddresses.insert
+  have hRe : routeCost fork ((accessSlot (preSub substate message) message.currentTarget 10).accessedAddresses.insert
       (toAddressMasked (upWord (storageAt state message.currentTarget 10)))) r =
-      routeCost (callSubD substate state message).accessedAddresses r := rfl
+      routeCost fork (callSubD substate state message).accessedAddresses r := rfl
   rw [hRe] at hgc hCE
   refine ⟨c, r, hcode, routes_congr (fun _ => rfl) hroute, ?_⟩
-  generalize hR : routeCost (callSubD substate state message).accessedAddresses r = R at hgc hCE ⊢
+  generalize hR : routeCost fork (callSubD substate state message).accessedAddresses r = R at hgc hCE ⊢
   rw [hcU', hcU] at hgc hCE
   rw [hext] at hgc
-  simp only [accCost] at hgc hg0
-  have e1 : gas - (1472 + slotCost c0 + slotCost cL + slotCost c10) - (accCost cU + 25) =
-      gas - (1497 + slotCost c0 + slotCost cL + slotCost c10 + accCost cU) := by
-    simp only [accCost]; omega
-  have e2 : gas - (1472 + slotCost c0 + slotCost cL + slotCost c10) - (accCost cU + 28) =
-      gas - preCostD c0 cL c10 cU := by
-    simp only [preCostD, accCost]; omega
+  simp only [extCost] at hgc hg0
+  have e1 : gas - (1472 + slotCost c0 + slotCost cL + slotCost c10) - (extCost fork cU + 25) =
+      gas - (1497 + slotCost c0 + slotCost cL + slotCost c10 + extCost fork cU) := by
+    simp only [extCost]; omega
+  have e2 : gas - (1472 + slotCost c0 + slotCost cL + slotCost c10) - (extCost fork cU + 28) =
+      gas - preCostD fork c0 cL c10 cU := by
+    simp only [preCostD, extCost]; omega
   rw [e1, e2] at hCE
   obtain ⟨caller, msg, lt, child, hch, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd, hmv,
     hmdep, hmst, after, wa, hat, hruna⟩ := hCE
   rw [hext] at hmg hmd hat
-  simp only [Bool.false_eq_true, ↓reduceIte] at hmg hat
-  refine ⟨hown, hl, hw, by simp only [preCostD, accCost]; omega, hdepth, ?_⟩
+  simp only [accCost_false] at hmg hat
+  refine ⟨hown, hl, hw, by simp only [preCostD, extCost]; omega, hdepth, ?_⟩
   have hfwd : SendsVia message (upAddr state message) c r (dataB message) msg := by
     refine ⟨hmc, hmt, hmtg, hmca, hmcode, hmdp, ?_, hmv, hmdep, hmst⟩
     rw [hmd, memoryExtend_zero]; exact data_memD message
@@ -195,7 +195,7 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamste
       rw [state_incorporateChild]; exact hkeep caller msg lt child c r hch hfwd hcs he
     obtain ⟨hcost, hr, ho, hgs, hst, hss⟩ := ok_exact2
       (fun g h1 _ => tailD (fork := fork) (message := message)
-        hfork hglam (mkey_addrArg0 message.data) hstatic hacc
+        hfork (mkey_addrArg0 message.data) hstatic hacc
         (size_outMemOf hB child.1.output)
         (mload_outMemOf hB (by rw [memoryExtend_zero]; exact ptr_memD message) child.1.output)
         (x := BitVec.ofNat 256 (selector message.data)) rfl rfl (gas := g) h1) hat wa hruna hok

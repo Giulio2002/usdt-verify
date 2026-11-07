@@ -11,9 +11,14 @@ what they state. Theorem names in parentheses; the one-place index is `UsdtVerif
   compares `CODE` with the hex file and its keccak256 with `b44fb4e9…ea55`. The interpreter runs
   this check; it is a test, not a kernel-checked theorem.
 - The semantics is EthLib's EVM model (pinned commit fd3457dbf), with its program logic and the
-  one-counter gas meter. Forks: Berlin onwards. Since round 17 the paths that write storage
-  hold at Glamsterdam too (each SSTORE costs `writeCost`, EthLib's `sstoreCost` plus its state gas
-  of a new slot); the paths that make a call (deprecated) hold before Glamsterdam.
+  one-counter gas meter. Forks: Berlin onwards, Glamsterdam included. Since round 17 the paths
+  that write storage hold at Glamsterdam (each SSTORE costs `writeCost`, EthLib's `sstoreCost`
+  plus its state gas of a new slot). Since round 19 the paths that make a call (deprecated) hold
+  there too: EXTCODESIZE costs `extCost fork` (EthLib's `externalBaseCost`: 2600 cold / 100 warm
+  before Glamsterdam, the access plus 100 from Glamsterdam, EIP-8038), an account access costs
+  `accCost fork` (cold 2600, 3000 from Glamsterdam), and the CALL rules follow EthLib's order of
+  the charges at Glamsterdam. Before Glamsterdam these prices are the old ones (`extCost_of_lt`,
+  `accCost_of_lt`, `TAIL_MAX_of_lt`).
 
 ## What a theorem says
 
@@ -190,8 +195,10 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
     It sends the upgraded address `ua` one message with no value and the data
     `0x70a08231 ++ a` (`balanceOf(a)`). The theorem holds for every callee behaviour that meets
     a stated assumption: when the call ends with no error, the contract's account still exists
-    in the state the call left. It also needs a frame that is not static, and at least 47,881 gas
-    left after the price of the CALL (`TAIL_MAX`, enough for both writes at their highest price).
+    in the state the call left. It also needs a frame that is not static, and at least
+    `TAIL_MAX fork` gas left after the price of the CALL (enough for both writes at their highest
+    price, `Gas.writeMax`: 47,881 before Glamsterdam, 223,721 from Glamsterdam, where a write can
+    also pay the state gas of a new slot).
     - If the call fails, the run reverts with no output.
     - If it succeeds, let `S` be the state the call left and `d` the first word of the reply
       (the word at 0x60 after the copy). The run stops after writing 0 to `B` and then
@@ -311,8 +318,8 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   - slots 7 and 8 hold strings in a form Solidity writes (`StrForm`);
   - `Inv`: the sum of the 2^160 balances equals `_totalSupply` at the start.
   If the interpreter loop ends with no error, `Inv` holds in the end state.
-- Deprecated totalSupply() (`Complete.dep_totalSupply_complete`, round 14), from Berlin to before
-  Glamsterdam (as every `dep_*_complete` below), for any gas, any gas
+- Deprecated totalSupply() (`Complete.dep_totalSupply_complete`, round 14), from Berlin on,
+  Glamsterdam included since round 19 (as every `dep_*_complete` below), for any gas, any gas
   bound and ANY message runner (nothing is assumed of the runner). Every run that ends with no
   error is the forward to the upgraded address:
   - the runner was called with the forwarded message (`SendsVia`, along the route `r`) and
@@ -325,7 +332,8 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   runs `c`; or, from Pectra, `c` is an EIP-7702 delegation indicator to an address `d`, the code
   `c'` of `d` was found in the state, and the message runs `c'` with `d` as its code address and
   the precompiles disabled. Its current target is still the upgraded address. In the delegated
-  case the CALL also paid the access to `d` (2600 cold, 100 warm, `routeCost`), and the caller's
+  case the CALL also paid the access to `d` (`routeCost`: `accCost`, 100 warm, 2600 cold, 3000
+  cold from Glamsterdam), and the caller's
   state and substate record the read and the access of `d`. No hypothesis on the code.
   Too little gas at EXTCODESIZE, GAS, SUB, CALL or after the call,
   no code, the greatest depth, and (from Pectra) a delegate whose code is not found in the state
@@ -387,7 +395,7 @@ left. The callee may call back into this contract, so `S` can differ from the st
 
 `UsdtVerify/Complete/DepInvAll.lean`, `Complete.inv_call_ns` (until round 16 named
 `inv_call_all`). It is `inv_call` without the
-hypothesis "not deprecated". From Berlin on (before Glamsterdam when deprecated, round 17), take a fresh frame of the
+hypothesis "not deprecated". From Berlin on (Glamsterdam included; until round 18 before Glamsterdam when deprecated), take a fresh frame of the
 deployed code at pc 0, with any call data below 2^256 bytes, any value, any gas, any gas bound
 and any message runner. Assume `KeccakSep`, a frame that is not static, `StrForm` of slots 7
 and 8, and `Inv` at the start. When the contract is deprecated, also assume an account for the
@@ -430,7 +438,7 @@ it, from Paris, for the interpreter's own runner (EthLib's `processMessage_stati
 that point, under the hypotheses of `inv_call_all` for that run, each with its own fork, message,
 gas and runner) or `Untouched` (any change that keeps every storage word of `C`).
 - `inv_calls`: under `KeccakSep`, `Inv C S` and `Calls C S S'` give `Inv C S'`.
-- `goodCall_process`: from Paris on (before Glamsterdam when deprecated), a top-level message to `C` with the
+- `goodCall_process`: from Paris on (Glamsterdam included since round 19), a top-level message to `C` with the
   deployed code, no value and no precompile, run by EthLib's `processMessage`, that ends with no
   error, is a `GoodCall` from its start state to its end state, under the named assumptions for
   the interpreter's own runner (`StaticKeeps` is proved for it).
@@ -444,8 +452,8 @@ gas and runner) or `Untouched` (any change that keeps every storage word of `C`)
   (`Local.processMessage_failed_getStorage` then applies EthLib's `getStorage_restoreTxState`).
 - Calls with value (round 18): `process_value_fails` proves that, from Berlin, a top-level message
   of the deployed code (no precompile, call data below 2^256 bytes) with a nonzero value ends
-  with an error, whether the value is moved or not. `process_step` (from Paris; when deprecated,
-  before Glamsterdam) puts both together: every top-level message of the deployed code to `C`
+  with an error, whether the value is moved or not. `process_step` (from Paris, Glamsterdam
+  included) puts both together: every top-level message of the deployed code to `C`
   with no precompile that `processMessage` ends is a `GoodCall` (no error) or an `Untouched` step
   (an error). It takes the hypotheses of `goodCall_process` except "no value" (call data below
   2^256 bytes and the named assumptions) in both cases; the error case uses none of them.
@@ -469,7 +477,11 @@ call. destroyBlackFunds ends in `tailState S C a d` over the child's end state `
   and `data/SOURCE.md` ties the file to the chain.
 - A few generic rules are proved locally in this repository, and EthLib's model is not
   modified. These rules are EXP with its price worked out, some instruction table
-  entries, and that every message keeps the block of the state (`UsdtVerify/Local/`). STOP, GAS and EXTCODESIZE now come from EthLib. They are proved from EthLib's semantics, not assumed.
+  entries, EXTCODESIZE at every fork from Berlin (`Local.extcodesize`; EthLib's rule stops
+  before Glamsterdam), and that every message keeps the block of the state
+  (`UsdtVerify/Local/`). STOP and GAS come from EthLib. The CALL step lemmas at every fork
+  (`callStep_child_r`, `callWithR`, `callStep_low_r`, `callStep_deep_r`, `callStep_missing`) are
+  computed from EthLib's `callStep`. They are proved from EthLib's semantics, not assumed.
 
 ## What is not covered
 
@@ -481,4 +493,5 @@ call. destroyBlackFunds ends in `tailState S C a d` over the child's end state `
   shown to meet them.
 - `KeccakSep` (a hypothesis of the invariant theorems, about keccak).
 - Runs that run out of gas below the stated bounds, except at the dispatcher (see above).
-- Forks before Berlin, and Glamsterdam onwards on the calling (deprecated) paths.
+- Forks before Berlin. Glamsterdam rests on EthLib's model of that fork at the pin (its prices
+  and the order of its checks).

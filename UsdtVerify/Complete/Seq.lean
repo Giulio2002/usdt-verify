@@ -9,7 +9,7 @@ between states, each of which is:
 
 - `GoodCall C S S'`: a successful run of a fresh frame of `CODE` for a message to `C`, from the
   state `S`, that ends in `S'`, with the hypotheses of `inv_call_all` for that run (its own fork
-  from Berlin (before Glamsterdam when deprecated), message, gas, gas bound, runner, and the named assumptions
+  from Berlin, Glamsterdam included), message, gas, gas bound, runner, and the named assumptions
   `StrForm`, `hstat`, `hacc` (an account of `C` only when deprecated and not static), `KeepsInv`,
   `HonestBalance`, each at the state `S` of that call);
 - or `Untouched C S S'`: any change that keeps every storage word of `C`. This is where the
@@ -20,7 +20,7 @@ between states, each of which is:
   the step, not proved here.
 
 `inv_calls`: under `KeccakSep`, `Inv C` at the start of a `Calls` sequence gives `Inv C` at its
-end. `goodCall_process`: from Paris (before Glamsterdam when deprecated), a top-level message to `C` with no value and no precompile,
+end. `goodCall_process`: from Paris (Glamsterdam included), a top-level message to `C` with no value and no precompile,
 run by EthLib's `processMessage`, that ends with no error, is a `GoodCall` from its start state
 to its end state, under the same named assumptions for the interpreter's runner
 (`StaticKeeps` is then proved, `staticKeeps_process`).
@@ -31,7 +31,7 @@ Failed calls and calls with value (round 18):
   (`Local.processMessage_failed_getStorage`, Local/Parent.lean).
 - `process_value_fails`: from Berlin, a top-level message of `CODE` (no precompile) with a nonzero
   value ends with an error, whether the value is moved or not.
-- `process_step`: from Paris (before Glamsterdam when deprecated), under the hypotheses of
+- `process_step`: from Paris (Glamsterdam included), under the hypotheses of
   `goodCall_process` except "no value", every top-level message of `CODE` to `C` (no
   precompile) that `processMessage` ends is a `GoodCall` (no error) or an `Untouched` step (an
   error; that case uses none of those hypotheses).
@@ -52,7 +52,6 @@ def GoodCall (C : Address) (S S' : State.TransactionState) : Prop :=
     (runChild : MessageRunner fork Nat bound) (evm s : Evm fork Nat)
     (within : GasMeter.gasHeld evm.gas ≤ bound),
     message.currentTarget = C ∧ .berlin ≤ fork ∧
-    (byte20 (storageAt S C 10) ≠ 0 → fork < .glamsterdam) ∧
     (message.isStatic = true →
       message.code = CODE ∧ StaticCode S message ∧ StaticKeeps runChild) ∧
     (byte20 (storageAt S C 10) ≠ 0 → message.isStatic = false → hasAccount S C) ∧
@@ -79,10 +78,10 @@ inductive Calls (C : Address) : State.TransactionState → State.TransactionStat
 /-- One successful call keeps `Inv C`. -/
 theorem inv_goodCall (K : KeccakSep) {C : Address} {S S' : State.TransactionState}
     (h : GoodCall C S S') (hI : Inv C S) : Inv C S' := by
-  obtain ⟨fork, message, substate, gas, bound, runChild, evm, s, within, hC, hfork, hglam, hstat,
+  obtain ⟨fork, message, substate, gas, bound, runChild, evm, s, within, hC, hfork, hstat,
     hacc, hsize, h7, h8, hkeeps, hhonest, start, hrun, hok, rfl⟩ := h
   subst hC
-  exact inv_call_all K hfork hglam hstat hacc hsize h7 h8 hkeeps hhonest hI start within hrun hok
+  exact inv_call_all K hfork hstat hacc hsize h7 h8 hkeeps hhonest hI start within hrun hok
 
 /-- `Inv C` along every finite sequence of successful calls to `C` and of changes that keep the
 storage of `C`, under `KeccakSep`. -/
@@ -106,7 +105,6 @@ theorem goodCall_process {fork : Fork} (hparis : .paris ≤ fork)
     (hacc : byte20 (storageAt state message.currentTarget 10) ≠ 0 → message.isStatic = false →
       hasAccount state message.currentTarget)
     (hsize : message.data.size < 2 ^ 256)
-    (hglam : byte20 (storageAt state message.currentTarget 10) ≠ 0 → fork < .glamsterdam)
     (h7 : StrForm (storageAt state message.currentTarget 7))
     (h8 : StrForm (storageAt state message.currentTarget 8))
     (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
@@ -141,7 +139,7 @@ theorem goodCall_process {fork : Fork} (hparis : .paris ≤ fork)
     have start := at_startFrame hmc (startState fork message state) substate
     rw [hst] at start hres
     refine ⟨fork, message, substate, message.gas, message.gas, processRunner fork message.gas, _, s,
-      Nat.le_refl _, rfl, hberlin, hglam, fun h => ⟨hmc, hstat h, staticKeeps_process hparis⟩,
+      Nat.le_refl _, rfl, hberlin, fun h => ⟨hmc, hstat h, staticKeeps_process hparis⟩,
       hacc, hsize, h7, h8, hkeeps, hhonest, start, hres, hse, by rw [hend]⟩
 
 /-! ## Failed top-level calls and calls with value -/
@@ -199,7 +197,7 @@ theorem process_value_fails {fork : Fork} (hfork : .berlin ≤ fork) {message : 
     | ok moved => exact key moved _ _ rfl (processMessage_map_val_value ht hm noPrecompile rfl)
   · exact key _ _ _ rfl (processMessage_map_val ht noPrecompile rfl)
 
-/-- From Paris (before Glamsterdam when deprecated), under the hypotheses of `goodCall_process`
+/-- From Paris (Glamsterdam included), under the hypotheses of `goodCall_process`
 except "no value", every top-level message to `C` whose code is `CODE` (no precompile, call data
 below 2^256 bytes), run by EthLib's `processMessage` to the end, is a step of `Calls C`: a
 `GoodCall` when it ends with no error (then its value is 0 or not moved, `process_value_fails`,
@@ -213,7 +211,6 @@ theorem process_step {fork : Fork} (hparis : .paris ≤ fork)
     (hacc : byte20 (storageAt state message.currentTarget 10) ≠ 0 → message.isStatic = false →
       hasAccount state message.currentTarget)
     (hsize : message.data.size < 2 ^ 256)
-    (hglam : byte20 (storageAt state message.currentTarget 10) ≠ 0 → fork < .glamsterdam)
     (h7 : StrForm (storageAt state message.currentTarget 7))
     (h8 : StrForm (storageAt state message.currentTarget 8))
     (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
@@ -229,7 +226,7 @@ theorem process_step {fork : Fork} (hparis : .paris ≤ fork)
   · by_cases ht : message.shouldTransferValue = true ∧ message.value ≠ 0
     · exact absurd herr (process_value_fails (Nat.le_trans (by decide) hparis) hmc noPrecompile
         hsize ht.2 hproc)
-    · exact .inl (goodCall_process hparis hmc ht noPrecompile hstat hacc hsize hglam h7 h8 hkeeps
+    · exact .inl (goodCall_process hparis hmc ht noPrecompile hstat hacc hsize h7 h8 hkeeps
         hhonest hproc herr)
   · exact .inr (untouched_process_failed hproc herr _)
 

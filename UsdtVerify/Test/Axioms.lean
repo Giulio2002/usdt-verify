@@ -374,7 +374,14 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Complete.callStep_deep
 #print axioms UsdtVerify.Complete.step_call
 #print axioms UsdtVerify.Complete.call_ok
-#print axioms UsdtVerify.Complete.accountAccessCost_of_berlin
+#print axioms UsdtVerify.Deprecated.accCost_of_lt
+#print axioms UsdtVerify.Deprecated.extCost_of_lt
+#print axioms UsdtVerify.Deprecated.callBaseCost_eq
+#print axioms UsdtVerify.Deprecated.extCost_ge
+#print axioms UsdtVerify.Local.extcodesize
+#print axioms UsdtVerify.Complete.ok_step_bad
+#print axioms UsdtVerify.Gas.writeCost_le
+#print axioms UsdtVerify.DeprecatedDestroy.TAIL_MAX_of_lt
 #print axioms UsdtVerify.Complete.routes_congr
 #print axioms UsdtVerify.Complete.routes_rec
 #print axioms UsdtVerify.Complete.routeCost_insert_insert

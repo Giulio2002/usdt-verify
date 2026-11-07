@@ -6,7 +6,8 @@ import EthLib.Execution.Proofs.Evm.Logic.Log
 # More rules of opcodes over `StepG`
 
 POP, JUMP, MLOAD, KECCAK256, EXP, RETURN, STOP, SLOAD, SSTORE and LOG0..LOG4 are `RunMono`;
-their rules are EthLib's (and the local `Local.exp`, `sstoreW`), restated over `StepG`.
+their rules are EthLib's (and the local `Local.exp`), restated over `StepG`; SSTORE at every fork
+from Berlin (`sstoreG_any`, `sstoreWG`, price `writeCost`).
 -/
 
 namespace UsdtVerify.Gas
@@ -413,39 +414,6 @@ theorem returnG {start size : U256} {rest : List U256} (hlt : pc < code.size)
   rw [charge_nat hgas]
   exact ⟨_, rfl, rfl, rfl, herr, rfl, by simp, hs, hss⟩
 
-/-- EthLib's `sstore` over `StepG`. -/
-theorem sstoreG (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {key new : U256}
-    {rest : List U256} {cold : Bool} {state' : State.TransactionState}
-    (hlt : pc < code.size) (hbyte : code[pc] = 0x55) (hstatic : message.isStatic = false)
-    (hcold : decide (U256.toBeBytes key ∉
-      substate.accessedStorageKeys.getD message.currentTarget ∅) = cold)
-    (hstipend : CALL_STIPEND < gas)
-    (hgas : sstoreCost fork (state.getStorageOriginal message.currentTarget (U256.toBeBytes key))
-      (state.getStorage message.currentTarget (U256.toBeBytes key)) new cold ≤ gas)
-    (hset : (state.recordStorageRead message.currentTarget (U256.toBeBytes key)).setStorage
-      message.currentTarget (U256.toBeBytes key) new = .ok state') :
-    HoareG fork (At code message pc (key :: new :: rest) memory gas state substate)
-      (At code message (pc + 1) rest memory
-        (gas - sstoreCost fork
-          (state.getStorageOriginal message.currentTarget (U256.toBeBytes key))
-          (state.getStorage message.currentTarget (U256.toBeBytes key)) new cold)
-        state'
-        { substate with
-          accessedStorageKeys := substate.accessedStorageKeys.insert message.currentTarget
-            ((substate.accessedStorageKeys.getD message.currentTarget ∅).insert
-              (U256.toBeBytes key))
-          refundCounter := substate.refundCounter + sstoreRefund fork
-            (state.getStorageOriginal message.currentTarget (U256.toBeBytes key))
-            (state.getStorage message.currentTarget (U256.toBeBytes key)) new }) := by
-  apply At.ruleG hlt hbyte (ofByte_of_decode (op := .sstore) rfl (Fork.frontier_le _))
-    instruction_sstore runMono_sstore
-  rintro evm ⟨hcode, hj, hm, hpc, hst, hmem, hg, hrun, herr, hout, hs, hss⟩
-  subst hm hg hs hss hcold
-  obtain ⟨after, h, a1, a2, a3, a4, a5, a6, a7, a8, a9, ao, a10, a11⟩ :=
-    sstoreStep_eq hfork hglam hst hstatic hstipend hgas hset
-  exact ⟨after, h, by rw [a1, hcode], by rw [a2, hj], a3, by rw [a4, hpc], a5, by rw [a6, hmem],
-    a7, by rw [a8, hrun], by rw [a9, herr], by rw [ao, hout], a10, a11⟩
-
 /-- The price of an SSTORE for the one-counter meter, at every fork from Berlin: the price of the
 write (`sstoreCost`) plus the state gas of a new slot (`sstoreStateGas`, 0 before Glamsterdam).
 The meter `Nat` has no reservoir: its refill of state gas is no change. -/
@@ -456,6 +424,25 @@ theorem writeCost_of_lt (hglam : fork < .glamsterdam) (orig cur new : U256) (col
     writeCost fork orig cur new cold = sstoreCost fork orig cur new cold := by
   have hng : ¬fork ≥ .glamsterdam := Nat.not_le_of_lt hglam
   simp [writeCost, sstoreStateGas, hng]
+
+/-- An upper bound of `writeCost` at `fork`: 22100 (a cold write from zero, 2100 + 20000) before
+Glamsterdam; from Glamsterdam 110020 (a cold access 2100, a write 10000 and the state gas of a new
+slot 97920). -/
+abbrev writeMax (fork : Fork) : Nat := if fork ≥ .glamsterdam then 110020 else 22100
+
+/-- From Berlin, an SSTORE costs at most `writeMax fork`. -/
+theorem writeCost_le (hfork : .berlin ≤ fork) (orig cur new : U256) (cold : Bool) :
+    writeCost fork orig cur new cold ≤ writeMax fork := by
+  by_cases hg : fork ≥ .glamsterdam
+  · simp only [writeMax, hg, ↓reduceIte, writeCost, sstoreCost, sstoreStateGas, true_and]
+    have h1 : STORAGE_SET_STATE_GAS = 97920 := rfl
+    cases cold <;> simp only [COLD_STORAGE_ACCESS, WARM_ACCESS, STORAGE_WRITE, h1, ite_true,
+      Bool.false_eq_true, ite_false] <;> (repeat' split) <;> omega
+  · rw [writeCost_of_lt (Nat.lt_of_not_le hg)]
+    simp only [writeMax, hg, ↓reduceIte]
+    have := sstoreCost_le hfork (Nat.lt_of_not_le hg) orig cur new cold
+    simp only [COLD_STORAGE_ACCESS, STORAGE_SET] at this
+    exact this
 
 /-- The step of SSTORE at every fork from Berlin (Glamsterdam included), in a frame that may
 change the state: EthLib's `sstoreStep_eq`, with the state gas of a new slot in the price. -/

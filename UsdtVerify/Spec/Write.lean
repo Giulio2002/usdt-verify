@@ -10,7 +10,7 @@ GENERIC: nothing here is about a particular contract.
 - `writeSlot state target n v`: the state after SSTORE of `v` in slot `n` of `target` (the read
   of the slot recorded, then the write), when `target` has an account.
 - `storeSub`: the substate after that SSTORE (the slot accessed, the refund added).
-- `sstoreW`: EthLib's `sstore` rule restated with them.
+- `setStorage_writeSlot`: the write of a slot, when the account exists (used by `Gas.sstoreWG`).
 - Reading or accessing a slot twice is reading or accessing it once.
 -/
 
@@ -103,23 +103,6 @@ abbrev storeSub (fork : Fork) (substate : Substate) (target : Address) (n : U256
 
 variable {fork : Fork} {code : ByteArray} {message : Message fork} {pc : Nat}
   {memory : ByteArray} {gas : Nat} {state : State.TransactionState} {substate : Substate}
-
-/-- EthLib's `sstore`, with the write, the price and the substate over slots. -/
-theorem sstoreW (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {key new : U256}
-    {rest : List U256} {cold : Bool} (hlt : pc < code.size) (hbyte : code[pc] = 0x55)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
-    (hcold : coldIn substate message.currentTarget key = cold) (hstipend : 2300 < gas)
-    (hgas : sstoreCost fork (originalAt state message.currentTarget key)
-      (storageAt state message.currentTarget key) new cold ≤ gas) :
-    Hoare fork (At code message pc (key :: new :: rest) memory gas state substate)
-      (At code message (pc + 1) rest memory
-        (gas - sstoreCost fork (originalAt state message.currentTarget key)
-          (storageAt state message.currentTarget key) new cold)
-        (writeSlot state message.currentTarget key new)
-        (storeSub fork substate message.currentTarget key
-          (originalAt state message.currentTarget key)
-          (storageAt state message.currentTarget key) new)) :=
-  sstore hfork hglam hlt hbyte hstatic hcold hstipend hgas (setStorage_writeSlot hacc)
 
 /-- Recording a read twice is recording it once (EthLib's `recordStorageRead_recordStorageRead`). -/
 theorem readSlot_readSlot (state : State.TransactionState) (target : Address) (n : U256) :

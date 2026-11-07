@@ -55,7 +55,7 @@ When USDT is deprecated, it forwards each call to an upgraded contract. Those pa
 
 ## What is proved
 
-All of this holds from the Berlin fork onwards. Paths that write storage hold at Glamsterdam too, where a storage write also pays the new state gas. Paths that make a call, which are the deprecated paths, hold before Glamsterdam. Every theorem has explicit hypotheses, such as enough gas and a call value of 0. The index of all theorems is `UsdtVerify/Summary.lean`, and `docs/RESULTS.md` gives the full statements in prose.
+All of this holds from the Berlin fork onwards, Glamsterdam included. At Glamsterdam a storage write also pays the new state gas, EXTCODESIZE costs the account access plus 100 (EIP-8038), and CALL checks its gas before charging. The prices in the theorems take the fork, and before Glamsterdam they reduce to the earlier ones. Every theorem has explicit hypotheses, such as enough gas and a call value of 0. The index of all theorems is `UsdtVerify/Summary.lean`, and `docs/RESULTS.md` gives the full statements in prose.
 
 - **totalSupply and balanceOf.** They return slot 1, or `balances[who]` at slot `keccak(who ++ 2)`.
 - **transfer(to, v).**
@@ -123,7 +123,7 @@ The six other forwarding functions write nothing locally after the forwarded cal
 
 ### Sequences of calls
 
-`inv_calls` in `UsdtVerify/Complete/Seq.lean` lifts the invariant to any finite sequence of steps. A step is either a successful call that meets the hypotheses of `inv_call_all`, each with its own fork, message and runner, or a step that leaves every storage word of USDT unchanged. `goodCall_process` shows that a successful top-level message to USDT with no value, from Paris, is such a call. When the contract is deprecated this also needs a fork before Glamsterdam. A failed call is proved to leave every storage word unchanged after the rollback (`untouched_process_failed`), using a general lemma proved here from EthLib's semantics: every step keeps the parent block of the state. A top-level call to USDT with a nonzero value always fails (`process_value_fails`). So `process_step` shows that every top-level message to USDT, from Paris and before Glamsterdam when deprecated, is one of the two kinds of step, with no assumption about failed calls.
+`inv_calls` in `UsdtVerify/Complete/Seq.lean` lifts the invariant to any finite sequence of steps. A step is either a successful call that meets the hypotheses of `inv_call_all`, each with its own fork, message and runner, or a step that leaves every storage word of USDT unchanged. `goodCall_process` shows that a successful top-level message to USDT with no value, from Paris, is such a call. A failed call is proved to leave every storage word unchanged after the rollback (`untouched_process_failed`), using a general lemma proved here from EthLib's semantics: every step keeps the parent block of the state. A top-level call to USDT with a nonzero value always fails (`process_value_fails`). So `process_step` shows that every top-level message to USDT, from Paris, is one of the two kinds of step, with no assumption about failed calls.
 
 ## What you have to trust
 
@@ -137,7 +137,7 @@ A few general opcode rules are proved locally in `UsdtVerify/Local/` while they 
 
 ## What is not covered yet
 
-- Forks before Berlin, and Glamsterdam onwards on the deprecated paths, which make a call.
+- Forks before Berlin.
 - `KeccakSep` is a hypothesis about keccak, not a theorem.
 - `KeepsInv` and `HonestBalance` are not shown to hold for any real upgraded contract. They say what the upgraded contract must do.
 - Slot words for `name` and `symbol` in a form Solidity never writes.

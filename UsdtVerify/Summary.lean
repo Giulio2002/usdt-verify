@@ -48,8 +48,11 @@ EthLib's EVM semantics from pc 0 in a fresh frame (`At CODE message 0 [] .empty 
 substate`), for every fork from Berlin on. The paths that write storage hold from Berlin on,
 Glamsterdam included, since round 17: each SSTORE costs `Gas.writeCost` (`sstoreCost` plus the
 state gas of a new slot, `sstoreStateGas`, 0 before Glamsterdam), by the local rule
-`Gas.sstoreWG`. The deprecated paths (EXTCODESIZE and CALL, EthLib's rules) hold before
-Glamsterdam. Each non-deprecated path is a `SpecG` (round 12: a `Spec` over
+`Gas.sstoreWG`. The deprecated paths hold at the same forks since round 19: EXTCODESIZE costs
+`extCost fork` (EthLib's `externalBaseCost`: 2600 cold / 100 warm before Glamsterdam, the access
+plus 100 from Glamsterdam, EIP-8038; local rule `Local.extcodesize`), every account access
+`accCost fork` (3000 cold from Glamsterdam), and the CALL rules (`callStep_child_r`, `callWithR`
+and the step lemmas of Complete/DepCall.lean) cover the order of the charges at Glamsterdam. Each non-deprecated path is a `SpecG` (round 12: a `Spec` over
 the steps from frames where the same step with less gas fails or gives the same frame with that
 much less gas; it implies the `Spec`), each deprecated path a `Spec`: every run from such a
 frame reaches an end
@@ -266,8 +269,8 @@ Every `spec_*` of rounds 7 and 8 from pc 0 has a `runFrame_*` wrapper in the sam
   output. If it ends with no error, with `S`, `ss` the state and substate it left and `d` the word
   at 0x60 after the copy of its output: STOP in `tailState S C a d` (`B := 0` in THIS contract,
   then slot 1 `:= T' - d`, unchecked), substate `tailSub` (log `DestroyedBlackFunds(a, d)`), gas
-  exact (`tailCost`; `B` may be cold). Hypotheses beyond the usual: at least `TAIL_MAX` = 47881
-  gas after the CALL's price, and `hkeep` (the callee leaves the contract's account in place).
+  exact (`tailCost`; `B` may be cold). Hypotheses beyond the usual: at least `TAIL_MAX fork` (47881
+  before Glamsterdam, 223721 from Glamsterdam) gas after the CALL's price, and `hkeep` (the callee leaves the contract's account in place).
   So `_totalSupply` drops by the balance that the UPGRADED contract reports, while the local
   `balances[a]` (whatever it held) becomes 0. `destroyBlackFunds_dep_answers` (a callee answering
   `o`, ≥ 32 bytes: STOP, state `tailState S C a (first word of o)` for some `S`),
@@ -333,7 +336,7 @@ destroyBlackFunds keeps `Inv`: under `Inv`, `d ≤ _totalSupply`, so its uncheck
 not wrap (`destroy_inv`).
 Every successful call, not deprecated, static or not, with or without an account:
 `Complete.inv_call`. Deprecated or not: `Complete.inv_call_ns` (Complete/DepInvAll.lean, from
-Berlin, before Glamsterdam when deprecated; not static; when deprecated, under an account of the
+Berlin, Glamsterdam included; not static; when deprecated, under an account of the
 contract and the named assumptions `KeepsInv` on the runner and `HonestBalance` for
 destroyBlackFunds; the upgraded code may be an EIP-7702 delegation). Static or not:
 `Complete.inv_call_all` (Complete/Static.lean; "not static" replaced by `hstat`: when static,
@@ -342,12 +345,12 @@ static; a static frame keeps the state, EthLib's `staticStep_runFrame`, under th
 assumption `StaticKeeps`, proved for the interpreter's runner from Paris by
 `staticKeeps_process`). Along a finite sequence of such calls and of steps that keep the storage
 of `C`: `Complete.inv_calls` (Complete/Seq.lean); a successful top-level `processMessage` of
-`CODE` with no value and no precompile, from Paris (before Glamsterdam when deprecated), under
+`CODE` with no value and no precompile, from Paris (Glamsterdam included), under
 the named assumptions, is such a call (`Complete.goodCall_process`); a top-level
 `processMessage` (any code, any fork) that ends with an error keeps every storage word
 (`Complete.untouched_process_failed`), one of `CODE` with no precompile, call data below 2^256
 bytes and a nonzero value always ends with an error from Berlin
-(`Complete.process_value_fails`), and from Paris (before Glamsterdam when deprecated) every
+(`Complete.process_value_fails`), and from Paris (Glamsterdam included) every
 top-level `processMessage` of `CODE` with no precompile, under the hypotheses of
 `goodCall_process` except "no value", is one of the two kinds of steps (`Complete.process_step`).
 None
@@ -402,7 +405,9 @@ the three getters, empty for the three writes), gas, and the state and substate 
 `incorporateChild`; and the upgraded account's code `c` is found in the state, and the CALL
 follows a route `r`: no delegation, or (from Pectra) `c` is an EIP-7702 indicator to an address
 whose code is found, the message runs that code with the precompiles disabled, and the CALL pays
-the access to the delegate (`routeCost`). From Berlin to before Glamsterdam. Named hypotheses
+the access to the delegate (`routeCost`). From Berlin on, Glamsterdam included (round 19:
+EXTCODESIZE at `extCost fork`, the accesses at `accCost fork`, Local/Extcodesize.lean and
+Functions/Route.lean). Named hypotheses
 beyond the fork range, size, selector and flag: the coldness flags only.
 `destroyBlackFunds_dep_complete`: the owner's call, `a` blacklisted, the forward of
 `balanceOf(a)` answered with no error, then over the state `S` the call left and the word `d` at

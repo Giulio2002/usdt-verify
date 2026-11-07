@@ -991,6 +991,47 @@ entry; `DESTS` = the 32 destinations).
   deprecated destroyBlackFunds (`dep_destroy_complete`, whose first local write is after the
   CALL), and `hstatic` of `inv_call_ns` (`inv_call_all` replaces it by `hstat`).
 
+### Round 19: the deprecated paths at Glamsterdam (Local/Extcodesize.lean, Functions/Route.lean, Complete/DepCall.lean, the Dep* files)
+- Prices over the fork (Functions/Route.lean): `accCost fork cold := accountAccessCost fork cold`
+  (100 warm; 2600 cold, 3000 from Glamsterdam by EIP-8038) and `extCost fork cold :=
+  externalBaseCost fork cold` (EXTCODESIZE: the access, plus 100 from Glamsterdam). Before
+  Glamsterdam: `accCost_of_lt`, `extCost_of_lt` (= `if cold then 2600 else 100`); any fork:
+  `accCost_false` (100), `callBaseCost_eq` (from Berlin), `extCost_ge` (≥ 100). `routeCost fork`
+  prices the delegate with `accCost fork`. The removed `accountAccessCost_of_berlin` needed
+  `hglam`.
+- `Local.extcodesize` (LOCAL, generic): EXTCODESIZE from Berlin, Glamsterdam included, with the
+  price `externalBaseCost fork cold` (EthLib's `Logic.extcodesize` stops before Glamsterdam).
+- CALL at any fork from Berlin, computed from EthLib's `callStep`: `callStep_child_r` (no
+  `hglam`; same conclusion: at Glamsterdam `payCall` charges the access and memory, the state gas
+  0, then `messageCallGas … 0 0` on the gas left, and the numbers coincide with the old
+  `messageCallGas fork 0 asked gas memory extra` once the access and memory are paid),
+  `callWithR` (price `accCost fork cold`), `callStep_deep_r`. `callStep_low_r` and
+  `callStep_missing` now conclude `StepBad` (the step fails, or halts the frame with an error):
+  at Glamsterdam the check of the known price (`checkGas`) fails with a step error before the
+  reads, or the check of the access to the delegate halts the frame; `ok_step_bad` turns either
+  into "no run ends with no error". `callStep_low`, `callStep_deep` stay as the `none` case.
+  `CallEnd`, `call_ok` use `accCost fork cold`; `extcodesize_low` uses `extCost`.
+- The gas terms of the forward specifications and of the completeness theorems: `preCost*`,
+  `askedOf*` take the fork (EXTCODESIZE at `extCost fork cU`); `callR*` through `routeCost fork`;
+  `TAIL_MAX fork := 3681 + 2 * Gas.writeMax fork` with `Gas.writeMax fork` = 22100 before
+  Glamsterdam, 110020 from Glamsterdam (`Gas.writeCost_le`: a cold access 2100, a write 10000 and
+  the state gas of a new slot 97920), `TAIL_MAX_of_lt`: 47881 before Glamsterdam. `tailD` uses
+  `writeCost_le` in place of EthLib's pre-Glamsterdam `sstoreCost_le`.
+- `hglam` removed from: `toCall`, `preCall*`, `noCode`, every `spec_dep*` and its corollaries
+  (`_answers`, `_fails`, `_succeeds`, `runFrame_*`, `_process`, `*NoCode`), the field `glam` of
+  `HypT`/`HypA`/`HypF`, `fromExt`, `call_ok`, every `dep_*_complete`, `dep_*_local`,
+  `dep_destroy_local`, `inv_dep_destroy_iff`, `inv_dep_destroy`, `depD_inv`/`depD_keeps`/
+  `depD_breaks`, and the conditional `byte20 … ≠ 0 → fork < .glamsterdam` of `inv_call_ns`,
+  `inv_call_all`, `GoodCall`, `goodCall_process`, `process_step`. The unused pre-Glamsterdam
+  restatements `Gas.sstoreG` and `sstoreW` were deleted. After this round the only statements
+  with `fork < .glamsterdam` are the reductions `accCost_of_lt`, `extCost_of_lt`,
+  `Gas.writeCost_of_lt`, `TAIL_MAX_of_lt` (checked by grep).
+- Done as one commit (09ae523), not one function at a time: `toCall`, `fromExt` and the CALL
+  rules are shared by all seven deprecated functions.
+- The Glamsterdam case rests on EthLib's model of Glamsterdam at the pin (fd3457dbf): its
+  `externalBaseCost`, `accountAccessCost`, `callStep` (`checkGas`, `accessDelegation`, `payCall`),
+  `sstoreCost` and `sstoreStateGas` for that fork.
+
 ## Open (not proved)
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
   transfer (round 12), approve, transferFrom, the ten owner functions (round 13), not deprecated
@@ -1004,8 +1045,8 @@ entry; `DESTS` = the 32 destinations).
   `hstatic` and `hkeep` (the contract keeps an account after a successful forwarded call).
 - Hypotheses the completeness theorems of the writing paths keep, by name: size < 2^256
   (`hstatic` and `hacc` removed in round 18; deprecated destroyBlackFunds keeps `hstatic` and
-  `hkeep`, and takes no `hacc`); Berlin ≤ fork < Glamsterdam only on the deprecated paths
-  (round 17: the non-deprecated writing paths hold at Glamsterdam too).
+  `hkeep`, and takes no `hacc`). Every fork from Berlin, Glamsterdam included (round 17 for the
+  non-deprecated writing paths, round 19 for the deprecated paths).
 - Failed top-level calls and calls with value: done (round 18, `untouched_process_failed`,
   `process_value_fails`, `process_step`).
 - The deprecated paths in the invariant: done (round 15, now `inv_call_ns`; static frames too in `inv_call_all`, round 17) under the named runner
@@ -1108,6 +1149,12 @@ entry; `DESTS` = the 32 destinations).
    not static. `parent_process` proves it for every message and creation from any fork.
    Candidates for EthLib: the per-group lemmas, `pResult_step`, `parent_runFrame`,
    `parent_process`, `processMessage_failed_getStorage`.
+18. Round 19 (LOCAL, UsdtVerify/Local/Extcodesize.lean, no sorry): EthLib's `Logic.extcodesize`
+   and `Logic.callWith` (and `callBaseCost_of_berlin`, `externalBaseCost_of_berlin`) take
+   `fork < .glamsterdam`. `Local.extcodesize` is the EXTCODESIZE rule from Berlin with the price
+   `externalBaseCost fork cold`; `callStep_child_r` (Functions/Route.lean) is a CALL step lemma
+   from Berlin, Glamsterdam included, with the price of the fork. Candidates for EthLib: both, and
+   a fork-generic `callWith`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
 - Round 18 (after commit 8f76073, rm -rf .lake/build, EthLib oleans prebuilt): 125.64 s wall,
