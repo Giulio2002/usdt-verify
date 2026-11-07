@@ -1,3 +1,4 @@
+import UsdtVerify.Complete.Dispatch
 import UsdtVerify.Functions.TotalSupply
 import UsdtVerify.Functions.Strings
 import UsdtVerify.Functions.DeprecatedAllowance
@@ -256,3 +257,18 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Invariant.reach_redeem
 #print axioms UsdtVerify.Invariant.reach_destroy
 #print axioms UsdtVerify.Invariant.transfer_ok_keeps
+#print axioms UsdtVerify.Gas.low_of_reaches
+#print axioms UsdtVerify.Gas.SpecG.low
+#print axioms UsdtVerify.Gas.SpecG.not_ok
+#print axioms UsdtVerify.Gas.SpecG.halted
+#print axioms UsdtVerify.Gas.At.ruleG
+#print axioms UsdtVerify.Gas.runMono_binaryOp
+#print axioms UsdtVerify.Gas.runMono_jumpi
+#print axioms UsdtVerify.Gas.runMono_swapN
+#print axioms UsdtVerify.Gas.runMono_dupN
+#print axioms UsdtVerify.Complete.selector_cases
+#print axioms UsdtVerify.Complete.branchTableG
+#print axioms UsdtVerify.Complete.nonpayableG
+#print axioms UsdtVerify.Complete.spec_unknownG
+#print axioms UsdtVerify.Complete.spec_shortG
+#print axioms UsdtVerify.Complete.runFrame_ok_dispatch

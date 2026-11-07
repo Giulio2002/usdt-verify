@@ -243,6 +243,22 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   - Not proved: that these paths are all the successful runs of a call (there is no
     completeness theorem over all inputs and gas), and anything about the deprecated paths.
 
+## Completeness of the dispatcher, for every gas
+
+- `runFrame_ok_dispatch` (`UsdtVerify/Complete/Dispatch.lean`, alias `Summary.dispatch_complete`):
+  from Berlin, a fresh frame of `CODE` at pc 0 with call data of size below 2^256, any gas, any
+  gas bound and any message runner. If the interpreter loop ends with no error, then:
+  - the call data has at least 4 bytes;
+  - its selector is the key of one of the 32 entries of the table;
+  - the call value is 0.
+- Out of gas is included. `Gas.SpecG.low` says: if a run with `k` more gas follows the steps of
+  a specification, then a run with less gas that ends with no error ends in the same frame, with
+  exactly `k` less gas left. The specifications used for this are re-proved over `Gas.StepG`
+  (steps from frames whose instruction gives the same result with more gas, or fails with less;
+  GAS and the calls are not such instructions).
+- Not yet proved: the same per function (that each successful run of each function is one of
+  its proved paths), and so the invariant over all successful calls.
+
 ## What is trusted
 
 - The Lean 4 kernel (v4.35.0).
@@ -261,5 +277,5 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
 - That the proved success paths are all the successful runs of a call, and the invariant on the
   deprecated paths.
 - `KeccakSep` (a hypothesis of the invariant theorems, about keccak).
-- Runs that run out of gas below the stated bounds.
+- Runs that run out of gas below the stated bounds, except at the dispatcher (see above).
 - Forks before Berlin, and Glamsterdam onwards on the writing and calling paths.

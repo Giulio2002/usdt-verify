@@ -590,8 +590,37 @@ entry; `DESTS` = the 32 destinations).
   completeness theorem over all inputs and gas); the deprecated paths (the callee's effects are
   arbitrary); `KeccakSep` itself.
 
+### Round 11: gas shift and the completeness of the dispatcher (Gas.lean, GasRules.lean, Complete/Dispatch.lean)
+- `Gas.sh k e` (e with k more gas), `Fails`, `Rel`, `RunMono run` (∀ a k, `run a` fails or gives
+  `b` with `run (sh k a) = sh k b`), `GasMono x` (the same for `step` from every frame with `k`
+  less gas than `x`), `StepG` (= `Step` from a `GasMono` frame), `HoareG`, `SpecG`
+  (`HoareG.toHoare`, `SpecG.toSpec`, `SpecG.runFrame`, `SpecG.seq`, `SpecG.consequence`).
+- `low_of_reaches`, `SpecG.low`: a `SpecG` from `sh k l` and a run of the interpreter loop from
+  `l` (any gas bound, any runner) ending with no error in `s` ⇒ the postcondition holds of
+  `sh k s`. `SpecG.halted` (a normal halt: same output, state, substate, `k` less gas),
+  `SpecG.not_ok` (a postcondition with an error: no run with less gas ends with no error).
+- `At.ruleG` (EthLib's `At.rule` plus `RunMono`), `invalid_feG`; `RunMono` for binaryOp, unaryOp,
+  calldataload, mstore, jumpdest, readFrame (word independent of the gas), pushN, dupN, swapN,
+  jumpi, revert (generic over the frame, stack underflow and overflow included).
+- G-rules (EthLib's rules restated over `StepG`, same hypotheses): `push_of_decodeG`, `pushG`,
+  `push1G`, `push_of_readFrameG`, `callerG`, `callvalueG`, `calldatasizeG`, `binaryG`, `unaryG`,
+  `dup_of_decodeG`, `dupG`, `dup1G`, `swap_of_decodeG`, `swapG`, `jumpdestG`, `jumpi_zeroG`,
+  `jumpi_of_eq_zeroG`, `jumpi_takenG`, `calldataloadG`, `mstoreG`, `revertG`, `reshapeG`,
+  `repcG`, `HoareG.gas_eq`.
+- Over `StepG`: `preludeG`, `branchTableG` (EthLib's `branchTable`), `dispatchG`, `revert406G`,
+  `spec_unknownG`, `spec_shortG`, `valueRevertG`, `nonpayableG`.
+- `selector_cases`: size < 4, or a selector that is no key, or the key of entry `i : Fin 32`.
+- `runFrame_ok_dispatch`: Berlin ≤ fork, size < 2^256, fresh frame at pc 0, any gas: a run of the
+  loop that ends with no error ⇒ 4 ≤ size, value = 0, selector = key of some entry `i`.
+- Why `StepG` and not EthLib's `Spec`: a `Spec` does not name the frames it passes, and GAS (and
+  CALL) give another result with more gas, so the shift argument needs the chain to avoid them.
+  A triple over `StepG` carries that for each step.
+
 ## Open (not proved)
-- Completeness: that every successful run of a non-deprecated call is one of the proved paths.
+- Completeness per function: that every successful run of each function is one of its proved
+  paths. Done for the dispatcher (round 11). Plan: restate the function files over `StepG`
+  (G-rules still missing: pop, jump, mload, sload, sstore/`sstoreW`, keccak256, exp, log, return,
+  stop), then one case split per function with `SpecG.not_ok` / `SpecG.halted`.
 - The deprecated paths in the invariant (deprecated destroyBlackFunds subtracts the balance that
   the upgraded contract reports from this contract's `_totalSupply`, see round 10).
 

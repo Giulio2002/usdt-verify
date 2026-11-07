@@ -1,4 +1,5 @@
 import Batteries.Tactic.Alias
+import UsdtVerify.Complete.Dispatch
 import UsdtVerify.Functions.TotalSupply
 import UsdtVerify.Functions.BalanceOf
 import UsdtVerify.Functions.Transfer
@@ -313,6 +314,14 @@ finite sequence of steps; read-only paths only record reads (`inv_readSlot`, `in
 destroyBlackFunds keeps `Inv`: under `Inv`, `d ≤ _totalSupply`, so its unchecked subtraction does
 not wrap (`destroy_inv`).
 
+## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
+From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas
+bound and any message runner: if the loop of the interpreter ends with no error, then the call
+data has at least 4 bytes, its selector is the key of one of the 32 entries of the table, and the
+call value is 0. Out of gas is covered by `Gas.SpecG.low`: a run with less gas that ends with no
+error ends as the run with more gas, with exactly that much less gas left (the steps it follows
+are steps of `Gas.StepG`, from frames whose instruction is `Gas.RunMono`).
+
 ## Not proved
 See docs/STATUS.md ("Open").
 -/
@@ -325,6 +334,7 @@ open EthLib.Execution.Evm
 open EthLib.Execution.Evm.Logic
 open Transfer SafeMath TransferOk TransferFee TransferFrom
 
+alias dispatch_complete := Complete.runFrame_ok_dispatch
 alias totalSupply_spec := TotalSupply.spec
 alias balanceOf_spec := BalanceOf.spec
 alias transfer_paused := Transfer.spec_paused

@@ -37,6 +37,9 @@ import UsdtVerify.Functions.DeprecatedAllowance
 import UsdtVerify.Functions.Fallback
 import UsdtVerify.Functions.DeprecatedDestroy
 import UsdtVerify.Functions.StringsGen
+import UsdtVerify.Gas
+import UsdtVerify.GasRules
+import UsdtVerify.Complete.Dispatch
 import UsdtVerify.Test.Axioms
 import UsdtVerify.Summary
 import UsdtVerify.Invariant
