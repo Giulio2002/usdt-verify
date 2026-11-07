@@ -1,0 +1,170 @@
+import UsdtVerify.Complete.DepTotalSupply
+import UsdtVerify.Functions.DeprecatedBalance
+
+/-!
+# Completeness of deprecated balanceOf(address), for any gas and any runner
+
+`prefixG_balanceOf` (pc 0 to EXTCODESIZE at 4874, over `StepG`), `dep_balanceOf_split`, and
+`dep_balanceOf_complete`: every run that ends with no error, with any gas and ANY runner, is the
+forward of `balanceOf(a)` to the upgraded address (`Sends … (dataB message)`), the runner gave a
+frame with no error, and the run returns the word at 0x60 after the CALL wrote the start of that
+frame's output; gas, state and substate exact. Named hypotheses `hcode`, `hdel` as for
+totalSupply.
+-/
+
+namespace UsdtVerify.Complete
+
+open EthLib.Base (Fork U256 toAddressMasked)
+open EthLib.Execution
+open EthLib.Execution.Evm
+open EthLib.Execution.Evm.Logic
+open UsdtVerify.Gas
+open GasCosts
+open Deprecated DeprecatedBalance
+
+variable {fork : Fork} {bound : Nat} {runChild : MessageRunner fork Nat bound}
+  {message : Message fork} {state : State.TransactionState} {substate : Substate}
+
+/-- From pc 0 to 4874 (EXTCODESIZE of the upgraded address), deprecated `balanceOf`, over
+`StepG`. -/
+theorem prefixG_balanceOf (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
+    (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x70a08231)
+    (hv : message.value = 0) (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
+    {c10 : Bool} (hc10 : coldIn substate message.currentTarget 10 = c10) {gas : Nat}
+    (hg : 896 + slotCost c10 ≤ gas) :
+    HoareG fork (At CODE message 0 [] .empty gas state substate)
+      (At CODE message 4874
+        [upWord (storageAt state message.currentTarget 10),
+          upWord (storageAt state message.currentTarget 10), 0, 0x60, 0x24, 0x60, 0x20, 0x84,
+          0x70a08231, upWord (storageAt state message.currentTarget 10), 0,
+          addrArg message.data 0, 0x05e7, BitVec.ofNat 256 (selector message.data)]
+        (M2B (addrArg message.data 0)) (gas - (896 + slotCost c10))
+        (readSlot state message.currentTarget 10) (accessSlot substate message.currentTarget 10)) := by
+  have ht : tested (BitVec.ofNat 256 (selector message.data)) ENTRIES = 17 := by
+    rw [hsel]; decide
+  have hb : branch (BitVec.ofNat 256 (selector message.data)) 54 (entrySize 4 2) ENTRIES =
+      1456 := by
+    rw [hsel]; decide
+  have h1 := dispatch (state := state) (substate := substate) hsize hsize' (gas := gas)
+    (by rw [ht]; gas_ok)
+  rw [ht, hb] at h1
+  refine Triple.seq h1 ?_
+  step BalanceOf.entry hv (by gas_ok)
+  step depSet hfork (Or.inr ⟨rfl, rfl⟩) (by simp) hdep hc10 (by gas_ok)
+  step fwdArgsB (state := state) hfork (by simp only [addrArg, mask_mask]) (by simp)
+    (by gas_ok)
+  exact Gas.reshapeG rfl rfl (by gas_ok)
+
+theorem dep_balanceOf_split (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
+    (hsel : selector message.data = 0x70a08231)
+    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
+    {gas : Nat} {evm s : Evm fork Nat}
+    (start : At CODE message 0 [] .empty gas state substate evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hok : s.error = none) :
+    896 + slotCost (coldIn substate message.currentTarget 10) ≤ gas ∧ ∃ z' w,
+      At CODE message 4874
+        [upWord (storageAt state message.currentTarget 10),
+          upWord (storageAt state message.currentTarget 10), 0, 0x60, 0x24, 0x60, 0x20, 0x84,
+          0x70a08231, upWord (storageAt state message.currentTarget 10), 0,
+          addrArg message.data 0, 0x05e7, BitVec.ofNat 256 (selector message.data)]
+        (M2B (addrArg message.data 0))
+        (gas - (896 + slotCost (coldIn substate message.currentTarget 10)))
+        (readSlot state message.currentTarget 10) (accessSlot substate message.currentTarget 10) z' ∧
+      Evm.runFrame (step fork) (step_decreases fork) bound runChild z' w = .ok s := by
+  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
+  exact ok_split (Nat.le_refl _)
+    (fun g hg => prefixG_balanceOf hfork h4 hsize' hsel hv hdep rfl hg) start within hrun hok
+
+theorem dep_balanceOf_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
+    (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x70a08231)
+    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0) {c : ByteArray}
+    (hcode : state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c)
+    (hdel : .pectra ≤ fork → delegatedAddress c = none)
+    {gas : Nat} {evm s : Evm fork Nat}
+    (start : At CODE message 0 [] .empty gas state substate evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hok : s.error = none) :
+    BitVec.ofNat 256 c.size ≠ 0 ∧
+    preCostB (coldIn substate message.currentTarget 10)
+      (decide (upAddr state message ∉ substate.accessedAddresses)) + 100 ≤ gas ∧
+    message.depth + 1 ≤ STACK_DEPTH_LIMIT ∧
+    ∃ caller msg lt child, runChild caller msg lt = .ok child ∧ child.1.error = none ∧
+      Sends message (upAddr state message) c (dataB message) msg ∧
+      msg.gas = (callGasB fork gas (coldIn substate message.currentTarget 10)
+        (decide (upAddr state message ∉ substate.accessedAddresses))).subCall ∧
+      caller.state = ((callState state message).recordAccountRead (upAddr state message)).recordAccountRead
+        message.currentTarget ∧
+      caller.substate = { callSub substate state message with
+        accessedAddresses :=
+          (callSub substate state message).accessedAddresses.insert (upAddr state message) } ∧
+      126 ≤ gas - preCostB (coldIn substate message.currentTarget 10)
+          (decide (upAddr state message ∉ substate.accessedAddresses)) -
+        (callGasB fork gas (coldIn substate message.currentTarget 10)
+          (decide (upAddr state message ∉ substate.accessedAddresses))).cost + child.1.gas ∧
+      s.running = false ∧
+      s.output = wordBytes (resWord (outMemOf (M2B (addrArg message.data 0)) child.1.output)) ∧
+      s.gas = gas - preCostB (coldIn substate message.currentTarget 10)
+          (decide (upAddr state message ∉ substate.accessedAddresses)) -
+        (callGasB fork gas (coldIn substate message.currentTarget 10)
+          (decide (upAddr state message ∉ substate.accessedAddresses))).cost + child.1.gas - 126 ∧
+      s.state = (incorporateChild fork caller child.1).state ∧
+      s.substate = (incorporateChild fork caller child.1).substate := by
+  obtain ⟨hg0, z, w, hz, hrunz⟩ := dep_balanceOf_split hfork hsize' hsel hdep start within hrun hok
+  obtain ⟨hw, hgc, hdepth, hCE⟩ := fromExt (U := upWord (storageAt state message.currentTarget 10))
+    (rest := [0x84, 0x70a08231, upWord (storageAt state message.currentTarget 10), 0,
+      addrArg message.data 0, 0x05e7, BitVec.ofNat 256 (selector message.data)])
+    (st := readSlot state message.currentTarget 10) (ss := accessSlot substate message.currentTarget 10)
+    hfork hglam (Or.inr (Or.inl ⟨rfl, rfl⟩)) (by simp) hcode hdel hz w hrunz hok
+  have hB := size_M2B (addrArg message.data 0)
+  have hext : extendMemory (M2B (addrArg message.data 0)).size
+      [((0x60 : U256), (0x24 : U256)), ((0x60 : U256), (0x20 : U256))] = ⟨0, 0⟩ := by
+    rw [hB]; decide
+  generalize hc10 : coldIn substate message.currentTarget 10 = c10 at *
+  have hcU' : decide (toAddressMasked (upWord (storageAt state message.currentTarget 10)) ∉
+      (accessSlot substate message.currentTarget 10).accessedAddresses) =
+      decide (upAddr state message ∉ substate.accessedAddresses) := rfl
+  rw [hcU'] at hgc hCE
+  generalize hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU at *
+  rw [hext] at hgc
+  simp only [accCost] at hgc hg0
+  have e1 : gas - (896 + slotCost c10) - (accCost cU + 25) =
+      gas - (921 + slotCost c10 + accCost cU) := by
+    simp only [accCost]; omega
+  have e2 : gas - (896 + slotCost c10) - (accCost cU + 28) = gas - preCostB c10 cU := by
+    simp only [preCostB, accCost]; omega
+  rw [e1, e2] at hCE
+  obtain ⟨caller, msg, lt, child, hch, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmd, hmv,
+    hmdep, hmst, after, wa, hat, hruna⟩ := hCE
+  rw [hext] at hmg hmd hat
+  simp only [Bool.false_eq_true, ↓reduceIte] at hmg hat
+  refine ⟨hw, by simp only [preCostB, accCost]; omega, hdepth, ?_⟩
+  have hfwd : Sends message (upAddr state message) c (dataB message) msg := by
+    refine ⟨hmc, hmt, hmtg, hmca, hmcode, ?_, hmv, hmdep, hmst⟩
+    rw [hmd]; exact data_M2B _
+  by_cases he : child.1.error = none
+  · simp only [he, Option.isNone_none, ↓reduceIte] at hat
+    obtain ⟨h126, hr, ho, hgs, hst, hss⟩ := ok_exact (Nat.le_refl 126)
+      (fun g _ => okTailB (fork := fork) (message := message)
+        (state := (incorporateChild fork caller child.1).state)
+        (substate := (incorporateChild fork caller child.1).substate)
+        (U := upWord (storageAt state message.currentTarget 10)) (a := addrArg message.data 0)
+        (size_outMemOf hB child.1.output)
+        (mload_outMemOf hB (mload_M2B _) child.1.output)
+        (x := BitVec.ofNat 256 (selector message.data)) (gas := g) (by omega)) hat wa hruna hok
+    refine ⟨caller, msg, lt, child, hch, he, hfwd, hmg, hcs, hcss, ?_, hr, ho, ?_, hst, hss⟩
+    · simp only [Nat.add_zero] at h126
+      omega
+    · rw [hgs]
+      simp only [Nat.add_zero]
+  · have hz : child.1.error.isNone = false := by
+      cases h : child.1.error
+      · exact absurd h he
+      · rfl
+    simp only [hz, Bool.false_eq_true, ↓reduceIte] at hat
+    exact (no_ok (fun g hg => failTail hfork (Or.inr (Or.inl rfl)) (by simp) hg)
+      (fun g e h => by rw [h.2.1]; simp) hat wa hruna hok).elim
+
+end UsdtVerify.Complete

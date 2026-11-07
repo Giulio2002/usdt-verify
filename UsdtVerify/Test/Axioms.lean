@@ -1,3 +1,4 @@
+import UsdtVerify.Complete.DepBalance
 import UsdtVerify.Complete.DepTotalSupply
 import UsdtVerify.Complete.DepInv
 import UsdtVerify.Complete.Split
@@ -369,3 +370,6 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Complete.subG
 #print axioms UsdtVerify.Complete.fromExt
 #print axioms UsdtVerify.Complete.dep_totalSupply_complete
+#print axioms UsdtVerify.Complete.prefixG_balanceOf
+#print axioms UsdtVerify.Complete.dep_balanceOf_split
+#print axioms UsdtVerify.Complete.dep_balanceOf_complete

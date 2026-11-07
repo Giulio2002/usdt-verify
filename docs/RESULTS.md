@@ -297,8 +297,11 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   Assumed by name: the upgraded account's code is found in the state (`hcode`), and from Pectra
   it is no delegation (`hdel`). Too little gas at EXTCODESIZE, GAS, SUB, CALL or after the call,
   no code, and the greatest depth are proved to end with an error.
-- Not yet proved: the same completeness for the six other deprecated functions (the part from
-  EXTCODESIZE to after the CALL, `Complete.fromExt`, is proved for balanceOf, transfer, approve,
+- Deprecated balanceOf(address) (`Complete.dep_balanceOf_complete`, round 14): the same
+  statement, for the forward of `balanceOf(a)` (data: the selector, then the word of `a`), with
+  the same named hypotheses.
+- Not yet proved: the same completeness for the five other deprecated functions (the part from
+  EXTCODESIZE to after the CALL, `Complete.fromExt`, is proved for transfer, approve,
   transferFrom and the call inside destroyBlackFunds), and so the invariant over every
   deprecated call.
 

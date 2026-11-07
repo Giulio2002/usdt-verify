@@ -751,7 +751,8 @@ entry; `DESTS` = the 32 destinations).
   deprecated (`inv_call`). Not covered: the deprecated paths (below).
 - The deprecated paths. Done: the split infrastructure, the generic part from EXTCODESIZE on
   (`fromExt`, round 14), and deprecated totalSupply() in full (`dep_totalSupply_complete`, round
-  14). Still open: balanceOf, transfer, approve, transferFrom (each needs its prefix split over
+  14), and deprecated balanceOf(address) in full (`dep_balanceOf_complete`, Complete/DepBalance.lean,
+  round 14; same hypotheses, the forward is `Sends … (dataB message)`, tail 126). Still open: transfer, approve, transferFrom (each needs its prefix split over
   StepG to its EXTCODESIZE pc, then `fromExt` and its okTail), allowance (own pcs: `toCallA`, so
   a variant of `fromExt`), destroyBlackFunds (prefix to 4874, `fromExt`, then the tail `tailD`,
   whose cost depends on the state, via `ok_exact`). Delegation from Pectra stays a named

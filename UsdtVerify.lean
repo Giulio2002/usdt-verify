@@ -52,3 +52,4 @@ import UsdtVerify.Complete.Inv
 import UsdtVerify.Complete.Split
 import UsdtVerify.Complete.DepInv
 import UsdtVerify.Complete.DepTotalSupply
+import UsdtVerify.Complete.DepBalance
