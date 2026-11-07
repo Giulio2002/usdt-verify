@@ -59,7 +59,7 @@ theorem ownerLookup (hfork : .berlin ≤ fork) {p : Nat}
     (hp : p ∈ [6131, 6229, 6340, 6632, 6759]) {rest : List U256} (hrest : rest.length ≤ 900)
     {M : ByteArray} (hM : M.size = 96) (hc0 : coldIn substate message.currentTarget 0 = false)
     {gas : Nat} (hg : 229 ≤ gas) :
-    Hoare fork (At CODE message p rest M gas state substate)
+    Gas.HoareG fork (At CODE message p rest M gas state substate)
       (At CODE message (p + 96) (ownerBal state message.currentTarget :: rest)
         (mapMem M (ownerOf state message.currentTarget) 2) (gas - 229)
         (readSlot state message.currentTarget 0) (accessSlot substate message.currentTarget 0)) := by
@@ -73,13 +73,13 @@ theorem ownerLookup (hfork : .berlin ≤ fork) {p : Nat}
     step pushR 1 (0 : U256)
     step swapR 0
     norm
-    step sload hfork (cold := false) (by code_fact) (by code_fact) hc0 (by gas_ok)
+    step Gas.sloadG hfork (cold := false) (by code_fact) (by code_fact) hc0 (by gas_ok)
     rw [show state.getStorage message.currentTarget (U256.toBeBytes 0) =
       storageAt state message.currentTarget 0 from rfl]
     step swapR 0
     norm
     step pushR 2 (0x0100 : U256)
-    step Local.exp (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
+    step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
     step swapR 0
     norm
     step binR 0x04 Local.instruction_div
@@ -103,7 +103,7 @@ theorem amountLog {q : Nat} {t : U256} {r : Nat}
     (hq : (q = 6465 ∧ t = ISSUE_TOPIC ∧ r = 0x07d9) ∨ (q = 6868 ∧ t = REDEEM_TOPIC ∧ r = 0x07fc))
     {a x : U256} (hstatic : message.isStatic = false) {M : ByteArray} (hM : M.size = 96)
     (hptr : loadWord (memoryReadBytes M 64 32) 0 32 = 0x60) {gas : Nat} (hg : 1075 ≤ gas) :
-    Spec fork (At CODE message q [a, BitVec.ofNat 256 r, x] M gas state substate)
+    Gas.SpecG fork (At CODE message q [a, BitVec.ofNat 256 r, x] M gas state substate)
       (Halted false .empty (gas - 1075) state
         { substate with logs := substate.logs.push (log1W message.currentTarget t a) }) := by
   have hext0 : extendMemory M.size [((0x40 : U256), (32 : U256))] = ⟨0, 0⟩ := by
@@ -126,19 +126,19 @@ theorem amountLog {q : Nat} {t : U256} {r : Nat}
   have hlog : logCost (1 : Fin 5).val (0x20 : U256) = 1006 := by decide
   rcases hq with ⟨rfl, ht, rfl⟩ | ⟨rfl, ht, rfl⟩
   all_goals
-    step push (n := 32) (word := t) (by decide) (by code_fact) (by code_fact)
+    step Gas.pushG (n := 32) (word := t) (by decide) (by code_fact) (by code_fact)
       (decode_push 32 (by decide)) (by rw [ht, pushData_CODE]; decide) (by gas_ok) (by stk_ok)
     step dupR 1
     step pushR 1 (0x40 : U256)
-    step mload (by code_fact) (by code_fact) (by rw [hext0]; gas_ok)
-    step reshape (s' := (0x60 : U256) :: _) (m' := M)
+    step Gas.mloadG (by code_fact) (by code_fact) (by rw [hext0]; gas_ok)
+    step Gas.reshapeG (s' := (0x60 : U256) :: _) (m' := M)
       (by rw [hext0, memoryExtend_zero]; exact congrArg (· :: _) hptr)
       (by rw [hext0, memoryExtend_zero]) (by rw [hext0])
     step dupR 0
     step dupR 2
     step dupR 1
-    step mstore (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
-    step reshape (m' := M ++ wordBytes a) rfl (by rw [hext1]; exact hmem1) (by rw [hext1])
+    step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
+    step Gas.reshapeG (m' := M ++ wordBytes a) rfl (by rw [hext1]; exact hmem1) (by rw [hext1])
     step pushR 1 (0x20 : U256)
     step binR 0x01 instruction_add
     step swapR 1
@@ -146,8 +146,8 @@ theorem amountLog {q : Nat} {t : U256} {r : Nat}
     step popR
     step popR
     step pushR 1 (0x40 : U256)
-    step mload (by code_fact) (by code_fact) (by rw [hext2]; gas_ok)
-    step reshape (s' := 0x60 :: 0x80 :: t :: a :: BitVec.ofNat 256 _ :: [x])
+    step Gas.mloadG (by code_fact) (by code_fact) (by rw [hext2]; gas_ok)
+    step Gas.reshapeG (s' := 0x60 :: 0x80 :: t :: a :: BitVec.ofNat 256 _ :: [x])
       (m' := M ++ wordBytes a)
       (by rw [hext2, memoryExtend_zero, show (0x40 : U256).toNat = 64 from rfl, hread2, hptr]; rfl)
       (by rw [hext2, memoryExtend_zero]) (by rw [hext2])
@@ -157,14 +157,14 @@ theorem amountLog {q : Nat} {t : U256} {r : Nat}
     step binR 0x03 Local.instruction_sub
     step swapR 0
     norm
-    step reshape (s' := 0x60 :: 0x20 :: ([t] ++ [a, BitVec.ofNat 256 _, x])) rfl rfl rfl
-    step Logic.log (n := 1) (byte := 0xa1) rfl (by code_fact) (by code_fact) rfl hstatic
+    step Gas.reshapeG (s' := 0x60 :: 0x20 :: ([t] ++ [a, BitVec.ofNat 256 _, x])) rfl rfl rfl
+    step Gas.logG (n := 1) (byte := 0xa1) rfl (by code_fact) (by code_fact) rfl hstatic
       (by rw [hlog, hext3]; gas_ok)
-    step reshape rfl (by rw [hext3, memoryExtend_zero]) (by rw [hlog, hext3])
+    step Gas.reshapeG rfl (by rw [hext3, memoryExtend_zero]) (by rw [hlog, hext3])
     step popR
     step jumpR
     step jumpdestR
-    refine (Logic.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
+    refine (Gas.stopG (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
     rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
     refine ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, ?_⟩
     rw [hss, hext3, memoryExtend_zero, show (0x60 : U256).toNat = 96 from rfl,
@@ -207,7 +207,7 @@ theorem reqPass {p d : Nat}
     (hp : (p = 6122 ∧ d = 6130) ∨ (p = 6330 ∧ d = 6338) ∨ (p = 6622 ∧ d = 6630) ∨
       (p = 6733 ∧ d = 6741)) {w : U256} (hw : w ≠ 0) {rest : List U256}
     (hrest : rest.length ≤ 16) {M : ByteArray} {gas : Nat} (hg : 13 ≤ gas) :
-    Hoare fork (At CODE message p (w :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message p (w :: rest) M gas state substate)
       (At CODE message d rest M (gas - 13) state substate) := by
   rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
   all_goals
@@ -220,7 +220,7 @@ theorem reqRevert (hfork : .berlin ≤ fork) {p : Nat}
     (hp : p = 6122 ∨ p = 6330 ∨ p = 6622 ∨ p = 6733) {w : U256} (hw : w = 0)
     {rest : List U256} (hrest : rest.length ≤ 16) {M : ByteArray} (hM : M.size = 96)
     {gas : Nat} (hg : 19 ≤ gas) :
-    Spec fork (At CODE message p (w :: rest) M gas state substate)
+    Gas.SpecG fork (At CODE message p (w :: rest) M gas state substate)
       (Halted true .empty (gas - 19) state substate) := by
   have hz : extendMemory M.size [((0 : U256), (0 : U256))] = ⟨0, 0⟩ := by
     rw [hM]; decide
@@ -230,7 +230,7 @@ theorem reqRevert (hfork : .berlin ≤ fork) {p : Nat}
     step jumpi0R hw
     step pushR 1 (0 : U256)
     step dupR 0
-    refine (Logic.revert (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
+    refine (Gas.revertG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
       (by rw [hz]; gas_ok)).consequence (fun _ h => h) ?_
     rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
     refine ⟨hr, he, ?_, ?_, hs, hss⟩
@@ -244,17 +244,17 @@ theorem issueTest1 (hfork : .berlin ≤ fork) {a : U256} {rest : List U256}
     (hrest : rest.length ≤ 16) {M : ByteArray} {c1 : Bool}
     (hc1 : coldIn substate message.currentTarget 1 = c1) {gas : Nat}
     (hg : 122 + slotCost c1 ≤ gas) :
-    Hoare fork (At CODE message 6110 (a :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message 6110 (a :: rest) M gas state substate)
       (At CODE message 6122 (isZero (isZero (greaterThan
           (add (storageAt state message.currentTarget 1) a) (storageAt state message.currentTarget 1)))
           :: a :: rest) M (gas - (122 + slotCost c1))
         (readSlot state message.currentTarget 1) (accessSlot substate message.currentTarget 1)) := by
   step jumpdestR
   step pushR 1 (0x01 : U256)
-  step sload hfork (cold := c1) (by code_fact) (by code_fact) hc1 (by gas_ok)
+  step Gas.sloadG hfork (cold := c1) (by code_fact) (by code_fact) hc1 (by gas_ok)
   step dupR 1
   step pushR 1 (0x01 : U256)
-  step sload hfork (cold := false) (by code_fact) (by code_fact)
+  step Gas.sloadG hfork (cold := false) (by code_fact) (by code_fact)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
   step binR 0x01 instruction_add
   step binR 0x11 Local.instruction_gt
@@ -280,7 +280,7 @@ theorem issueTest2 (hfork : .berlin ≤ fork) {a : U256} {rest : List U256}
     (hcO : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
       (ownerBal state message.currentTarget) = cO) {gas : Nat}
     (hg : 574 + slotCost cO ≤ gas) :
-    Hoare fork (At CODE message 6130 (a :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message 6130 (a :: rest) M gas state substate)
       (At CODE message 6330 (isZero (isZero (greaterThan
           (add (storageAt state message.currentTarget (ownerBal state message.currentTarget)) a)
           (storageAt state message.currentTarget (ownerBal state message.currentTarget))))
@@ -297,7 +297,7 @@ theorem issueTest2 (hfork : .berlin ≤ fork) {a : U256} {rest : List U256}
     rw [accessSlot_comm]; exact coldIn_accessSlot_self _ _ _
   step jumpdestR
   step ownerLookup hfork (by decide) (by simp; omega) hM hc0 (gas := gas - 1) (by gas_ok)
-  step sload hfork (cold := cO) (by code_fact) (by code_fact) hcO (by gas_ok)
+  step Gas.sloadG hfork (cold := cO) (by code_fact) (by code_fact) hcO (by gas_ok)
   rw [show (readSlot state message.currentTarget 0).getStorage message.currentTarget
       (U256.toBeBytes (ownerBal state message.currentTarget)) =
       storageAt state message.currentTarget (ownerBal state message.currentTarget) from
@@ -306,7 +306,7 @@ theorem issueTest2 (hfork : .berlin ≤ fork) {a : U256} {rest : List U256}
   step ownerLookup hfork (by decide) (by simp; omega) (size_mapMem hM _ _) hc0'
     (gas := gas - 1 - 229 - slotCost cO - 3) (by gas_ok)
   simp only [readSlot_0n0, accessSlot_0n0]
-  step sload hfork (cold := false) (by code_fact) (by code_fact)
+  step Gas.sloadG hfork (cold := false) (by code_fact) (by code_fact)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
   step binR 0x01 instruction_add
   step binR 0x11 Local.instruction_gt
@@ -327,7 +327,7 @@ set_option hygiene false in
 macro "op_write " b:term:max i:term:max hcold:term:max : tactic => `(tactic| (
   step dupR 2
   step dupR 2
-  step sload hfork (cold := false) (by code_fact) (by code_fact) $hcold (by gas_ok)
+  step Gas.sloadG hfork (cold := false) (by code_fact) (by code_fact) $hcold (by gas_ok)
   rw [getStorage_eq]
   step binR $b $i
   step swapR 2
@@ -337,7 +337,7 @@ macro "op_write " b:term:max i:term:max hcold:term:max : tactic => `(tactic| (
   step dupR 1
   step swapR 0
   norm
-  step sstoreW hfork hglam (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
+  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   rw [originalAt_readSlot, storageAt_readSlot, writeSlot_readSlot _ _ hacc, storeSub_accessSlot]
@@ -352,7 +352,7 @@ theorem issueTotal (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a :
     (hg : 133 + sstoreCost fork (originalAt state message.currentTarget 1)
       (storageAt state message.currentTarget 1) (add (storageAt state message.currentTarget 1) a)
       false ≤ gas) :
-    Hoare fork (At CODE message 6449 (a :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message 6449 (a :: rest) M gas state substate)
       (At CODE message 6465 (a :: rest) M
         (gas - (133 + sstoreCost fork (originalAt state message.currentTarget 1)
           (storageAt state message.currentTarget 1)
@@ -376,7 +376,7 @@ theorem redeemTotal (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a 
     (hg : 134 + sstoreCost fork (originalAt state message.currentTarget 1)
       (storageAt state message.currentTarget 1) (sub (storageAt state message.currentTarget 1) a)
       false ≤ gas) :
-    Hoare fork (At CODE message 6741 (a :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message 6741 (a :: rest) M gas state substate)
       (At CODE message 6758 (a :: rest) M
         (gas - (134 + sstoreCost fork (originalAt state message.currentTarget 1)
           (storageAt state message.currentTarget 1)
@@ -404,7 +404,7 @@ theorem issueOwner (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a :
       (storageAt state message.currentTarget (ownerBal state message.currentTarget))
       (add (storageAt state message.currentTarget (ownerBal state message.currentTarget)) a)
       false ≤ gas) :
-    Hoare fork (At CODE message 6338 (a :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message 6338 (a :: rest) M gas state substate)
       (At CODE message 6449 (a :: rest) (mapMem M (ownerOf state message.currentTarget) 2)
         (gas - (360 + sstoreCost fork
           (originalAt state message.currentTarget (ownerBal state message.currentTarget))
@@ -427,7 +427,7 @@ theorem issueOwner (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a :
   have hacc := hasAccount_readSlot (n := 0) (other := message.currentTarget) hacc
   step dupR 2
   step dupR 2
-  step sload hfork (cold := false) (by code_fact) (by code_fact) hcO' (by gas_ok)
+  step Gas.sloadG hfork (cold := false) (by code_fact) (by code_fact) hcO' (by gas_ok)
   rw [getStorage_eq]
   step binR 0x01 instruction_add
   step swapR 2
@@ -441,7 +441,7 @@ theorem issueOwner (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a :
       (ownerBal state message.currentTarget))
     (ss' := accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
       (ownerBal state message.currentTarget)) rfl rfl rfl rfl rfl rfl
-  step sstoreW hfork hglam (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
+  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by simp only [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   simp only [originalAt_readSlot, storageAt_readSlot]
@@ -461,7 +461,7 @@ theorem redeemOwner (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a 
       (storageAt state message.currentTarget (ownerBal state message.currentTarget))
       (sub (storageAt state message.currentTarget (ownerBal state message.currentTarget)) a)
       false ≤ gas) :
-    Hoare fork (At CODE message 6758 (a :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message 6758 (a :: rest) M gas state substate)
       (At CODE message 6868 (a :: rest) (mapMem M (ownerOf state message.currentTarget) 2)
         (gas - (359 + sstoreCost fork
           (originalAt state message.currentTarget (ownerBal state message.currentTarget))
@@ -483,7 +483,7 @@ theorem redeemOwner (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a 
   have hacc := hasAccount_readSlot (n := 0) (other := message.currentTarget) hacc
   step dupR 2
   step dupR 2
-  step sload hfork (cold := false) (by code_fact) (by code_fact) hcO' (by gas_ok)
+  step Gas.sloadG hfork (cold := false) (by code_fact) (by code_fact) hcO' (by gas_ok)
   rw [getStorage_eq]
   step binR 0x03 Local.instruction_sub
   step swapR 2
@@ -497,7 +497,7 @@ theorem redeemOwner (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {a 
       (ownerBal state message.currentTarget))
     (ss' := accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
       (ownerBal state message.currentTarget)) rfl rfl rfl rfl rfl rfl
-  step sstoreW hfork hglam (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
+  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by simp only [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   simp only [originalAt_readSlot, storageAt_readSlot]
@@ -512,14 +512,14 @@ theorem redeemTest1 (hfork : .berlin ≤ fork) {a : U256} {rest : List U256}
     (hrest : rest.length ≤ 16) {M : ByteArray} {c1 : Bool}
     (hc1 : coldIn substate message.currentTarget 1 = c1) {gas : Nat}
     (hg : 19 + slotCost c1 ≤ gas) :
-    Hoare fork (At CODE message 6613 (a :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message 6613 (a :: rest) M gas state substate)
       (At CODE message 6622 (isZero (isZero (isZero (lessThan
           (storageAt state message.currentTarget 1) a))) :: a :: rest) M (gas - (19 + slotCost c1))
         (readSlot state message.currentTarget 1) (accessSlot substate message.currentTarget 1)) := by
   step jumpdestR
   step dupR 0
   step pushR 1 (0x01 : U256)
-  step sload hfork (cold := c1) (by code_fact) (by code_fact) hc1 (by gas_ok)
+  step Gas.sloadG hfork (cold := c1) (by code_fact) (by code_fact) hc1 (by gas_ok)
   step binR 0x10 Local.instruction_lt
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
@@ -533,7 +533,7 @@ theorem redeemTest2 (hfork : .berlin ≤ fork) {a : U256} {rest : List U256}
     (hcO : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
       (ownerBal state message.currentTarget) = cO) {gas : Nat}
     (hg : 245 + slotCost cO ≤ gas) :
-    Hoare fork (At CODE message 6630 (a :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message 6630 (a :: rest) M gas state substate)
       (At CODE message 6733 (isZero (isZero (isZero (lessThan
           (storageAt state message.currentTarget (ownerBal state message.currentTarget)) a))) ::
           a :: rest)
@@ -545,7 +545,7 @@ theorem redeemTest2 (hfork : .berlin ≤ fork) {a : U256} {rest : List U256}
   step jumpdestR
   step dupR 0
   step ownerLookup hfork (by decide) (by simp; omega) hM hc0 (gas := gas - 1 - 3) (by gas_ok)
-  step sload hfork (cold := cO) (by code_fact) (by code_fact) hcO (by gas_ok)
+  step Gas.sloadG hfork (cold := cO) (by code_fact) (by code_fact) hcO (by gas_ok)
   rw [getStorage_eq, storageAt_readSlot]
   step binR 0x10 Local.instruction_lt
   step unR 0x15 instruction_iszero

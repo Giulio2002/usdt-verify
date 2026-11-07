@@ -27,7 +27,7 @@ theorem checkRevert (hfork : .berlin ≤ fork) {v s : U256} (hv0 : v ≠ 0) {res
     (hcA : coldIn substate message.currentTarget (allowSlot message s) = cA)
     (hnz : storageAt state message.currentTarget (allowSlot message s) ≠ 0) {gas : Nat}
     (hg : 254 + slotCost cA ≤ gas) {M : ByteArray} (hM : M.size = 96) :
-    Spec fork (At CODE message 8230 (0x40 :: v :: s :: rest) M gas state substate)
+    Gas.SpecG fork (At CODE message 8230 (0x40 :: v :: s :: rest) M gas state substate)
       (Halted true .empty (gas - (254 + slotCost cA))
         (readSlot state message.currentTarget (allowSlot message s))
         (accessSlot substate message.currentTarget (allowSlot message s))) := by
@@ -49,7 +49,7 @@ theorem checkRevert (hfork : .berlin ≤ fork) {v s : U256} (hv0 : v ≠ 0) {res
   step pushR 1 (0 : U256)
   step pushR 1 (0x05 : U256)
   step pushR 1 (0 : U256)
-  step caller (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   at_pc 8250
   step hashTail (by decide) (by simp; omega) hM (by gas_ok)
   at_pc 8308
@@ -58,7 +58,7 @@ theorem checkRevert (hfork : .berlin ≤ fork) {v s : U256} (hv0 : v ≠ 0) {res
   at_pc 8311
   step hashTail (by decide) (by simp; omega) (size_mapMem hM _ _) (by gas_ok)
   at_pc 8369
-  step sload hfork (cold := cA) (by code_fact) (by code_fact) hcA (by gas_ok)
+  step Gas.sloadG hfork (cold := cA) (by code_fact) (by code_fact) hcA (by gas_ok)
   step binR 0x14 instruction_eq
   step unR 0x15 instruction_iszero
   step jumpdestR
@@ -72,7 +72,7 @@ theorem checkRevert (hfork : .berlin ≤ fork) {v s : U256} (hv0 : v ≠ 0) {res
     simp [equal, isZero]; exact h)
   step pushR 1 (0 : U256)
   step dupR 0
-  refine (Logic.revert (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
+  refine (Gas.revertG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
     (by simp only [mkey] at hz; rw [hz]; gas_ok)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   refine ⟨hr, he, ?_, ?_, hs, hss⟩
@@ -98,7 +98,7 @@ theorem spec_revert (hfork : .berlin ≤ fork)
     (hcA : coldIn (accessSlot substate message.currentTarget 10) message.currentTarget
       (allowArg message) = cA) {gas : Nat}
     (hg : 703 + slotCost c10 + slotCost cA ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (703 + slotCost c10 + slotCost cA))
         (readSlot (readSlot state message.currentTarget 10) message.currentTarget
           (allowArg message))

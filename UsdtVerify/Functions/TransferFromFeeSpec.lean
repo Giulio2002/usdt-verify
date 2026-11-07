@@ -81,7 +81,7 @@ theorem headF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       mulCost v + capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
       allowCostF fork state message v f + debitCostF fork state message v f +
       creditCostFeeF fork state message v t f + 2401 ≤ gas) :
-    Hoare fork (At CODE message 8648 [0x60, 0, 0, 0, v, t, f, 0x1097, v, t, f, 0x0392, sel] M gas
+    Gas.HoareG fork (At CODE message 8648 [0x60, 0, 0, 0, v, t, f, 0x1097, v, t, f, 0x0392, sel] M gas
         state substate)
       (At CODE message 9351 [0x60, sendOf state message v, feeOf state message v,
           allowOf state message f, v, t, f, 0x1097, v, t, f, 0x0392, sel]
@@ -178,7 +178,7 @@ theorem ownerPartF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hown : (balOf st message.currentTarget).toNat + fee.toNat < 2 ^ 256) {gas : Nat}
     (hg : 4417 + slotCost cO + sstoreCost fork o (balOf st message.currentTarget)
       (add (balOf st message.currentTarget) fee) false ≤ gas) :
-    Spec fork (At CODE message 9351 [0x60, send, fee, A, v, t, f, 0x1097, v, t, f, 0x0392, sel]
+    Gas.SpecG fork (At CODE message 9351 [0x60, send, fee, A, v, t, f, 0x1097, v, t, f, 0x0392, sel]
         M gas st ss)
       (Halted false .empty (gas - (4417 + slotCost cO + sstoreCost fork o (balOf st message.currentTarget)
           (add (balOf st message.currentTarget) fee) false))
@@ -270,7 +270,7 @@ theorem bodyFeeF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
       allowCostF fork state message v f + debitCostF fork state message v f +
       creditCostFeeF fork state message v t f + ownerCostF fork state message v t f ≤ gas) :
-    Spec fork (At CODE message 8648 [0x60, 0, 0, 0, v, t, f, 0x1097, v, t, f, 0x0392, sel] M gas
+    Gas.SpecG fork (At CODE message 8648 [0x60, 0, 0, 0, v, t, f, 0x1097, v, t, f, 0x0392, sel] M gas
         state substate)
       (Halted false .empty (gas - (5516 + slotCost cA + slotCost c3 + slotCost c4 + slotCost cF +
         slotCost cT + slotCost cO + mulCost v +
@@ -400,7 +400,7 @@ theorem spec_feeF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (ownerSlot (ownerWordF (checkState state message) message (valArg message) (toArg message)
         (fromArg message))) = cO)
     {gas : Nat} (hg : feeCostF fork state message c0 cB c10 cA c3 c4 cF cT cO ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false .empty (gas - feeCostF fork state message c0 cB c10 cA c3 c4 cF cT cO)
         (feeStateF (checkState state message) message (valArg message) (toArg message)
           (fromArg message))

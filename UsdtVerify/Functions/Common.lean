@@ -51,7 +51,7 @@ The memory has 96 bytes and holds the pointer 0x60 at 0x40. -/
 theorem ret {p : Nat} (hp : p ∈ RET_PCS) {M : ByteArray} (hM : M.size = 96)
     (hptr : loadWord (memoryReadBytes M 64 32) 0 32 = 0x60) {v : U256} {rest : List U256}
     (hrest : rest.length ≤ 900) {gas : Nat} (hg : 53 ≤ gas) :
-    Spec fork (At CODE message p (v :: rest) M gas state substate)
+    Gas.SpecG fork (At CODE message p (v :: rest) M gas state substate)
       (Halted false (wordBytes v) (gas - 53) state substate) := by
   have hext0 : extendMemory M.size [((0x40 : U256), (32 : U256))] = ⟨0, 0⟩ := by
     rw [hM]; decide
@@ -71,15 +71,15 @@ theorem ret {p : Nat} (hp : p ∈ RET_PCS) {M : ByteArray} (hM : M.size = 96)
   all_goals
     step jumpdestR
     step pushR 1 (0x40 : U256)
-    step mload (by code_fact) (by code_fact) (by rw [hext0]; gas_ok)
-    step reshape (s' := (0x60 : U256) :: v :: rest) (m' := M) (g' := gas - 7)
+    step Gas.mloadG (by code_fact) (by code_fact) (by rw [hext0]; gas_ok)
+    step Gas.reshapeG (s' := (0x60 : U256) :: v :: rest) (m' := M) (g' := gas - 7)
       (by rw [hext0, memoryExtend_zero]; exact congrArg (· :: v :: rest) hptr)
       (by rw [hext0, memoryExtend_zero]) (by rw [hext0]; gas_ok)
     step dupR 0
     step dupR 2
     step dupR 1
-    step mstore (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
-    step reshape (s' := (0x60 : U256) :: 0x60 :: v :: rest) (m' := M ++ wordBytes v) (g' := gas - 22) rfl
+    step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
+    step Gas.reshapeG (s' := (0x60 : U256) :: 0x60 :: v :: rest) (m' := M ++ wordBytes v) (g' := gas - 22) rfl
       (by rw [hext1]; exact hmem1) (by rw [hext1]; gas_ok)
     step pushR 1 (0x20 : U256)
     step binR 0x01 instruction_add
@@ -88,8 +88,8 @@ theorem ret {p : Nat} (hp : p ∈ RET_PCS) {M : ByteArray} (hM : M.size = 96)
     step popR
     step popR
     step pushR 1 (0x40 : U256)
-    step mload (by code_fact) (by code_fact) (by rw [hext2]; gas_ok)
-    step reshape (s' := (0x60 : U256) :: 0x80 :: rest) (m' := M ++ wordBytes v) (g' := gas - 41)
+    step Gas.mloadG (by code_fact) (by code_fact) (by rw [hext2]; gas_ok)
+    step Gas.reshapeG (s' := (0x60 : U256) :: 0x80 :: rest) (m' := M ++ wordBytes v) (g' := gas - 41)
       (by rw [hext2, memoryExtend_zero, show (0x40 : U256).toNat = 64 from rfl, hread2, hptr]
           rfl) (by rw [hext2, memoryExtend_zero])
       (by rw [hext2]; gas_ok)
@@ -102,8 +102,8 @@ theorem ret {p : Nat} (hp : p ∈ RET_PCS) {M : ByteArray} (hM : M.size = 96)
     have hext3 : extendMemory (M ++ wordBytes v).size [((0x60 : U256), (0x20 : U256))] =
         ⟨0, 0⟩ := by
       rw [ByteArray.size_append, hM, size_wordBytes]; decide
-    refine Spec.reshape (s' := (0x60 : U256) :: 0x20 :: rest) (by rfl) rfl rfl ?_
-    refine (Logic.«return» (by code_fact) (by code_fact) (by rw [hext3]; gas_ok)).consequence
+    refine Gas.SpecG.reshape (s' := (0x60 : U256) :: 0x20 :: rest) (by rfl) rfl rfl ?_
+    refine (Gas.returnG (by code_fact) (by code_fact) (by rw [hext3]; gas_ok)).consequence
       (fun _ h => h) ?_
     rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
     refine ⟨hr, he, ?_, ?_, hs, hss⟩
@@ -121,7 +121,7 @@ of the top word (0 or 1). -/
 theorem retB {p : Nat} (hp : p ∈ BOOL_PCS) {M : ByteArray} (hM : M.size = 96)
     (hptr : loadWord (memoryReadBytes M 64 32) 0 32 = 0x60) {v : U256} {rest : List U256}
     (hrest : rest.length ≤ 900) {gas : Nat} (hg : 65 ≤ gas) :
-    Spec fork (At CODE message p (v :: rest) M gas state substate)
+    Gas.SpecG fork (At CODE message p (v :: rest) M gas state substate)
       (Halted false (wordBytes (isZero (isZero (isZero (isZero v))))) (gas - 65) state substate) := by
   have hext0 : extendMemory M.size [((0x40 : U256), (32 : U256))] = ⟨0, 0⟩ := by
     rw [hM]; decide
@@ -141,8 +141,8 @@ theorem retB {p : Nat} (hp : p ∈ BOOL_PCS) {M : ByteArray} (hM : M.size = 96)
   all_goals
     step jumpdestR
     step pushR 1 (0x40 : U256)
-    step mload (by code_fact) (by code_fact) (by rw [hext0]; gas_ok)
-    step reshape (s' := (0x60 : U256) :: v :: rest) (m' := M) (g' := gas - 7)
+    step Gas.mloadG (by code_fact) (by code_fact) (by rw [hext0]; gas_ok)
+    step Gas.reshapeG (s' := (0x60 : U256) :: v :: rest) (m' := M) (g' := gas - 7)
       (by rw [hext0, memoryExtend_zero]; exact congrArg (· :: v :: rest) hptr)
       (by rw [hext0, memoryExtend_zero]) (by rw [hext0]; gas_ok)
     step dupR 0
@@ -152,8 +152,8 @@ theorem retB {p : Nat} (hp : p ∈ BOOL_PCS) {M : ByteArray} (hM : M.size = 96)
     step unR 0x15 instruction_iszero
     step unR 0x15 instruction_iszero
     step dupR 1
-    step mstore (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
-    step reshape (s' := (0x60 : U256) :: 0x60 :: v :: rest) (m' := M ++ wordBytes (isZero (isZero (isZero (isZero v))))) (g' := gas - 34) rfl
+    step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
+    step Gas.reshapeG (s' := (0x60 : U256) :: 0x60 :: v :: rest) (m' := M ++ wordBytes (isZero (isZero (isZero (isZero v))))) (g' := gas - 34) rfl
       (by rw [hext1]; exact hmem1) (by rw [hext1]; gas_ok)
     step pushR 1 (0x20 : U256)
     step binR 0x01 instruction_add
@@ -162,8 +162,8 @@ theorem retB {p : Nat} (hp : p ∈ BOOL_PCS) {M : ByteArray} (hM : M.size = 96)
     step popR
     step popR
     step pushR 1 (0x40 : U256)
-    step mload (by code_fact) (by code_fact) (by rw [hext2]; gas_ok)
-    step reshape (s' := (0x60 : U256) :: 0x80 :: rest) (m' := M ++ wordBytes (isZero (isZero (isZero (isZero v))))) (g' := gas - 53)
+    step Gas.mloadG (by code_fact) (by code_fact) (by rw [hext2]; gas_ok)
+    step Gas.reshapeG (s' := (0x60 : U256) :: 0x80 :: rest) (m' := M ++ wordBytes (isZero (isZero (isZero (isZero v))))) (g' := gas - 53)
       (by rw [hext2, memoryExtend_zero, show (0x40 : U256).toNat = 64 from rfl, hread2, hptr]
           rfl) (by rw [hext2, memoryExtend_zero])
       (by rw [hext2]; gas_ok)
@@ -176,8 +176,8 @@ theorem retB {p : Nat} (hp : p ∈ BOOL_PCS) {M : ByteArray} (hM : M.size = 96)
     have hext3 : extendMemory (M ++ wordBytes (isZero (isZero (isZero (isZero v))))).size [((0x60 : U256), (0x20 : U256))] =
         ⟨0, 0⟩ := by
       rw [ByteArray.size_append, hM, size_wordBytes]; decide
-    refine Spec.reshape (s' := (0x60 : U256) :: 0x20 :: rest) (by rfl) rfl rfl ?_
-    refine (Logic.«return» (by code_fact) (by code_fact) (by rw [hext3]; gas_ok)).consequence
+    refine Gas.SpecG.reshape (s' := (0x60 : U256) :: 0x20 :: rest) (by rfl) rfl rfl ?_
+    refine (Gas.returnG (by code_fact) (by code_fact) (by rw [hext3]; gas_ok)).consequence
       (fun _ h => h) ?_
     rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
     refine ⟨hr, he, ?_, ?_, hs, hss⟩
@@ -195,7 +195,7 @@ masked twice to 160 bits. -/
 theorem retA {p : Nat} (hp : p ∈ ADDR_PCS) {M : ByteArray} (hM : M.size = 96)
     (hptr : loadWord (memoryReadBytes M 64 32) 0 32 = 0x60) {v : U256} {rest : List U256}
     (hrest : rest.length ≤ 900) {gas : Nat} (hg : 65 ≤ gas) :
-    Spec fork (At CODE message p (v :: rest) M gas state substate)
+    Gas.SpecG fork (At CODE message p (v :: rest) M gas state substate)
       (Halted false (wordBytes (bitwiseAnd ADDR_MASK (bitwiseAnd ADDR_MASK v))) (gas - 65) state substate) := by
   have hext0 : extendMemory M.size [((0x40 : U256), (32 : U256))] = ⟨0, 0⟩ := by
     rw [hM]; decide
@@ -215,8 +215,8 @@ theorem retA {p : Nat} (hp : p ∈ ADDR_PCS) {M : ByteArray} (hM : M.size = 96)
   all_goals
     step jumpdestR
     step pushR 1 (0x40 : U256)
-    step mload (by code_fact) (by code_fact) (by rw [hext0]; gas_ok)
-    step reshape (s' := (0x60 : U256) :: v :: rest) (m' := M) (g' := gas - 7)
+    step Gas.mloadG (by code_fact) (by code_fact) (by rw [hext0]; gas_ok)
+    step Gas.reshapeG (s' := (0x60 : U256) :: v :: rest) (m' := M) (g' := gas - 7)
       (by rw [hext0, memoryExtend_zero]; exact congrArg (· :: v :: rest) hptr)
       (by rw [hext0, memoryExtend_zero]) (by rw [hext0]; gas_ok)
     step dupR 0
@@ -226,8 +226,8 @@ theorem retA {p : Nat} (hp : p ∈ ADDR_PCS) {M : ByteArray} (hM : M.size = 96)
     step pushR 20 ADDR_MASK
     step binR 0x16 Local.instruction_and
     step dupR 1
-    step mstore (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
-    step reshape (s' := (0x60 : U256) :: 0x60 :: v :: rest) (m' := M ++ wordBytes (bitwiseAnd ADDR_MASK (bitwiseAnd ADDR_MASK v))) (g' := gas - 34) rfl
+    step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
+    step Gas.reshapeG (s' := (0x60 : U256) :: 0x60 :: v :: rest) (m' := M ++ wordBytes (bitwiseAnd ADDR_MASK (bitwiseAnd ADDR_MASK v))) (g' := gas - 34) rfl
       (by rw [hext1]; exact hmem1) (by rw [hext1]; gas_ok)
     step pushR 1 (0x20 : U256)
     step binR 0x01 instruction_add
@@ -236,8 +236,8 @@ theorem retA {p : Nat} (hp : p ∈ ADDR_PCS) {M : ByteArray} (hM : M.size = 96)
     step popR
     step popR
     step pushR 1 (0x40 : U256)
-    step mload (by code_fact) (by code_fact) (by rw [hext2]; gas_ok)
-    step reshape (s' := (0x60 : U256) :: 0x80 :: rest) (m' := M ++ wordBytes (bitwiseAnd ADDR_MASK (bitwiseAnd ADDR_MASK v))) (g' := gas - 53)
+    step Gas.mloadG (by code_fact) (by code_fact) (by rw [hext2]; gas_ok)
+    step Gas.reshapeG (s' := (0x60 : U256) :: 0x80 :: rest) (m' := M ++ wordBytes (bitwiseAnd ADDR_MASK (bitwiseAnd ADDR_MASK v))) (g' := gas - 53)
       (by rw [hext2, memoryExtend_zero, show (0x40 : U256).toNat = 64 from rfl, hread2, hptr]
           rfl) (by rw [hext2, memoryExtend_zero])
       (by rw [hext2]; gas_ok)
@@ -250,8 +250,8 @@ theorem retA {p : Nat} (hp : p ∈ ADDR_PCS) {M : ByteArray} (hM : M.size = 96)
     have hext3 : extendMemory (M ++ wordBytes (bitwiseAnd ADDR_MASK (bitwiseAnd ADDR_MASK v))).size [((0x60 : U256), (0x20 : U256))] =
         ⟨0, 0⟩ := by
       rw [ByteArray.size_append, hM, size_wordBytes]; decide
-    refine Spec.reshape (s' := (0x60 : U256) :: 0x20 :: rest) (by rfl) rfl rfl ?_
-    refine (Logic.«return» (by code_fact) (by code_fact) (by rw [hext3]; gas_ok)).consequence
+    refine Gas.SpecG.reshape (s' := (0x60 : U256) :: 0x20 :: rest) (by rfl) rfl rfl ?_
+    refine (Gas.returnG (by code_fact) (by code_fact) (by rw [hext3]; gas_ok)).consequence
       (fun _ h => h) ?_
     rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
     refine ⟨hr, he, ?_, ?_, hs, hss⟩
@@ -330,7 +330,7 @@ theorem depCheck (hfork : .berlin ≤ fork) {p d : Nat}
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     (hc10 : coldIn substate message.currentTarget 10 = c10)
     {gas : Nat} (hg : 109 + slotCost c10 ≤ gas) :
-    Hoare fork (At CODE message p rest M gas state substate)
+    Gas.HoareG fork (At CODE message p rest M gas state substate)
       (At CODE message d (0 :: rest) M (gas - (109 + slotCost c10))
         (readSlot state message.currentTarget 10)
         (accessSlot substate message.currentTarget 10)) := by
@@ -343,11 +343,11 @@ theorem depCheck (hfork : .berlin ≤ fork) {p d : Nat}
     step pushR 1 (0x14 : U256)
     step swapR 0
     norm
-    step sload hfork (cold := c10) (by code_fact) (by code_fact) hc10 (by gas_ok)
+    step Gas.sloadG hfork (cold := c10) (by code_fact) (by code_fact) hc10 (by gas_ok)
     step swapR 0
     norm
     step pushR 2 (0x0100 : U256)
-    step Local.exp (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
+    step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
     step swapR 0
     norm
     step binR 0x04 Local.instruction_div
@@ -356,6 +356,6 @@ theorem depCheck (hfork : .berlin ≤ fork) {p d : Nat}
     step unR 0x15 instruction_iszero
     step pushAnyR 2
     step jumpiR (isZero_flag_ne hdep)
-    exact (repc (by decide)).seq (reshape rfl rfl (by gas_ok))
+    exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
 
 end UsdtVerify

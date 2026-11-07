@@ -35,13 +35,13 @@ jump to the body `b` with argument word 0 and the return address `r`. -/
 theorem entryW {e r b : Nat} (hp : (e = 1976 ∧ r = 0x07d9 ∧ b = 6019) ∨
       (e = 2011 ∧ r = 0x07fc ∧ b = 6522))
     (hv : message.value = 0) {x : U256} {M : ByteArray} {gas : Nat} (hg : 68 ≤ gas) :
-    Hoare fork (At CODE message e [x] M gas state substate)
+    Gas.HoareG fork (At CODE message e [x] M gas state substate)
       (At CODE message b [wordArg message.data 0, BitVec.ofNat 256 r, x] M (gas - 68) state
         substate) := by
   rcases hp with ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩
   all_goals
     step jumpdestR
-    step Logic.callvalue (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+    step Gas.callvalueG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
     step unR 0x15 instruction_iszero
     step pushAnyR 2
     step jumpiR (by simp [hv, isZero])
@@ -50,7 +50,7 @@ theorem entryW {e r b : Nat} (hp : (e = 1976 ∧ r = 0x07d9 ∧ b = 6019) ∨
     step pushR 1 (0x04 : U256)
     step dupR 0
     step dupR 0
-    step calldataload (by code_fact) (by code_fact) (by gas_ok)
+    step Gas.calldataloadG (by code_fact) (by code_fact) (by gas_ok)
     step swapR 0
     norm
     step pushR 1 (0x20 : U256)
@@ -75,7 +75,7 @@ theorem toBodyW {sel e r b t : Nat}
     (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = sel) (hv : message.value = 0) {gas : Nat}
     (hg : 137 + 22 * t ≤ gas) :
-    Hoare fork (At CODE message 0 [] .empty gas state substate)
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate)
       (At CODE message (b + 4) [0, 0, wordArg message.data 0, BitVec.ofNat 256 r,
           BitVec.ofNat 256 (selector message.data)]
         MEM0 (gas - (137 + 22 * t)) state substate) := by
@@ -103,10 +103,10 @@ theorem spec_issue_notOwner (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.da
     (hv : message.value = 0) (hown : callerWord message ≠ ownerOf state message.currentTarget)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hg : 740 + slotCost c0 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (740 + slotCost c0)) (readSlot state message.currentTarget 0)
         (accessSlot substate message.currentTarget 0)) := by
-  refine Spec.seq (toBodyW (Or.inl ⟨rfl, rfl, rfl, rfl, rfl⟩) hsize hsize' hsel hv (by omega)) ?_
+  refine Gas.SpecG.seq (toBodyW (Or.inl ⟨rfl, rfl, rfl, rfl, rfl⟩) hsize hsize' hsel hv (by omega)) ?_
   refine (ownerRevert hfork (mem_CHECKS (by decide)) (by simp) size_MEM0 hc0 hown
     (by gas_ok)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
@@ -117,10 +117,10 @@ theorem spec_redeem_notOwner (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.d
     (hv : message.value = 0) (hown : callerWord message ≠ ownerOf state message.currentTarget)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hg : 762 + slotCost c0 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (762 + slotCost c0)) (readSlot state message.currentTarget 0)
         (accessSlot substate message.currentTarget 0)) := by
-  refine Spec.seq (toBodyW (Or.inr ⟨rfl, rfl, rfl, rfl, rfl⟩) hsize hsize' hsel hv (by omega)) ?_
+  refine Gas.SpecG.seq (toBodyW (Or.inr ⟨rfl, rfl, rfl, rfl, rfl⟩) hsize hsize' hsel hv (by omega)) ?_
   refine (ownerRevert hfork (mem_CHECKS (by decide)) (by simp) size_MEM0 hc0 hown
     (by gas_ok)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
@@ -171,11 +171,11 @@ theorem spec_issue_req1 (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.s
     {c0 c1 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (hc1 : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget 1 = c1)
     {gas : Nat} (hg : 875 + slotCost c0 + slotCost c1 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (875 + slotCost c0 + slotCost c1))
         (readSlot (readSlot state message.currentTarget 0) message.currentTarget 1)
         (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget 1)) := by
-  refine Spec.seq (toBodyW (Or.inl ⟨rfl, rfl, rfl, rfl, rfl⟩) hsize hsize' hsel hv (by omega)) ?_
+  refine Gas.SpecG.seq (toBodyW (Or.inl ⟨rfl, rfl, rfl, rfl, rfl⟩) hsize hsize' hsel hv (by omega)) ?_
   step ownerOk hfork (mem_CHECKS (by decide)) (by simp) hc0 hown (by gas_ok)
   at_pc 6110
   step issueTest1 hfork (by simp) hc1 (by gas_ok)
@@ -193,11 +193,11 @@ theorem spec_redeem_req1 (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.
     {c0 c1 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (hc1 : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget 1 = c1)
     {gas : Nat} (hg : 794 + slotCost c0 + slotCost c1 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (794 + slotCost c0 + slotCost c1))
         (readSlot (readSlot state message.currentTarget 0) message.currentTarget 1)
         (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget 1)) := by
-  refine Spec.seq (toBodyW (Or.inr ⟨rfl, rfl, rfl, rfl, rfl⟩) hsize hsize' hsel hv (by omega)) ?_
+  refine Gas.SpecG.seq (toBodyW (Or.inr ⟨rfl, rfl, rfl, rfl, rfl⟩) hsize hsize' hsel hv (by omega)) ?_
   step ownerOk hfork (mem_CHECKS (by decide)) (by simp) hc0 hown (by gas_ok)
   at_pc 6613
   step redeemTest1 hfork (by simp) hc1 (by gas_ok)
@@ -228,7 +228,7 @@ theorem issuePre (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
     (hcO : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget 1)
       message.currentTarget (ownerBal state message.currentTarget) = cO)
     {gas : Nat} (hg : 1443 + slotCost c0 + slotCost c1 + slotCost cO ≤ gas) :
-    Hoare fork (At CODE message 0 [] .empty gas state substate)
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate)
       (At CODE message 6330 (isZero (isZero (greaterThan
           (add (storageAt state message.currentTarget (ownerBal state message.currentTarget))
             (wordArg message.data 0))
@@ -266,10 +266,10 @@ theorem spec_issue_req2 (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.s
     (hcO : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget 1)
       message.currentTarget (ownerBal state message.currentTarget) = cO)
     {gas : Nat} (hg : 1462 + slotCost c0 + slotCost c1 + slotCost cO ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (1462 + slotCost c0 + slotCost c1 + slotCost cO))
         (reqState state message.currentTarget) (reqSub substate state message.currentTarget)) := by
-  refine Spec.seq (issuePre hfork hsize hsize' hsel hv hown hT hc0 hc1 hcO (by omega)) ?_
+  refine Gas.SpecG.seq (issuePre hfork hsize hsize' hsel hv hown hT hc0 hc1 hcO (by omega)) ?_
   refine (reqRevert hfork (Or.inr (Or.inl rfl)) (gtAdd_eq hB) (by simp)
     (size_mapMem (size_mapMem size_MEM0 _ _) _ _) (by gas_ok)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
@@ -346,7 +346,7 @@ theorem spec_issue (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hstip : 4248 + slotCost c0 + slotCost c1 + slotCost cO + issueCostO fork state message ≤ gas)
     (hg : 3024 + slotCost c0 + slotCost c1 + slotCost cO + issueCostO fork state message +
       issueCostT fork state message ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false .empty (gas - (3024 + slotCost c0 + slotCost c1 + slotCost cO +
           issueCostO fork state message + issueCostT fork state message))
         (issueState state message) (issueSub fork substate state message)) := by
@@ -372,7 +372,7 @@ theorem spec_issue (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
         (wordArg message.data 0))) message.currentTarget 1 = false :=
     TransferFee.coldIn_storeSub_false (TransferFrom.coldIn_accessSlot_false
       (TransferFrom.coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
-  refine Spec.seq (issuePre hfork hsize hsize' hsel hv hown hT hc0 hc1 hcO (by omega)) ?_
+  refine Gas.SpecG.seq (issuePre hfork hsize hsize' hsel hv hown hT hc0 hc1 hcO (by omega)) ?_
   step reqPass (Or.inr (Or.inl ⟨rfl, rfl⟩)) (gtAdd_ne ⟨hT.1, hB⟩) (by simp) (by gas_ok)
   step issueOwner hfork hglam (by simp) hstatic hacc2 hw0 hwO
     (size_mapMem (size_mapMem size_MEM0 _ _) _ _) (by gas_ok)
@@ -401,7 +401,7 @@ theorem redeemPre (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
     (hcO : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget 1)
       message.currentTarget (ownerBal state message.currentTarget) = cO)
     {gas : Nat} (hg : 1033 + slotCost c0 + slotCost c1 + slotCost cO ≤ gas) :
-    Hoare fork (At CODE message 0 [] .empty gas state substate)
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate)
       (At CODE message 6733 (isZero (isZero (isZero (lessThan
           (storageAt state message.currentTarget (ownerBal state message.currentTarget))
           (wordArg message.data 0)))) ::
@@ -434,10 +434,10 @@ theorem spec_redeem_req2 (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.
     (hcO : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget 1)
       message.currentTarget (ownerBal state message.currentTarget) = cO)
     {gas : Nat} (hg : 1052 + slotCost c0 + slotCost c1 + slotCost cO ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (1052 + slotCost c0 + slotCost c1 + slotCost cO))
         (reqState state message.currentTarget) (reqSub substate state message.currentTarget)) := by
-  refine Spec.seq (redeemPre hfork hsize hsize' hsel hv hown hT hc0 hc1 hcO (by omega)) ?_
+  refine Gas.SpecG.seq (redeemPre hfork hsize hsize' hsel hv hown hT hc0 hc1 hcO (by omega)) ?_
   refine (reqRevert hfork (Or.inr (Or.inr (Or.inr rfl))) (ge_eq hB) (by simp)
     (size_mapMem size_MEM0 _ _) (by gas_ok)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
@@ -513,7 +513,7 @@ theorem spec_redeem (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hstip : 3838 + slotCost c0 + slotCost c1 + slotCost cO + redeemCostT fork state message ≤ gas)
     (hg : 2614 + slotCost c0 + slotCost c1 + slotCost cO + redeemCostT fork state message +
       redeemCostO fork state message ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false .empty (gas - (2614 + slotCost c0 + slotCost c1 + slotCost cO +
           redeemCostT fork state message + redeemCostO fork state message))
         (redeemState state message) (redeemSub fork substate state message)) := by
@@ -543,7 +543,7 @@ theorem spec_redeem (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     rw [ownerBal_writeSlot hacc2 (by decide), ownerBal_readSlot, ownerBal_readSlot,
       ownerBal_readSlot]
     exact TransferFee.coldIn_storeSub_false (coldIn_accessSlot_self _ _ _)
-  refine Spec.seq (redeemPre hfork hsize hsize' hsel hv hown hT hc0 hc1 hcO (by omega)) ?_
+  refine Gas.SpecG.seq (redeemPre hfork hsize hsize' hsel hv hown hT hc0 hc1 hcO (by omega)) ?_
   step reqPass (Or.inr (Or.inr (Or.inr ⟨rfl, rfl⟩))) (ge_ne hB) (by simp) (by gas_ok)
   step redeemTotal hfork hglam (by simp) hstatic hacc2 hw1 (by gas_ok)
     (by simp only [storageAt_readSlot, originalAt_readSlot]; gas_ok)

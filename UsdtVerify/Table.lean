@@ -76,12 +76,12 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
 /-- The dispatcher runs the prelude and the table. -/
 theorem dispatch (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     {gas : Nat} (hg : 62 + 22 * tested (BitVec.ofNat 256 (selector message.data)) ENTRIES ≤ gas) :
-    Hoare fork (At CODE message 0 [] .empty gas state substate)
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate)
       (At CODE message (branch (BitVec.ofNat 256 (selector message.data)) 54 (entrySize 4 2) ENTRIES)
         [BitVec.ofNat 256 (selector message.data)] MEM0
         (gas - 62 - 22 * tested (BitVec.ofNat 256 (selector message.data)) ENTRIES) state
         substate) :=
   (prelude hsize hsize' (by omega)).seq
-    (branchTable (by decide) (by decide) (by simp [STACK_LIMIT]) table (by omega))
+    (Gas.branchTableG (by decide) (by decide) (by simp [STACK_LIMIT]) table (by omega))
 
 end UsdtVerify

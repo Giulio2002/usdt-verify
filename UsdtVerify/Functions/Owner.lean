@@ -57,7 +57,7 @@ theorem ownerTest (hfork : .berlin ≤ fork) {s : Nat} (hs : s ∈ CHECKS) {rest
     (hrest : rest.length ≤ 16) {M : ByteArray} {c0 : Bool}
     (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hg : 56 + slotCost c0 ≤ gas) :
-    Hoare fork (At CODE message s (0 :: 0 :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message s (0 :: 0 :: rest) M gas state substate)
       (At CODE message (s + 79)
         (isZero (isZero (equal (callerWord message) (ownerOf state message.currentTarget))) ::
           rest) M (gas - (56 + slotCost c0))
@@ -68,11 +68,11 @@ theorem ownerTest (hfork : .berlin ≤ fork) {s : Nat} (hs : s ∈ CHECKS) {rest
   all_goals
     step swapR 0
     norm
-    step sload hfork (cold := c0) (by code_fact) (by code_fact) hc0 (by gas_ok)
+    step Gas.sloadG hfork (cold := c0) (by code_fact) (by code_fact) hc0 (by gas_ok)
     step swapR 0
     norm
     step pushR 2 (0x0100 : U256)
-    step Local.exp (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
+    step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
     step swapR 0
     norm
     step binR 0x04 Local.instruction_div
@@ -80,7 +80,7 @@ theorem ownerTest (hfork : .berlin ≤ fork) {s : Nat} (hs : s ∈ CHECKS) {rest
     step binR 0x16 Local.instruction_and
     step pushR 20 ADDR_MASK
     step binR 0x16 Local.instruction_and
-    step caller (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+    step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
     step pushR 20 ADDR_MASK
     step binR 0x16 Local.instruction_and
     step binR 0x14 instruction_eq
@@ -95,7 +95,7 @@ theorem ownerOk (hfork : .berlin ≤ fork) {s : Nat} (hs : s ∈ CHECKS) {rest :
     (hc0 : coldIn substate message.currentTarget 0 = c0)
     (hown : callerWord message = ownerOf state message.currentTarget) {gas : Nat}
     (hg : 69 + slotCost c0 ≤ gas) :
-    Hoare fork (At CODE message s (0 :: 0 :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message s (0 :: 0 :: rest) M gas state substate)
       (At CODE message (s + 87) rest M (gas - (69 + slotCost c0))
         (readSlot state message.currentTarget 0) (accessSlot substate message.currentTarget 0)) := by
   have hc : isZero (isZero (equal (callerWord message) (ownerOf state message.currentTarget))) ≠
@@ -115,7 +115,7 @@ theorem ownerRevert (hfork : .berlin ≤ fork) {s : Nat} (hs : s ∈ CHECKS) {re
     (hc0 : coldIn substate message.currentTarget 0 = c0)
     (hown : callerWord message ≠ ownerOf state message.currentTarget) {gas : Nat}
     (hg : 75 + slotCost c0 ≤ gas) :
-    Spec fork (At CODE message s (0 :: 0 :: rest) M gas state substate)
+    Gas.SpecG fork (At CODE message s (0 :: 0 :: rest) M gas state substate)
       (Halted true .empty (gas - (75 + slotCost c0)) (readSlot state message.currentTarget 0)
         (accessSlot substate message.currentTarget 0)) := by
   have hz : extendMemory M.size [((0 : U256), (0 : U256))] = ⟨0, 0⟩ := by
@@ -123,7 +123,7 @@ theorem ownerRevert (hfork : .berlin ≤ fork) {s : Nat} (hs : s ∈ CHECKS) {re
   have hc : isZero (isZero (equal (callerWord message) (ownerOf state message.currentTarget))) =
       0 := by
     simp [equal, isZero, hown]
-  refine Spec.seq (ownerTest hfork hs hrest hc0 (by gas_ok)) ?_
+  refine Gas.SpecG.seq (ownerTest hfork hs hrest hc0 (by gas_ok)) ?_
   simp only [CHECKS, List.mem_cons, List.not_mem_nil, or_false] at hs
   rcases hs with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
   all_goals
@@ -131,7 +131,7 @@ theorem ownerRevert (hfork : .berlin ≤ fork) {s : Nat} (hs : s ∈ CHECKS) {re
     step jumpi0R hc
     step pushR 1 (0 : U256)
     step dupR 0
-    refine (Logic.revert (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
+    refine (Gas.revertG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
       (by rw [hz]; gas_ok)).consequence (fun _ h => h) ?_
     rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
     refine ⟨hr, he, ?_, ?_, hs, hss⟩
@@ -145,7 +145,7 @@ def BODIES : List Nat := [2646, 3284, 4333, 4936, 5790, 6019, 6522, 7288, 7605]
 check, for 7 gas. -/
 theorem prefix9 {b : Nat} (hb : b ∈ BODIES) {rest : List U256} (hrest : rest.length ≤ 16)
     {M : ByteArray} {gas : Nat} (hg : 7 ≤ gas) :
-    Hoare fork (At CODE message b rest M gas state substate)
+    Gas.HoareG fork (At CODE message b rest M gas state substate)
       (At CODE message (b + 4) (0 :: 0 :: rest) M (gas - 7) state substate) := by
   simp only [BODIES, List.mem_cons, List.not_mem_nil, or_false] at hb
   rcases hb with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl

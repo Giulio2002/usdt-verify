@@ -46,7 +46,7 @@ theorem div_mul_self {a b : U256} (ha : a ≠ 0) (hov : a.toNat * b.toNat < 2 ^ 
 theorem mulBlock {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20)
     (hret : isValidJumpDest (validJumpDestinations CODE) ret.toNat = true)
     (hov : a.toNat * b.toNat < 2 ^ 256) {gas : Nat} (hg : mulCost a ≤ gas) {M : ByteArray} :
-    Hoare fork (At CODE message 10755 (b :: a :: ret :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message 10755 (b :: a :: ret :: rest) M gas state substate)
       (At CODE message ret.toNat (mul a b :: rest) M (gas - mulCost a) state substate) := by
   by_cases ha : a = 0
   · simp only [mulCost, ha, ite_true] at hg ⊢
@@ -75,8 +75,8 @@ theorem mulBlock {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20
     norm
     step popR
     step popR
-    step jump (by code_fact) (by code_fact) (by gas_ok) hret
-    exact reshape (by simp; exact (mul_zero_left b).symm) rfl (by gas_ok)
+    step Gas.jumpG (by code_fact) (by code_fact) (by gas_ok) hret
+    exact Gas.reshapeG (by simp; exact (mul_zero_left b).symm) rfl (by gas_ok)
   · simp only [mulCost, ha, ite_false] at hg ⊢
     have hq := div_mul_self ha hov
     step jumpdestR
@@ -126,14 +126,14 @@ theorem mulBlock {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20
     norm
     step popR
     step popR
-    step jump (by code_fact) (by code_fact) (by gas_ok) hret
-    exact reshape rfl rfl (by gas_ok)
+    step Gas.jumpG (by code_fact) (by code_fact) (by gas_ok) hret
+    exact Gas.reshapeG rfl rfl (by gas_ok)
 
 /-- `div(a, b)` at 10949, for `b ≠ 0`, returns `a / b` to `ret`. -/
 theorem divBlock {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20)
     (hret : isValidJumpDest (validJumpDestinations CODE) ret.toNat = true) (hb : b ≠ 0)
     {gas : Nat} (hg : 74 ≤ gas) {M : ByteArray} :
-    Hoare fork (At CODE message 10949 (b :: a :: ret :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message 10949 (b :: a :: ret :: rest) M gas state substate)
       (At CODE message ret.toNat (div a b :: rest) M (gas - 74) state substate) := by
   step jumpdestR
   step pushR 1 (0 : U256)
@@ -162,14 +162,14 @@ theorem divBlock {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20
   norm
   step popR
   step popR
-  step jump (by code_fact) (by code_fact) (by gas_ok) hret
-  exact reshape rfl rfl (by gas_ok)
+  step Gas.jumpG (by code_fact) (by code_fact) (by gas_ok) hret
+  exact Gas.reshapeG rfl rfl (by gas_ok)
 
 /-- `sub(a, b)` at 10976, for `b ≤ a`, returns `a - b` to `ret`. -/
 theorem subBlock {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20)
     (hret : isValidJumpDest (validJumpDestinations CODE) ret.toNat = true)
     (hle : b.toNat ≤ a.toNat) {gas : Nat} (hg : 68 ≤ gas) {M : ByteArray} :
-    Hoare fork (At CODE message 10976 (b :: a :: ret :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message 10976 (b :: a :: ret :: rest) M gas state substate)
       (At CODE message ret.toNat (sub a b :: rest) M (gas - 68) state substate) := by
   have hgt : greaterThan b a = 0 := by simp [greaterThan, Nat.not_lt.mpr hle]
   step jumpdestR
@@ -196,14 +196,14 @@ theorem subBlock {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20
   norm
   step popR
   step popR
-  step jump (by code_fact) (by code_fact) (by gas_ok) hret
-  exact reshape rfl rfl (by gas_ok)
+  step Gas.jumpG (by code_fact) (by code_fact) (by gas_ok) hret
+  exact Gas.reshapeG rfl rfl (by gas_ok)
 
 /-- `add(a, b)` at 11001, without overflow, returns `a + b` to `ret`. -/
 theorem addBlock {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20)
     (hret : isValidJumpDest (validJumpDestinations CODE) ret.toNat = true)
     (hov : a.toNat + b.toNat < 2 ^ 256) {gas : Nat} (hg : 81 ≤ gas) {M : ByteArray} :
-    Hoare fork (At CODE message 11001 (b :: a :: ret :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message 11001 (b :: a :: ret :: rest) M gas state substate)
       (At CODE message ret.toNat (add a b :: rest) M (gas - 81) state substate) := by
   have hlt : lessThan (add a b) a = 0 := by
     have : (add a b).toNat = a.toNat + b.toNat := by
@@ -239,7 +239,7 @@ theorem addBlock {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20
   norm
   step popR
   step popR
-  step jump (by code_fact) (by code_fact) (by gas_ok) hret
-  exact reshape rfl rfl (by gas_ok)
+  step Gas.jumpG (by code_fact) (by code_fact) (by gas_ok) hret
+  exact Gas.reshapeG rfl rfl (by gas_ok)
 
 end UsdtVerify.SafeMath

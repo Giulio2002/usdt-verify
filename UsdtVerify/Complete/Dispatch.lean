@@ -119,67 +119,6 @@ theorem preludeG (hsize : 4 ≤ message.data.size) (hsize' : message.data.size <
   simp only [h0, List.cons.injEq, and_true]
   exact selector_word message.data
 
-/-- EthLib's `branchTable` over `StepG`. -/
-theorem branchTableG {code : ByteArray} {memory : ByteArray} {n m : Fin 33} (hn : n.val ≠ 0)
-    (hm : m.val ≠ 0) {x : U256} {rest : List U256} (hstack : rest.length + 2 < STACK_LIMIT) :
-    ∀ {pc gas : Nat} {entries : List (U256 × U256)}, Table code n m pc entries →
-      22 * tested x entries ≤ gas →
-      HoareG fork (At code message pc (x :: rest) memory gas state substate)
-        (At code message (branch x pc (entrySize n m) entries) (x :: rest) memory
-          (gas - 22 * tested x entries) state substate)
-  | pc, gas, [], _, _ => Triple.of_imp fun _ h => h
-  | pc, gas, (key, dest) :: entries, ⟨⟨l0, b0⟩, ⟨l1, b1⟩, hkey, ⟨l2, b2⟩, ⟨l3, b3⟩, hdest,
-      ⟨l4, b4⟩, valid, table⟩, hgas => by
-    have h22 : 22 ≤ gas := by
-      simp only [tested] at hgas
-      split at hgas <;> omega
-    have h1 := dup1G (fork := fork) (code := code) (message := message) (memory := memory)
-      (state := state) (substate := substate) (pc := pc) (x := x) (rest := rest) (gas := gas)
-      l0 b0 (by omega) (by simp only [List.length_cons]; omega)
-    have h2 := pushG (fork := fork) (code := code) (message := message) (memory := memory)
-      (state := state) (substate := substate) (pc := pc + 1) (stack := x :: x :: rest)
-      (gas := gas - 3) (n := n) (word := key) hn l1 b1 (decode_push n hn) hkey (by omega)
-      (by simp only [List.length_cons]; omega)
-    have h3 := binaryG (fork := fork) (code := code) (message := message) (memory := memory)
-      (state := state) (substate := substate) (pc := pc + 1 + (1 + n)) (x := key) (y := x)
-      (rest := x :: rest) (gas := gas - 3 - 3) l2 b2
-      (ofByte_of_decode (op := .eq) rfl (Fork.frontier_le _)) instruction_eq
-      (by simp only [OPCODE_EQ, VERY_LOW]; omega)
-    have h4 := pushG (fork := fork) (code := code) (message := message) (memory := memory)
-      (state := state) (substate := substate) (pc := pc + 1 + (1 + n) + 1)
-      (stack := equal key x :: x :: rest) (gas := gas - 3 - 3 - OPCODE_EQ) (n := m) (word := dest)
-      hm l3 b3 (decode_push m hm) hdest (by simp only [OPCODE_EQ, VERY_LOW]; omega)
-      (by simp only [List.length_cons]; omega)
-    have h14 := ((h1.seq h2).seq h3).seq h4
-    by_cases hk : key = x
-    · have h5 := jumpi_takenG (fork := fork) (code := code) (message := message)
-        (memory := memory) (state := state) (substate := substate)
-        (pc := pc + 1 + (1 + n) + 1 + (1 + m))
-        (destination := dest) (condition := equal key x) (rest := x :: rest)
-        (gas := gas - 3 - 3 - OPCODE_EQ - 3) l4 b4 (by simp only [OPCODE_EQ, VERY_LOW]; omega)
-        (by simp [equal, hk]) valid
-      have h := h14.seq h5
-      simp only [branch, tested, hk, ite_true]
-      exact HoareG.gas_eq h (by simp only [OPCODE_EQ, VERY_LOW]; omega)
-    · have heq : equal key x = 0 := by simp [equal, hk]
-      rw [heq] at h14
-      have h5 := jumpi_zeroG (fork := fork) (code := code) (message := message)
-        (memory := memory) (state := state) (substate := substate)
-        (pc := pc + 1 + (1 + n) + 1 + (1 + m))
-        (destination := dest) (rest := x :: rest) (gas := gas - 3 - 3 - OPCODE_EQ - 3) l4 b4
-        (by simp only [OPCODE_EQ, VERY_LOW]; omega)
-      have hpc : pc + 1 + (1 + n) + 1 + (1 + m) + 1 = pc + entrySize n m := by
-        simp only [entrySize]
-        omega
-      rw [hpc] at h5
-      simp only [tested, hk, ite_false] at hgas
-      have h15 := HoareG.gas_eq (h14.seq h5) (g' := gas - 22)
-        (by simp only [OPCODE_EQ, VERY_LOW]; omega)
-      have ih := branchTableG (memory := memory) (x := x) (pc := pc + entrySize n m) (gas := gas - 22) hn hm hstack
-        table (by omega)
-      simp only [branch, tested, hk, ite_false]
-      exact HoareG.gas_eq (h15.seq ih) (by omega)
-
 /-- `dispatch` over `StepG`. -/
 theorem dispatchG (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     {gas : Nat} (hg : 62 + 22 * tested (BitVec.ofNat 256 (selector message.data)) ENTRIES ≤ gas) :

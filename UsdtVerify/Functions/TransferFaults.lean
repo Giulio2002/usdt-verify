@@ -51,7 +51,7 @@ theorem div_mul_ne {a b : U256} (hov : 2 ^ 256 ≤ a.toNat * b.toNat) : div (mul
 /-- `mul(a, b)` at 10755 with `a * b ≥ 2^256` fails its assert: INVALID at 10802, after 108 gas. -/
 theorem mulFault {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20)
     (hov : 2 ^ 256 ≤ a.toNat * b.toNat) {gas : Nat} (hg : 108 ≤ gas) {M : ByteArray} :
-    Spec fork (At CODE message 10755 (b :: a :: ret :: rest) M gas state substate)
+    Gas.SpecG fork (At CODE message 10755 (b :: a :: ret :: rest) M gas state substate)
       (Faulted (.invalidOpcode 0xfe) state substate) := by
   have ha : a ≠ 0 := by
     intro h
@@ -91,7 +91,7 @@ theorem mulFault {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20
   step unR 0x15 instruction_iszero
   step pushR 2 (0x2a33 : U256)
   step jumpi0R (by simp [hq, equal, isZero])
-  exact invalid_fe (by code_fact) (by code_fact)
+  exact Gas.invalid_feG (by code_fact) (by code_fact)
 
 end UsdtVerify.SafeMath
 
@@ -126,7 +126,7 @@ theorem pre (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
     (hc10 : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
       (blackSlot message)) message.currentTarget 10 = c10)
     {gas : Nat} (hg : PRE_COST + slotCost c0 + slotCost cB + slotCost c10 ≤ gas) :
-    Hoare fork (At CODE message 0 [] .empty gas state substate)
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate)
       (At CODE message 9883 (bodyStack message) (MEMK (callerKey message) 6)
         (gas - (PRE_COST + slotCost c0 + slotCost cB + slotCost c10))
         (shortState state message) (shortSubstate substate message)) := by
@@ -148,7 +148,7 @@ theorem pre (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
   step depInline hfork (by simp) (by rw [storageAt_readSlot, storageAt_readSlot]; exact hdep) hc10
     (by gas_ok)
   step toBasic (by gas_ok)
-  exact reshape rfl rfl (by gas_ok)
+  exact Gas.reshapeG rfl rfl (by gas_ok)
 
 /-- From 9883, `mul(v, basisPointsRate)` overflows: INVALID after the read of slot 3. -/
 theorem bodyMulOv (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
@@ -156,7 +156,7 @@ theorem bodyMulOv (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 
     (hov : 2 ^ 256 ≤ v.toNat * (storageAt state message.currentTarget 3).toNat)
     {c3 : Bool} (hc3 : coldIn substate message.currentTarget 3 = c3)
     {gas : Nat} (hg : 204 + slotCost c3 ≤ gas) :
-    Spec fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
+    Gas.SpecG fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
       (Faulted (.invalidOpcode 0xfe) (readSlot state message.currentTarget 3)
         (accessSlot substate message.currentTarget 3)) := by
   step payloadOk hlong hsz (by simp) (by gas_ok)
@@ -173,7 +173,7 @@ theorem bodyFeeGt (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 
     {gas : Nat}
     (hg : 299 + slotCost c3 + slotCost c4 + mulCost v +
       capCost (rawFee state message v) (storageAt state message.currentTarget 4) ≤ gas) :
-    Spec fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
+    Gas.SpecG fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
       (Faulted (.invalidOpcode 0xfe)
         (readSlot (readSlot state message.currentTarget 3) message.currentTarget 4)
         (accessSlot (accessSlot substate message.currentTarget 3) message.currentTarget 4)) := by
@@ -221,7 +221,7 @@ theorem bodyToOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hg : 808 + readCost c3 c4 cS cT + mulCost v +
       capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
       debitCost fork state message v ≤ gas) :
-    Spec fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
+    Gas.SpecG fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
       (Faulted (.invalidOpcode 0xfe) (toOvState state message v a)
         (toOvSub fork substate state message v a)) := by
   have hacc3 : hasAccount (reads3 state message) message.currentTarget :=
@@ -291,7 +291,7 @@ theorem bodyOwnerOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
       debitCost fork state message v + creditCostFee fork state message v a + 313 +
       slotCost cO ≤ gas) :
-    Spec fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
+    Gas.SpecG fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
       (Faulted (.invalidOpcode 0xfe) (ownerOvState state message v a)
         (ownerOvSub fork substate state message v a)) := by
   have hw : coldIn (creditedSubFee fork substate state message v a) message.currentTarget 0 =
@@ -340,7 +340,7 @@ theorem spec_mulOv (hfork : .berlin ≤ fork)
       (blackSlot message)) message.currentTarget 10 = c10)
     (hc3 : coldIn (shortSubstate substate message) message.currentTarget 3 = c3)
     {gas : Nat} (hg : preCost c0 cB c10 + (204 + slotCost c3) ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Faulted (.invalidOpcode 0xfe) (readSlot (shortState state message) message.currentTarget 3)
         (accessSlot (shortSubstate substate message) message.currentTarget 3)) :=
   Triple.seq (pre hfork (by omega) hsz hsel hv hnp hnb hdep hc0 hcB hc10
@@ -376,7 +376,7 @@ theorem spec_feeGt (hfork : .berlin ≤ fork)
       mulCost (wordArg message.data 1) +
       capCost (rawFee (shortState state message) message (wordArg message.data 1))
         (storageAt (shortState state message) message.currentTarget 4)) ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Faulted (.invalidOpcode 0xfe)
         (readSlot (readSlot (shortState state message) message.currentTarget 3)
           message.currentTarget 4)
@@ -433,7 +433,7 @@ theorem spec_toOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       capCost (rawFee (shortState state message) message (wordArg message.data 1))
         (storageAt (shortState state message) message.currentTarget 4) +
       debitCost fork (shortState state message) message (wordArg message.data 1)) ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Faulted (.invalidOpcode 0xfe)
         (toOvState (shortState state message) message (wordArg message.data 1)
           (addrArg message.data 0))
@@ -506,7 +506,7 @@ theorem spec_ownerOv (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       debitCost fork (shortState state message) message (wordArg message.data 1) +
       creditCostFee fork (shortState state message) message (wordArg message.data 1)
         (addrArg message.data 0) + 313 + slotCost cO) ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Faulted (.invalidOpcode 0xfe)
         (ownerOvState (shortState state message) message (wordArg message.data 1)
           (addrArg message.data 0))

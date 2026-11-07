@@ -30,7 +30,7 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
 theorem toBody (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xc0324c77) (hv : message.value = 0) {gas : Nat}
     (hg : 667 ≤ gas) :
-    Hoare fork (At CODE message 0 [] .empty gas state substate)
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate)
       (At CODE message 5794 [0, 0, wordArg message.data 1, wordArg message.data 0, 0x07b6,
           BitVec.ofNat 256 (selector message.data)]
         MEM0 (gas - 667) state substate) := by
@@ -51,10 +51,10 @@ theorem spec_notOwner (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.siz
     (hv : message.value = 0) (hown : callerWord message ≠ ownerOf state message.currentTarget)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hg : 742 + slotCost c0 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (742 + slotCost c0)) (readSlot state message.currentTarget 0)
         (accessSlot substate message.currentTarget 0)) := by
-  refine Spec.seq (toBody hsize hsize' hsel hv (by omega)) ?_
+  refine Gas.SpecG.seq (toBody hsize hsize' hsel hv (by omega)) ?_
   refine (ownerRevert hfork (mem_CHECKS (by decide)) (by simp) size_MEM0 hc0 hown
     (by gas_ok)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
@@ -67,10 +67,10 @@ theorem spec_bpHigh (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
     (hb : 20 ≤ (wordArg message.data 0).toNat)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hg : 771 + slotCost c0 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (771 + slotCost c0)) (readSlot state message.currentTarget 0)
         (accessSlot substate message.currentTarget 0)) := by
-  refine Spec.seq (toBody hsize hsize' hsel hv (by omega)) ?_
+  refine Gas.SpecG.seq (toBody hsize hsize' hsel hv (by omega)) ?_
   step ownerOk hfork (mem_CHECKS (by decide)) (by simp) hc0 hown (by gas_ok)
   at_pc 5881
   step test1 (by simp) (by gas_ok)
@@ -86,10 +86,10 @@ theorem spec_feeHigh (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size
     (hb : (wordArg message.data 0).toNat < 20) (hm : 50 ≤ (wordArg message.data 1).toNat)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hg : 800 + slotCost c0 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (800 + slotCost c0)) (readSlot state message.currentTarget 0)
         (accessSlot substate message.currentTarget 0)) := by
-  refine Spec.seq (toBody hsize hsize' hsel hv (by omega)) ?_
+  refine Gas.SpecG.seq (toBody hsize hsize' hsel hv (by omega)) ?_
   step ownerOk hfork (mem_CHECKS (by decide)) (by simp) hc0 hown (by gas_ok)
   at_pc 5881
   step test1 (by simp) (by gas_ok)
@@ -164,7 +164,7 @@ theorem spec_setParams (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       50 * exponentBytes (storageAt state message.currentTarget 9) +
       mulCost (wordArg message.data 1) ≤ gas)
     (hg : 2425 + paramsCost fork state message c0 c3 c9 c4 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false .empty (gas - (2425 + paramsCost fork state message c0 c3 c9 c4))
         (paramsState state message) (paramsSub fork substate state message)) := by
   simp only [paramsCost, feeWord] at hg ⊢
@@ -182,7 +182,7 @@ theorem spec_setParams (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       message.currentTarget 3 (originalAt state message.currentTarget 3)
       (storageAt state message.currentTarget 3) (wordArg message.data 0)) message.currentTarget 9)
       message.currentTarget 4 = c4 := hc4
-  refine Spec.seq (toBody hsize hsize' hsel hv (by omega)) ?_
+  refine Gas.SpecG.seq (toBody hsize hsize' hsel hv (by omega)) ?_
   step ownerOk hfork (mem_CHECKS (by decide)) (by simp) hc0 hown (by gas_ok)
   at_pc 5881
   step test1 (by simp) (by gas_ok)

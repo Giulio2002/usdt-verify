@@ -167,6 +167,34 @@ theorem invalid_feG {code : ByteArray} {message : Message fork} {pc : Nat} {stac
   exact ⟨_, ⟨Step.halt hrun hstep rfl, gasMono_of_none hlt' hnone⟩,
     rfl, rfl, rfl, rfl, rfl, hs, hss⟩
 
+/-! ## Lifting triples over `StepG` to triples over `Step` -/
+
+/-- Every step of `R` is a step of `R'`. -/
+class StepLift (R R' : Evm fork Nat → Evm fork Nat → Prop) : Prop where
+  lift : ∀ {x y}, R x y → R' x y
+
+instance StepLift.refl (R : Evm fork Nat → Evm fork Nat → Prop) : StepLift R R := ⟨id⟩
+
+instance StepLift.stepG : StepLift (StepG fork) (Step fork) := ⟨And.left⟩
+
+theorem Triple.lift {R R' : Evm fork Nat → Evm fork Nat → Prop} [StepLift R R']
+    {P Q : Evm fork Nat → Prop} (h : Triple R P Q) : Triple R' P Q :=
+  fun evm hp =>
+    let ⟨after, hr, hq⟩ := h evm hp
+    ⟨after, hr.mono StepLift.lift, hq⟩
+
+/-- Sequence of a triple over `R` and one over `R'`, when every `R` step is an `R'` step. -/
+theorem Triple.seqL {R R' : Evm fork Nat → Evm fork Nat → Prop} [StepLift R R']
+    {P Q S : Evm fork Nat → Prop} (first : Triple R P Q) (second : Triple R' Q S) :
+    Triple R' P S :=
+  Triple.seq (Triple.lift first) second
+
+instance {P Q : Evm fork Nat → Prop} : Coe (HoareG fork P Q) (Hoare fork P Q) :=
+  ⟨HoareG.toHoare⟩
+
+instance {P Q : Evm fork Nat → Prop} : Coe (SpecG fork P Q) (Spec fork P Q) :=
+  ⟨SpecG.toSpec⟩
+
 /-! ## A run with less gas -/
 
 section Loop

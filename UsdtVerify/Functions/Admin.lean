@@ -31,7 +31,7 @@ abbrev HASH_PCS7 : List Nat := [3383, 4531, 5398, 6169, 6267, 6378, 6670, 6797, 
 theorem hashTail7 {p : Nat} (hp : p ∈ HASH_PCS7) {x base : U256}
     {rest : List U256} (hrest : rest.length ≤ 900) {M : ByteArray} (hM : M.size = 96) {gas : Nat}
     (hg : 84 ≤ gas) :
-    Hoare fork (At CODE message p (x :: 0 :: base :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message p (x :: 0 :: base :: rest) M gas state substate)
       (At CODE message (p + 58) (mapSlot (mkey x) base :: rest) (mapMem M (mkey x) base)
         (gas - 84) state substate) := by
   have hs1 : (memoryWrite M 0 (wordBytes (mkey x))).size = 96 := by
@@ -55,23 +55,23 @@ theorem hashTail7 {p : Nat} (hp : p ∈ HASH_PCS7) {x base : U256}
     step pushR 20 ADDR_MASK
     step binR 0x16 Local.instruction_and
     step dupR 1
-    step mstore (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
-    step reshape (m' := memoryWrite M 0 (wordBytes (mkey x))) rfl
+    step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
+    step Gas.reshapeG (m' := memoryWrite M 0 (wordBytes (mkey x))) rfl
       (by rw [hext1, memoryExtend_zero]; rfl) (by rw [hext1] <;> gas_ok)
     step pushR 1 (0x20 : U256)
     step binR 0x01 instruction_add
     step swapR 0
     norm
     step dupR 1
-    step reshape (s' := (0x20 : U256) :: base :: 0x20 :: rest) rfl rfl rfl
-    step mstore (by code_fact) (by code_fact) (by rw [hext2]; gas_ok)
-    step reshape (m' := mapMem M (mkey x) base) rfl (by rw [hext2, memoryExtend_zero]; rfl)
+    step Gas.reshapeG (s' := (0x20 : U256) :: base :: 0x20 :: rest) rfl rfl rfl
+    step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext2]; gas_ok)
+    step Gas.reshapeG (m' := mapMem M (mkey x) base) rfl (by rw [hext2, memoryExtend_zero]; rfl)
       (by rw [hext2] <;> gas_ok)
     step pushR 1 (0x20 : U256)
     step binR 0x01 instruction_add
     step pushR 1 (0 : U256)
-    step reshape (s' := (0 : U256) :: 0x40 :: rest) rfl rfl rfl
-    step keccak256 (by code_fact) (by code_fact) (by rw [hk, hext3]; gas_ok)
+    step Gas.reshapeG (s' := (0 : U256) :: 0x40 :: rest) rfl rfl rfl
+    step Gas.keccak256G (by code_fact) (by code_fact) (by rw [hk, hext3]; gas_ok)
     exact restate (by decide)
       (by rw [hext3, memoryExtend_zero, show (0 : U256).toNat = 0 from rfl,
         show (0x40 : U256).toNat = 64 from rfl, hread]; rfl)
@@ -86,7 +86,7 @@ abbrev ENTRY1 : List (Nat × Nat × Nat) := [(721, 0x0308, 3284), (2276, 0x091b,
 `b` with argument word 0 masked to 160 bits and the return address `r`. -/
 theorem entry1 {e r b : Nat} (hp : (e, r, b) ∈ ENTRY1) (hv : message.value = 0) {x : U256}
     {M : ByteArray} {gas : Nat} (hg : 74 ≤ gas) :
-    Hoare fork (At CODE message e [x] M gas state substate)
+    Gas.HoareG fork (At CODE message e [x] M gas state substate)
       (At CODE message b [addrArg message.data 0, BitVec.ofNat 256 r, x] M (gas - 74) state
         substate) := by
   simp only [ENTRY1, List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hp
@@ -94,7 +94,7 @@ theorem entry1 {e r b : Nat} (hp : (e, r, b) ∈ ENTRY1) (hv : message.value = 0
     ⟨rfl, rfl, rfl⟩
   all_goals
     step jumpdestR
-    step Logic.callvalue (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+    step Gas.callvalueG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
     step unR 0x15 instruction_iszero
     step pushAnyR 2
     step jumpiR (by simp [hv, isZero])
@@ -103,7 +103,7 @@ theorem entry1 {e r b : Nat} (hp : (e, r, b) ∈ ENTRY1) (hv : message.value = 0
     step pushR 1 (0x04 : U256)
     step dupR 0
     step dupR 0
-    step calldataload (by code_fact) (by code_fact) (by gas_ok)
+    step Gas.calldataloadG (by code_fact) (by code_fact) (by gas_ok)
     step pushR 20 ADDR_MASK
     step binR 0x16 Local.instruction_and
     step swapR 0

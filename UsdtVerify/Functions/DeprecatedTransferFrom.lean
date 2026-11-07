@@ -66,7 +66,7 @@ theorem encode4 {M : ByteArray} (hM : M.size = 96)
     (hptr : loadWord (memoryReadBytes M 64 32) 0 32 = 0x60)
     {w t f C sel U : U256} {rest : List U256} (hrest : rest.length ≤ 16) {gas : Nat}
     (hg : 192 ≤ gas) :
-    Hoare fork (At CODE message 3978 ([w, t, f, C, sel, U] ++ rest) M gas state substate)
+    Gas.HoareG fork (At CODE message 3978 ([w, t, f, C, sel, U] ++ rest) M gas state substate)
       (At CODE message 4200 ([U, U, 0, 0x60, 0x84, 0x60, 0, 0xe4, sel, U] ++ rest)
         (W5 M sel (mkey C) (mkey f) (mkey t) w) (gas - 192) state substate) := by
   have hx0 : extendMemory M.size [((0x40 : U256), (32 : U256))] = ⟨0, 0⟩ := by
@@ -93,8 +93,8 @@ theorem encode4 {M : ByteArray} (hM : M.size = 96)
   have he4 : add (0x20 : U256) (0xc4 : U256) = 0xe4 := by decide
   have hs4 : sub (0xe4 : U256) (0x60 : U256) = 0x84 := by decide
   step pushR 1 (0x40 : U256)
-  step mload (by code_fact) (by code_fact) (by rw [hx0]; gas_ok)
-  step reshape (s' := [0x60, w, t, f, C, sel, U] ++ rest) (m' := M) (g' := gas - 6)
+  step Gas.mloadG (by code_fact) (by code_fact) (by rw [hx0]; gas_ok)
+  step Gas.reshapeG (s' := [0x60, w, t, f, C, sel, U] ++ rest) (m' := M) (g' := gas - 6)
     (by rw [hx0, memoryExtend_zero, show (0x40 : U256).toNat = 64 from rfl, hptr]; rfl)
     (by rw [hx0, memoryExtend_zero]) (by rw [hx0]; gas_ok)
   step dupR 5
@@ -103,8 +103,8 @@ theorem encode4 {M : ByteArray} (hM : M.size = 96)
   step pushR 29 (0x0100000000000000000000000000000000000000000000000000000000 : U256)
   step binR 0x02 Local.instruction_mul
   step dupR 1
-  step mstore (by code_fact) (by code_fact) (by rw [hx1]; gas_ok)
-  step reshape (s' := [0x60, w, t, f, C, sel, U] ++ rest) (m' := W1 M sel) (g' := gas - 32) rfl
+  step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hx1]; gas_ok)
+  step Gas.reshapeG (s' := [0x60, w, t, f, C, sel, U] ++ rest) (m' := W1 M sel) (g' := gas - 32) rfl
     (by rw [hx1]; rfl) (by rw [hx1]; gas_ok)
   step pushR 1 (0x04 : U256)
   step binR 0x01 instruction_add
@@ -116,8 +116,8 @@ theorem encode4 {M : ByteArray} (hM : M.size = 96)
   step pushR 20 ADDR_MASK
   step binR 0x16 Local.instruction_and
   step dupR 1
-  step mstore (by code_fact) (by code_fact) (by rw [hx2]; gas_ok)
-  step reshape (s' := [0x64, 0x64, w, t, f, C, sel, U] ++ rest) (m' := W2 M sel (mkey C))
+  step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hx2]; gas_ok)
+  step Gas.reshapeG (s' := [0x64, 0x64, w, t, f, C, sel, U] ++ rest) (m' := W2 M sel (mkey C))
     (g' := gas - 65) rfl (by rw [hx2]; rfl) (by rw [hx2]; gas_ok)
   step pushR 1 (0x20 : U256)
   step binR 0x01 instruction_add
@@ -128,8 +128,8 @@ theorem encode4 {M : ByteArray} (hM : M.size = 96)
   step pushR 20 ADDR_MASK
   step binR 0x16 Local.instruction_and
   step dupR 1
-  step mstore (by code_fact) (by code_fact) (by rw [hx3]; gas_ok)
-  step reshape (s' := [0x84, 0x64, w, t, f, C, sel, U] ++ rest)
+  step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hx3]; gas_ok)
+  step Gas.reshapeG (s' := [0x84, 0x64, w, t, f, C, sel, U] ++ rest)
     (m' := W3 M sel (mkey C) (mkey f)) (g' := gas - 95) rfl (by rw [hx3]; rfl)
     (by rw [hx3]; gas_ok)
   at_pc 4122
@@ -142,8 +142,8 @@ theorem encode4 {M : ByteArray} (hM : M.size = 96)
   step pushR 20 ADDR_MASK
   step binR 0x16 Local.instruction_and
   step dupR 1
-  step mstore (by code_fact) (by code_fact) (by rw [hx4]; gas_ok)
-  step reshape (s' := [0xa4, 0x64, w, t, f, C, sel, U] ++ rest)
+  step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hx4]; gas_ok)
+  step Gas.reshapeG (s' := [0xa4, 0x64, w, t, f, C, sel, U] ++ rest)
     (m' := W4 M sel (mkey C) (mkey f) (mkey t)) (g' := gas - 125) rfl (by rw [hx4]; rfl)
     (by rw [hx4]; gas_ok)
   step pushR 1 (0x20 : U256)
@@ -151,8 +151,8 @@ theorem encode4 {M : ByteArray} (hM : M.size = 96)
   rw [hc4]
   step dupR 2
   step dupR 1
-  step mstore (by code_fact) (by code_fact) (by rw [hx5]; gas_ok)
-  step reshape (s' := [0xc4, 0x64, w, t, f, C, sel, U] ++ rest)
+  step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hx5]; gas_ok)
+  step Gas.reshapeG (s' := [0xc4, 0x64, w, t, f, C, sel, U] ++ rest)
     (m' := W5 M sel (mkey C) (mkey f) (mkey t) w) (g' := gas - 143) rfl (by rw [hx5]; rfl)
     (by rw [hx5]; gas_ok)
   step pushR 1 (0x20 : U256)
@@ -167,8 +167,8 @@ theorem encode4 {M : ByteArray} (hM : M.size = 96)
   step popR
   step pushR 1 (0 : U256)
   step pushR 1 (0x40 : U256)
-  step mload (by code_fact) (by code_fact) (by rw [hx6]; gas_ok)
-  step reshape (s' := [0x60, 0, 0xe4, sel, U] ++ rest)
+  step Gas.mloadG (by code_fact) (by code_fact) (by rw [hx6]; gas_ok)
+  step Gas.reshapeG (s' := [0x60, 0, 0xe4, sel, U] ++ rest)
     (m' := W5 M sel (mkey C) (mkey f) (mkey t) w) (g' := gas - 171)
     (by rw [hx6, memoryExtend_zero, show (0x40 : U256).toNat = 64 from rfl, read40_W5 hM,
       hptr]; rfl)
@@ -181,12 +181,12 @@ theorem encode4 {M : ByteArray} (hM : M.size = 96)
   step pushR 1 (0 : U256)
   step dupR 7
   step dupR 0
-  exact (repc (by decide)).seq (reshape rfl rfl (by gas_ok))
+  exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
 
 /-- After a call that succeeded (flag 1), from 4218: the code drops the call operands, returns
 to 914 and stops. -/
 theorem okTailF {sel U v t f x : U256} {M : ByteArray} {gas : Nat} (hg : 53 ≤ gas) :
-    Spec fork (At CODE message 4218 [1, 0xe4, sel, U, v, t, f, 0x0392, x] M gas state substate)
+    Gas.SpecG fork (At CODE message 4218 [1, 0xe4, sel, U, v, t, f, 0x0392, x] M gas state substate)
       (Halted false .empty (gas - 53) state substate) := by
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
@@ -206,7 +206,7 @@ theorem okTailF {sel U v t f x : U256} {M : ByteArray} {gas : Nat} (hg : 53 ≤ 
   step jumpR
   step repc (pc' := 914) (by decide)
   step jumpdestR
-  refine (Logic.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
+  refine (Gas.stopG (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
@@ -317,7 +317,7 @@ theorem preExtF (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
   have h1 := dispatch (state := state) (substate := substate) hsize hsz (gas := gas)
     (by rw [ht]; gas_ok)
   rw [ht, hb] at h1
-  refine Triple.seq h1 ?_
+  refine Gas.Triple.seqL h1 ?_
   step TransferFrom.entry hv (by gas_ok)
   step TransferFrom.notPaused hfork (by simp) hnp hc0 (by gas_ok)
   step notBlack hfork (by simp) hcB (by rw [storageAt_readSlot]; exact hnb) (by gas_ok) size_MEM0
@@ -327,14 +327,14 @@ theorem preExtF (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
     (blackFrom (fromArg message))) hfork (Or.inr (Or.inr ⟨rfl, rfl⟩)) (by simp) (by gas_ok)
   rw [storageAt_readSlot, storageAt_readSlot]
   step pushR 4 (0x8b477adb : U256)
-  step caller (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  step Logic.caller (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   step dupR 5
   step dupR 5
   step dupR 5
   step encode4 (size_memF message) (ptr_memF message)
     (rest := [valArg message, toArg message, fromArg message, 0x0392,
       BitVec.ofNat 256 (selector message.data)]) (by simp) (by gas_ok)
-  exact reshape rfl rfl (by gas_ok)
+  exact Logic.reshape rfl rfl (by gas_ok)
 
 /-- The specification of `transferFrom(from, to, value)` when deprecated, for every callee: as
 `spec_depT`, with the data `transferFromByLegacy(caller, from, to, value)` (`dataF`), the gas of this
@@ -386,7 +386,7 @@ theorem spec_depF {c : ByteArray} {c0 cB c10 cU : Bool}
       toArg message, fromArg message, 0x0392, BitVec.ofNat 256 (selector message.data)])
       h.berlin h.glam (Or.inr (Or.inr (Or.inr (Or.inr ⟨rfl, rfl⟩)))) (by simp) h.code
       h.codeSize h.codeSize' h.coldU (by simp only [accCost]; gas_ok)).seq ?_
-    refine reshape ?_ rfl (by simp only [accCost]; gas_ok)
+    refine Logic.reshape ?_ rfl (by simp only [accCost]; gas_ok)
     simp only [List.cons.injEq, and_true]
     exact congrArg asked (by unfold accCost; omega)
   have hcall := callWith (fork := fork) (code := CODE) (message := message) (pc := 4217)
@@ -415,7 +415,7 @@ theorem spec_depF {c : ByteArray} {c0 cB c10 cU : Bool}
       (substate := (incorporateChild fork caller child).substate)
       (gas := gas - preCostF c0 cB c10 cU - ((callGasF fork gas c0 cB c10 cU).cost + 0) + child.gas)
       (by omega) evm hat
-    refine ⟨after, hreach, hrun, caller, msg, child, hcal, hfwd, hmg, hcs, hcss, fun _ => ?_,
+    refine ⟨after, Gas.reaches_toStep hreach, hrun, caller, msg, child, hcal, hfwd, hmg, hcs, hcss, fun _ => ?_,
       fun h => absurd he h⟩
     obtain ⟨h1, h2, h0, h3, h4, h5⟩ := hq
     exact ⟨h1, h2, h0, by rw [h3]; omega, h4, h5⟩
@@ -433,7 +433,7 @@ theorem spec_depF {c : ByteArray} {c0 cB c10 cU : Bool}
         BitVec.ofNat 256 (selector message.data)]) (by simp)
       (gas := gas - preCostF c0 cB c10 cU - ((callGasF fork gas c0 cB c10 cU).cost + 0) + child.gas)
       (by omega) evm hat
-    refine ⟨after, hreach, hrun, caller, msg, child, hcal, hfwd, hmg, hcs, hcss,
+    refine ⟨after, Gas.reaches_toStep hreach, hrun, caller, msg, child, hcal, hfwd, hmg, hcs, hcss,
       fun h => absurd h he, fun _ => ?_⟩
     obtain ⟨h1, h2, h3, h4, h5, h6⟩ := hq
     exact ⟨h1, h2, h3, by rw [h4]; omega, h5, h6⟩

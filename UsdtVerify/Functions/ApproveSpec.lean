@@ -27,7 +27,7 @@ theorem prefixA (hfork : .berlin ≤ fork) (hlong : 68 ≤ message.data.size)
     (hv : message.value = 0) (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     {c10 : Bool} (hc10 : coldIn substate message.currentTarget 10 = c10) {gas : Nat}
     (hg : 449 + slotCost c10 ≤ gas) :
-    Hoare fork (At CODE message 0 [] .empty gas state substate)
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate)
       (At CODE message 8230 [0x40, wordArg message.data 1, addrArg message.data 0, 0x0cbb, 0x40,
         wordArg message.data 1, addrArg message.data 0, 0x02a2,
         BitVec.ofNat 256 (selector message.data)] MEM0 (gas - (449 + slotCost c10))
@@ -46,7 +46,7 @@ theorem prefixA (hfork : .berlin ≤ fork) (hlong : 68 ≤ message.data.size)
   step notDeprecated hfork (by simp) hdep hc10 (by gas_ok)
   step toStandard (by gas_ok)
   step payload (Or.inr ⟨rfl, rfl⟩) hlong hsz (by simp) (by gas_ok)
-  exact reshape rfl rfl (by gas_ok)
+  exact Gas.reshapeG rfl rfl (by gas_ok)
 
 /-- From 8384, the write, the log and the stop. -/
 theorem suffixA (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
@@ -57,7 +57,7 @@ theorem suffixA (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hg : 2056 + sstoreCost fork (originalAt state message.currentTarget (allowSlot message s))
       (storageAt state message.currentTarget (allowSlot message s)) v cA ≤ gas)
     {M : ByteArray} (hM : M.size = 96) (hptr : loadWord (memoryReadBytes M 64 32) 0 32 = 0x60) :
-    Spec fork (At CODE message 8384 [0x40, v, s, 0x0cbb, 0x40, v, s, 0x02a2, sel] M gas state
+    Gas.SpecG fork (At CODE message 8384 [0x40, v, s, 0x0cbb, 0x40, v, s, 0x02a2, sel] M gas state
         substate)
       (Halted false .empty (gas - (2056 + sstoreCost fork
           (originalAt state message.currentTarget (allowSlot message s))
@@ -101,7 +101,7 @@ theorem spec_zero (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hg : 2560 + slotCost c10 + sstoreCost fork
       (originalAt state message.currentTarget (allowArg message))
       (storageAt state message.currentTarget (allowArg message)) 0 cA ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false .empty (gas - (2560 + slotCost c10 + sstoreCost fork
           (originalAt state message.currentTarget (allowArg message))
           (storageAt state message.currentTarget (allowArg message)) 0 cA))
@@ -145,7 +145,7 @@ theorem spec_set (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hg : 2753 + slotCost c10 + slotCost cA + sstoreCost fork
       (originalAt state message.currentTarget (allowArg message)) 0
       (wordArg message.data 1) false ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false .empty (gas - (2753 + slotCost c10 + slotCost cA + sstoreCost fork
           (originalAt state message.currentTarget (allowArg message)) 0
           (wordArg message.data 1) false))

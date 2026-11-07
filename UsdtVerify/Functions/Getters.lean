@@ -37,7 +37,7 @@ abbrev ENTRY0 : List (Nat × Nat × Nat) := [(676, 695, 3265), (916, 935, 4253),
 address `r` pushed. -/
 theorem entry0 {e r b : Nat} (hp : (e, r, b) ∈ ENTRY0) (hv : message.value = 0) {x : U256}
     {M : ByteArray} {gas : Nat} (hg : 34 ≤ gas) :
-    Hoare fork (At CODE message e [x] M gas state substate)
+    Gas.HoareG fork (At CODE message e [x] M gas state substate)
       (At CODE message b [BitVec.ofNat 256 r, x] M (gas - 34) state substate) := by
   simp only [ENTRY0, List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hp
   rcases hp with ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩ |
@@ -45,7 +45,7 @@ theorem entry0 {e r b : Nat} (hp : (e, r, b) ∈ ENTRY0) (hv : message.value = 0
     ⟨rfl, rfl, rfl⟩
   all_goals
     step jumpdestR
-    step Logic.callvalue (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+    step Gas.callvalueG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
     step unR 0x15 instruction_iszero
     step pushAnyR 2
     step jumpiR (by simp [hv, isZero])
@@ -61,7 +61,7 @@ theorem toEntry {sel t e : Nat}
       branch (BitVec.ofNat 256 sel) 54 (entrySize 4 2) ENTRIES = e)
     (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = sel) {gas : Nat} (hg : 62 + 22 * t ≤ gas) :
-    Hoare fork (At CODE message 0 [] .empty gas state substate)
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate)
       (At CODE message e [BitVec.ofNat 256 (selector message.data)] MEM0 (gas - (62 + 22 * t))
         state substate) := by
   have h1 := dispatch (state := state) (substate := substate) hsize hsize' (gas := gas)
@@ -86,13 +86,13 @@ theorem spec_slot (hfork : .berlin ≤ fork) {sel t e r b k : Nat}
     (hv : message.value = 0) {ck : Bool}
     (hck : coldIn substate message.currentTarget (BitVec.ofNat 256 k) = ck) {gas : Nat}
     (hg : 164 + 22 * t + slotCost ck ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false (wordBytes (storageAt state message.currentTarget (BitVec.ofNat 256 k)))
         (gas - (164 + 22 * t + slotCost ck))
         (readSlot state message.currentTarget (BitVec.ofNat 256 k))
         (accessSlot substate message.currentTarget (BitVec.ofNat 256 k))) := by
   simp only [SLOT_GETTERS, List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hp
-  refine Spec.seq ((toEntry (t := t) (e := e) (by rcases hp with h | h | h | h <;>
+  refine Gas.SpecG.seq ((toEntry (t := t) (e := e) (by rcases hp with h | h | h | h <;>
       (obtain ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩ := h; decide)) hsize hsize' hsel (by omega)).seq
     (entry0 (r := r) (b := b) (by rcases hp with h | h | h | h <;>
       (obtain ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩ := h; decide)) hv (by omega))) ?_
@@ -101,7 +101,7 @@ theorem spec_slot (hfork : .berlin ≤ fork) {sel t e r b k : Nat}
   all_goals
     step jumpdestR
     step pushAnyR 1
-    step sload hfork (cold := ck) (by code_fact) (by code_fact) hck (by gas_ok)
+    step Gas.sloadG hfork (cold := ck) (by code_fact) (by code_fact) hck (by gas_ok)
     rw [getStorage_eq]
     step dupR 1
     step jumpR
@@ -115,7 +115,7 @@ theorem spec_decimals (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.siz
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x313ce567)
     (hv : message.value = 0) {c : Bool} (hc : coldIn substate message.currentTarget 9 = c)
     {gas : Nat} (hg : 384 + slotCost c ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false (wordBytes (storageAt state message.currentTarget 9)) (gas - (384 + slotCost c))
         (readSlot state message.currentTarget 9) (accessSlot substate message.currentTarget 9)) :=
   spec_slot (t := 10) (e := 1078) (r := 1097) (b := 4315) (k := 9) hfork (by decide) hsize hsize'
@@ -125,7 +125,7 @@ theorem spec_maximumFee (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.s
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x35390714)
     (hv : message.value = 0) {c : Bool} (hc : coldIn substate message.currentTarget 4 = c)
     {gas : Nat} (hg : 406 + slotCost c ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false (wordBytes (storageAt state message.currentTarget 4)) (gas - (406 + slotCost c))
         (readSlot state message.currentTarget 4) (accessSlot substate message.currentTarget 4)) :=
   spec_slot (t := 11) (e := 1119) (r := 1138) (b := 4321) (k := 4) hfork (by decide) hsize hsize'
@@ -135,7 +135,7 @@ theorem spec_totalSupplyVar (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.da
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x3eaaf86b)
     (hv : message.value = 0) {c : Bool} (hc : coldIn substate message.currentTarget 1 = c)
     {gas : Nat} (hg : 428 + slotCost c ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false (wordBytes (storageAt state message.currentTarget 1)) (gas - (428 + slotCost c))
         (readSlot state message.currentTarget 1) (accessSlot substate message.currentTarget 1)) :=
   spec_slot (t := 12) (e := 1160) (r := 1179) (b := 4327) (k := 1) hfork (by decide) hsize hsize'
@@ -145,7 +145,7 @@ theorem spec_basisPointsRate (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.d
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xdd644f72)
     (hv : message.value = 0) {c : Bool} (hc : coldIn substate message.currentTarget 3 = c)
     {gas : Nat} (hg : 758 + slotCost c ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false (wordBytes (storageAt state message.currentTarget 3)) (gas - (758 + slotCost c))
         (readSlot state message.currentTarget 3) (accessSlot substate message.currentTarget 3)) :=
   spec_slot (t := 27) (e := 2154) (r := 2173) (b := 7250) (k := 3) hfork (by decide) hsize hsize'
@@ -157,12 +157,12 @@ theorem spec_basisPointsRate (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.d
 theorem spec_maxUint (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xe5b5019a) (hv : message.value = 0) {gas : Nat}
     (hg : 824 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false (wordBytes (BitVec.ofNat 256 (2 ^ 256 - 1))) (gas - 824) state substate) := by
-  refine Spec.seq ((toEntry (t := 30) (e := 2333) (by decide) hsize hsize' hsel (by omega)).seq
+  refine Gas.SpecG.seq ((toEntry (t := 30) (e := 2333) (by decide) hsize hsize' hsel (by omega)).seq
     (entry0 (r := 2352) (b := 7569) (by decide) hv (by omega))) ?_
   step jumpdestR
-  step push (n := 32) (word := BitVec.ofNat 256 (2 ^ 256 - 1)) (by decide) (by code_fact)
+  step Gas.pushG (n := 32) (word := BitVec.ofNat 256 (2 ^ 256 - 1)) (by decide) (by code_fact)
     (by code_fact) (decode_push 32 (by decide)) (by rw [pushData_CODE]; decide) (by gas_ok)
     (by stk_ok)
   step dupR 1
@@ -195,7 +195,7 @@ theorem spec_flag (hfork : .berlin ≤ fork) {sel t e r b k : Nat}
     (hv : message.value = 0) {ck : Bool}
     (hck : coldIn substate message.currentTarget (BitVec.ofNat 256 k) = ck) {gas : Nat}
     (hg : 262 + 22 * t + slotCost ck ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false (wordBytes (if byte20 (storageAt state message.currentTarget
           (BitVec.ofNat 256 k)) = 0 then 0 else 1))
         (gas - (262 + 22 * t + slotCost ck))
@@ -203,7 +203,7 @@ theorem spec_flag (hfork : .berlin ≤ fork) {sel t e r b k : Nat}
         (accessSlot substate message.currentTarget (BitVec.ofNat 256 k))) := by
   have hexp : exponentBytes (0x14 : U256) = 1 := by decide
   simp only [FLAG_GETTERS, List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hp
-  refine Spec.seq ((toEntry (t := t) (e := e) (by rcases hp with h | h <;>
+  refine Gas.SpecG.seq ((toEntry (t := t) (e := e) (by rcases hp with h | h <;>
       (obtain ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩ := h; decide)) hsize hsize' hsel (by omega)).seq
     (entry0 (r := r) (b := b) (by rcases hp with h | h <;>
       (obtain ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩ := h; decide)) hv (by omega))) ?_
@@ -214,12 +214,12 @@ theorem spec_flag (hfork : .berlin ≤ fork) {sel t e r b k : Nat}
     step pushR 1 (0x14 : U256)
     step swapR 0
     norm
-    step sload hfork (cold := ck) (by code_fact) (by code_fact) hck (by gas_ok)
+    step Gas.sloadG hfork (cold := ck) (by code_fact) (by code_fact) hck (by gas_ok)
     rw [getStorage_eq]
     step swapR 0
     norm
     step pushR 2 (0x0100 : U256)
-    step Local.exp (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
+    step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
     step swapR 0
     norm
     step binR 0x04 Local.instruction_div
@@ -238,7 +238,7 @@ theorem spec_deprecated (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.s
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x0e136b19)
     (hv : message.value = 0) {c : Bool} (hc : coldIn substate message.currentTarget 10 = c)
     {gas : Nat} (hg : 350 + slotCost c ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false (wordBytes (if byte20 (storageAt state message.currentTarget 10) = 0 then 0
           else 1)) (gas - (350 + slotCost c))
         (readSlot state message.currentTarget 10) (accessSlot substate message.currentTarget 10)) :=
@@ -249,7 +249,7 @@ theorem spec_paused (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x5c975abb)
     (hv : message.value = 0) {c : Bool} (hc : coldIn substate message.currentTarget 0 = c)
     {gas : Nat} (hg : 614 + slotCost c ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false (wordBytes (if byte20 (storageAt state message.currentTarget 0) = 0 then 0
           else 1)) (gas - (614 + slotCost c))
         (readSlot state message.currentTarget 0) (accessSlot substate message.currentTarget 0)) :=
@@ -268,24 +268,24 @@ theorem spec_upgradedAddress (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.d
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x26976e3f)
     (hv : message.value = 0) {c : Bool} (hc : coldIn substate message.currentTarget 10 = c)
     {gas : Nat} (hg : 388 + slotCost c ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false (wordBytes (bitwiseAnd ADDR_MASK (storageAt state message.currentTarget 10)))
         (gas - (388 + slotCost c))
         (readSlot state message.currentTarget 10) (accessSlot substate message.currentTarget 10)) := by
   have hexp : exponentBytes (0 : U256) = 0 := by decide
-  refine Spec.seq ((toEntry (t := 8) (e := 916) (by decide) hsize hsize' hsel (by omega)).seq
+  refine Gas.SpecG.seq ((toEntry (t := 8) (e := 916) (by decide) hsize hsize' hsel (by omega)).seq
     (entry0 (r := 935) (b := 4253) (by decide) hv (by omega))) ?_
   step jumpdestR
   step pushR 1 (0x0a : U256)
   step pushR 1 (0 : U256)
   step swapR 0
   norm
-  step sload hfork (cold := c) (by code_fact) (by code_fact) hc (by gas_ok)
+  step Gas.sloadG hfork (cold := c) (by code_fact) (by code_fact) hc (by gas_ok)
   rw [getStorage_eq]
   step swapR 0
   norm
   step pushR 2 (0x0100 : U256)
-  step Local.exp (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
+  step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
   step binR 0x04 Local.instruction_div
@@ -305,24 +305,24 @@ theorem spec_owner (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x8da5cb5b)
     (hv : message.value = 0) {c : Bool} (hc : coldIn substate message.currentTarget 0 = c)
     {gas : Nat} (hg : 652 + slotCost c ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false (wordBytes (ownerOf state message.currentTarget))
         (gas - (652 + slotCost c))
         (readSlot state message.currentTarget 0) (accessSlot substate message.currentTarget 0)) := by
   have hexp : exponentBytes (0 : U256) = 0 := by decide
-  refine Spec.seq ((toEntry (t := 20) (e := 1639) (by decide) hsize hsize' hsel (by omega)).seq
+  refine Gas.SpecG.seq ((toEntry (t := 20) (e := 1639) (by decide) hsize hsize' hsel (by omega)).seq
     (entry0 (r := 1658) (b := 5169) (by decide) hv (by omega))) ?_
   step jumpdestR
   step pushR 1 (0 : U256)
   step dupR 0
   step swapR 0
   norm
-  step sload hfork (cold := c) (by code_fact) (by code_fact) hc (by gas_ok)
+  step Gas.sloadG hfork (cold := c) (by code_fact) (by code_fact) hc (by gas_ok)
   rw [getStorage_eq]
   step swapR 0
   norm
   step pushR 2 (0x0100 : U256)
-  step Local.exp (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
+  step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
   step binR 0x04 Local.instruction_div
@@ -342,12 +342,12 @@ theorem spec_getOwner (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.siz
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x893d20e8)
     (hv : message.value = 0) {c : Bool} (hc : coldIn substate message.currentTarget 0 = c)
     {gas : Nat} (hg : 638 + slotCost c ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false (wordBytes (ownerOf state message.currentTarget))
         (gas - (638 + slotCost c))
         (readSlot state message.currentTarget 0) (accessSlot substate message.currentTarget 0)) := by
   have hexp : exponentBytes (0 : U256) = 0 := by decide
-  refine Spec.seq ((toEntry (t := 19) (e := 1554) (by decide) hsize hsize' hsel (by omega)).seq
+  refine Gas.SpecG.seq ((toEntry (t := 19) (e := 1554) (by decide) hsize hsize' hsel (by omega)).seq
     (entry0 (r := 1573) (b := 5128) (by decide) hv (by omega))) ?_
   step jumpdestR
   step pushR 1 (0 : U256)
@@ -355,12 +355,12 @@ theorem spec_getOwner (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.siz
   step pushR 1 (0 : U256)
   step swapR 0
   norm
-  step sload hfork (cold := c) (by code_fact) (by code_fact) hc (by gas_ok)
+  step Gas.sloadG hfork (cold := c) (by code_fact) (by code_fact) hc (by gas_ok)
   rw [getStorage_eq]
   step swapR 0
   norm
   step pushR 2 (0x0100 : U256)
-  step Local.exp (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
+  step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
   step binR 0x04 Local.instruction_div

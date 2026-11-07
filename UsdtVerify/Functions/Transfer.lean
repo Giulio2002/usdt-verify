@@ -23,11 +23,11 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
 
 /-- From 1866, a call with no value goes to 5364 with the amount, the recipient and 1930. -/
 theorem entry (hv : message.value = 0) {x : U256} {gas : Nat} (hg : 98 ≤ gas) :
-    Hoare fork (At CODE message 1866 [x] MEM0 gas state substate)
+    Gas.HoareG fork (At CODE message 1866 [x] MEM0 gas state substate)
       (At CODE message 5364 [wordArg message.data 1, addrArg message.data 0, 0x078a, x] MEM0
         (gas - 98) state substate) := by
   step jumpdestR
-  step Logic.callvalue (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  step Gas.callvalueG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   step unR 0x15 instruction_iszero
   step pushR 2 (0x0755 : U256)
   step jumpiR (by simp [hv, isZero])
@@ -36,7 +36,7 @@ theorem entry (hv : message.value = 0) {x : U256} {gas : Nat} (hg : 98 ≤ gas) 
   step pushR 1 (0x04 : U256)
   step dupR 0
   step dupR 0
-  step calldataload (by code_fact) (by code_fact) (by gas_ok)
+  step Gas.calldataloadG (by code_fact) (by code_fact) (by gas_ok)
   step pushR 20 ADDR_MASK
   step binR 0x16 Local.instruction_and
   step swapR 0
@@ -50,7 +50,7 @@ theorem entry (hv : message.value = 0) {x : U256} {gas : Nat} (hg : 98 ≤ gas) 
   step swapR 0
   norm
   step dupR 0
-  step calldataload (by code_fact) (by code_fact) (by gas_ok)
+  step Gas.calldataloadG (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
   step pushR 1 (0x20 : U256)
@@ -65,14 +65,14 @@ theorem entry (hv : message.value = 0) {x : U256} {gas : Nat} (hg : 98 ≤ gas) 
   step popR
   step pushR 2 (0x14f4 : U256)
   step jumpR
-  exact (repc (by decide)).seq (reshape rfl rfl (by gas_ok))
+  exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
 
 /-- At 5364, when byte 20 of slot 0 is set, the code reverts with no output. -/
 theorem pausedRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.length ≤ 16)
     {c0 : Bool} (hpaused : byte20 (storageAt state message.currentTarget 0) ≠ 0)
     (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hg : 118 + slotCost c0 ≤ gas) :
-    Spec fork (At CODE message 5364 rest MEM0 gas state substate)
+    Gas.SpecG fork (At CODE message 5364 rest MEM0 gas state substate)
       (Halted true .empty (gas - (118 + slotCost c0)) (readSlot state message.currentTarget 0)
         (accessSlot substate message.currentTarget 0)) := by
   have hexp : exponentBytes (0x14 : U256) = 1 := by decide
@@ -81,11 +81,11 @@ theorem pausedRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest
   step pushR 1 (0x14 : U256)
   step swapR 0
   norm
-  step sload hfork (cold := c0) (by code_fact) (by code_fact) hc0 (by gas_ok)
+  step Gas.sloadG hfork (cold := c0) (by code_fact) (by code_fact) hc0 (by gas_ok)
   step swapR 0
   norm
   step pushR 2 (0x0100 : U256)
-  step Local.exp (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
+  step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
   step binR 0x04 Local.instruction_div
@@ -100,7 +100,7 @@ theorem pausedRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest
   step dupR 0
   have hz : extendMemory MEM0.size [((0 : U256), (0 : U256))] = ⟨0, 0⟩ := by
     rw [size_MEM0]; decide
-  refine (Logic.revert (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
+  refine (Gas.revertG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
     (by rw [hz]; gas_ok)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   refine ⟨hr, he, ?_, ?_, hs, hss⟩
@@ -112,7 +112,7 @@ theorem notPaused (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.le
     {c0 : Bool} (hnp : byte20 (storageAt state message.currentTarget 0) = 0)
     (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hg : 112 + slotCost c0 ≤ gas) {M : ByteArray} :
-    Hoare fork (At CODE message 5364 rest M gas state substate)
+    Gas.HoareG fork (At CODE message 5364 rest M gas state substate)
       (At CODE message 5392 rest M (gas - (112 + slotCost c0)) (readSlot state message.currentTarget 0)
         (accessSlot substate message.currentTarget 0)) := by
   have hexp : exponentBytes (0x14 : U256) = 1 := by decide
@@ -121,11 +121,11 @@ theorem notPaused (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.le
   step pushR 1 (0x14 : U256)
   step swapR 0
   norm
-  step sload hfork (cold := c0) (by code_fact) (by code_fact) hc0 (by gas_ok)
+  step Gas.sloadG hfork (cold := c0) (by code_fact) (by code_fact) hc0 (by gas_ok)
   step swapR 0
   norm
   step pushR 2 (0x0100 : U256)
-  step Local.exp (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
+  step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
   step binR 0x04 Local.instruction_div
@@ -136,7 +136,7 @@ theorem notPaused (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.le
   step unR 0x15 instruction_iszero
   step pushR 2 (0x1510 : U256)
   step jumpiR (isZero3_flag_ne hnp)
-  exact (repc (by decide)).seq (reshape rfl rfl (by gas_ok))
+  exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
 
 /-- The low byte of a word, tested as the code tests a flag at byte 0, gives 0 after triple ISZERO
 when it is set. -/
@@ -181,7 +181,7 @@ abbrev blackTest (w : U256) : U256 :=
 theorem blackLookup (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.length ≤ 16)
     {cB : Bool} (hcB : coldIn substate message.currentTarget (blackSlot message) = cB) {gas : Nat}
     (hg : 141 + slotCost cB ≤ gas) :
-    Hoare fork (At CODE message 5392 rest MEM0 gas state substate)
+    Gas.HoareG fork (At CODE message 5392 rest MEM0 gas state substate)
       (At CODE message 5476
         ((0x1569 : U256) :: blackTest (storageAt state message.currentTarget (blackSlot message)) ::
           rest) (MEMK (callerKey message) 6) (gas - (141 + slotCost cB))
@@ -208,41 +208,41 @@ theorem blackLookup (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.
   step jumpdestR
   step pushR 1 (0x06 : U256)
   step pushR 1 (0 : U256)
-  step caller (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   step pushR 20 ADDR_MASK
   step binR 0x16 Local.instruction_and
   step pushR 20 ADDR_MASK
   step binR 0x16 Local.instruction_and
   step dupR 1
-  step mstore (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
-  step reshape (m' := memoryWrite MEM0 0 (wordBytes (callerKey message))) rfl
+  step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
+  step Gas.reshapeG (m' := memoryWrite MEM0 0 (wordBytes (callerKey message))) rfl
     (by rw [hext1, memoryExtend_zero]; rfl) (by rw [hext1] <;> gas_ok)
   step pushR 1 (0x20 : U256)
   step binR 0x01 instruction_add
   step swapR 0
   norm
   step dupR 1
-  step reshape (s' := (0x20 : U256) :: 6 :: 0x20 :: rest) rfl rfl rfl
-  step mstore (by code_fact) (by code_fact) (by rw [hext2]; gas_ok)
-  step reshape (m' := MEMK (callerKey message) 6) rfl (by rw [hext2, memoryExtend_zero]; rfl)
+  step Gas.reshapeG (s' := (0x20 : U256) :: 6 :: 0x20 :: rest) rfl rfl rfl
+  step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext2]; gas_ok)
+  step Gas.reshapeG (m' := MEMK (callerKey message) 6) rfl (by rw [hext2, memoryExtend_zero]; rfl)
     (by rw [hext2] <;> gas_ok)
   step pushR 1 (0x20 : U256)
   step binR 0x01 instruction_add
   step pushR 1 (0 : U256)
-  step reshape (s' := (0 : U256) :: 0x40 :: rest) rfl rfl rfl
-  step keccak256 (by code_fact) (by code_fact) (by rw [hk, hext3]; gas_ok)
-  step reshape (s' := blackSlot message :: rest) (m' := MEMK (callerKey message) 6)
+  step Gas.reshapeG (s' := (0 : U256) :: 0x40 :: rest) rfl rfl rfl
+  step Gas.keccak256G (by code_fact) (by code_fact) (by rw [hk, hext3]; gas_ok)
+  step Gas.reshapeG (s' := blackSlot message :: rest) (m' := MEMK (callerKey message) 6)
     (by rw [hext3, memoryExtend_zero, show (0 : U256).toNat = 0 from rfl,
       show (0x40 : U256).toNat = 64 from rfl, hread]; rfl)
     (by rw [hext3, memoryExtend_zero]) (by rw [hext3, hk] <;> gas_ok)
   step pushR 1 (0 : U256)
   step swapR 0
   norm
-  step sload hfork (cold := cB) (by code_fact) (by code_fact) hcB (by gas_ok)
+  step Gas.sloadG hfork (cold := cB) (by code_fact) (by code_fact) hcB (by gas_ok)
   step swapR 0
   norm
   step pushR 2 (0x0100 : U256)
-  step Local.exp (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
+  step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
   step binR 0x04 Local.instruction_div
@@ -252,14 +252,14 @@ theorem blackLookup (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step pushR 2 (0x1569 : U256)
-  exact (repc (by decide)).seq (reshape rfl rfl (by gas_ok))
+  exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
 
 /-- At 5392, when the low byte of `isBlackListed[caller]` is set, the code reverts. -/
 theorem blackRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.length ≤ 16)
     {cB : Bool} (hblack : (storageAt state message.currentTarget (blackSlot message)).toNat % 256 ≠ 0)
     (hcB : coldIn substate message.currentTarget (blackSlot message) = cB) {gas : Nat}
     (hg : 157 + slotCost cB ≤ gas) :
-    Spec fork (At CODE message 5392 rest MEM0 gas state substate)
+    Gas.SpecG fork (At CODE message 5392 rest MEM0 gas state substate)
       (Halted true .empty (gas - (157 + slotCost cB))
         (readSlot state message.currentTarget (blackSlot message))
         (accessSlot substate message.currentTarget (blackSlot message))) := by
@@ -269,7 +269,7 @@ theorem blackRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.
   step jumpi0R (isZero3_byte0 hblack)
   step pushR 1 (0 : U256)
   step dupR 0
-  refine (Logic.revert (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
+  refine (Gas.revertG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
     (by rw [hz]; gas_ok)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   refine ⟨hr, he, ?_, ?_, hs, hss⟩
@@ -290,7 +290,7 @@ theorem spec_paused (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
     (hv : message.value = 0) (hpaused : byte20 (storageAt state message.currentTarget 0) ≠ 0)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hg : PAUSED_COST + slotCost c0 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (PAUSED_COST + slotCost c0))
         (readSlot state message.currentTarget 0) (accessSlot substate message.currentTarget 0)) := by
   simp only [PAUSED_COST] at hg ⊢
@@ -308,7 +308,7 @@ theorem spec_paused (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
     (rest := [wordArg message.data 1, addrArg message.data 0, 0x078a,
       BitVec.ofNat 256 (selector message.data)]) (by simp) hpaused hc0
     (gas := gas - 62 - 22 * 22 - 98) (by gas_ok)
-  refine Spec.seq (h1.seq h2) (h3.consequence (fun _ h => h) ?_)
+  refine Gas.SpecG.seq (h1.seq h2) (h3.consequence (fun _ h => h) ?_)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
@@ -351,7 +351,7 @@ theorem spec_blacklisted (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.
     (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
       (blackSlot message) = cB)
     {gas : Nat} (hg : BLACK_COST + slotCost c0 + slotCost cB ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (BLACK_COST + slotCost c0 + slotCost cB))
         (readSlot (readSlot state message.currentTarget 0) message.currentTarget (blackSlot message))
         (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
@@ -377,7 +377,7 @@ theorem spec_blacklisted (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.
       BitVec.ofNat 256 (selector message.data)]) (by simp)
     (by rw [storageAt_readSlot]; exact hblack) hcB
     (gas := gas - 62 - 22 * 22 - 98 - (112 + slotCost c0)) (by gas_ok)
-  refine Spec.seq (h1.seq (h2.seq h3)) (h4.consequence (fun _ h => h) ?_)
+  refine Gas.SpecG.seq (h1.seq (h2.seq h3)) (h4.consequence (fun _ h => h) ?_)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
@@ -423,7 +423,7 @@ theorem depInline (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.le
     {c10 : Bool} (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     (hc10 : coldIn substate message.currentTarget 10 = c10) {gas : Nat}
     (hg : 106 + slotCost c10 ≤ gas) {M : ByteArray} :
-    Hoare fork (At CODE message 5481 rest M gas state substate)
+    Gas.HoareG fork (At CODE message 5481 rest M gas state substate)
       (At CODE message 5775 rest M (gas - (106 + slotCost c10))
         (readSlot state message.currentTarget 10) (accessSlot substate message.currentTarget 10)) := by
   have hexp : exponentBytes (0x14 : U256) = 1 := by decide
@@ -432,11 +432,11 @@ theorem depInline (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.le
   step pushR 1 (0x14 : U256)
   step swapR 0
   norm
-  step sload hfork (cold := c10) (by code_fact) (by code_fact) hc10 (by gas_ok)
+  step Gas.sloadG hfork (cold := c10) (by code_fact) (by code_fact) hc10 (by gas_ok)
   step swapR 0
   norm
   step pushR 2 (0x0100 : U256)
-  step Local.exp (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
+  step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
   step binR 0x04 Local.instruction_div
@@ -445,11 +445,11 @@ theorem depInline (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.le
   step unR 0x15 instruction_iszero
   step pushR 2 (0x168f : U256)
   step jumpiR (isZero_flag_ne hdep)
-  exact (repc (by decide)).seq (reshape rfl rfl (by gas_ok))
+  exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
 
 /-- At 5775, the code calls the token transfer at 9883 with the amount and the recipient. -/
 theorem toBasic {w1 a r s : U256} {gas : Nat} (hg : 21 ≤ gas) {M : ByteArray} :
-    Hoare fork (At CODE message 5775 [w1, a, r, s] M gas state substate)
+    Gas.HoareG fork (At CODE message 5775 [w1, a, r, s] M gas state substate)
       (At CODE message 9883 [w1, a, 0x1699, w1, a, r, s] M (gas - 21) state substate) := by
   step jumpdestR
   step pushR 2 (0x1699 : U256)
@@ -457,13 +457,13 @@ theorem toBasic {w1 a r s : U256} {gas : Nat} (hg : 21 ≤ gas) {M : ByteArray} 
   step dupR 2
   step pushR 2 (0x269b : U256)
   step jumpR
-  exact (repc (by decide)).seq (reshape rfl rfl (by gas_ok))
+  exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
 
 /-- At 9883, call data of fewer than 68 bytes (two argument words) makes the code revert. -/
 theorem shortRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.length ≤ 16)
     (hshort : message.data.size < 68) {gas : Nat} (hg : 60 ≤ gas) {M : ByteArray}
     (hM : M.size = 96) :
-    Spec fork (At CODE message 9883 rest M gas state substate)
+    Gas.SpecG fork (At CODE message 9883 rest M gas state substate)
       (Halted true .empty (gas - 60) state substate) := by
   have hz : extendMemory M.size [((0 : U256), (0 : U256))] = ⟨0, 0⟩ := by rw [hM]; decide
   step jumpdestR
@@ -474,7 +474,7 @@ theorem shortRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.
   step dupR 1
   step binR 0x01 instruction_add
   step pushR 1 (0 : U256)
-  step Logic.calldatasize (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  step Gas.calldatasizeG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   step swapR 0
   norm
   step popR
@@ -483,7 +483,7 @@ theorem shortRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step pushR 2 (0x26b6 : U256)
-  refine Triple.seq (Logic.jumpi_of_eq_zero (by code_fact) (by code_fact) (by gas_ok) ?_) ?_
+  refine Triple.seq (Gas.jumpi_of_eq_zeroG (by code_fact) (by code_fact) (by gas_ok) ?_) ?_
   · have h68 : (add (0x40 : U256) (0x04 : U256)).toNat = 68 := by decide
     have hlt : lessThan (BitVec.ofNat 256 message.data.size) (add (0x40 : U256) (0x04 : U256)) = 1 := by
       simp only [lessThan, h68, BitVec.toNat_ofNat, Nat.mod_eq_of_lt (show message.data.size < 2 ^ 256 by omega)]
@@ -492,7 +492,7 @@ theorem shortRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.
     decide
   step pushR 1 (0 : U256)
   step dupR 0
-  refine (Logic.revert (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
+  refine (Gas.revertG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
     (by rw [hz]; gas_ok)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   refine ⟨hr, he, ?_, ?_, hs, hss⟩
@@ -533,7 +533,7 @@ theorem spec_short (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
     (hc10 : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
       (blackSlot message)) message.currentTarget 10 = c10)
     {gas : Nat} (hg : SHORT_COST + slotCost c0 + slotCost cB + slotCost c10 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (SHORT_COST + slotCost c0 + slotCost cB + slotCost c10))
         (shortState state message) (shortSubstate substate message)) := by
   simp only [SHORT_COST] at hg ⊢
@@ -546,7 +546,7 @@ theorem spec_short (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
   have h1 := dispatch (state := state) (substate := substate) hsize hsize' (gas := gas)
     (by rw [ht]; gas_ok)
   rw [ht, hb] at h1
-  refine Spec.seq h1 ?_
+  refine Gas.SpecG.seq h1 ?_
   step entry hv (by gas_ok)
   step notPaused hfork (by simp) hnp hc0 (by gas_ok)
   step blackLookup hfork (by simp) hcB (by gas_ok)

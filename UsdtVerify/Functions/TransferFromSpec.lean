@@ -122,7 +122,7 @@ theorem spec_ok (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (recipientSlot (fromArg message))) message.currentTarget (recipientSlot (toArg message)) = cT)
     {gas : Nat} (hstip : stipCostF fork state message c0 cB c10 cA c3 c4 cF cT ≤ gas)
     (hg : okCostF fork state message c0 cB c10 cA c3 c4 cF cT ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false .empty (gas - okCostF fork state message c0 cB c10 cA c3 c4 cF cT)
         (creditedF (checkState state message) message (valArg message) (toArg message)
           (fromArg message))
@@ -149,7 +149,7 @@ theorem spec_ok (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   have h1 := dispatch (state := state) (substate := substate) (by omega) hsz (gas := gas)
     (by rw [ht]; gas_ok)
   rw [ht, hb] at h1
-  refine Spec.seq h1 ?_
+  refine Gas.SpecG.seq h1 ?_
   step entry hv (by gas_ok)
   step notPaused hfork (by simp) hnp hc0 (by gas_ok)
   step notBlack hfork (by simp) hcB (by rw [storageAt_readSlot]; exact hnb) (by gas_ok) size_MEM0
@@ -157,7 +157,7 @@ theorem spec_ok (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     hc10 (by gas_ok)
   step toStandard (by gas_ok)
   step payload hlong hsz (by simp) (by gas_ok)
-  step reshape (g' := gas - (795 + slotCost c0 + slotCost cB + slotCost c10)) rfl rfl (by gas_ok)
+  step Gas.reshapeG (g' := gas - (795 + slotCost c0 + slotCost cB + slotCost c10)) rfl rfl (by gas_ok)
   refine hB.consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas, Nat.sub_sub], hs, hss⟩

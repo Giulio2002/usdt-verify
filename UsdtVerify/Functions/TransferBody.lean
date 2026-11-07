@@ -132,7 +132,7 @@ theorem body (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hg : 2829 + readCost c3 c4 cS cT + mulCost v +
       capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
       debitCost fork state message v + creditCost fork state message v a ≤ gas) :
-    Spec fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
+    Gas.SpecG fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
       (Halted false .empty (gas - (2829 + readCost c3 c4 cS cT + mulCost v +
         capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
         debitCost fork state message v + creditCost fork state message v a))
@@ -153,12 +153,12 @@ theorem body (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   at_pc 9951
   step capBlock hfork (by simp) hc4 (by simp only [storageAt_readSlot]; gas_ok)
   simp only [storageAt_readSlot]
-  step reshape (s' := (0x40 : U256) :: 0 :: 0 :: v :: a :: [0x1699, v, a, 0x078a, sel])
+  step Gas.reshapeG (s' := (0x40 : U256) :: 0 :: 0 :: v :: a :: [0x1699, v, a, 0x078a, sel])
     (by rw [hfee]) rfl rfl
   step sendCall (by simp) (by gas_ok)
   step subBlock (by simp) (by valid_dest) (by simp) (by gas_ok)
   at_pc 9988
-  step reshape (s' := v :: (0x40 : U256) :: 0 :: 0 :: v :: a :: [0x1699, v, a, 0x078a, sel])
+  step Gas.reshapeG (s' := v :: (0x40 : U256) :: 0 :: 0 :: v :: a :: [0x1699, v, a, 0x078a, sel])
     (by simp [sub]) rfl rfl
   step debitCall hfork (by simp) hcS (by gas_ok) hM
   simp only [storageAt_readSlot]

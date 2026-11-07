@@ -24,10 +24,10 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
 
 /-- From 778, a call with no value goes to the getter at 3565 with return address 797. -/
 theorem entry (hv : message.value = 0) {x : U256} {gas : Nat} (hg : 34 ≤ gas) :
-    Hoare fork (At CODE message 778 [x] MEM0 gas state substate)
+    Gas.HoareG fork (At CODE message 778 [x] MEM0 gas state substate)
       (At CODE message 3565 [0x031d, x] MEM0 (gas - 34) state substate) := by
   step jumpdestR
-  step Logic.callvalue (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  step Gas.callvalueG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   step unR 0x15 instruction_iszero
   step pushR 2 (0x0315 : U256)
   step jumpiR (by simp [hv, isZero])
@@ -35,7 +35,7 @@ theorem entry (hv : message.value = 0) {x : U256} {gas : Nat} (hg : 34 ≤ gas) 
   step pushR 2 (0x031d : U256)
   step pushR 2 (0x0ded : U256)
   step jumpR
-  exact (repc (by decide)).seq (reshape rfl rfl (by gas_ok))
+  exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
 
 /-- The getter at 3565: when byte 20 of slot 10 is 0, it reads slot 1 and returns to 797.
 
@@ -45,7 +45,7 @@ theorem getter (hfork : .berlin ≤ fork) {x : U256} {c10 c1 : Bool}
     (hc10 : coldIn substate message.currentTarget 10 = c10)
     (hc1 : coldIn substate message.currentTarget 1 = c1)
     {gas : Nat} (hg : 130 + slotCost c10 + slotCost c1 ≤ gas) :
-    Hoare fork (At CODE message 3565 [0x031d, x] MEM0 gas state substate)
+    Gas.HoareG fork (At CODE message 3565 [0x031d, x] MEM0 gas state substate)
       (At CODE message 797 [storageAt state message.currentTarget 1, x] MEM0
         (gas - (130 + slotCost c10 + slotCost c1))
         (readSlot (readSlot state message.currentTarget 10) message.currentTarget 1)
@@ -55,7 +55,7 @@ theorem getter (hfork : .berlin ≤ fork) {x : U256} {c10 c1 : Bool}
   step depCheck hfork (Or.inl ⟨rfl, rfl⟩) (rest := [0x031d, x]) (by simp) hdep hc10 (by gas_ok)
   step jumpdestR
   step pushR 1 (1 : U256)
-  step sload hfork (cold := c1) (by code_fact) (by code_fact) hc1' (by gas_ok)
+  step Gas.sloadG hfork (cold := c1) (by code_fact) (by code_fact) hc1' (by gas_ok)
   step swapR 0
   norm
   step popR
@@ -63,7 +63,7 @@ theorem getter (hfork : .berlin ≤ fork) {x : U256} {c10 c1 : Bool}
   step swapR 0
   norm
   step jumpR
-  refine (repc (by decide)).seq (reshape ?_ rfl (by gas_ok))
+  refine (repc (by decide)).seq (Gas.reshapeG ?_ rfl (by gas_ok))
   show [_, x] = _
   congr 1
 
@@ -86,7 +86,7 @@ theorem spec (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
     {c10 c1 : Bool} (hc10 : coldIn substate message.currentTarget 10 = c10)
     (hc1 : coldIn substate message.currentTarget 1 = c1)
     {gas : Nat} (hg : COST + slotCost c10 + slotCost c1 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false (wordBytes (storageAt state message.currentTarget 1))
         (gas - (COST + slotCost c10 + slotCost c1))
         (readSlot (readSlot state message.currentTarget 10) message.currentTarget 1)
@@ -110,7 +110,7 @@ theorem spec (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
     (v := storageAt state message.currentTarget 1) (rest := [BitVec.ofNat 256 (selector message.data)])
     (by simp)
     (gas := gas - 62 - 22 * 6 - 34 - (130 + slotCost c10 + slotCost c1)) (by gas_ok)
-  refine Spec.seq (h1.seq (h2.seq h3)) (h4.consequence (fun _ h => h) ?_)
+  refine Gas.SpecG.seq (h1.seq (h2.seq h3)) (h4.consequence (fun _ h => h) ?_)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 

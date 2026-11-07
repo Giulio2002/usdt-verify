@@ -32,7 +32,7 @@ theorem toBody1 {e r b t : Nat} (hent : (e, r, b) ∈ ENTRY1) (hb : b ∈ BODIES
       branch (BitVec.ofNat 256 (selector message.data)) 54 (entrySize 4 2) ENTRIES = e)
     (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hv : message.value = 0) {gas : Nat} (hg : 143 + 22 * t ≤ gas) :
-    Hoare fork (At CODE message 0 [] .empty gas state substate)
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate)
       (At CODE message (b + 4) [0, 0, addrArg message.data 0, BitVec.ofNat 256 r,
           BitVec.ofNat 256 (selector message.data)]
         MEM0 (gas - (143 + 22 * t)) state substate) := by
@@ -50,10 +50,10 @@ theorem spec_add_notOwner (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data
     (hv : message.value = 0) (hown : callerWord message ≠ ownerOf state message.currentTarget)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hg : 328 + slotCost c0 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (328 + slotCost c0)) (readSlot state message.currentTarget 0)
         (accessSlot substate message.currentTarget 0)) := by
-  refine Spec.seq (toBody1 (e := 721) (r := 0x0308) (b := 3284) (t := 5) (by decide) (by decide)
+  refine Gas.SpecG.seq (toBody1 (e := 721) (r := 0x0308) (b := 3284) (t := 5) (by decide) (by decide)
     (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
   refine (ownerRevert hfork (mem_CHECKS (by decide)) (by simp) size_MEM0 hc0 hown
     (by gas_ok)).consequence (fun _ h => h) ?_
@@ -66,10 +66,10 @@ theorem spec_remove_notOwner (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.d
     (hv : message.value = 0) (hown : callerWord message ≠ ownerOf state message.currentTarget)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hg : 856 + slotCost c0 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (856 + slotCost c0)) (readSlot state message.currentTarget 0)
         (accessSlot substate message.currentTarget 0)) := by
-  refine Spec.seq (toBody1 (e := 2276) (r := 0x091b) (b := 7288) (t := 29) (by decide)
+  refine Gas.SpecG.seq (toBody1 (e := 2276) (r := 0x091b) (b := 7288) (t := 29) (by decide)
     (by decide) (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
   refine (ownerRevert hfork (mem_CHECKS (by decide)) (by simp) size_MEM0 hc0 hown
     (by gas_ok)).consequence (fun _ h => h) ?_
@@ -112,7 +112,7 @@ theorem listTail (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {s p q
       (listSlot (addrArg message.data 0)) = cB) {gas : Nat}
     (hstip : 2526 + slotCost c0 + slotCost cB ≤ gas)
     (hg : 1314 + slotCost c0 + slotCost cB + listCost fork state message v ≤ gas) :
-    Spec fork (At CODE message s [0, 0, addrArg message.data 0, BitVec.ofNat 256 r, x] MEM0 gas
+    Gas.SpecG fork (At CODE message s [0, 0, addrArg message.data 0, BitVec.ofNat 256 r, x] MEM0 gas
         state substate)
       (Halted false .empty (gas - (1314 + slotCost c0 + slotCost cB + listCost fork state message v))
         (listState state message v) (listSub fork substate state message v t)) := by
@@ -161,10 +161,10 @@ theorem spec_add (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (listSlot (addrArg message.data 0)) = cB) {gas : Nat}
     (hstip : 2779 + slotCost c0 + slotCost cB ≤ gas)
     (hg : 1567 + slotCost c0 + slotCost cB + listCost fork state message 1 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false .empty (gas - (1567 + slotCost c0 + slotCost cB + listCost fork state message 1))
         (listState state message 1) (listSub fork substate state message 1 ADDED_TOPIC)) := by
-  refine Spec.seq (toBody1 (e := 721) (r := 0x0308) (b := 3284) (t := 5) (by decide) (by decide)
+  refine Gas.SpecG.seq (toBody1 (e := 721) (r := 0x0308) (b := 3284) (t := 5) (by decide) (by decide)
     (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
   refine (listTail hfork hglam (Or.inl ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩) hstatic hacc hown hc0 hcB
     (by omega) (by omega)).consequence (fun _ h => h) ?_
@@ -184,10 +184,10 @@ theorem spec_remove (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (listSlot (addrArg message.data 0)) = cB) {gas : Nat}
     (hstip : 3307 + slotCost c0 + slotCost cB ≤ gas)
     (hg : 2095 + slotCost c0 + slotCost cB + listCost fork state message 0 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false .empty (gas - (2095 + slotCost c0 + slotCost cB + listCost fork state message 0))
         (listState state message 0) (listSub fork substate state message 0 REMOVED_TOPIC)) := by
-  refine Spec.seq (toBody1 (e := 2276) (r := 0x091b) (b := 7288) (t := 29) (by decide)
+  refine Gas.SpecG.seq (toBody1 (e := 2276) (r := 0x091b) (b := 7288) (t := 29) (by decide)
     (by decide) (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
   refine (listTail hfork hglam (Or.inr ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩) hstatic hacc hown hc0 hcB
     (by omega) (by omega)).consequence (fun _ h => h) ?_

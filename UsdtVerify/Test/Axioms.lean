@@ -267,7 +267,7 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Gas.runMono_swapN
 #print axioms UsdtVerify.Gas.runMono_dupN
 #print axioms UsdtVerify.Complete.selector_cases
-#print axioms UsdtVerify.Complete.branchTableG
+#print axioms UsdtVerify.Gas.branchTableG
 #print axioms UsdtVerify.Complete.nonpayableG
 #print axioms UsdtVerify.Complete.spec_unknownG
 #print axioms UsdtVerify.Complete.spec_shortG

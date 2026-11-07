@@ -1,4 +1,6 @@
-import UsdtVerify.Steps
+import UsdtVerify.Code
+import UsdtVerify.Local.Rules
+import EthLib.Execution.Proofs.Evm.Logic.Steps
 import EthLib.Execution.Proofs.State.Tracker
 
 /-!

@@ -28,7 +28,7 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
 /-- `sub(a, b)` at 10976 with `a < b` fails its assert: INVALID at 10989, after 35 gas. -/
 theorem subFault {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20)
     (hlt : a.toNat < b.toNat) {gas : Nat} (hg : 35 ≤ gas) {M : ByteArray} :
-    Spec fork (At CODE message 10976 (b :: a :: ret :: rest) M gas state substate)
+    Gas.SpecG fork (At CODE message 10976 (b :: a :: ret :: rest) M gas state substate)
       (Faulted (.invalidOpcode 0xfe) state substate) := by
   have hgt : greaterThan b a = 1 := by simp [greaterThan, hlt]
   step jumpdestR
@@ -41,12 +41,12 @@ theorem subFault {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20
   step unR 0x15 instruction_iszero
   step pushR 2 (0x2aee : U256)
   step jumpi0R (by rw [hgt]; decide)
-  exact invalid_fe (by code_fact) (by code_fact)
+  exact Gas.invalid_feG (by code_fact) (by code_fact)
 
 /-- `add(a, b)` at 11001 with `a + b ≥ 2^256` fails its assert: INVALID at 11020, after 52 gas. -/
 theorem addFault {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20)
     (hov : 2 ^ 256 ≤ a.toNat + b.toNat) {gas : Nat} (hg : 52 ≤ gas) {M : ByteArray} :
-    Spec fork (At CODE message 11001 (b :: a :: ret :: rest) M gas state substate)
+    Gas.SpecG fork (At CODE message 11001 (b :: a :: ret :: rest) M gas state substate)
       (Faulted (.invalidOpcode 0xfe) state substate) := by
   have hlt : lessThan (add a b) a = 1 := by
     have h1 := a.isLt
@@ -73,7 +73,7 @@ theorem addFault {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20
   step unR 0x15 instruction_iszero
   step pushR 2 (0x2b0d : U256)
   step jumpi0R (by rw [hlt]; decide)
-  exact invalid_fe (by code_fact) (by code_fact)
+  exact Gas.invalid_feG (by code_fact) (by code_fact)
 
 end UsdtVerify.SafeMath
 
@@ -104,7 +104,7 @@ theorem bodyLow (hfork : .berlin ≤ fork) (hlong : 68 ≤ message.data.size)
     {gas : Nat}
     (hg : 497 + slotCost c3 + slotCost c4 + slotCost cS + mulCost v +
       capCost (rawFee state message v) (storageAt state message.currentTarget 4) ≤ gas) :
-    Spec fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
+    Gas.SpecG fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
       (Faulted (.invalidOpcode 0xfe) (reads3 state message) (access3 substate message)) := by
   simp only [rawFee, feeOf, balS, reads3, access3] at hg hfv hlow ⊢
   step payloadOk hlong hsz (by simp) (by gas_ok)
@@ -163,7 +163,7 @@ theorem spec_low (hfork : .berlin ≤ fork)
     (hcS : coldIn (accessSlot (accessSlot (shortSubstate substate message) message.currentTarget 3)
       message.currentTarget 4) message.currentTarget (senderSlot message) = cS)
     {gas : Nat} (hg : lowCost state message c0 cB c10 c3 c4 cS ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Faulted (.invalidOpcode 0xfe) (reads3 (shortState state message) message)
         (access3 (shortSubstate substate message) message)) := by
   have hB := bodyLow (state := shortState state message) (substate := shortSubstate substate message)
@@ -183,7 +183,7 @@ theorem spec_low (hfork : .berlin ≤ fork)
   have h1 := dispatch (state := state) (substate := substate) (by omega) hsz (gas := gas)
     (by rw [ht]; gas_ok)
   rw [ht, hb] at h1
-  refine Spec.seq h1 ?_
+  refine Gas.SpecG.seq h1 ?_
   step entry hv (by gas_ok)
   step notPaused hfork (by simp) hnp hc0 (by gas_ok)
   step blackLookup hfork (by simp) hcB (by gas_ok)
@@ -192,7 +192,7 @@ theorem spec_low (hfork : .berlin ≤ fork)
   step depInline hfork (by simp) (by rw [storageAt_readSlot, storageAt_readSlot]; exact hdep) hc10
     (by gas_ok)
   step toBasic (by gas_ok)
-  step reshape (g' := gas - (1034 + slotCost c0 + slotCost cB + slotCost c10)) rfl rfl (by gas_ok)
+  step Gas.reshapeG (g' := gas - (1034 + slotCost c0 + slotCost cB + slotCost c10)) rfl rfl (by gas_ok)
   exact hB
 
 /-- The loop of the interpreter runs a `transfer` call whose sender's balance is below `v` to the

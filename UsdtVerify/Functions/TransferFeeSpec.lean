@@ -82,7 +82,7 @@ theorem spec_fee (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (ownerSlot (ownerWord (shortState state message) message (wordArg message.data 1)
         (addrArg message.data 0))) = cO)
     {gas : Nat} (hg : feeCost fork state message c0 cB c10 c3 c4 cS cT cO ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false .empty (gas - feeCost fork state message c0 cB c10 c3 c4 cS cT cO)
         (feeState (shortState state message) message (wordArg message.data 1)
           (addrArg message.data 0))
@@ -110,7 +110,7 @@ theorem spec_fee (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   have h1 := dispatch (state := state) (substate := substate) (by omega) hsz (gas := gas)
     (by rw [ht]; gas_ok)
   rw [ht, hb] at h1
-  refine Spec.seq h1 ?_
+  refine Gas.SpecG.seq h1 ?_
   step Transfer.entry hv (by gas_ok)
   step Transfer.notPaused hfork (by simp) hnp hc0 (by gas_ok)
   step blackLookup hfork (by simp) hcB (by gas_ok)
@@ -119,7 +119,7 @@ theorem spec_fee (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   step depInline hfork (by simp) (by rw [storageAt_readSlot, storageAt_readSlot]; exact hdep) hc10
     (by gas_ok)
   step toBasic (by gas_ok)
-  step reshape (g' := gas - (1034 + slotCost c0 + slotCost cB + slotCost c10)) rfl rfl (by gas_ok)
+  step Gas.reshapeG (g' := gas - (1034 + slotCost c0 + slotCost cB + slotCost c10)) rfl rfl (by gas_ok)
   refine hB.consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas, Nat.sub_sub], hs, hss⟩

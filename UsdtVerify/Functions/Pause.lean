@@ -32,12 +32,12 @@ with the return address `r`. -/
 theorem entry0 {e r b : Nat} (hp : (e = 1533 ∧ r = 0x0610 ∧ b = 4936) ∨
       (e = 1201 ∧ r = 0x04c4 ∧ b = 4333))
     (hv : message.value = 0) {x : U256} {M : ByteArray} {gas : Nat} (hg : 34 ≤ gas) :
-    Hoare fork (At CODE message e [x] M gas state substate)
+    Gas.HoareG fork (At CODE message e [x] M gas state substate)
       (At CODE message b [BitVec.ofNat 256 r, x] M (gas - 34) state substate) := by
   rcases hp with ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩
   all_goals
     step jumpdestR
-    step Logic.callvalue (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+    step Gas.callvalueG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
     step unR 0x15 instruction_iszero
     step pushAnyR 2
     step jumpiR (by simp [hv, isZero])
@@ -77,7 +77,7 @@ flag is the test word, before the JUMPI at 5050. -/
 theorem pauseTest (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.length ≤ 16)
     {M : ByteArray} {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hg : 99 + slotCost c0 ≤ gas) :
-    Hoare fork (At CODE message 5027 rest M gas state substate)
+    Gas.HoareG fork (At CODE message 5027 rest M gas state substate)
       (At CODE message 5047 (isZero (isZero (isZero (bitwiseAnd (0xff : U256)
           (div (storageAt state message.currentTarget 0) (exp (0x0100 : U256) (0x14 : U256)))))) ::
           rest) M (gas - (99 + slotCost c0))
@@ -88,11 +88,11 @@ theorem pauseTest (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.le
   step pushR 1 (0x14 : U256)
   step swapR 0
   norm
-  step sload hfork (cold := c0) (by code_fact) (by code_fact) hc0 (by gas_ok)
+  step Gas.sloadG hfork (cold := c0) (by code_fact) (by code_fact) hc0 (by gas_ok)
   step swapR 0
   norm
   step pushR 2 (0x0100 : U256)
-  step Local.exp (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
+  step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
   step binR 0x04 Local.instruction_div
@@ -107,7 +107,7 @@ theorem pauseTest (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.le
 theorem unpauseTest (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.length ≤ 16)
     {M : ByteArray} {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hg : 96 + slotCost c0 ≤ gas) :
-    Hoare fork (At CODE message 4424 rest M gas state substate)
+    Gas.HoareG fork (At CODE message 4424 rest M gas state substate)
       (At CODE message 4443 (isZero (isZero (bitwiseAnd (0xff : U256)
           (div (storageAt state message.currentTarget 0) (exp (0x0100 : U256) (0x14 : U256))))) ::
           rest) M (gas - (96 + slotCost c0))
@@ -118,11 +118,11 @@ theorem unpauseTest (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.
   step pushR 1 (0x14 : U256)
   step swapR 0
   norm
-  step sload hfork (cold := c0) (by code_fact) (by code_fact) hc0 (by gas_ok)
+  step Gas.sloadG hfork (cold := c0) (by code_fact) (by code_fact) hc0 (by gas_ok)
   step swapR 0
   norm
   step pushR 2 (0x0100 : U256)
-  step Local.exp (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
+  step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
   step binR 0x04 Local.instruction_div
@@ -136,7 +136,7 @@ theorem unpauseTest (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.
 theorem flagPass {p d : Nat} (hp : (p = 5047 ∧ d = 5055) ∨ (p = 4443 ∧ d = 4451)) {t : U256}
     (ht : t ≠ 0) {rest : List U256} (hrest : rest.length ≤ 16) {M : ByteArray} {gas : Nat}
     (hg : 13 ≤ gas) :
-    Hoare fork (At CODE message p (t :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message p (t :: rest) M gas state substate)
       (At CODE message d rest M (gas - 13) state substate) := by
   rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
   all_goals
@@ -148,7 +148,7 @@ theorem flagPass {p d : Nat} (hp : (p = 5047 ∧ d = 5055) ∨ (p = 4443 ∧ d =
 theorem flagRevert (hfork : .berlin ≤ fork) {p : Nat} (hp : p = 5047 ∨ p = 4443) {t : U256}
     (ht : t = 0) {rest : List U256} (hrest : rest.length ≤ 16) {M : ByteArray} (hM : M.size = 96)
     {gas : Nat} (hg : 19 ≤ gas) :
-    Spec fork (At CODE message p (t :: rest) M gas state substate)
+    Gas.SpecG fork (At CODE message p (t :: rest) M gas state substate)
       (Halted true .empty (gas - 19) state substate) := by
   have hz : extendMemory M.size [((0 : U256), (0 : U256))] = ⟨0, 0⟩ := by
     rw [hM]; decide
@@ -158,7 +158,7 @@ theorem flagRevert (hfork : .berlin ≤ fork) {p : Nat} (hp : p = 5047 ∨ p = 4
     step jumpi0R ht
     step pushR 1 (0 : U256)
     step dupR 0
-    refine (Logic.revert (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
+    refine (Gas.revertG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
       (by rw [hz]; gas_ok)).consequence (fun _ h => h) ?_
     rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
     refine ⟨hr, he, ?_, ?_, hs, hss⟩
@@ -185,7 +185,7 @@ theorem logStop {p : Nat} {t : U256} {r : Nat}
     (hp : (p = 5083 ∧ t = PAUSE_TOPIC ∧ r = 0x0610) ∨ (p = 4478 ∧ t = UNPAUSE_TOPIC ∧ r = 0x04c4))
     {x : U256} (hstatic : message.isStatic = false) {M : ByteArray} (hM : M.size = 96)
     (hptr : loadWord (memoryReadBytes M 64 32) 0 32 = 0x60) {gas : Nat} (hg : 786 ≤ gas) :
-    Spec fork (At CODE message p [BitVec.ofNat 256 r, x] M gas state substate)
+    Gas.SpecG fork (At CODE message p [BitVec.ofNat 256 r, x] M gas state substate)
       (Halted false .empty (gas - 786) state
         { substate with logs := substate.logs.push (log0 message.currentTarget t) }) := by
   have hext0 : extendMemory M.size [((0x40 : U256), (32 : U256))] = ⟨0, 0⟩ := by
@@ -196,16 +196,16 @@ theorem logStop {p : Nat} {t : U256} {r : Nat}
   have hsub : sub (0x60 : U256) 0x60 = 0 := by decide
   rcases hp with ⟨rfl, ht, rfl⟩ | ⟨rfl, ht, rfl⟩
   all_goals
-    step push (n := 32) (word := t) (by decide) (by code_fact) (by code_fact)
+    step Gas.pushG (n := 32) (word := t) (by decide) (by code_fact) (by code_fact)
       (decode_push 32 (by decide)) (by rw [ht, pushData_CODE]; decide) (by gas_ok) (by stk_ok)
     step pushR 1 (0x40 : U256)
-    step mload (by code_fact) (by code_fact) (by rw [hext0]; gas_ok)
-    step reshape (s' := (0x60 : U256) :: _) (m' := M)
+    step Gas.mloadG (by code_fact) (by code_fact) (by rw [hext0]; gas_ok)
+    step Gas.reshapeG (s' := (0x60 : U256) :: _) (m' := M)
       (by rw [hext0, memoryExtend_zero]; exact congrArg (· :: _) hptr)
       (by rw [hext0, memoryExtend_zero]) (by rw [hext0])
     step pushR 1 (0x40 : U256)
-    step mload (by code_fact) (by code_fact) (by rw [hext0]; gas_ok)
-    step reshape (s' := (0x60 : U256) :: _) (m' := M)
+    step Gas.mloadG (by code_fact) (by code_fact) (by rw [hext0]; gas_ok)
+    step Gas.reshapeG (s' := (0x60 : U256) :: _) (m' := M)
       (by rw [hext0, memoryExtend_zero]; exact congrArg (· :: _) hptr)
       (by rw [hext0, memoryExtend_zero]) (by rw [hext0])
     step dupR 0
@@ -215,13 +215,13 @@ theorem logStop {p : Nat} {t : U256} {r : Nat}
     step swapR 0
     norm
     rw [hsub]
-    step reshape (s' := 0x60 :: 0 :: ([_] ++ [_, x])) rfl rfl rfl
-    step Logic.log (n := 1) (byte := 0xa1) rfl (by code_fact) (by code_fact) rfl hstatic
+    step Gas.reshapeG (s' := 0x60 :: 0 :: ([_] ++ [_, x])) rfl rfl rfl
+    step Gas.logG (n := 1) (byte := 0xa1) rfl (by code_fact) (by code_fact) rfl hstatic
       (by rw [hlog, hext3]; gas_ok)
-    step reshape rfl (by rw [hext3, memoryExtend_zero]) (by rw [hlog, hext3])
+    step Gas.reshapeG rfl (by rw [hext3, memoryExtend_zero]) (by rw [hlog, hext3])
     step jumpR
     step jumpdestR
-    refine (Logic.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
+    refine (Gas.stopG (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
     rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
     refine ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, ?_⟩
     rw [hss, hext3, memoryExtend_zero]
@@ -230,10 +230,10 @@ theorem logStop {p : Nat} {t : U256} {r : Nat}
 -- The shared part of the two writes, from the `EXP` of `256 ^ 20` to the `POP` after `SSTORE`.
 set_option hygiene false in
 macro "flag_write" : tactic => `(tactic| (
-  step Local.exp (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
+  step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   rw [exp20]
   step dupR 1
-  step sload hfork (cold := false) (by code_fact) (by code_fact) hc0 (by gas_ok)
+  step Gas.sloadG hfork (cold := false) (by code_fact) (by code_fact) hc0 (by gas_ok)
   rw [show state.getStorage message.currentTarget (U256.toBeBytes 0) =
     storageAt state message.currentTarget 0 from rfl]
   step dupR 1
@@ -251,7 +251,7 @@ macro "flag_write" : tactic => `(tactic| (
   step binR 0x17 Local.instruction_or
   step swapR 0
   norm
-  step sstoreW hfork hglam (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
+  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   rw [originalAt_readSlot, storageAt_readSlot]
@@ -267,7 +267,7 @@ theorem pauseWrite (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {res
     (hg : 218 + sstoreCost fork (originalAt state message.currentTarget 0)
       (storageAt state message.currentTarget 0)
       (withPaused (storageAt state message.currentTarget 0) 1) false ≤ gas) :
-    Hoare fork (At CODE message 5055 rest M gas state substate)
+    Gas.HoareG fork (At CODE message 5055 rest M gas state substate)
       (At CODE message 5083 rest M
         (gas - (218 + sstoreCost fork (originalAt state message.currentTarget 0)
           (storageAt state message.currentTarget 0)
@@ -296,7 +296,7 @@ theorem unpauseWrite (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {r
     (hg : 218 + sstoreCost fork (originalAt state message.currentTarget 0)
       (storageAt state message.currentTarget 0)
       (withPaused (storageAt state message.currentTarget 0) 0) false ≤ gas) :
-    Hoare fork (At CODE message 4451 rest M gas state substate)
+    Gas.HoareG fork (At CODE message 4451 rest M gas state substate)
       (At CODE message 4478 rest M
         (gas - (218 + sstoreCost fork (originalAt state message.currentTarget 0)
           (storageAt state message.currentTarget 0)

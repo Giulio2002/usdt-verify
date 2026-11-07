@@ -30,7 +30,7 @@ def DESTS : List Nat := ENTRIES.map (·.2.toNat)
 /-- At each entry point, a call with a nonzero value reverts with no output for 25 gas. -/
 theorem valueRevert (hfork : .berlin ≤ fork) {e : Nat} (he : e ∈ DESTS)
     (hv : message.value ≠ 0) {x : U256} {gas : Nat} (hg : 25 ≤ gas) :
-    Spec fork (At CODE message e [x] MEM0 gas state substate)
+    Gas.SpecG fork (At CODE message e [x] MEM0 gas state substate)
       (Halted true .empty (gas - 25) state substate) := by
   have hz : extendMemory MEM0.size [((0 : U256), (0 : U256))] = ⟨0, 0⟩ := by
     rw [size_MEM0]; decide
@@ -46,13 +46,13 @@ theorem valueRevert (hfork : .berlin ≤ fork) {e : Nat} (he : e ∈ DESTS)
     rfl | rfl | rfl | rfl
   all_goals
     step jumpdestR
-    step Logic.callvalue (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+    step Gas.callvalueG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
     step unR 0x15 instruction_iszero
     step pushAnyR 2
     step jumpi0R hc
     step pushR 1 (0 : U256)
     step dupR 0
-    refine (Logic.revert (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
+    refine (Gas.revertG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
       (by rw [hz]; gas_ok)).consequence (fun _ h => h) ?_
     rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
     refine ⟨hr, he, ?_, ?_, hs, hss⟩
@@ -78,7 +78,7 @@ theorem spec (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (i : Fin 32)
     (hsel : selector message.data = ENTRIES[i].1.toNat) (hv : message.value ≠ 0) {gas : Nat}
     (hg : 87 + 22 * (i.val + 1) ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (87 + 22 * (i.val + 1))) state substate) := by
   obtain ⟨ht, hb⟩ := table_entry i
   rw [← hsel] at ht hb
@@ -89,7 +89,7 @@ theorem spec (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
     (e := ENTRIES[i].2.toNat) (List.mem_map.2 ⟨ENTRIES[i], List.getElem_mem _, rfl⟩) hv
     (x := BitVec.ofNat 256 (selector message.data)) (gas := gas - 62 - 22 * (i.val + 1))
     (by omega)
-  refine Spec.seq h1 (h2.consequence (fun _ h => h) ?_)
+  refine Gas.SpecG.seq h1 (h2.consequence (fun _ h => h) ?_)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; omega, hs, hss⟩
 

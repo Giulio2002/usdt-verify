@@ -32,11 +32,11 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
 
 /-- From 610, a call with no value goes to 2931 with the value, the spender and 674. -/
 theorem entry (hv : message.value = 0) {x : U256} {gas : Nat} (hg : 98 ≤ gas) :
-    Hoare fork (At CODE message 610 [x] MEM0 gas state substate)
+    Gas.HoareG fork (At CODE message 610 [x] MEM0 gas state substate)
       (At CODE message 2931 [wordArg message.data 1, addrArg message.data 0, 0x02a2, x] MEM0
         (gas - 98) state substate) := by
   step jumpdestR
-  step Logic.callvalue (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  step Gas.callvalueG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   step unR 0x15 instruction_iszero
   step pushR 2 (0x026d : U256)
   step jumpiR (by simp [hv, isZero])
@@ -45,7 +45,7 @@ theorem entry (hv : message.value = 0) {x : U256} {gas : Nat} (hg : 98 ≤ gas) 
   step pushR 1 (0x04 : U256)
   step dupR 0
   step dupR 0
-  step calldataload (by code_fact) (by code_fact) (by gas_ok)
+  step Gas.calldataloadG (by code_fact) (by code_fact) (by gas_ok)
   step pushR 20 ADDR_MASK
   step binR 0x16 Local.instruction_and
   step swapR 0
@@ -59,7 +59,7 @@ theorem entry (hv : message.value = 0) {x : U256} {gas : Nat} (hg : 98 ≤ gas) 
   step swapR 0
   norm
   step dupR 0
-  step calldataload (by code_fact) (by code_fact) (by gas_ok)
+  step Gas.calldataloadG (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
   step pushR 1 (0x20 : U256)
@@ -74,13 +74,13 @@ theorem entry (hv : message.value = 0) {x : U256} {gas : Nat} (hg : 98 ≤ gas) 
   step popR
   step pushR 2 (0x0b73 : U256)
   step jumpR
-  exact (repc (by decide)).seq (reshape rfl rfl (by gas_ok))
+  exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
 
 /-- The payload check `CALLDATASIZE ≥ 0x44` at 2931 and at 8206, when it passes. -/
 theorem payload {p d : Nat} (hp : (p = 2931 ∧ d = 2955) ∨ (p = 8206 ∧ d = 8230))
     (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256) {rest : List U256}
     (hrest : rest.length ≤ 900) {gas : Nat} (hg : 48 ≤ gas) {M : ByteArray} :
-    Hoare fork (At CODE message p rest M gas state substate)
+    Gas.HoareG fork (At CODE message p rest M gas state substate)
       (At CODE message d (0x40 :: rest) M (gas - 48) state substate) := by
   have hlt : lessThan (BitVec.ofNat 256 message.data.size) (add (0x40 : U256) (0x04 : U256)) =
       0 := by
@@ -95,7 +95,7 @@ theorem payload {p d : Nat} (hp : (p = 2931 ∧ d = 2955) ∨ (p = 8206 ∧ d = 
     step dupR 1
     step binR 0x01 instruction_add
     step pushR 1 (0 : U256)
-    step Logic.calldatasize (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+    step Gas.calldatasizeG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
     step swapR 0
     norm
     step popR
@@ -105,14 +105,14 @@ theorem payload {p d : Nat} (hp : (p = 2931 ∧ d = 2955) ∨ (p = 8206 ∧ d = 
     step unR 0x15 instruction_iszero
     step pushAnyR 2
     step jumpiR (by rw [hlt]; decide)
-    exact (repc (by decide)).seq (reshape rfl rfl (by gas_ok))
+    exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
 
 /-- At 2955, when byte 20 of slot 10 is 0 (not deprecated), the code goes to 3249. -/
 theorem notDeprecated (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.length ≤ 16)
     {c10 : Bool} (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     (hc10 : coldIn substate message.currentTarget 10 = c10) {gas : Nat}
     (hg : 106 + slotCost c10 ≤ gas) {M : ByteArray} :
-    Hoare fork (At CODE message 2955 rest M gas state substate)
+    Gas.HoareG fork (At CODE message 2955 rest M gas state substate)
       (At CODE message 3249 rest M (gas - (106 + slotCost c10))
         (readSlot state message.currentTarget 10) (accessSlot substate message.currentTarget 10)) := by
   have hexp : exponentBytes (0x14 : U256) = 1 := by decide
@@ -121,11 +121,11 @@ theorem notDeprecated (hfork : .berlin ≤ fork) {rest : List U256} (hrest : res
   step pushR 1 (0x14 : U256)
   step swapR 0
   norm
-  step sload hfork (cold := c10) (by code_fact) (by code_fact) hc10 (by gas_ok)
+  step Gas.sloadG hfork (cold := c10) (by code_fact) (by code_fact) hc10 (by gas_ok)
   step swapR 0
   norm
   step pushR 2 (0x0100 : U256)
-  step Local.exp (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
+  step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
   step binR 0x04 Local.instruction_div
@@ -134,11 +134,11 @@ theorem notDeprecated (hfork : .berlin ≤ fork) {rest : List U256} (hrest : res
   step unR 0x15 instruction_iszero
   step pushR 2 (0x0cb1 : U256)
   step jumpiR (isZero_flag_ne hdep)
-  exact (repc (by decide)).seq (reshape rfl rfl (by gas_ok))
+  exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
 
 /-- At 3249, the code calls StandardToken's `approve` at 8206. -/
 theorem toStandard {v s r x : U256} {gas : Nat} (hg : 21 ≤ gas) {M : ByteArray} :
-    Hoare fork (At CODE message 3249 [0x40, v, s, r, x] M gas state substate)
+    Gas.HoareG fork (At CODE message 3249 [0x40, v, s, r, x] M gas state substate)
       (At CODE message 8206 [v, s, 0x0cbb, 0x40, v, s, r, x] M (gas - 21) state substate) := by
   step jumpdestR
   step pushR 2 (0x0cbb : U256)
@@ -146,7 +146,7 @@ theorem toStandard {v s r x : U256} {gas : Nat} (hg : 21 ≤ gas) {M : ByteArray
   step dupR 3
   step pushR 2 (0x200e : U256)
   step jumpR
-  exact (repc (by decide)).seq (reshape rfl rfl (by gas_ok))
+  exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
 
 /-- The slot of `allowed[msg.sender][s]`: the nested mapping at base slot 5. -/
 abbrev allowSlot (message : Message fork) (s : U256) : U256 :=
@@ -155,7 +155,7 @@ abbrev allowSlot (message : Message fork) (s : U256) : U256 :=
 /-- At 8230, with `_value = 0`, the check passes without reading the allowance. -/
 theorem checkZero {s : U256} {rest : List U256} (hrest : rest.length ≤ 800) {gas : Nat}
     (hg : 55 ≤ gas) {M : ByteArray} :
-    Hoare fork (At CODE message 8230 (0x40 :: 0 :: s :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message 8230 (0x40 :: 0 :: s :: rest) M gas state substate)
       (At CODE message 8384 (0x40 :: 0 :: s :: rest) M (gas - 55) state substate) := by
   step jumpdestR
   step pushR 1 (0 : U256)
@@ -173,7 +173,7 @@ theorem checkZero {s : U256} {rest : List U256} (hrest : rest.length ≤ 800) {g
   step unR 0x15 instruction_iszero
   step pushR 2 (0x20c0 : U256)
   step jumpiR (by decide)
-  exact (repc (by decide)).seq (reshape rfl rfl (by gas_ok))
+  exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
 
 /-- At 8230, with `_value ≠ 0` and `allowed[msg.sender][_spender] = 0`, the check passes after it
 reads the allowance. -/
@@ -182,7 +182,7 @@ theorem checkNonzero (hfork : .berlin ≤ fork) {v s : U256} (hv0 : v ≠ 0) {re
     (hcA : coldIn substate message.currentTarget (allowSlot message s) = cA)
     (hzero : storageAt state message.currentTarget (allowSlot message s) = 0) {gas : Nat}
     (hg : 248 + slotCost cA ≤ gas) {M : ByteArray} (hM : M.size = 96) :
-    Hoare fork (At CODE message 8230 (0x40 :: v :: s :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message 8230 (0x40 :: v :: s :: rest) M gas state substate)
       (At CODE message 8384 (0x40 :: v :: s :: rest)
         (mapMem (mapMem M (mkey message.caller.toU256) 5) (mkey s)
           (mapSlot (mkey message.caller.toU256) 5)) (gas - (248 + slotCost cA))
@@ -201,7 +201,7 @@ theorem checkNonzero (hfork : .berlin ≤ fork) {v s : U256} (hv0 : v ≠ 0) {re
   step pushR 1 (0 : U256)
   step pushR 1 (0x05 : U256)
   step pushR 1 (0 : U256)
-  step caller (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   at_pc 8250
   step hashTail (by decide) (by simp; omega) hM (by gas_ok)
   at_pc 8308
@@ -210,7 +210,7 @@ theorem checkNonzero (hfork : .berlin ≤ fork) {v s : U256} (hv0 : v ≠ 0) {re
   at_pc 8311
   step hashTail (by decide) (by simp; omega) (size_mapMem hM _ _) (by gas_ok)
   at_pc 8369
-  step sload hfork (cold := cA) (by code_fact) (by code_fact) hcA (by gas_ok)
+  step Gas.sloadG hfork (cold := cA) (by code_fact) (by code_fact) hcA (by gas_ok)
   step binR 0x14 instruction_eq
   step unR 0x15 instruction_iszero
   step jumpdestR
@@ -233,7 +233,7 @@ theorem store (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {v s : U2
     (hg : 194 + sstoreCost fork (originalAt state message.currentTarget (allowSlot message s))
       (storageAt state message.currentTarget (allowSlot message s)) v cA ≤ gas)
     {M : ByteArray} (hM : M.size = 96) :
-    Hoare fork (At CODE message 8384 (0x40 :: v :: s :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message 8384 (0x40 :: v :: s :: rest) M gas state substate)
       (At CODE message 8514 (0x40 :: v :: s :: rest)
         (mapMem (mapMem M (mkey message.caller.toU256) 5) (mkey s)
           (mapSlot (mkey message.caller.toU256) 5))
@@ -248,7 +248,7 @@ theorem store (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {v s : U2
   step dupR 1
   step pushR 1 (0x05 : U256)
   step pushR 1 (0 : U256)
-  step caller (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   at_pc 8391
   step hashTail (by decide) (by simp; omega) hM (by gas_ok)
   at_pc 8449
@@ -260,7 +260,7 @@ theorem store (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {v s : U2
   step dupR 1
   step swapR 0
   norm
-  step sstoreW hfork hglam (by code_fact) (by code_fact) hstatic hacc hcA (by gas_ok) (by gas_ok)
+  step Gas.sstoreWG hfork hglam (by code_fact) (by code_fact) hstatic hacc hcA (by gas_ok) (by gas_ok)
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
@@ -278,7 +278,7 @@ abbrev approvalLog (c : EthLib.Base.Address) (owner spender value : U256) : Bloc
 theorem logApproval {v s : U256} {rest : List U256} (hrest : rest.length ≤ 900)
     (hstatic : message.isStatic = false) {gas : Nat} (hg : 1845 ≤ gas) {M : ByteArray}
     (hM : M.size = 96) (hptr : loadWord (memoryReadBytes M 64 32) 0 32 = 0x60) :
-    Hoare fork (At CODE message 8514 (0x40 :: v :: s :: 0x0cbb :: rest) M gas state substate)
+    Gas.HoareG fork (At CODE message 8514 (0x40 :: v :: s :: 0x0cbb :: rest) M gas state substate)
       (At CODE message 3259 rest (M ++ wordBytes v) (gas - 1845) state
         { substate with logs := substate.logs.push (approvalLog message.currentTarget
           (bitwiseAnd ADDR_MASK message.caller.toU256) (bitwiseAnd ADDR_MASK s) v) }) := by
@@ -303,22 +303,22 @@ theorem logApproval {v s : U256} {rest : List U256} (hrest : rest.length ≤ 900
   step dupR 2
   step pushR 20 ADDR_MASK
   step binR 0x16 Local.instruction_and
-  step caller (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   step pushR 20 ADDR_MASK
   step binR 0x16 Local.instruction_and
   step pushR 32 APPROVAL_TOPIC
   step dupR 4
   step pushR 1 (0x40 : U256)
-  step mload (by code_fact) (by code_fact) (by rw [hext0]; gas_ok)
-  step reshape (s' := 0x60 :: v :: APPROVAL_TOPIC :: bitwiseAnd ADDR_MASK message.caller.toU256 ::
+  step Gas.mloadG (by code_fact) (by code_fact) (by rw [hext0]; gas_ok)
+  step Gas.reshapeG (s' := 0x60 :: v :: APPROVAL_TOPIC :: bitwiseAnd ADDR_MASK message.caller.toU256 ::
       bitwiseAnd ADDR_MASK s :: 0x40 :: v :: s :: 0x0cbb :: rest) (m' := M)
     (by rw [hext0, memoryExtend_zero]; exact congrArg (· :: _) hptr)
     (by rw [hext0, memoryExtend_zero]) (by rw [hext0])
   step dupR 0
   step dupR 2
   step dupR 1
-  step mstore (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
-  step reshape (m' := M ++ wordBytes v) rfl (by rw [hext1]; exact hmem1) (by rw [hext1])
+  step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
+  step Gas.reshapeG (m' := M ++ wordBytes v) rfl (by rw [hext1]; exact hmem1) (by rw [hext1])
   step pushR 1 (0x20 : U256)
   step binR 0x01 instruction_add
   step swapR 1
@@ -326,8 +326,8 @@ theorem logApproval {v s : U256} {rest : List U256} (hrest : rest.length ≤ 900
   step popR
   step popR
   step pushR 1 (0x40 : U256)
-  step mload (by code_fact) (by code_fact) (by rw [hext2]; gas_ok)
-  step reshape (s' := 0x60 :: 0x80 :: APPROVAL_TOPIC :: bitwiseAnd ADDR_MASK message.caller.toU256 ::
+  step Gas.mloadG (by code_fact) (by code_fact) (by rw [hext2]; gas_ok)
+  step Gas.reshapeG (s' := 0x60 :: 0x80 :: APPROVAL_TOPIC :: bitwiseAnd ADDR_MASK message.caller.toU256 ::
       bitwiseAnd ADDR_MASK s :: 0x40 :: v :: s :: 0x0cbb :: rest)
     (m' := M ++ wordBytes v)
     (by rw [hext2, memoryExtend_zero, show (0x40 : U256).toNat = 64 from rfl, hread2, hptr]; rfl)
@@ -338,11 +338,11 @@ theorem logApproval {v s : U256} {rest : List U256} (hrest : rest.length ≤ 900
   step binR 0x03 Local.instruction_sub
   step swapR 0
   norm
-  step reshape (s' := 0x60 :: 0x20 :: ([APPROVAL_TOPIC, bitwiseAnd ADDR_MASK message.caller.toU256,
+  step Gas.reshapeG (s' := 0x60 :: 0x20 :: ([APPROVAL_TOPIC, bitwiseAnd ADDR_MASK message.caller.toU256,
       bitwiseAnd ADDR_MASK s] ++ (0x40 :: v :: s :: 0x0cbb :: rest))) rfl rfl rfl
-  step Logic.log (n := 3) (byte := 0xa3) rfl (by code_fact) (by code_fact) rfl hstatic
+  step Gas.logG (n := 3) (byte := 0xa3) rfl (by code_fact) (by code_fact) rfl hstatic
     (by rw [hlog, hext3]; gas_ok)
-  step reshape rfl (by rw [hext3, memoryExtend_zero]) (by rw [hlog, hext3])
+  step Gas.reshapeG rfl (by rw [hext3, memoryExtend_zero]) (by rw [hlog, hext3])
   step popR
   step popR
   step popR
@@ -353,7 +353,7 @@ theorem logApproval {v s : U256} {rest : List U256} (hrest : rest.length ≤ 900
 
 /-- At 3259, the code returns to 674, where it stops. -/
 theorem stopA {v s sel : U256} {gas : Nat} (hg : 17 ≤ gas) {M : ByteArray} :
-    Spec fork (At CODE message 3259 [0x40, v, s, 0x02a2, sel] M gas state substate)
+    Gas.SpecG fork (At CODE message 3259 [0x40, v, s, 0x02a2, sel] M gas state substate)
       (Halted false .empty (gas - 17) state substate) := by
   step jumpdestR
   step jumpdestR
@@ -363,7 +363,7 @@ theorem stopA {v s sel : U256} {gas : Nat} (hg : 17 ≤ gas) {M : ByteArray} :
   step jumpR
   step repc (pc' := 674) (by decide)
   step jumpdestR
-  refine (Logic.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
+  refine (Gas.stopG (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 

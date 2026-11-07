@@ -39,7 +39,7 @@ theorem bodyFeeGtF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hstip : 361 + slotCost cA + slotCost c3 + slotCost c4 + mulCost v +
       capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
       allowCostF fork state message v f + 2300 ≤ gas) :
-    Spec fork (At CODE message 8648 [0x60, 0, 0, 0, v, t, f, 0x1097, v, t, f, 0x0392, sel] M gas
+    Gas.SpecG fork (At CODE message 8648 [0x60, 0, 0, 0, v, t, f, 0x1097, v, t, f, 0x0392, sel] M gas
         state substate)
       (Faulted (.invalidOpcode 0xfe) (allowedF state message v f)
         (allowedSubF fork substate state message v f)) := by
@@ -92,7 +92,7 @@ theorem bodyToOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hg : 943 + slotCost cA + slotCost c3 + slotCost c4 + slotCost cF + slotCost cT +
       mulCost v + capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
       allowCostF fork state message v f + debitCostF fork state message v f ≤ gas) :
-    Spec fork (At CODE message 8648 [0x60, 0, 0, 0, v, t, f, 0x1097, v, t, f, 0x0392, sel] M gas
+    Gas.SpecG fork (At CODE message 8648 [0x60, 0, 0, 0, v, t, f, 0x1097, v, t, f, 0x0392, sel] M gas
         state substate)
       (Faulted (.invalidOpcode 0xfe)
         (readSlot (debitedF state message v f) message.currentTarget (recipientSlot t))
@@ -175,7 +175,7 @@ theorem bodyOwnerOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       mulCost v + capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
       allowCostF fork state message v f + debitCostF fork state message v f +
       creditCostFeeF fork state message v t f + 313 + slotCost cO ≤ gas) :
-    Spec fork (At CODE message 8648 [0x60, 0, 0, 0, v, t, f, 0x1097, v, t, f, 0x0392, sel] M gas
+    Gas.SpecG fork (At CODE message 8648 [0x60, 0, 0, 0, v, t, f, 0x1097, v, t, f, 0x0392, sel] M gas
         state substate)
       (Faulted (.invalidOpcode 0xfe)
         (readSlot (readSlot (creditedFeeF state message v t f) message.currentTarget 0)
@@ -244,7 +244,7 @@ theorem spec_feeGtF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       capCost (rawFee (checkState state message) message (valArg message))
         (storageAt (checkState state message) message.currentTarget 4) +
       allowCostF fork (checkState state message) message (valArg message) (fromArg message) + 2300) ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Faulted (.invalidOpcode 0xfe) (allowedF (checkState state message) message (valArg message) (fromArg message))
         (allowedSubF fork (checkSub substate message) (checkState state message) message (valArg message)
           (fromArg message))) :=
@@ -306,7 +306,7 @@ theorem spec_toOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
         (storageAt (checkState state message) message.currentTarget 4) +
       allowCostF fork (checkState state message) message (valArg message) (fromArg message) +
       debitCostF fork (checkState state message) message (valArg message) (fromArg message)) ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Faulted (.invalidOpcode 0xfe)
         (readSlot (debitedF (checkState state message) message (valArg message) (fromArg message))
           message.currentTarget (recipientSlot (toArg message)))
@@ -385,7 +385,7 @@ theorem spec_ownerOvF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       debitCostF fork (checkState state message) message (valArg message) (fromArg message) +
       creditCostFeeF fork (checkState state message) message (valArg message) (toArg message)
         (fromArg message) + 313 + slotCost cO) ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Faulted (.invalidOpcode 0xfe)
         (readSlot (readSlot (creditedFeeF (checkState state message) message (valArg message) (toArg message)
           (fromArg message)) message.currentTarget 0) message.currentTarget

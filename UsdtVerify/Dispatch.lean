@@ -26,31 +26,31 @@ def MEM0 : ByteArray := memoryWrite (memoryExtend .empty 96) 64 (wordBytes 0x60)
 /-- The code before the table: from a call of 4 bytes or more, it computes the selector. -/
 theorem prelude (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     {gas : Nat} (hg : 62 ≤ gas) :
-    Hoare fork (At CODE message 0 [] .empty gas state substate)
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate)
       (At CODE message 54 [BitVec.ofNat 256 (selector message.data)] MEM0 (gas - 62) state
         substate) := by
   have hext : extendMemory ByteArray.empty.size [((BitVec.ofNat 256 (0x40 : UInt8).toNat : U256),
       (32 : U256))] = ⟨9, 96⟩ := by decide
   step push1R 0x60
   step push1R 0x40
-  step mstore (by code_fact) (by code_fact) (by simp only [hext]; omega)
-  step reshape rfl (by rw [hext]) (show _ = gas - 18 by simp only [hext]; omega)
+  step Gas.mstoreG (by code_fact) (by code_fact) (by simp only [hext]; omega)
+  step Gas.reshapeG rfl (by rw [hext]) (show _ = gas - 18 by simp only [hext]; omega)
   step push1R 0x04
-  step Logic.calldatasize (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  step Gas.calldatasizeG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   step binR 0x10 Local.instruction_lt
   step pushR 2 0x0196
-  refine Triple.seq (Logic.jumpi_of_eq_zero (by code_fact) (by code_fact) (by gas_ok) ?_) ?_
+  refine Triple.seq (Gas.jumpi_of_eq_zeroG (by code_fact) (by code_fact) (by gas_ok) ?_) ?_
   · have h4 : (BitVec.ofNat 256 (UInt8.toNat 4) : U256).toNat = 4 := by decide
     simp only [lessThan, h4, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hsize']
     split <;> first | omega | rfl
   step push1R 0x00
-  step calldataload (by code_fact) (by code_fact) (by gas_ok)
+  step Gas.calldataloadG (by code_fact) (by code_fact) (by gas_ok)
   step pushR 29 (BitVec.ofNat 256 (2 ^ 224))
   step swapR 0
   step binR 0x04 Local.instruction_div
   step pushR 4 (BitVec.ofNat 256 0xffffffff)
   step binR 0x16 Local.instruction_and
-  refine reshape ?_ (by rfl) (by gas_ok)
+  refine Gas.reshapeG ?_ (by rfl) (by gas_ok)
   have h0 : (BitVec.ofNat 256 (UInt8.toNat 0) : U256).toNat = 0 := by decide
   simp only [h0, List.cons.injEq, and_true]
   exact selector_word message.data

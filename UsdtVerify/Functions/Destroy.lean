@@ -40,7 +40,7 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
 theorem toBody (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xf3bdc228) (hv : message.value = 0) {gas : Nat}
     (hg : 850 ≤ gas) :
-    Hoare fork (At CODE message 0 [] .empty gas state substate)
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate)
       (At CODE message 7824 [0, 0, 0, addrArg message.data 0, 0x09b6,
           BitVec.ofNat 256 (selector message.data)]
         MEM0 (gas - 850) state substate) := by
@@ -64,10 +64,10 @@ theorem spec_notOwner (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.siz
     (hv : message.value = 0) (hown : callerWord message ≠ ownerOf state message.currentTarget)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hg : 925 + slotCost c0 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (925 + slotCost c0)) (readSlot state message.currentTarget 0)
         (accessSlot substate message.currentTarget 0)) := by
-  refine Spec.seq (toBody hsize hsize' hsel hv (by omega)) ?_
+  refine Gas.SpecG.seq (toBody hsize hsize' hsel hv (by omega)) ?_
   refine (ownerRevert hfork (by decide) (by simp) size_MEM0 hc0 hown
     (by gas_ok)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
@@ -96,7 +96,7 @@ theorem spec_notListed (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.si
     (hcL : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
       (listSlot (addrArg message.data 0)) = cL) {gas : Nat}
     (hg : 1074 + slotCost c0 + slotCost cL ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (1074 + slotCost c0 + slotCost cL))
         (readSlot (readSlot state message.currentTarget 0) message.currentTarget
           (listSlot (addrArg message.data 0)))
@@ -107,7 +107,7 @@ theorem spec_notListed (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.si
       [((0 : U256), (0 : U256))] = ⟨0, 0⟩ := by
     rw [size_mapMem size_MEM0]; decide
   simp only [listSlot] at hnl hcL ⊢
-  refine Spec.seq (toBody hsize hsize' hsel hv (by omega)) ?_
+  refine Gas.SpecG.seq (toBody hsize hsize' hsel hv (by omega)) ?_
   step ownerOk hfork (by decide) (by simp) hc0 hown (by gas_ok)
   at_pc 7911
   step jumpdestR
@@ -118,12 +118,12 @@ theorem spec_notListed (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.si
   step pushR 1 (0 : U256)
   step swapR 0
   norm
-  step sload hfork (cold := cL) (by code_fact) (by code_fact) hcL (by gas_ok)
+  step Gas.sloadG hfork (cold := cL) (by code_fact) (by code_fact) hcL (by gas_ok)
   rw [getStorage_eq, storageAt_readSlot]
   step swapR 0
   norm
   step pushR 2 (0x0100 : U256)
-  step Local.exp (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
+  step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
   step binR 0x04 Local.instruction_div
@@ -135,7 +135,7 @@ theorem spec_notListed (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.si
   step jumpi0R (lowTest_eq hnl)
   step pushR 1 (0 : U256)
   step dupR 0
-  refine (Logic.revert (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
+  refine (Gas.revertG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
     (by rw [hz]; gas_ok)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   refine ⟨hr, he, ?_, ?_, hs, hss⟩

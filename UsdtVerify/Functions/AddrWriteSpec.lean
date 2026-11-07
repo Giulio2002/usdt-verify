@@ -34,10 +34,10 @@ theorem spec_deprecate_notOwner (hfork : .berlin ≤ fork) (hsize : 4 ≤ messag
     (hv : message.value = 0) (hown : callerWord message ≠ ownerOf state message.currentTarget)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hg : 262 + slotCost c0 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (262 + slotCost c0)) (readSlot state message.currentTarget 0)
         (accessSlot substate message.currentTarget 0)) := by
-  refine Spec.seq (toBody1 (e := 553) (r := 0x0260) (b := 2646) (t := 2) (by decide) (by decide)
+  refine Gas.SpecG.seq (toBody1 (e := 553) (r := 0x0260) (b := 2646) (t := 2) (by decide) (by decide)
     (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
   refine (ownerRevert hfork (mem_CHECKS (by decide)) (by simp) size_MEM0 hc0 hown
     (by gas_ok)).consequence (fun _ h => h) ?_
@@ -49,10 +49,10 @@ theorem spec_transferOwnership_notOwner (hfork : .berlin ≤ fork) (hsize : 4 �
     (hv : message.value = 0) (hown : callerWord message ≠ ownerOf state message.currentTarget)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hg : 900 + slotCost c0 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - (900 + slotCost c0)) (readSlot state message.currentTarget 0)
         (accessSlot substate message.currentTarget 0)) := by
-  refine Spec.seq (toBody1 (e := 2374) (r := 0x097d) (b := 7605) (t := 31) (by decide)
+  refine Gas.SpecG.seq (toBody1 (e := 2374) (r := 0x097d) (b := 7605) (t := 31) (by decide)
     (by decide) (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
   refine (ownerRevert hfork (mem_CHECKS (by decide)) (by simp) size_MEM0 hc0 hown
     (by gas_ok)).consequence (fun _ h => h) ?_
@@ -66,10 +66,10 @@ theorem spec_transferOwnership_zero (hfork : .berlin ≤ fork) (hsize : 4 ≤ me
     (hz : addrArg message.data 0 = 0)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hg : 947 + slotCost c0 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false .empty (gas - (947 + slotCost c0)) (readSlot state message.currentTarget 0)
         (accessSlot substate message.currentTarget 0)) := by
-  refine Spec.seq (toBody1 (e := 2374) (r := 0x097d) (b := 7605) (t := 31) (by decide)
+  refine Gas.SpecG.seq (toBody1 (e := 2374) (r := 0x097d) (b := 7605) (t := 31) (by decide)
     (by decide) (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
   step ownerOk hfork (mem_CHECKS (by decide)) (by simp) hc0 hown (by gas_ok)
   at_pc 7696
@@ -95,7 +95,7 @@ theorem spec_transferOwnership (hfork : .berlin ≤ fork) (hglam : fork < .glams
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hstip : 3401 + slotCost c0 ≤ gas)
     (hg : 1114 + slotCost c0 + ownCost fork state message ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false .empty (gas - (1114 + slotCost c0 + ownCost fork state message))
         (writeSlot state message.currentTarget 0
           (withAddr (storageAt state message.currentTarget 0) (addrArg message.data 0)))
@@ -103,7 +103,7 @@ theorem spec_transferOwnership (hfork : .berlin ≤ fork) (hglam : fork < .glams
           (storageAt state message.currentTarget 0)
           (withAddr (storageAt state message.currentTarget 0) (addrArg message.data 0)))) := by
   simp only [ownCost] at hg ⊢
-  refine Spec.seq (toBody1 (e := 2374) (r := 0x097d) (b := 7605) (t := 31) (by decide)
+  refine Gas.SpecG.seq (toBody1 (e := 2374) (r := 0x097d) (b := 7605) (t := 31) (by decide)
     (by decide) (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
   step ownerOk hfork (mem_CHECKS (by decide)) (by simp) hc0 hown (by gas_ok)
   at_pc 7696
@@ -183,12 +183,12 @@ theorem spec_deprecate (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (originalAt state message.currentTarget 10) (storageAt state message.currentTarget 10)
       (withPaused (storageAt state message.currentTarget 10) 1) false ≤ gas)
     (hg : 1628 + slotCost c0 + slotCost c10 + depCost fork state message ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted false .empty (gas - (1628 + slotCost c0 + slotCost c10 + depCost fork state message))
         (depState state message) (depSub fork substate state message)) := by
   simp only [depCost, depWord] at hg ⊢
   have hacc0 := hasAccount_readSlot (n := 0) (other := message.currentTarget) hacc
-  refine Spec.seq (toBody1 (e := 553) (r := 0x0260) (b := 2646) (t := 2) (by decide) (by decide)
+  refine Gas.SpecG.seq (toBody1 (e := 553) (r := 0x0260) (b := 2646) (t := 2) (by decide) (by decide)
     (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
   step ownerOk hfork (mem_CHECKS (by decide)) (by simp) hc0 hown (by gas_ok)
   at_pc 2737

@@ -31,14 +31,14 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
 /-- The block at 406: `JUMPDEST PUSH1 0 DUP1 REVERT`, a revert with no output. -/
 theorem revert406 (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.length ≤ 16)
     {M : ByteArray} {gas : Nat} (hg : 7 ≤ gas) :
-    Spec fork (At CODE message 406 rest M gas state substate)
+    Gas.SpecG fork (At CODE message 406 rest M gas state substate)
       (Halted true .empty (gas - 7) state substate) := by
   have hz : extendMemory M.size [((0 : U256), (0 : U256))] = ⟨0, 0⟩ := by
     simp [extendMemory]
   step jumpdestR
   step pushR 1 (0 : U256)
   step dupR 0
-  refine (Logic.revert (Nat.le_trans (by decide) hfork) (by code_fact)
+  refine (Gas.revertG (Nat.le_trans (by decide) hfork) (by code_fact)
     (by code_fact) (by rw [hz]; gas_ok)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   refine ⟨hr, he, ?_, ?_, hs, hss⟩
@@ -51,7 +51,7 @@ theorem spec_unknown (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size
     (hsize' : message.data.size < 2 ^ 256)
     (hunk : BitVec.ofNat 256 (selector message.data) ∉ ENTRIES.map Prod.fst)
     {gas : Nat} (hg : 773 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - 773) state substate) := by
   have hne : ∀ e ∈ ENTRIES, e.1 ≠ BitVec.ofNat 256 (selector message.data) := by
     intro e he heq
@@ -63,7 +63,7 @@ theorem spec_unknown (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size
   have h1 := dispatch (state := state) (substate := substate) hsize hsize' (gas := gas)
     (by rw [ht]; omega)
   rw [ht, hb] at h1
-  refine Spec.seq (h1.seq (repc (pc' := 406) (by decide))) ?_
+  refine Gas.SpecG.seq (h1.seq (repc (pc' := 406) (by decide))) ?_
   refine (revert406 hfork (by simp) (by omega)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; omega, hs, hss⟩
@@ -72,16 +72,16 @@ theorem spec_unknown (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size
 with no output, for any call value. -/
 theorem spec_short (hfork : .berlin ≤ fork) (hsize : message.data.size < 4)
     {gas : Nat} (hg : 46 ≤ gas) :
-    Spec fork (At CODE message 0 [] .empty gas state substate)
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
       (Halted true .empty (gas - 46) state substate) := by
   have hext : extendMemory ByteArray.empty.size [((BitVec.ofNat 256 (0x40 : UInt8).toNat : U256),
       (32 : U256))] = ⟨9, 96⟩ := by decide
   step push1R 0x60
   step push1R 0x40
-  step mstore (by code_fact) (by code_fact) (by simp only [hext]; omega)
-  step reshape rfl (by rw [hext]) (show _ = gas - 18 by simp only [hext]; omega)
+  step Gas.mstoreG (by code_fact) (by code_fact) (by simp only [hext]; omega)
+  step Gas.reshapeG rfl (by rw [hext]) (show _ = gas - 18 by simp only [hext]; omega)
   step push1R 0x04
-  step Logic.calldatasize (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  step Gas.calldatasizeG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   step binR 0x10 Local.instruction_lt
   step pushR 2 0x0196
   step jumpiR (by

@@ -106,7 +106,7 @@ theorem ownerPart (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hown : (balOf st message.currentTarget).toNat + fee.toNat < 2 ^ 256) {gas : Nat}
     (hg : 4409 + slotCost cO + sstoreCost fork o (balOf st message.currentTarget)
       (add (balOf st message.currentTarget) fee) false ≤ gas) :
-    Spec fork (At CODE message 10298 [0x40, send, fee, v, a, 0x1699, v, a, 0x078a, sel] M gas st ss)
+    Gas.SpecG fork (At CODE message 10298 [0x40, send, fee, v, a, 0x1699, v, a, 0x078a, sel] M gas st ss)
       (Halted false .empty (gas - (4409 + slotCost cO + sstoreCost fork o (balOf st message.currentTarget)
           (add (balOf st message.currentTarget) fee) false))
         (readSlot (ownedB st message.currentTarget fee) message.currentTarget 0)
@@ -166,7 +166,7 @@ theorem feeHead (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hg : 964 + readCost c3 c4 cS cT + mulCost v +
       capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
       debitCost fork state message v + creditCostFee fork state message v a + 2401 ≤ gas) :
-    Hoare fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
+    Gas.HoareG fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
       (At CODE message 10298 [0x40, sendOf state message v, feeOf state message v, v, a, 0x1699,
           v, a, 0x078a, sel] (memA M message a)
         (gas - (964 + readCost c3 c4 cS cT + mulCost v +
@@ -264,7 +264,7 @@ theorem bodyFee (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
       debitCost fork state message v + creditCostFee fork state message v a +
       ownerCost fork state message v a ≤ gas) :
-    Spec fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
+    Gas.SpecG fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
       (Halted false .empty (gas - (5373 + readCost c3 c4 cS cT + slotCost cO + mulCost v +
         capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
         debitCost fork state message v + creditCostFee fork state message v a +

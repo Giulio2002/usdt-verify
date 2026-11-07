@@ -1,5 +1,5 @@
 import UsdtVerify.Gas
-import UsdtVerify.Steps
+import UsdtVerify.Local.Rules
 
 /-!
 # Rules of opcodes over `StepG`
