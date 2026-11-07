@@ -1,0 +1,103 @@
+import UsdtVerify.Functions.TotalSupply
+import UsdtVerify.Functions.BalanceOf
+import UsdtVerify.Functions.Transfer
+import UsdtVerify.Functions.TransferSuccess
+import UsdtVerify.Functions.ApproveSpec
+import UsdtVerify.Functions.ApproveRevert
+import UsdtVerify.Functions.TransferFromSpec
+import UsdtVerify.Functions.TransferFeeSpec
+import UsdtVerify.Functions.TransferFault
+import UsdtVerify.Functions.TransferFaults
+import UsdtVerify.Functions.TransferFromFault
+import UsdtVerify.Functions.TransferFromFeeSpec
+import UsdtVerify.Functions.DeprecatedTransfer
+import UsdtVerify.Functions.DeprecatedTransferFrom
+import UsdtVerify.Functions.TransferFromFault2
+import UsdtVerify.Summary
+import UsdtVerify.Functions.Deprecated
+import UsdtVerify.Functions.DeprecatedBalance
+
+/-! # Test: the axioms of the main theorems (printed at build time). -/
+
+#print axioms UsdtVerify.TotalSupply.runFrame_spec
+#print axioms UsdtVerify.BalanceOf.runFrame_spec
+#print axioms UsdtVerify.Transfer.runFrame_paused
+#print axioms UsdtVerify.Transfer.runFrame_blacklisted
+#print axioms UsdtVerify.Transfer.runFrame_short
+#print axioms UsdtVerify.TransferOk.spec_ok
+#print axioms UsdtVerify.TransferOk.runFrame_ok
+#print axioms UsdtVerify.Approve.spec_zero
+#print axioms UsdtVerify.Approve.spec_set
+#print axioms UsdtVerify.Approve.runFrame_revert
+#print axioms UsdtVerify.TransferFrom.spec_ok
+#print axioms UsdtVerify.TransferFrom.runFrame_ok
+#print axioms UsdtVerify.TransferFee.spec_fee
+#print axioms UsdtVerify.TransferFee.runFrame_fee
+#print axioms UsdtVerify.TransferOk.spec_low
+#print axioms UsdtVerify.TransferOk.runFrame_low
+#print axioms UsdtVerify.TransferOk.spec_mulOv
+#print axioms UsdtVerify.TransferOk.spec_feeGt
+#print axioms UsdtVerify.TransferOk.spec_toOv
+#print axioms UsdtVerify.TransferOk.spec_ownerOv
+#print axioms UsdtVerify.TransferFrom.spec_paused
+#print axioms UsdtVerify.TransferFrom.spec_blacklisted
+#print axioms UsdtVerify.TransferFrom.spec_short
+#print axioms UsdtVerify.TransferFrom.spec_allowLow
+#print axioms UsdtVerify.TransferFrom.spec_balLow
+#print axioms UsdtVerify.TransferFrom.spec_mulOv
+#print axioms UsdtVerify.TransferFrom.spec_feeF
+#print axioms UsdtVerify.TransferFrom.runFrame_feeF
+#print axioms UsdtVerify.TransferFrom.spec_feeGtF
+#print axioms UsdtVerify.TransferFrom.spec_toOvF
+#print axioms UsdtVerify.TransferFrom.spec_ownerOvF
+#print axioms UsdtVerify.Summary.transfer_ok_effects
+#print axioms UsdtVerify.Summary.transferFrom_ok_effects
+#print axioms UsdtVerify.Summary.transfer_fee_effects
+#print axioms UsdtVerify.Summary.transferFrom_fee_effects
+#print axioms UsdtVerify.TransferOk.runFrame_mulOv
+#print axioms UsdtVerify.TransferOk.runFrame_feeGt
+#print axioms UsdtVerify.TransferOk.runFrame_toOv
+#print axioms UsdtVerify.TransferOk.runFrame_ownerOv
+#print axioms UsdtVerify.TransferFrom.runFrame_paused
+#print axioms UsdtVerify.TransferFrom.runFrame_blacklisted
+#print axioms UsdtVerify.TransferFrom.runFrame_short
+#print axioms UsdtVerify.TransferFrom.runFrame_allowLow
+#print axioms UsdtVerify.TransferFrom.runFrame_balLow
+#print axioms UsdtVerify.TransferFrom.runFrame_mulOv
+#print axioms UsdtVerify.TransferFrom.runFrame_feeGtF
+#print axioms UsdtVerify.TransferFrom.runFrame_toOvF
+#print axioms UsdtVerify.TransferFrom.runFrame_ownerOvF
+#print axioms UsdtVerify.Approve.runFrame_zero
+#print axioms UsdtVerify.Approve.runFrame_set
+#print axioms UsdtVerify.Summary.transfer_ok_conserves
+#print axioms UsdtVerify.Summary.transfer_fee_conserves
+#print axioms UsdtVerify.Summary.transferFrom_ok_conserves
+#print axioms UsdtVerify.Summary.transferFrom_fee_conserves
+#print axioms UsdtVerify.Deprecated.spec_dep
+#print axioms UsdtVerify.Deprecated.spec_dep_answers
+#print axioms UsdtVerify.Deprecated.spec_dep_fails
+#print axioms UsdtVerify.Deprecated.runFrame_dep_answers
+#print axioms UsdtVerify.Deprecated.runFrame_dep_process
+#print axioms UsdtVerify.Deprecated.spec_depNoCode
+#print axioms UsdtVerify.Local.extcodesize
+#print axioms UsdtVerify.Local.gasOp
+#print axioms UsdtVerify.DeprecatedBalance.spec_depB
+#print axioms UsdtVerify.DeprecatedBalance.spec_depB_answers
+#print axioms UsdtVerify.DeprecatedBalance.spec_depB_fails
+#print axioms UsdtVerify.DeprecatedBalance.runFrame_depB_process
+#print axioms UsdtVerify.DeprecatedBalance.spec_depBNoCode
+#print axioms UsdtVerify.DeprecatedTransfer.spec_depT
+#print axioms UsdtVerify.DeprecatedTransfer.spec_depT_succeeds
+#print axioms UsdtVerify.DeprecatedTransfer.spec_depT_fails
+#print axioms UsdtVerify.DeprecatedTransfer.runFrame_depT_process
+#print axioms UsdtVerify.DeprecatedTransfer.spec_depTNoCode
+#print axioms UsdtVerify.DeprecatedTransfer.spec_depA
+#print axioms UsdtVerify.DeprecatedTransfer.spec_depA_succeeds
+#print axioms UsdtVerify.DeprecatedTransfer.spec_depA_fails
+#print axioms UsdtVerify.DeprecatedTransfer.runFrame_depA_process
+#print axioms UsdtVerify.DeprecatedTransfer.spec_depANoCode
+#print axioms UsdtVerify.DeprecatedTransferFrom.spec_depF
+#print axioms UsdtVerify.DeprecatedTransferFrom.spec_depF_succeeds
+#print axioms UsdtVerify.DeprecatedTransferFrom.spec_depF_fails
+#print axioms UsdtVerify.DeprecatedTransferFrom.runFrame_depF_process
+#print axioms UsdtVerify.DeprecatedTransferFrom.spec_depFNoCode
