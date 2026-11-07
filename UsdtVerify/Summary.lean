@@ -2,6 +2,9 @@ import Batteries.Tactic.Alias
 import UsdtVerify.Complete.Dispatch
 import UsdtVerify.Complete.Read
 import UsdtVerify.Complete.Transfer
+import UsdtVerify.Complete.Approve
+import UsdtVerify.Complete.TransferFrom
+import UsdtVerify.Complete.Owner
 import UsdtVerify.Functions.TotalSupply
 import UsdtVerify.Functions.BalanceOf
 import UsdtVerify.Functions.Transfer
@@ -335,6 +338,18 @@ Not deprecated, Berlin on (transfer: also before Glamsterdam, not static, the co
 account): every run of the loop that ends with no error, for any gas, is the success path of the
 specification, with the exact output, gas, state and substate. For transfer, the conclusion
 also lists every check the run passed, and the end is the fee-0 path or the fee path.
+
+Round 13, same method: `approve_complete` (not deprecated; `v = 0`, or `v ≠ 0` over an allowance
+of 0; the new revert `Approve.spec_payload` excludes call data below 68 bytes),
+`transferFrom_complete` (not deprecated; every check, then fee 0 or fee > 0), and the owner
+functions `pause_complete`, `unpause_complete`, `addBlackList_complete`,
+`removeBlackList_complete`, `issue_complete`, `redeem_complete`, `setParams_complete` (the new
+INVALID spec `SetParamsSpec.spec_mulOv` excludes the overflow of `m * 10^d`),
+`deprecate_complete`, `transferOwnership_complete`, `destroyBlackFunds_complete` (not
+deprecated). Each conclusion states that the caller is the owner and the `require`s passed.
+Hypotheses of each: Berlin ≤ fork < Glamsterdam, `hstatic` (not static), `hacc` (the contract
+has an account), size < 2^256, the selector, the coldness flags as named in the specs, and
+`hdep` (not deprecated) for approve, transferFrom and destroyBlackFunds.
 -/
 
 namespace UsdtVerify.Summary
@@ -349,6 +364,20 @@ alias dispatch_complete := Complete.runFrame_ok_dispatch
 alias totalSupply_complete := Complete.ok_totalSupply
 alias balanceOf_complete := Complete.ok_balanceOf
 alias transfer_complete := Complete.ok_transfer
+alias approve_complete := Complete.ok_approve
+alias transferFrom_complete := Complete.ok_transferFrom
+alias pause_complete := Complete.ok_pause
+alias unpause_complete := Complete.ok_unpause
+alias addBlackList_complete := Complete.ok_addBlackList
+alias removeBlackList_complete := Complete.ok_removeBlackList
+alias issue_complete := Complete.ok_issue
+alias redeem_complete := Complete.ok_redeem
+alias setParams_complete := Complete.ok_setParams
+alias deprecate_complete := Complete.ok_deprecate
+alias transferOwnership_complete := Complete.ok_transferOwnership
+alias destroyBlackFunds_complete := Complete.ok_destroyBlackFunds
+alias approve_short := Approve.spec_payload
+alias setParams_mulOv := SetParamsSpec.spec_mulOv
 alias totalSupply_spec := TotalSupply.spec
 alias balanceOf_spec := BalanceOf.spec
 alias transfer_paused := Transfer.spec_paused

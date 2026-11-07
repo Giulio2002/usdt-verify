@@ -41,8 +41,8 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
     when the recipient's or the owner's credit overflows.
   - Success with fee 0 and with fee > 0: the exact balance writes and `Transfer` logs.
   - `transfer` checks only the sender's blacklist status, not the recipient's.
-- **approve(s, v)**: v = 0; v ≠ 0 over a zero allowance; and the revert when v ≠ 0 and the
-  allowance is nonzero.
+- **approve(s, v)**: v = 0; v ≠ 0 over a zero allowance; the revert when v ≠ 0 and the
+  allowance is nonzero; and the revert when the call data has fewer than 68 bytes.
 - **transferFrom(f, t, v)**:
   - Reverts: when paused, when `f` is blacklisted, and when the call data is short.
   - Every INVALID case, as for transfer, plus an allowance below `v`.
@@ -151,7 +151,8 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   - Otherwise, if `m * 10^decimals < 2^256`, the run stops after writing `b` to slot 3 and
     `m * 10^decimals` to slot 4. Every other slot is unchanged. One log `Params(b, f)` is
     appended, with the two new words as data. The gas is exact.
-  - The overflow of that product is not covered. It needs `decimals ≥ 75`.
+  - When that product overflows (it needs `decimals ≥ 75`), SafeMath's assert ends the run in
+    INVALID (`SetParamsSpec.spec_mulOv`, round 13).
 - **deprecate(a) and transferOwnership(a)** (`AddrWriteSpec.lean`).
   - A caller that is not the owner gets a revert with empty output.
   - `deprecate` stops after two writes of slot 10. Afterwards `deprecated` (byte 20) is 1,
@@ -264,8 +265,17 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   blacklist, payload size, the SafeMath overflows, the balance), and it is the fee-0 path or
   the fee path. Its hypotheses: Berlin ≤ fork < Glamsterdam, the frame not static, the contract
   has an account.
-- Not yet proved: the same for the other functions, and so the invariant over all successful
-  calls.
+- Round 13 adds the same for approve(address,uint256) and transferFrom(address,address,uint256)
+  (not deprecated), and for the owner functions pause, unpause, addBlackList, removeBlackList,
+  issue, redeem, setParams, deprecate, transferOwnership and destroyBlackFunds (the last not
+  deprecated). Each conclusion lists the checks the run passed (for the owner functions: the
+  caller is the owner, and each `require`). Two new specifications were needed to exclude
+  cases: approve with call data shorter than 68 bytes reverts (`Approve.spec_payload`), and
+  setParams with `m * 10^d ≥ 2^256` ends in INVALID (`SetParamsSpec.spec_mulOv`).
+  Hypotheses: Berlin ≤ fork < Glamsterdam, the frame not static, the contract has an account,
+  call data below 2^256 bytes, and not deprecated for approve, transferFrom, destroyBlackFunds.
+- Not yet proved: the same for the getters and name/symbol, the deprecated paths, and so the
+  invariant over all successful calls.
 
 ## What is trusted
 
@@ -282,9 +292,8 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
 
 ## What is not covered
 
-- That the proved success paths are all the successful runs of a call, for the functions other
-  than totalSupply, balanceOf and transfer (not deprecated), and the invariant on the deprecated
-  paths.
+- That the proved success paths are all the successful runs of a call, for the getters,
+  name/symbol and the deprecated paths, and the invariant on the deprecated paths.
 - `KeccakSep` (a hypothesis of the invariant theorems, about keccak).
 - Runs that run out of gas below the stated bounds, except at the dispatcher (see above).
 - Forks before Berlin, and Glamsterdam onwards on the writing and calling paths.

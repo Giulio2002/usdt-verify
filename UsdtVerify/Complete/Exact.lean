@@ -57,4 +57,42 @@ theorem faulted_error {err : EvmError} {st : State.TransactionState} {ss : Subst
     (e : Evm fork Nat) (h : Faulted err st ss e) : e.error ≠ none := by
   rw [h.2.1]; simp
 
+/-- `no_ok` for a specification with two gas bounds (the bounds are found by unification). -/
+theorem no_ok2 {B1 B2 : Nat} {Q : Nat → Evm fork Nat → Prop}
+    (h : ∀ g, B1 ≤ g → B2 ≤ g → SpecG fork (At code message pc stack memory g state substate) (Q g))
+    (herr : ∀ g e, Q g e → e.error ≠ none)
+    {gas : Nat} (start : At code message pc stack memory gas state substate evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hok : s.error = none) : False :=
+  no_ok (B := B1 + B2) (fun g hg => h g (le_l hg) (le_r hg)) herr start within hrun hok
+
+/-- `ok_exact` for a specification with two gas bounds, the second one the cost. -/
+theorem ok_exact2 {B1 cost : Nat} {out : ByteArray}
+    {st' : State.TransactionState} {ss' : Substate}
+    (h : ∀ g, B1 ≤ g → cost ≤ g → SpecG fork (At code message pc stack memory g state substate)
+      (Halted false out (g - cost) st' ss'))
+    {gas : Nat} (start : At code message pc stack memory gas state substate evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hok : s.error = none) :
+    cost ≤ gas ∧ s.running = false ∧ s.output = out ∧ s.gas = gas - cost ∧ s.state = st' ∧
+      s.substate = ss' :=
+  ok_exact (B := B1 + cost) (Nat.le_add_left _ _) (fun g hg => h g (le_l hg) (le_r hg))
+    start within hrun hok
+
+/-- `ok_exact` for a specification with three gas bounds, the third one the cost. -/
+theorem ok_exact3 {B1 B2 cost : Nat} {out : ByteArray}
+    {st' : State.TransactionState} {ss' : Substate}
+    (h : ∀ g, B1 ≤ g → B2 ≤ g → cost ≤ g →
+      SpecG fork (At code message pc stack memory g state substate)
+        (Halted false out (g - cost) st' ss'))
+    {gas : Nat} (start : At code message pc stack memory gas state substate evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hok : s.error = none) :
+    cost ≤ gas ∧ s.running = false ∧ s.output = out ∧ s.gas = gas - cost ∧ s.state = st' ∧
+      s.substate = ss' :=
+  ok_exact2 (B1 := B1 + B2) (fun g h1 h2 => h g (le_l h1) (le_r h1) h2) start within hrun hok
+
 end UsdtVerify.Complete

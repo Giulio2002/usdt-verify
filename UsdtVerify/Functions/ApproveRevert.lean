@@ -135,4 +135,73 @@ theorem runFrame_revert (hfork : .berlin ≤ fork)
           (allowArg message)) stopped :=
   (spec_revert hfork hlong hsz hsel hv hdep hnz hallow hc10 hcA hg).runFrame start within
 
+/-- At 2931, call data of fewer than 68 bytes (two argument words) makes the code revert
+(TetherToken's `onlyPayloadSize(2 * 32)`). -/
+theorem payloadRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.length ≤ 16)
+    (hshort : message.data.size < 68) {gas : Nat} (hg : 54 ≤ gas) {M : ByteArray}
+    (hM : M.size = 96) :
+    Gas.SpecG fork (At CODE message 2931 rest M gas state substate)
+      (Halted true .empty (gas - 54) state substate) := by
+  have hz : extendMemory M.size [((0 : U256), (0 : U256))] = ⟨0, 0⟩ := by rw [hM]; decide
+  step jumpdestR
+  step pushR 1 (0x40 : U256)
+  step pushR 1 (0x04 : U256)
+  step dupR 1
+  step binR 0x01 instruction_add
+  step pushR 1 (0 : U256)
+  step Gas.calldatasizeG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  step swapR 0
+  norm
+  step popR
+  step binR 0x10 Local.instruction_lt
+  step unR 0x15 instruction_iszero
+  step unR 0x15 instruction_iszero
+  step unR 0x15 instruction_iszero
+  step pushR 2 (0x0b8b : U256)
+  refine Triple.seq (Gas.jumpi_of_eq_zeroG (by code_fact) (by code_fact) (by gas_ok) ?_) ?_
+  · have h68 : (add (0x40 : U256) (0x04 : U256)).toNat = 68 := by decide
+    have hlt : lessThan (BitVec.ofNat 256 message.data.size) (add (0x40 : U256) (0x04 : U256)) = 1 := by
+      simp only [lessThan, h68, BitVec.toNat_ofNat, Nat.mod_eq_of_lt (show message.data.size < 2 ^ 256 by omega)]
+      rw [if_pos hshort]
+    rw [hlt]
+    decide
+  step pushR 1 (0 : U256)
+  step dupR 0
+  refine (Gas.revertG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact)
+    (by rw [hz]; gas_ok)).consequence (fun _ h => h) ?_
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  refine ⟨hr, he, ?_, ?_, hs, hss⟩
+  · rw [ho]; simp [memoryReadBytes]
+  · rw [hgas, hz]; gas_ok
+
+/-- The gas of the short-payload path of `approve`. -/
+abbrev SHORT_COST_A : Nat := 280
+
+/-- The specification of an `approve(address,uint256)` call whose call data is too short.
+
+The call data starts with the selector 0x095ea7b3 and has from 4 to 67 bytes, and the call has no
+value. Then TetherToken's payload check of two argument words (at 2931, before the deprecation
+check) fails and the run reverts with no output, state and substate unchanged, after 280 gas. -/
+theorem spec_payload (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
+    (hshort : message.data.size < 68) (hsel : selector message.data = 0x095ea7b3)
+    (hv : message.value = 0) {gas : Nat} (hg : SHORT_COST_A ≤ gas) :
+    Gas.SpecG fork (At CODE message 0 [] .empty gas state substate)
+      (Halted true .empty (gas - SHORT_COST_A) state substate) := by
+  simp only [SHORT_COST_A] at hg ⊢
+  have hsize' : message.data.size < 2 ^ 256 := by omega
+  have ht : tested (BitVec.ofNat 256 (selector message.data)) ENTRIES = 3 := by
+    rw [hsel]; decide
+  have hb : branch (BitVec.ofNat 256 (selector message.data)) 54 (entrySize 4 2) ENTRIES =
+      610 := by
+    rw [hsel]; decide
+  have h1 := dispatch (state := state) (substate := substate) hsize hsize' (gas := gas)
+    (by rw [ht]; gas_ok)
+  rw [ht, hb] at h1
+  refine Gas.SpecG.seq h1 ?_
+  step entry hv (by gas_ok)
+  refine ((payloadRevert hfork (by simp) hshort (by gas_ok) size_MEM0)).consequence
+    (fun _ h => h) ?_
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
+
 end UsdtVerify.Approve

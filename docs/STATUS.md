@@ -647,13 +647,35 @@ entry; `DESTS` = the 32 destinations).
   `fee ≤ v`, `v ≤ balances[caller]`, no overflow at the recipient) and is `spec_ok` (fee 0) or
   `spec_fee` (fee > 0 and no overflow at the owner), exact gas, state, substate, empty output.
 
+### Round 13: completeness of approve, transferFrom and the owner functions (Complete/Approve.lean, Complete/TransferFrom.lean, Complete/Owner.lean, Functions/SetParamsFault.lean)
+- New specs: `Approve.payloadRevert` / `Approve.spec_payload` (approve with 4 ≤ size < 68:
+  TetherToken's payload check at 2931 fails before the deprecation check; REVERT, no output,
+  state and substate unchanged, gas 280). `SetParamsSpec.mulCallFault` / `spec_mulOv` (the owner's
+  setParams with `b < 20`, `m < 50` and `m * 10^d ≥ 2^256`: INVALID at 10802 after the write of
+  slot 3).
+- `no_ok2`, `ok_exact2`, `ok_exact3`: `no_ok`/`ok_exact` for specs with two or three gas
+  hypotheses; the bounds are found by unification (no explicit `B` sums).
+- `ok_approve` (not deprecated): 68 ≤ size, and `spec_zero` (`v = 0`) or `spec_set` (`v ≠ 0`,
+  allowance 0); excluded: `spec_payload`, `spec_revert`.
+- `ok_transferFrom` (not deprecated): 100 ≤ size, not paused, `f` not blacklisted, no overflow of
+  `v * rate`, allowance MAX_UINT or ≥ v, `fee ≤ v`, `v ≤ balances[f]`, no overflow at `t`; then
+  `spec_ok` (fee 0) or `spec_feeF` (fee > 0, no overflow at the owner). Excluded: `spec_paused`,
+  `spec_blacklisted`, `spec_short`, `spec_mulOv`, `spec_allowLow`, `spec_feeGtF`, `spec_balLow`,
+  `spec_toOvF`, `spec_ownerOvF`.
+- `ok_pause`, `ok_unpause`, `ok_addBlackList`, `ok_removeBlackList`, `ok_issue`, `ok_redeem`,
+  `ok_setParams`, `ok_deprecate`, `ok_transferOwnership` (`a = 0`: nothing written; `a ≠ 0`),
+  `ok_destroyBlackFunds` (not deprecated): the caller is the owner and every `require` passed,
+  exact output, gas, state, substate. None of these functions checks the call data size.
+- Hypotheses of all of them, by name: `hfork` (Berlin ≤ fork), `hglam` (fork < Glamsterdam),
+  `hstatic` (not static), `hacc` (the contract has an account), `hsize'` (size < 2^256), `hsel`,
+  the coldness flags `hc..` (equations naming each flag, any value), and `hdep` (byte 20 of slot
+  10 is 0) for approve, transferFrom and destroyBlackFunds.
+
 ## Open (not proved)
-- Completeness per function: done for the dispatcher (round 11) and for totalSupply, balanceOf,
-  transfer, not deprecated (round 12). Still to do, same method (`ok_exact`/`no_ok`): approve
-  (needs a new spec: the payload revert when size < 68 is not proved), transferFrom, the owner
-  functions, the getters, name/symbol (slot words that are odd with w/2 < 32 are not covered by
-  a spec, so they stay a named hypothesis),
-  destroyBlackFunds.
+- Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
+  transfer (round 12), approve, transferFrom, the ten owner functions (round 13), not deprecated
+  where the function reads the flag. Still to do: the getters, name/symbol (slot words that are
+  odd with w/2 < 32 are not covered by a spec, so they stay a named hypothesis).
 - The deprecated paths split at GAS (the prefix is now over `StepG`; the GAS step itself and
   the CALL need a separate argument), and the invariant over every successful call.
 - Hypotheses the completeness theorems keep, by name: `hstatic` (frame not static; a static

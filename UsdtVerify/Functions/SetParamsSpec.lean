@@ -11,7 +11,8 @@ Write `b` for argument word 0 (`newBasisPoints`), `m` for argument word 1 (`newM
 - `spec_setParams`: the owner, `b < 20`, `m < 50`, `m * 10^d < 2^256` ⇒ STOP; slot 3 := `b`,
   slot 4 := `f`; log `Params(b, f)`.
 
-The overflow of `m * 10^d` (SafeMath's assert, INVALID) is not covered; it needs `d ≥ 75`.
+The overflow of `m * 10^d` (SafeMath's assert, INVALID; it needs `d ≥ 75`) is `spec_mulOv` in
+SetParamsFault.lean.
 -/
 
 namespace UsdtVerify.SetParamsSpec

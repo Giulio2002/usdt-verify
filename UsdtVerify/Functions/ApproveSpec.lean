@@ -6,7 +6,8 @@ import UsdtVerify.Functions.Approve
 `spec_zero`: `approve(s, 0)` sets `allowed[msg.sender][s]` to 0 without reading it.
 `spec_set`: `approve(s, v)` with `v ≠ 0` and `allowed[msg.sender][s] = 0` sets it to `v`.
 Both log `Approval(msg.sender, s, v)` and stop. (With `v ≠ 0` and a nonzero allowance the
-bytecode reverts; that path is not stated here.)
+bytecode reverts, `spec_revert`; call data below 68 bytes reverts, `spec_payload`; both in
+ApproveRevert.lean.)
 -/
 
 namespace UsdtVerify.Approve

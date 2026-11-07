@@ -40,6 +40,10 @@ import UsdtVerify.Functions.StringsGen
 import UsdtVerify.Gas
 import UsdtVerify.GasRules
 import UsdtVerify.Complete.Dispatch
+import UsdtVerify.Complete.Approve
+import UsdtVerify.Complete.TransferFrom
+import UsdtVerify.Complete.Owner
+import UsdtVerify.Functions.SetParamsFault
 import UsdtVerify.Test.Axioms
 import UsdtVerify.Summary
 import UsdtVerify.Invariant

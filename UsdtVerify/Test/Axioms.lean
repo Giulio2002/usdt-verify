@@ -1,3 +1,6 @@
+import UsdtVerify.Complete.Approve
+import UsdtVerify.Complete.TransferFrom
+import UsdtVerify.Complete.Owner
 import UsdtVerify.Complete.Read
 import UsdtVerify.Complete.Transfer
 import UsdtVerify.Complete.Dispatch
@@ -293,3 +296,20 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Complete.ok_balanceOf
 #print axioms UsdtVerify.TransferFee.spec_fee
 #print axioms UsdtVerify.Complete.ok_transfer
+#print axioms UsdtVerify.Approve.spec_payload
+#print axioms UsdtVerify.Complete.ok_approve
+#print axioms UsdtVerify.Complete.ok_transferFrom
+#print axioms UsdtVerify.Complete.no_ok2
+#print axioms UsdtVerify.Complete.ok_exact2
+#print axioms UsdtVerify.Complete.ok_exact3
+#print axioms UsdtVerify.SetParamsSpec.spec_mulOv
+#print axioms UsdtVerify.Complete.ok_pause
+#print axioms UsdtVerify.Complete.ok_unpause
+#print axioms UsdtVerify.Complete.ok_addBlackList
+#print axioms UsdtVerify.Complete.ok_removeBlackList
+#print axioms UsdtVerify.Complete.ok_issue
+#print axioms UsdtVerify.Complete.ok_redeem
+#print axioms UsdtVerify.Complete.ok_setParams
+#print axioms UsdtVerify.Complete.ok_deprecate
+#print axioms UsdtVerify.Complete.ok_transferOwnership
+#print axioms UsdtVerify.Complete.ok_destroyBlackFunds
