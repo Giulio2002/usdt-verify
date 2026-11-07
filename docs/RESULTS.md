@@ -224,6 +224,25 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   - Together these cover every slot word that Solidity writes for a string. Odd words with
     `word / 2 < 32` are not covered; Solidity never writes them.
 
+- **The global invariant** (`Invariant.lean`). `Inv` says that the sum of `balances[a]` over all
+  2^160 addresses equals `_totalSupply` (slot 1), both read from the contract's storage.
+  - The theorems assume `KeccakSep`, a stated hypothesis about keccak that is not proved:
+    - distinct addresses have distinct balance slots;
+    - a balance slot is none of the fixed slots 0 to 10, and no slot of `isBlackListed` or
+      `allowed`;
+    - slot 1 is no slot of `isBlackListed` or `allowed`.
+  - Under it, and when the contract is not deprecated, the end state of each proved success
+    path keeps `Inv`, with the same no-wrap hypotheses that the path's specification already
+    makes. The paths are transfer and transferFrom (with fee 0 and with a fee), approve, pause,
+    unpause, transferOwnership, addBlackList, removeBlackList, setParams, deprecate, issue,
+    redeem and destroyBlackFunds. The read-only functions only record reads.
+  - destroyBlackFunds subtracts `d = balances[a]` from `_totalSupply` without a check. Under
+    `Inv`, `d` is one term of the sum, so `d ≤ _totalSupply`, the subtraction does not wrap, and
+    `Inv` still holds after it.
+  - `steps_inv` lifts the invariant to any finite sequence of these steps.
+  - Not proved: that these paths are all the successful runs of a call (there is no
+    completeness theorem over all inputs and gas), and anything about the deprecated paths.
+
 ## What is trusted
 
 - The Lean 4 kernel (v4.35.0).
@@ -239,7 +258,8 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
 
 ## What is not covered
 
-- Properties across several calls (invariants), and the global "sum of all balances =
-  `_totalSupply`". The global statement needs a sum over a mapping and is not stated.
+- That the proved success paths are all the successful runs of a call, and the invariant on the
+  deprecated paths.
+- `KeccakSep` (a hypothesis of the invariant theorems, about keccak).
 - Runs that run out of gas below the stated bounds.
 - Forks before Berlin, and Glamsterdam onwards on the writing and calling paths.

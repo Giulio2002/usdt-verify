@@ -85,6 +85,19 @@ All of this holds from the Berlin fork onwards, and before Glamsterdam on paths 
   - `transferOwnership` replaces the owner bits and keeps the paused byte. It does nothing for the zero address.
   - `destroyBlackFunds` reverts for a non-owner and for an address that is not blacklisted. Otherwise it sets the address's balance to 0, lowers the total supply by that balance with an unchecked subtraction, as the bytecode does, and emits `DestroyedBlackFunds`.
 
+## The supply invariant
+
+`UsdtVerify/Invariant.lean` defines the invariant: the sum of `balances[a]` over all 2^160 addresses equals `_totalSupply` (slot 1).
+
+- Every writing success path keeps it, for every function above: transfer and transferFrom with and without a fee, approve, pause, unpause, transferOwnership, addBlackList, removeBlackList, setParams, deprecate, issue, redeem and destroyBlackFunds.
+- For destroyBlackFunds, the invariant itself shows that the destroyed balance is at most the total supply, so the unchecked subtraction cannot wrap.
+- Read-only paths do not write storage, so they keep it too.
+- Any finite sequence of these steps keeps the invariant, and each path's end state is shown to be one such step.
+
+These theorems assume a hypothesis called `KeccakSep`, which is stated and not proved. It says that distinct addresses get distinct balance slots, and that balance slots and slot 1 never collide with the fixed slots 0 to 10 or with the slots of the other mappings. Since the slots are keccak outputs, this is a claim about the hash function.
+
+The invariant theorems do not claim that the proved paths are the only successful runs of a call, and they do not cover the deprecated paths.
+
 ## What you have to trust
 
 - The Lean 4 kernel.
@@ -97,7 +110,8 @@ A few general opcode rules are proved locally in `UsdtVerify/Local/` while they 
 
 ## What is not covered yet
 
-- Properties across several calls, including the global statement that the balances sum to the total supply.
+- That the proved paths are all the successful runs of each call. So the supply invariant covers the proved paths, not every possible run.
+- The supply invariant on the deprecated paths.
 - Runs with less gas than the stated bounds, and forks outside the stated range.
 
 ## Related work

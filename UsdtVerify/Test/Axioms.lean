@@ -4,6 +4,7 @@ import UsdtVerify.Functions.DeprecatedAllowance
 import UsdtVerify.Functions.Fallback
 import UsdtVerify.Functions.DeprecatedDestroy
 import UsdtVerify.Functions.StringsGen
+import UsdtVerify.Invariant
 import UsdtVerify.Functions.BalanceOf
 import UsdtVerify.Functions.Transfer
 import UsdtVerify.Functions.TransferSuccess
@@ -222,3 +223,36 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.StringsGen.runFrame_symbolEmpty
 #print axioms UsdtVerify.StringsGen.runFrame_nameLong
 #print axioms UsdtVerify.StringsGen.runFrame_symbolLong
+#print axioms UsdtVerify.Invariant.sumBal_write_bal
+#print axioms UsdtVerify.Invariant.transferOk_inv
+#print axioms UsdtVerify.Invariant.transferFee_inv
+#print axioms UsdtVerify.Invariant.transferFromOk_inv
+#print axioms UsdtVerify.Invariant.transferFromFee_inv
+#print axioms UsdtVerify.Invariant.approveZero_inv
+#print axioms UsdtVerify.Invariant.approveSet_inv
+#print axioms UsdtVerify.Invariant.pause_inv
+#print axioms UsdtVerify.Invariant.transferOwnership_inv
+#print axioms UsdtVerify.Invariant.list_inv
+#print axioms UsdtVerify.Invariant.params_inv
+#print axioms UsdtVerify.Invariant.deprecate_inv
+#print axioms UsdtVerify.Invariant.issue_inv
+#print axioms UsdtVerify.Invariant.redeem_inv
+#print axioms UsdtVerify.Invariant.destroy_inv
+#print axioms UsdtVerify.Invariant.inv_rdSt
+#print axioms UsdtVerify.Invariant.step_inv
+#print axioms UsdtVerify.Invariant.steps_inv
+#print axioms UsdtVerify.Invariant.reach_transfer_ok
+#print axioms UsdtVerify.Invariant.reach_transfer_fee
+#print axioms UsdtVerify.Invariant.reach_transferFrom_ok
+#print axioms UsdtVerify.Invariant.reach_transferFrom_fee
+#print axioms UsdtVerify.Invariant.reach_approve_zero
+#print axioms UsdtVerify.Invariant.reach_approve_set
+#print axioms UsdtVerify.Invariant.reach_pause
+#print axioms UsdtVerify.Invariant.reach_transferOwnership
+#print axioms UsdtVerify.Invariant.reach_list
+#print axioms UsdtVerify.Invariant.reach_setParams
+#print axioms UsdtVerify.Invariant.reach_deprecate
+#print axioms UsdtVerify.Invariant.reach_issue
+#print axioms UsdtVerify.Invariant.reach_redeem
+#print axioms UsdtVerify.Invariant.reach_destroy
+#print axioms UsdtVerify.Invariant.transfer_ok_keeps

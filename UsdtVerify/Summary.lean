@@ -305,6 +305,14 @@ neither checks the call value. Call data of 4 bytes or more whose selector is no
 32-entry table ⇒ REVERT, no output, state and substate unchanged, gas 773. Fewer than 4 bytes ⇒
 REVERT, no output, unchanged, gas 46.
 
+## The global invariant (UsdtVerify/Invariant.lean, imports this file)
+`Inv C S`: the sum over the 2^160 addresses of `balances[a]` equals `_totalSupply` (slot 1).
+Under the keccak hypothesis `KeccakSep` (stated, not proved), the end state of every proved
+success path that writes is reached by `Steps` (`reach_*`), and `steps_inv` keeps `Inv` along any
+finite sequence of steps; read-only paths only record reads (`inv_readSlot`, `inv_rdSt`).
+destroyBlackFunds keeps `Inv`: under `Inv`, `d ≤ _totalSupply`, so its unchecked subtraction does
+not wrap (`destroy_inv`).
+
 ## Not proved
 See docs/STATUS.md ("Open").
 -/

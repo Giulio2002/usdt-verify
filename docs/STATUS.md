@@ -557,9 +557,43 @@ entry; `DESTS` = the 32 destinations).
   form needs `N < 2^180` (stated). Odd slot words with `w / 2 < 32` (never written by Solidity)
   are not covered.
 
+### Round 10: the global invariant (UsdtVerify/Invariant.lean)
+- Token state read from the storage of `C`: `bal C S i` = `balances[i]` (slot `mapSlot (wd i) 2`)
+  as an integer; `sumBal C S` = Σ_{i < 2^160} `bal C S i` (`sumTo`, a plain recursive sum);
+  `tot C S` = slot 1; `Inv C S` : `sumBal C S = tot C S`.
+- Hypothesis `KeccakSep` (a structure, an explicit argument of every theorem that needs it; NOT
+  proved, it is about keccak): `inj` (distinct address words below 2^160 have distinct balance
+  slots), `fixed` (a balance slot is none of the slots 0..10), `list` (never `mapSlot y 6`),
+  `allow` (never `mapSlot y (mapSlot z 5)`), `one_list`, `one_allow` (slot 1 is neither).
+- Generic: `sumBal_readSlot`, `tot_readSlot`, `inv_readSlot`, `inv_rdSt` (reads change nothing);
+  `sumBal_write_bal` (a write of `balances[x]`: the sum changes by new − old), `sumBal_write_nb`,
+  `tot_write_ne`, `tot_write_one`, `inv_write_nb`; `le_sumTo` (a balance is at most the sum).
+- Per success path (end state as the spec states it, over its `S`): `transferOk_inv`,
+  `transferFee_inv`, `transferFromOk_inv`, `transferFromFee_inv` (allowance step `allowState`
+  with or without the write), `approveZero_inv`, `approveSet_inv`, `pause_inv` (pause and
+  unpause), `transferOwnership_inv`, `list_inv` (add/removeBlackList), `params_inv`,
+  `deprecate_inv`, `issue_inv`, `redeem_inv`, `destroy_inv`. Hypotheses: `KeccakSep`, the
+  contract has an account, `Inv` before, and the no-wrap conditions that the spec of the path
+  assumes (same statements).
+- destroyBlackFunds: the subtraction from `_totalSupply` is unchecked, but under `Inv` the
+  balance `d` is one term of the sum, so `d ≤ _totalSupply` (`le_sumTo`) and the result is
+  `Σ − d`: `Inv` holds after (no extra hypothesis).
+- Sequences: `Step C` (reads, writes of fixed / blacklist / allowance slots, and the eight
+  balance-changing end states, each with its no-wrap hypotheses), `Steps C` (finite sequences),
+  `step_inv`, `steps_inv`. `reach_*`: the end state of each writing success path, over the start
+  state, is reached by `Steps` under the spec's own hypotheses (transfer ok/fee, transferFrom
+  ok/fee, approve zero/set, pause/unpause, transferOwnership, add/removeBlackList, setParams,
+  deprecate, issue, redeem, destroyBlackFunds). `transfer_ok_keeps` combines one of them with
+  `steps_inv`. Read-only paths end in `readSlot` / `rdSt` of the start state (`Step.read`,
+  `Step.rd`).
+- What is NOT claimed: that the proved paths are all the success paths of a call (no
+  completeness theorem over all inputs and gas); the deprecated paths (the callee's effects are
+  arbitrary); `KeccakSep` itself.
+
 ## Open (not proved)
-- invariants across calls, the global
-  "sum of balances = totalSupply" (needs a sum over a mapping).
+- Completeness: that every successful run of a non-deprecated call is one of the proved paths.
+- The deprecated paths in the invariant (deprecated destroyBlackFunds subtracts the balance that
+  the upgraded contract reports from this contract's `_totalSupply`, see round 10).
 
 ## Generic gaps found (for the EthLib program-logic agent)
 1. Missing opcode rules at the pin (kept as LOCAL lemmas, UsdtVerify/Local/Rules.lean):
@@ -649,6 +683,9 @@ entry; `DESTS` = the 32 destinations).
    atom. (d) `if_neg`/`if_false` are deprecated in this toolchain (`ite_false`, or `split`).
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+- Round 10 (after commit 7a82207, rm -rf .lake/build): 112.36 s wall, 1409957888 bytes max RSS
+  (`/usr/bin/time -l`), exit 0, 1347 jobs, 221 `#print axioms`, all [propext, Classical.choice,
+  Quot.sound].
 Round 9, with the fallback (Fallback.lean, 120 lines): clean project build 119.67 s wall,
 1345945600 bytes max RSS, exit 0, 0 "error:" lines, 1344 jobs, 170 `#print axioms`, all
 [propext, Classical.choice, Quot.sound].

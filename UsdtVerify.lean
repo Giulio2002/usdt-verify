@@ -39,3 +39,4 @@ import UsdtVerify.Functions.DeprecatedDestroy
 import UsdtVerify.Functions.StringsGen
 import UsdtVerify.Test.Axioms
 import UsdtVerify.Summary
+import UsdtVerify.Invariant
