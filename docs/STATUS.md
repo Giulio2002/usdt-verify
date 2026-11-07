@@ -1053,6 +1053,14 @@ entry; `DESTS` = the 32 destinations).
   mean restating `KeepsInv` (for example with `Inv` alone as premise and conclusion), a different
   assumption; not done.
 
+### Round 20: the Summary's static/account hypotheses (Summary.lean, docs only)
+- The "Common hypotheses" paragraph of Summary.lean now names every spec there that takes
+  `hstatic` and `hacc` (the non-deprecated paths that reach an SSTORE, and their `runFrame_*`
+  forms), the two transferFrom faults that take them only when the allowance is not `MAX_UINT`
+  (`hgood`; their `runFrame_*` forms take both), the deprecated destroyBlackFunds specs (`hstatic`
+  and `hkeep`), and the helper theorems that take an account. The list was made from the
+  signatures of the alias targets (a script over the `alias` lines), not from memory.
+
 ## Open (not proved)
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
   transfer (round 12), approve, transferFrom, the ten owner functions (round 13), not deprecated

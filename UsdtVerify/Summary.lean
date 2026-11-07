@@ -60,7 +60,26 @@ frame satisfying the postcondition; `runFrame_*` theorems state the same about t
 loop `runFrame` for every gas bound and message runner. Common hypotheses of every path below:
 the call data has the function's selector in its first 4 bytes and fewer than 2^256 bytes, the
 call has no value, and there is enough gas (an exact cost, given in each theorem; a path that
-writes storage also needs more than 2300 gas left at an SSTORE where stated). "Not paused",
+writes storage also needs more than 2300 gas left at an SSTORE where stated).
+Static frame and account, by name:
+`hstatic` is `message.isStatic = false`; `hacc` is an account of `C` in the start state.
+These specs take both `hstatic` and `hacc`: `transfer_toOv`, `transfer_ownerOv`, `transfer_ok`,
+`transfer_fee`, `approve_zero`, `approve_set`, `transferFrom_toOv`, `transferFrom_ownerOv`,
+`transferFrom_ok`, `transferFrom_fee`, `pause`, `unpause`, `addBlackList`, `removeBlackList`,
+`issue`, `redeem`, `setParams`, `setParams_mulOv`, `deprecate`, `transferOwnership`,
+`destroyBlackFunds`, and their `runFrame_*` forms.
+`transferFrom_balLow` and `transferFrom_feeGt` take both only when the allowance is not
+`MAX_UINT` (`hgood`); their forms `TransferFrom.runFrame_balLow` and
+`TransferFrom.runFrame_feeGtF` take both unconditionally.
+`destroyBlackFunds_dep`, `destroyBlackFunds_dep_answers` and `destroyBlackFunds_dep_fails` take
+`hstatic` and `hkeep` (an account of `C` in the end state of each forwarded call that ends with
+no error).
+`runFrame_destroyBlackFunds_dep_process` takes `hstatic`, and its `hQ` asks for that account.
+The `*_effects` and `*_conserves` theorems, `listState_flag`, `listState_other`, `ownerWord_eq`,
+`ownerWordF_eq` and `storageAt_allowState_of_ne` take an account of `C` in the state they are
+about.
+No other spec or `runFrame_*` theorem below takes `hstatic` or `hacc`.
+The completeness theorems (`*_complete`, `*_dep_complete`) take neither. "Not paused",
 "not deprecated" mean byte 20 of slot 0, of slot 10 is 0; "x blacklisted" means the low byte of
 `isBlackListed[x]` (slot `keccak(x ++ 6)`) is not 0. `S` is the state after the reads of the
 checks. `C` is the contract. `fee = min(v * basisPointsRate / 10000, maximumFee)` (slots 3, 4) as
