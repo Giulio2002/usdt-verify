@@ -100,7 +100,15 @@ These theorems assume a hypothesis called `KeccakSep`, which is stated and not p
 
 The main theorem is `inv_call` in `UsdtVerify/Complete/Inv.lean`. From Berlin and before Glamsterdam, take any call to USDT, with any call data, any value and any gas. If the invariant holds before and the call ends without an error, the invariant holds after. Its hypotheses are `KeccakSep`, a call frame that is not static, an existing account for the contract, the contract not being deprecated, and the name and symbol slots being in a form Solidity writes.
 
-The deprecated mode is not covered yet.
+### When the contract is deprecated
+
+In deprecated mode the invariant can break. `destroyBlackFunds` asks the upgraded contract for the balance of the address, sets the local balance to 0, and lowers the local total supply by the answer. `UsdtVerify/Complete/DepInv.lean` proves:
+
+- after that call, the invariant holds exactly when the upgraded contract's answer equals the local balance (`inv_tail_iff`, `depD_inv`), and this covers callees that call back into USDT,
+- a concrete state where the invariant holds before and fails after, with an answer of 1 for a local balance of 0 (`exists_breaks`),
+- the same failure for a whole run, for any callee that answers a different balance and leaves USDT's storage alone (`depD_breaks`).
+
+So in deprecated mode the supply invariant depends on the upgraded contract answering honestly. The other deprecated functions are still in progress.
 
 ## What you have to trust
 
@@ -114,7 +122,7 @@ A few general opcode rules are proved locally in `UsdtVerify/Local/` while they 
 
 ## What is not covered yet
 
-- Completeness and the supply invariant when the contract is deprecated.
+- Completeness of the deprecated paths, and the invariant for the deprecated functions other than `destroyBlackFunds`.
 - Runs with less gas than the stated bounds, and forks outside the stated range.
 
 ## Related work

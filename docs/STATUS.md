@@ -696,6 +696,22 @@ entry; `DESTS` = the 32 destinations).
   successful deprecated `totalSupply()` run goes through the EXTCODESIZE frame at 3719 with gas
   `gas - (574 + price(slot 10))`, slot 10 read).
 
+### Round 14: the invariant when deprecated, destroyBlackFunds (Complete/DepInv.lean)
+- `inv_tail_iff` (KeccakSep, account, `a < 2^160`, `Inv C S`): `Inv C (tailState S C a d) ↔
+  d = storageAt S C (mapSlot a 2)`. If `d ≤ T` the new total is `T - d`. Otherwise it wraps to
+  `2^256 - d + T`, which is larger than `T - b`.
+- `exists_breaks` (KeccakSep): a concrete state `zeroState C` (`ofBlock` of an empty block, an
+  empty account written at `C`; every storage word is 0), with `a = 0` and `d = 1`: `Inv` holds
+  before and fails after. Without KeccakSep this is not claimed: if `mapSlot i 2 = 1` for some
+  `i`, the wrapped total could also be a balance.
+- `depD_inv`, `depD_keeps`, `depD_breaks`: `SpecUnder` corollaries of `spec_depD`, with named
+  callee hypotheses (`hcallee`: a successful forwarded call leaves the account and `Inv`;
+  `hans`: the answer is the local balance, or `AnswersD` with `o`; `hsame`: the callee keeps every
+  word of `C`'s storage; `hne`: the answer is not `balances[a]`). These statements need the gas
+  bounds of `spec_depD` (`hg`, `htail`). The completeness of the deprecated paths, which would
+  remove those bounds, is still open.
+- No Summary alias: Invariant imports Summary (same as `inv_call`).
+
 ## Open (not proved)
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
   transfer (round 12), approve, transferFrom, the ten owner functions (round 13), not deprecated
@@ -716,8 +732,9 @@ entry; `DESTS` = the 32 destinations).
 - Hypotheses the completeness theorems keep, by name: `hstatic` (frame not static; a static
   SSTORE/LOG fails, but no spec of that failure is proved), `hacc` (the contract has an account;
   the write needs it), Berlin ≤ fork < Glamsterdam on the writing paths, size < 2^256.
-- The deprecated paths in the invariant (deprecated destroyBlackFunds subtracts the balance that
-  the upgraded contract reports from this contract's `_totalSupply`, see round 10).
+- The deprecated paths in the invariant: settled for destroyBlackFunds at the `SpecUnder` level
+  (round 14: it breaks `Inv` exactly when the answer differs from the local balance). Over every
+  run with any gas, this needs the completeness of the deprecated paths.
 
 ## Generic gaps found (for the EthLib program-logic agent)
 1. Missing opcode rules at the pin (kept as LOCAL lemmas, UsdtVerify/Local/Rules.lean):

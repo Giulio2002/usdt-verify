@@ -1,3 +1,4 @@
+import UsdtVerify.Complete.DepInv
 import UsdtVerify.Complete.Split
 import UsdtVerify.Complete.Inv
 import UsdtVerify.Complete.Getters
@@ -340,3 +341,15 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Complete.low_to_running
 #print axioms UsdtVerify.Complete.ok_split
 #print axioms UsdtVerify.Complete.dep_totalSupply_split
+#print axioms UsdtVerify.DepInv.toNat_sub_gt
+#print axioms UsdtVerify.DepInv.inv_tail_iff
+#print axioms UsdtVerify.DepInv.not_inv_tail
+#print axioms UsdtVerify.DepInv.sumTo_zero
+#print axioms UsdtVerify.DepInv.storageAt_zeroState
+#print axioms UsdtVerify.DepInv.hasAccount_zeroState
+#print axioms UsdtVerify.DepInv.exists_breaks
+#print axioms UsdtVerify.DepInv.inv_congr
+#print axioms UsdtVerify.DepInv.storageAt_callerD
+#print axioms UsdtVerify.DepInv.depD_inv
+#print axioms UsdtVerify.DepInv.depD_keeps
+#print axioms UsdtVerify.DepInv.depD_breaks

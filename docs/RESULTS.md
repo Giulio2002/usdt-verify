@@ -288,7 +288,38 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   - slots 7 and 8 hold strings in a form Solidity writes (`StrForm`);
   - `Inv`: the sum of the 2^160 balances equals `_totalSupply` at the start.
   If the interpreter loop ends with no error, `Inv` holds in the end state.
-- Not yet proved: the deprecated paths, and so the invariant when the contract is deprecated.
+- Not yet proved: the completeness of the deprecated paths (every successful deprecated run is
+  the forwarding path), and so the invariant over every deprecated call.
+
+## The invariant when deprecated: destroyBlackFunds (round 14)
+
+`UsdtVerify/Complete/DepInv.lean`. When deprecated, `destroyBlackFunds(a)` asks the upgraded
+contract for `balanceOf(a)`, gets a word `d`, and then, in this contract, sets `balances[a]` to 0
+and `_totalSupply` to `_totalSupply - d` (no overflow check). Write `S` for the state the call
+left. The callee may call back into this contract, so `S` can differ from the start state.
+
+- `inv_tail_iff`: assume `KeccakSep`, the contract `C` has an account in `S`, `a` is below 2^160,
+  and `Inv C S`. Then `Inv` holds after the two writes if and only if `d` equals `balances[a]` in
+  `S`.
+- `exists_breaks`: a concrete counterexample, assuming `KeccakSep`. The state is `zeroState C`:
+  an empty account at `C` and no storage word set, so every word is 0 and `Inv` holds. With
+  `a = 0` and the answer `d = 1`, `Inv` fails after the writes.
+- `depD_breaks` is the same at the level of runs. Assume the hypotheses of `spec_depD` and
+  `KeccakSep`, `Inv` at the start, and these callee hypotheses:
+  - `hans`: the callee succeeds and answers an output `o` of at least 32 bytes;
+  - `hsame`: it keeps the contract's account and every word of the contract's storage;
+  - `hne`: the first word of `o` is not `balances[a]` at the start.
+  Then under every runner that meets the callee assumption, the run ends with no error and `Inv`
+  false, or the runner aborts. No concrete runner, message and state that meet all of these
+  hypotheses at once is constructed.
+- `depD_inv` assumes the hypotheses of `spec_depD`, `KeccakSep`, and a callee hypothesis
+  `hcallee`: a successful forwarded call leaves the contract's account and `Inv`. It covers
+  anything the callee does, including calls back into this contract. A run that ends with no
+  error ends in `tailState S C a d` with `Inv C S`, and there `Inv` holds iff `d = balances[a]`
+  in `S`. `depD_keeps` adds `hans`, that the answer is the local balance in the callee's end
+  state, and concludes `Inv` at the end.
+- So the invariant is not kept by deprecated `destroyBlackFunds` in general. It is kept exactly
+  when the upgraded contract reports the balance that this contract stores.
 
 ## What is trusted
 
@@ -306,8 +337,8 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
 ## What is not covered
 
 - That the proved success paths are all the successful runs of a call, for the deprecated
-  paths, and name/symbol on slot words outside `StrForm`; the invariant when the contract is
-  deprecated.
+  paths, and name/symbol on slot words outside `StrForm`; the invariant over every deprecated
+  call (destroyBlackFunds can break it, see above).
 - `KeccakSep` (a hypothesis of the invariant theorems, about keccak).
 - Runs that run out of gas below the stated bounds, except at the dispatcher (see above).
 - Forks before Berlin, and Glamsterdam onwards on the writing and calling paths.
