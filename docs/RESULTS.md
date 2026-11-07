@@ -24,11 +24,13 @@ bound and every message runner (`runFrame_*`).
 The end frames are:
 - a normal halt: RETURN with the given bytes, or STOP with an empty output;
 - REVERT with empty output;
-- an exceptional halt with INVALID (0xfe): a failed SafeMath `assert`. No gas is left and the
-  caller discards the state.
+- an exceptional halt with INVALID (0xfe): a failed SafeMath `assert`, with no output and no gas
+  left. The theorems state the frame's end; that the caller then discards the state is the
+  message layer, outside them.
 
 Gas left, the storage writes (in order), the logs, and the accessed slots and addresses are exact
-(EIP-2929 cold and warm prices, EIP-2200/3529 SSTORE prices and refunds).
+(EIP-2929 cold and warm prices; SSTORE prices and refunds by EIP-2200 with EIP-2929's prices
+from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them).
 
 ## Functions covered
 
@@ -59,7 +61,10 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   assumed, not proved.
 - **Deprecated totalSupply / balanceOf** (`Deprecated*.lean`). When the `deprecated` flag is set,
   USDT forwards the call to the address stored in slot 10. The theorems hold for every callee
-  behaviour that meets a stated assumption, through EthLib's callee abstraction. USDT then:
+  behaviour that meets a stated assumption, through EthLib's callee abstraction. These forward
+  specifications (and those below, for the other deprecated functions) take the code `c` of the
+  upgraded address as a hypothesis, with `0 < |c|` and, from Pectra, `c` no EIP-7702 delegation
+  (`hdel`). The completeness theorems further down have neither hypothesis. USDT then:
   - sends exactly one message to the upgraded address, with no value and with the call data
     `0x18160ddd`, or `0x70a08231 ++ who` for balanceOf;
   - returns the first word of the callee's output if the callee succeeds;
@@ -242,7 +247,8 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
     `Inv` still holds after it.
   - `steps_inv` lifts the invariant to any finite sequence of these steps.
   - That these paths are all the successful runs of a call, when not deprecated, is proved in
-    round 13 (`ok_*`, and `inv_call` below). Nothing is proved here about the deprecated paths.
+    round 13 (`ok_*`, and `inv_call` below). This file proves nothing about the deprecated paths;
+  see `inv_call_all` below.
 
 ## Completeness of the dispatcher, for every gas
 
@@ -303,7 +309,8 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   case the CALL also paid the access to `d` (2600 cold, 100 warm, `routeCost`), and the caller's
   state and substate record the read and the access of `d`. No hypothesis on the code.
   Too little gas at EXTCODESIZE, GAS, SUB, CALL or after the call,
-  no code, and the greatest depth are proved to end with an error.
+  no code, the greatest depth, and (from Pectra) a delegate whose code is not found in the state
+  are proved to leave no run that ends with no error.
 - Deprecated balanceOf(address) (`Complete.dep_balanceOf_complete`, round 14): the same
   statement, for the forward of `balanceOf(a)` (data: the selector, then the word of `a`), with
   the same named hypotheses.

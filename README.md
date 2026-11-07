@@ -150,7 +150,7 @@ lake exe cache get
 lake build
 ```
 
-EthLib is fetched as a dependency at the commit pinned in `lakefile.lean`. Building EthLib from source takes a long time and several GB of memory. Once EthLib is built, this project builds in about 90 seconds and needs about 1.4 GB.
+EthLib is fetched as a dependency at the commit pinned in `lakefile.lean`. Building EthLib from source takes a long time and several GB of memory. Once EthLib is built, this project builds from clean in about 130 seconds with two threads and needs about 1.4 GB.
 
 ## Credits
 

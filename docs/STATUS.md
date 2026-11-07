@@ -957,6 +957,10 @@ entry; `DESTS` = the 32 destinations).
    atom. (d) `if_neg`/`if_false` are deprecated in this toolchain (`ite_false`, or `split`).
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+- Round 16 (after commit e70c18b, rm -rf .lake/build, EthLib oleans prebuilt): 131.21 s wall,
+  294.41 s user, 1425702912 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines, 1369
+  jobs; `#print axioms`: 357 [propext, Classical.choice, Quot.sound], 2 [propext, Quot.sound],
+  1 [propext], 1 with no axioms.
 - Round 10 (after commit 7a82207, rm -rf .lake/build): 112.36 s wall, 1409957888 bytes max RSS
   (`/usr/bin/time -l`), exit 0, 1347 jobs, 221 `#print axioms`, all [propext, Classical.choice,
   Quot.sound].
