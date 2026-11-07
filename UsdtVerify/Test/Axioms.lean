@@ -1,5 +1,6 @@
 import UsdtVerify.Complete.DepAllowance
 import UsdtVerify.Complete.DepDestroy
+import UsdtVerify.Complete.DepInvAll
 import UsdtVerify.Complete.DepTransfer
 import UsdtVerify.Complete.DepBalance
 import UsdtVerify.Complete.DepTotalSupply
@@ -388,3 +389,14 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Complete.dep_allowance_complete
 #print axioms UsdtVerify.Complete.prefixG_destroy
 #print axioms UsdtVerify.Complete.dep_destroy_complete
+#print axioms UsdtVerify.Complete.inv_of_local
+#print axioms UsdtVerify.Complete.dep_totalSupply_local
+#print axioms UsdtVerify.Complete.dep_balanceOf_local
+#print axioms UsdtVerify.Complete.dep_allowance_local
+#print axioms UsdtVerify.Complete.dep_approve_local
+#print axioms UsdtVerify.Complete.dep_transfer_local
+#print axioms UsdtVerify.Complete.dep_transferFrom_local
+#print axioms UsdtVerify.Complete.dep_destroy_local
+#print axioms UsdtVerify.Complete.inv_dep_destroy_iff
+#print axioms UsdtVerify.Complete.inv_dep_destroy
+#print axioms UsdtVerify.Complete.inv_call_all

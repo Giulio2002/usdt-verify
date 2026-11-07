@@ -777,8 +777,32 @@ entry; `DESTS` = the 32 destinations).
   `balances[a]` and slot 1 taken in the substate after the call), with `S` the state of
   `incorporateChild` and `d = resWord (outMemOf (memD message) child.output)`. Named hypotheses:
   `hstatic`, `hcode`, `hdel`, the coldness flags, and `hkeep`: whenever the runner ends a
-  forwarded message (`Sends … (dataB message)`) with no error, the contract has an account in the
+  forwarded message (`Sends … (dataB message)`), sent from the caller state at the CALL, with no
+  error, the contract has an account in the
   child's state. The case without an account (where the SSTORE fails) is not covered.
+- The invariant over every call (Complete/DepInvAll.lean):
+  - `LocalForward runChild message state s`: one runner call from `C` to `ua` that ended with no
+    error, from a caller state whose storage at `C` equals the start storage at every slot (and
+    `C` keeps its account), and `s.state = child.state`. `dep_{totalSupply,balanceOf,allowance,
+    approve,transfer,transferFrom}_local` prove it for every successful deprecated run of the six
+    forwarders (from `dep_*_complete` and `state_incorporateChild`): these functions write
+    nothing locally after the CALL.
+  - `dep_destroy_local`: under `KeepsInv`, the same call with `msg.data = dataB message`, then
+    `s.state = tailState child.state C a d` with `d = resWord (outMemOf (memD message)
+    child.output)`, and `C` has an account and `Inv C` in `child.state`.
+    `inv_dep_destroy_iff` (`KeccakSep`): `Inv C s.state ↔ d = balances[a]` in `child.state`.
+    `inv_dep_destroy`: with `HonestBalance`, `Inv C s.state`.
+  - Named assumptions. `KeepsInv runChild C ua`: whenever the runner ends a message with
+    `msg.caller = C`, `msg.currentTarget = ua` with no error, from a caller state where `C` has an
+    account and `Inv C`, the child's end state keeps both. It covers any reentrant call into `C`
+    (inside the child's run). `HonestBalance runChild message state`: whenever the runner ends such
+    a message with `msg.data = dataB message` with no error, `resWord (outMemOf (memD message)
+    child.output)` is `balances[a]` in the child's end state.
+  - `inv_call_all`: `inv_call` with `hdep` removed. Hypotheses: `KeccakSep`, Berlin ≤ fork <
+    Glamsterdam, not static, an account, size < 2^256, `StrForm` of slots 7 and 8, `Inv` at the
+    start; and, each only when deprecated: `hcode`, `hdel`, `hkeeps : KeepsInv runChild C ua`,
+    and, for the selector 0xf3bdc228, `hhonest : HonestBalance`. Conclusion: every run that ends
+    with no error ends with `Inv C s.state`.
 - Summary aliases: `totalSupply_dep_complete`, `balanceOf_dep_complete`, `allowance_dep_complete`,
   `destroyBlackFunds_dep_complete`,
   `transfer_dep_complete`, `approve_dep_complete`, `transferFrom_dep_complete`.
@@ -797,9 +821,11 @@ entry; `DESTS` = the 32 destinations).
 - Hypotheses the completeness theorems keep, by name: `hstatic` (frame not static; a static
   SSTORE/LOG fails, but no spec of that failure is proved), `hacc` (the contract has an account;
   the write needs it), Berlin ≤ fork < Glamsterdam on the writing paths, size < 2^256.
-- The deprecated paths in the invariant: settled for destroyBlackFunds at the `SpecUnder` level
-  (round 14: it breaks `Inv` exactly when the answer differs from the local balance). Over every
-  run with any gas, this needs the completeness of the deprecated paths.
+- The deprecated paths in the invariant: done (round 15, `inv_call_all`) under the named runner
+  assumptions `KeepsInv` and `HonestBalance`. Without `HonestBalance`, deprecated
+  destroyBlackFunds keeps `Inv` exactly when the answer is the local balance
+  (`inv_dep_destroy_iff`); `exists_breaks` gives a state where a different answer breaks it.
+  `KeepsInv` is not proved for any concrete upgraded contract.
 
 ## Generic gaps found (for the EthLib program-logic agent)
 1. Missing opcode rules at the pin (kept as LOCAL lemmas, UsdtVerify/Local/Rules.lean):

@@ -108,7 +108,17 @@ In deprecated mode the invariant can break. `destroyBlackFunds` asks the upgrade
 - a concrete state where the invariant holds before and fails after, with an answer of 1 for a local balance of 0 (`exists_breaks`),
 - the same failure for a whole run, for any callee that answers a different balance and leaves USDT's storage alone (`depD_breaks`).
 
-So in deprecated mode the supply invariant depends on the upgraded contract answering honestly. The other deprecated functions are still in progress.
+So in deprecated mode the supply invariant depends on the upgraded contract answering honestly.
+
+### Every call, deprecated or not
+
+`inv_call_all` in `UsdtVerify/Complete/DepInvAll.lean` drops the "not deprecated" hypothesis. For any successful call to USDT, with any call data, value and gas, the invariant holds after if it held before. When the contract is deprecated it needs these named assumptions:
+
+- `KeepsInv`: every message USDT sends to the upgraded contract, when it ends without an error, ends in a state where USDT still has its account and the invariant still holds. This covers an upgraded contract that calls back into USDT.
+- `HonestBalance`, only for `destroyBlackFunds`: the balance the upgraded contract reports equals the local balance.
+- The upgraded code is found in the state, and it is not an EIP-7702 delegation.
+
+The six other forwarding functions write nothing locally after the forwarded call, which is also proved.
 
 ## What you have to trust
 
@@ -122,7 +132,7 @@ A few general opcode rules are proved locally in `UsdtVerify/Local/` while they 
 
 ## What is not covered yet
 
-- The supply invariant over every deprecated call, beyond `destroyBlackFunds`.
+- Upgraded code that is an EIP-7702 delegation, or that is missing from the state. These are hypotheses.
 - Runs with less gas than the stated bounds, and forks outside the stated range.
 
 ## Related work

@@ -317,7 +317,7 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   left, `balances[a]` to 0 and `_totalSupply` to `_totalSupply - d` (unchecked), where `d` is the
   word the call wrote at 0x60, and logging `DestroyedBlackFunds(a, d)`; gas exact. Beyond
   `hcode`, `hdel` and `hstatic`, it assumes by name (`hkeep`) that when the runner ends the
-  forwarded message with no error, the contract still has an account in the child's state.
+  forwarded message (from the caller state at the CALL) with no error, the contract still has an account in the child's state.
 - Not yet proved: the invariant over every deprecated call.
 
 ## The invariant when deprecated: destroyBlackFunds (round 14)
@@ -350,6 +350,29 @@ left. The callee may call back into this contract, so `S` can differ from the st
 - So the invariant is not kept by deprecated `destroyBlackFunds` in general. It is kept exactly
   when the upgraded contract reports the balance that this contract stores.
 
+## The invariant over every successful call, deprecated or not (round 15)
+
+`UsdtVerify/Complete/DepInvAll.lean`, `Complete.inv_call_all`. It is `inv_call` without the
+hypothesis "not deprecated". From Berlin to before Glamsterdam, take a fresh frame of the
+deployed code at pc 0, with any call data below 2^256 bytes, any value, any gas, any gas bound
+and any message runner. Assume `KeccakSep`, a frame that is not static, an account for the
+contract `C`, `StrForm` of slots 7 and 8, and `Inv` at the start. When the contract is
+deprecated, also assume:
+- `hcode`, `hdel`: the code of the upgraded account `ua` is found, and from Pectra it is no
+  delegation;
+- `KeepsInv` (`hkeeps`): whenever the runner ends a message from `C` to `ua` with no error, and
+  `C` had an account and `Inv` held in the caller's state, then `C` still has an account and
+  `Inv` holds in the child's end state. The callee may call back into `C`; this assumption is
+  about the end state only, so it covers that;
+- for destroyBlackFunds, `HonestBalance` (`hhonest`): the word that the forwarded `balanceOf(a)`
+  writes at 0x60 is `balances[a]` in the child's end state.
+If the interpreter loop ends with no error, `Inv` holds in the end state.
+
+On the way (`dep_*_local`): when deprecated, the six forwarders (totalSupply, balanceOf,
+allowance, approve, transfer, transferFrom) make one call, from a caller state with the start
+storage of `C`, and end in exactly the child's end state: nothing is written locally after the
+call. destroyBlackFunds ends in `tailState S C a d` over the child's end state `S`.
+
 ## What is trusted
 
 - The Lean 4 kernel (v4.35.0).
@@ -365,9 +388,13 @@ left. The callee may call back into this contract, so `S` can differ from the st
 
 ## What is not covered
 
-- That the proved success paths are all the successful runs of a call, for the deprecated
-  paths, and name/symbol on slot words outside `StrForm`; the invariant over every deprecated
-  call (destroyBlackFunds can break it, see above).
+- name/symbol on slot words outside `StrForm`.
+- The deprecated paths when the upgraded account's code is not found in the state or is a
+  Pectra delegation (`hcode`, `hdel`), and deprecated destroyBlackFunds when the runner's child
+  state has no account for the contract (`hkeep`).
+- The invariant over deprecated calls without the runner assumptions `KeepsInv` and
+  `HonestBalance` (destroyBlackFunds can break it, see above). No concrete upgraded contract is
+  shown to meet them.
 - `KeccakSep` (a hypothesis of the invariant theorems, about keccak).
 - Runs that run out of gas below the stated bounds, except at the dispatcher (see above).
 - Forks before Berlin, and Glamsterdam onwards on the writing and calling paths.

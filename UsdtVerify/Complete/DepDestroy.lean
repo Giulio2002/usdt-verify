@@ -22,8 +22,9 @@ gas bound and ANY message runner:
 
 Named hypotheses: `hstatic` (the frame is not static), `hcode`, `hdel` (as for the other
 deprecated functions), the coldness flags, and `hkeep`, a hypothesis on the runner: when it ends
-the forwarded message with no error, the contract still has an account in the child's state (the
-SSTOREs of the tail need it; the case without an account is not covered).
+the forwarded message, sent from the caller state at the CALL, with no error, the contract still
+has an account in the child's state (the SSTOREs of the tail need it; the case without an account
+is not covered).
 -/
 
 namespace UsdtVerify.Complete
@@ -89,8 +90,10 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamste
     (hc10 : coldIn (preSub substate message) message.currentTarget 10 = c10)
     (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
     (hkeep : ∀ caller msg lt child, runChild caller msg lt = .ok child →
-      Sends message (upAddr state message) c (dataB message) msg → child.1.error = none →
-        hasAccount child.1.state message.currentTarget)
+      Sends message (upAddr state message) c (dataB message) msg →
+      caller.state = ((callStateD state message).recordAccountRead
+        (upAddr state message)).recordAccountRead message.currentTarget →
+      child.1.error = none → hasAccount child.1.state message.currentTarget)
     {gas : Nat} {evm s : Evm fork Nat}
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
@@ -176,7 +179,7 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamste
   by_cases he : child.1.error = none
   · simp only [he, Option.isNone_none, ↓reduceIte] at hat
     have hacc : hasAccount (incorporateChild fork caller child.1).state message.currentTarget := by
-      rw [state_incorporateChild]; exact hkeep caller msg lt child hch hfwd he
+      rw [state_incorporateChild]; exact hkeep caller msg lt child hch hfwd hcs he
     obtain ⟨hcost, hr, ho, hgs, hst, hss⟩ := ok_exact2
       (fun g h1 _ => tailD (fork := fork) (message := message)
         hfork hglam (mkey_addrArg0 message.data) hstatic hacc

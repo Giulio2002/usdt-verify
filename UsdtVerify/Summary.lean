@@ -325,6 +325,10 @@ success path that writes is reached by `Steps` (`reach_*`), and `steps_inv` keep
 finite sequence of steps; read-only paths only record reads (`inv_readSlot`, `inv_rdSt`).
 destroyBlackFunds keeps `Inv`: under `Inv`, `d ≤ _totalSupply`, so its unchecked subtraction does
 not wrap (`destroy_inv`).
+Every successful call, not deprecated: `Complete.inv_call`. Deprecated or not:
+`Complete.inv_call_all` (Complete/DepInvAll.lean; when deprecated, under the named assumptions
+`hcode`, `hdel`, `KeepsInv` on the runner, and `HonestBalance` for destroyBlackFunds). Neither
+has an alias here, since Invariant imports this file.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas
