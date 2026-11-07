@@ -16,9 +16,10 @@ message runner `runChild`. If the loop ends with no error, then:
   (`resWord (outMem child.output)`), gas `gas - preCost - callGas.cost + child.gas - 121` (and at
   least 121 was left after the CALL), and the state and substate of `incorporateChild caller child`.
 
-Named hypotheses: `hcode` (the code `c` of the upgraded account is found in the state) and `hdel`
-(from Pectra, `c` is no delegation). The runner is arbitrary: nothing is assumed of what it
-returns.
+The conclusion also states that the code `c` of the upgraded account is found in the state
+(round 15: a failed lookup makes EXTCODESIZE fail, `fromExt_found`). Named hypothesis: `hdel`
+(from Pectra, the code found is no delegation). The runner is arbitrary: nothing is assumed of
+what it returns.
 -/
 
 namespace UsdtVerify.Complete
@@ -36,14 +37,15 @@ variable {fork : Fork} {bound : Nat} {runChild : MessageRunner fork Nat bound}
 
 theorem dep_totalSupply_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x18160ddd)
-    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0) {c : ByteArray}
-    (hcode : state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c)
-    (hdel : .pectra ≤ fork → delegatedAddress c = none)
+    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
+    (hdel : ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
+      .pectra ≤ fork → delegatedAddress c = none)
     {gas : Nat} {evm s : Evm fork Nat}
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    ∃ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c ∧
     BitVec.ofNat 256 c.size ≠ 0 ∧
     preCost (coldIn substate message.currentTarget 10)
       (decide (upAddr state message ∉ substate.accessedAddresses)) + 100 ≤ gas ∧
@@ -69,6 +71,8 @@ theorem dep_totalSupply_complete (hfork : .berlin ≤ fork) (hglam : fork < .gla
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
   obtain ⟨hg0, z, w, hz, hrunz⟩ := dep_totalSupply_split hfork hsize' hsel hdep start within hrun hok
+  obtain ⟨c, hcode⟩ := fromExt_found hfork (by decide) hz w hrunz hok
+  have hdel := hdel c hcode
   obtain ⟨hw, hgc, hdepth, hCE⟩ := fromExt (U := upWord (storageAt state message.currentTarget 10))
     (rest := [0x64, 0x18160ddd, upWord (storageAt state message.currentTarget 10), 0, 0x031d,
       BitVec.ofNat 256 (selector message.data)])
@@ -94,7 +98,7 @@ theorem dep_totalSupply_complete (hfork : .berlin ≤ fork) (hglam : fork < .gla
     hmdep, hmst, after, wa, hat, hruna⟩ := hCE
   rw [hext] at hmg hmd hat
   simp only [Bool.false_eq_true, ↓reduceIte] at hmg hat
-  refine ⟨hw, by simp only [preCost, accCost]; omega, hdepth, ?_⟩
+  refine ⟨c, hcode, hw, by simp only [preCost, accCost]; omega, hdepth, ?_⟩
   have hfwd : Forwarded message (upAddr state message) c msg := by
     refine ⟨hmc, hmt, hmtg, hmca, hmcode, ?_, hmv, hmdep, hmst⟩
     rw [hmd]; exact data_M2

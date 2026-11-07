@@ -800,9 +800,18 @@ entry; `DESTS` = the 32 destinations).
     child.output)` is `balances[a]` in the child's end state.
   - `inv_call_all`: `inv_call` with `hdep` removed. Hypotheses: `KeccakSep`, Berlin ≤ fork <
     Glamsterdam, not static, an account, size < 2^256, `StrForm` of slots 7 and 8, `Inv` at the
-    start; and, each only when deprecated: `hcode`, `hdel`, `hkeeps : KeepsInv runChild C ua`,
+    start; and, each only when deprecated: `hdel`, `hkeeps : KeepsInv runChild C ua`,
     and, for the selector 0xf3bdc228, `hhonest : HonestBalance`. Conclusion: every run that ends
     with no error ends with `Inv C s.state`.
+- `hcode` is no longer a hypothesis (round 15, step 5). `extcodesizeStep_notFound`: when the
+  lookup of the code fails (`accountCode … = .error e`), EXTCODESIZE fails (before or after the
+  charge). `fromExt_found`: at any of the six EXTCODESIZE pcs, a successful run found the code.
+  Each `dep_*_complete` now concludes `∃ c, state.getCode (state.getAccount ua).codeHash = .ok c ∧
+  …` and takes `hdel : ∀ c, state.getCode … = .ok c → .pectra ≤ fork → delegatedAddress c =
+  none`; `hkeep` (destroyBlackFunds) quantifies the code in `Sends`. `inv_call_all` drops `hcode`.
+  `hdel` stays: a delegated code would make CALL load the delegate's code at another price
+  (`accessDelegation`), and `call_ok`, `callStep_low`, `callStep_deep` are proved only without
+  delegation.
 - Summary aliases: `totalSupply_dep_complete`, `balanceOf_dep_complete`, `allowance_dep_complete`,
   `destroyBlackFunds_dep_complete`,
   `transfer_dep_complete`, `approve_dep_complete`, `transferFrom_dep_complete`.
@@ -815,8 +824,8 @@ entry; `DESTS` = the 32 destinations).
   deprecated (`inv_call`).
 - The deprecated paths: done (rounds 14, 15). Every deprecated function (totalSupply,
   balanceOf, transfer, approve, transferFrom, allowance, destroyBlackFunds) has its completeness
-  theorem for any gas and any runner (`dep_*_complete`). Named hypotheses that stay: `hcode` (the
-  upgraded account's code is found), `hdel` (no Pectra delegation), and for destroyBlackFunds
+  theorem for any gas and any runner (`dep_*_complete`). Named hypotheses that stay: `hdel` (the
+  code found at the upgraded address is no Pectra delegation), and for destroyBlackFunds
   `hstatic` and `hkeep` (the contract keeps an account after a successful forwarded call).
 - Hypotheses the completeness theorems keep, by name: `hstatic` (frame not static; a static
   SSTORE/LOG fails, but no spec of that failure is proved), `hacc` (the contract has an account;

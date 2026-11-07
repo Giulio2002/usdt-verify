@@ -327,7 +327,7 @@ destroyBlackFunds keeps `Inv`: under `Inv`, `d ≤ _totalSupply`, so its uncheck
 not wrap (`destroy_inv`).
 Every successful call, not deprecated: `Complete.inv_call`. Deprecated or not:
 `Complete.inv_call_all` (Complete/DepInvAll.lean; when deprecated, under the named assumptions
-`hcode`, `hdel`, `KeepsInv` on the runner, and `HonestBalance` for destroyBlackFunds). Neither
+`hdel`, `KeepsInv` on the runner, and `HonestBalance` for destroyBlackFunds). Neither
 has an alias here, since Invariant imports this file.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
@@ -374,8 +374,8 @@ checks before the forward (transfer, transferFrom: not paused and the blacklist;
 bytes), the upgraded address has code of nonzero size, the runner was called with the forwarded
 message and returned a frame with no error, and the end is exact: output (the word at 0x60 for
 the three getters, empty for the three writes), gas, and the state and substate of
-`incorporateChild`. Named hypotheses: `hcode` (the upgraded account's code `c` is found in the
-state), `hdel` (from Pectra, `c` is no delegation), and the coldness flags.
+`incorporateChild`; and the upgraded account's code `c` is found in the state. Named
+hypotheses: `hdel` (from Pectra, the code found is no delegation) and the coldness flags.
 `destroyBlackFunds_dep_complete`: the owner's call, `a` blacklisted, the forward of
 `balanceOf(a)` answered with no error, then over the state `S` the call left and the word `d` at
 0x60: STOP with empty output in `tailState S C a d` (`balances[a] := 0`, `_totalSupply := T' - d`

@@ -14,9 +14,9 @@ blacklist check, and is the forward `transferByLegacy(caller, to, value)` to the
 output; gas, state and substate exact (those of `incorporateChild`).
 
 The paused and blacklisted cases are excluded by `Transfer.spec_paused` and
-`Transfer.spec_blacklisted` (both over `StepG`). Named hypotheses `hcode` (the code `c` of the
-upgraded account is found in the state) and `hdel` (from Pectra, `c` is no delegation); the
-coldness flags `c0`, `cB`, `c10`, `cU` are named by `hc0`, `hcB`, `hc10`, `hcU`.
+`Transfer.spec_blacklisted` (both over `StepG`). Each conclusion states that the code `c` of the
+upgraded account is found in the state (`fromExt_found`). Named hypothesis `hdel` (from Pectra,
+the code found is no delegation); the coldness flags `c0`, `cB`, `c10`, `cU` are named by `hc0`, `hcB`, `hc10`, `hcU`.
 -/
 
 namespace UsdtVerify.Complete
@@ -120,9 +120,9 @@ path, a depth below the limit, and the forward of `transferByLegacy(caller, to, 
 runner ended with no error; then STOP with no output, gas, state and substate exact. -/
 theorem dep_transfer_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xa9059cbb)
-    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0) {c : ByteArray}
-    (hcode : state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c)
-    (hdel : .pectra ≤ fork → delegatedAddress c = none)
+    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
+    (hdel : ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
+      .pectra ≤ fork → delegatedAddress c = none)
     {c0 cB c10 cU : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
       (blackSlot message) = cB)
@@ -134,6 +134,7 @@ theorem dep_transfer_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamst
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    ∃ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c ∧
     byte20 (storageAt state message.currentTarget 0) = 0 ∧
     (storageAt state message.currentTarget (blackSlot message)).toNat % 256 = 0 ∧
     BitVec.ofNat 256 c.size ≠ 0 ∧
@@ -165,6 +166,8 @@ theorem dep_transfer_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamst
     omega
   obtain ⟨hg0, z, w, hz, hrunz⟩ :=
     dep_transfer_split hfork h4 hsize' hsel hv hp hb hdep hc0 hcB hc10 start within hrun hok
+  obtain ⟨c, hcode⟩ := fromExt_found hfork (by decide) hz w hrunz hok
+  have hdel := hdel c hcode
   obtain ⟨hw, hgc, hdepth, hCE⟩ := fromExt (U := upWord (storageAt state message.currentTarget 10))
     (rest := [0xc4, 0x6e18980a, upWord (storageAt state message.currentTarget 10),
       wordArg message.data 1, addrArg message.data 0, 0x078a,
@@ -191,7 +194,7 @@ theorem dep_transfer_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamst
     hmdep, hmst, after, wa, hat, hruna⟩ := hCE
   rw [hext] at hmg hmd hat
   simp only [Bool.false_eq_true, ↓reduceIte] at hmg hat
-  refine ⟨hp, hb, hw, by simp only [preCostT, accCost]; omega, hdepth, ?_⟩
+  refine ⟨c, hcode, hp, hb, hw, by simp only [preCostT, accCost]; omega, hdepth, ?_⟩
   have hfwd : Sends message (upAddr state message) c (dataT message) msg := by
     refine ⟨hmc, hmt, hmtg, hmca, hmcode, ?_, hmv, hmdep, hmst⟩
     rw [hmd]; exact data_memT message
@@ -289,9 +292,9 @@ depth below the limit, and the forward of `approveByLegacy(caller, spender, valu
 runner ended with no error; then STOP with no output, gas, state and substate exact. -/
 theorem dep_approve_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x095ea7b3)
-    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0) {c : ByteArray}
-    (hcode : state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c)
-    (hdel : .pectra ≤ fork → delegatedAddress c = none)
+    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
+    (hdel : ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
+      .pectra ≤ fork → delegatedAddress c = none)
     {c10 cU : Bool} (hc10 : coldIn substate message.currentTarget 10 = c10)
     (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
     {gas : Nat} {evm s : Evm fork Nat}
@@ -299,6 +302,7 @@ theorem dep_approve_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamste
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    ∃ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c ∧
     68 ≤ message.data.size ∧
     BitVec.ofNat 256 c.size ≠ 0 ∧
     preCostA c10 cU + 100 ≤ gas ∧
@@ -323,6 +327,8 @@ theorem dep_approve_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamste
   have hl : 68 ≤ message.data.size := by omega
   obtain ⟨hg0, z, w, hz, hrunz⟩ := ok_split (Nat.le_refl _)
     (fun g hg => prefixG_approve hfork hl hsize' hsel hv hdep hc10 hg) start within hrun hok
+  obtain ⟨c, hcode⟩ := fromExt_found hfork (by decide) hz w hrunz hok
+  have hdel := hdel c hcode
   obtain ⟨hw, hgc, hdepth, hCE⟩ := fromExt (U := upWord (storageAt state message.currentTarget 10))
     (rest := [0xc4, 0xaee92d33, upWord (storageAt state message.currentTarget 10), 0x40,
       wordArg message.data 1, addrArg message.data 0, 0x02a2,
@@ -349,7 +355,7 @@ theorem dep_approve_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamste
     hmdep, hmst, after, wa, hat, hruna⟩ := hCE
   rw [hext] at hmg hmd hat
   simp only [Bool.false_eq_true, ↓reduceIte] at hmg hat
-  refine ⟨hl, hw, by simp only [preCostA, accCost]; omega, hdepth, ?_⟩
+  refine ⟨c, hcode, hl, hw, by simp only [preCostA, accCost]; omega, hdepth, ?_⟩
   have hfwd : Sends message (upAddr state message) c (dataA message) msg := by
     refine ⟨hmc, hmt, hmtg, hmca, hmcode, ?_, hmv, hmdep, hmst⟩
     rw [hmd]; exact data_memA message
@@ -430,9 +436,9 @@ path, a depth below the limit, and the forward of `transferFromByLegacy(caller, 
 that the runner ended with no error; then STOP with no output, gas, state and substate exact. -/
 theorem dep_transferFrom_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x23b872dd)
-    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0) {c : ByteArray}
-    (hcode : state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c)
-    (hdel : .pectra ≤ fork → delegatedAddress c = none)
+    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
+    (hdel : ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
+      .pectra ≤ fork → delegatedAddress c = none)
     {c0 cB c10 cU : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
       (blackFrom (fromArg message)) = cB)
@@ -444,6 +450,7 @@ theorem dep_transferFrom_complete (hfork : .berlin ≤ fork) (hglam : fork < .gl
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    ∃ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c ∧
     byte20 (storageAt state message.currentTarget 0) = 0 ∧
     (storageAt state message.currentTarget (blackFrom (fromArg message))).toNat % 256 = 0 ∧
     BitVec.ofNat 256 c.size ≠ 0 ∧
@@ -476,6 +483,8 @@ theorem dep_transferFrom_complete (hfork : .berlin ≤ fork) (hglam : fork < .gl
   obtain ⟨hg0, z, w, hz, hrunz⟩ := ok_split (Nat.le_refl _)
     (fun g hg => prefixG_transferFrom hfork h4 hsize' hsel hv hp hb hdep hc0 hcB hc10 hg)
     start within hrun hok
+  obtain ⟨c, hcode⟩ := fromExt_found hfork (by decide) hz w hrunz hok
+  have hdel := hdel c hcode
   obtain ⟨hw, hgc, hdepth, hCE⟩ := fromExt (U := upWord (storageAt state message.currentTarget 10))
     (rest := [0xe4, 0x8b477adb, upWord (storageAt state message.currentTarget 10), valArg message,
       toArg message, fromArg message, 0x0392, BitVec.ofNat 256 (selector message.data)])
@@ -501,7 +510,7 @@ theorem dep_transferFrom_complete (hfork : .berlin ≤ fork) (hglam : fork < .gl
     hmdep, hmst, after, wa, hat, hruna⟩ := hCE
   rw [hext] at hmg hmd hat
   simp only [Bool.false_eq_true, ↓reduceIte] at hmg hat
-  refine ⟨hp, hb, hw, by simp only [DeprecatedTransferFrom.preCostF, accCost]; omega, hdepth, ?_⟩
+  refine ⟨c, hcode, hp, hb, hw, by simp only [DeprecatedTransferFrom.preCostF, accCost]; omega, hdepth, ?_⟩
   have hfwd : Sends message (upAddr state message) c (dataF message) msg := by
     refine ⟨hmc, hmt, hmtg, hmca, hmcode, ?_, hmv, hmdep, hmst⟩
     rw [hmd]; exact data_memFD message

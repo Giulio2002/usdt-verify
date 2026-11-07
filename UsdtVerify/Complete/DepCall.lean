@@ -357,6 +357,56 @@ theorem subG {p q : Nat} (hp : (p = 3735 ∧ q = 3736) ∨ (p = 4890 ∧ q = 489
     step binR 0x03 Local.instruction_sub
     exact Gas.reshapeG rfl rfl (by gas_ok)
 
+/-! ## The code of the upgraded account is found -/
+
+/-- EXTCODESIZE when the lookup of the code fails with a state error: the step fails. -/
+theorem extcodesizeStep_notFound {evm : Evm fork Nat} {word : U256} {rest : List U256}
+    {e : EvmError} (h : evm.stack.val = word :: rest)
+    (missing : accountCode evm (toAddressMasked word) = .error e) :
+    ∃ e', extcodesizeStep evm = .error e' := by
+  have hstack : evm.stack = ⟨word :: rest, h ▸ evm.stack.property⟩ := Subtype.ext h
+  obtain ⟨accessed, hacc⟩ := accessAddress_snd
+    { evm with stack := ⟨rest, by have := evm.stack.property; rw [h] at this; simp at this; omega⟩ }
+    (toAddressMasked word)
+  simp only [extcodesizeStep, popWord, chargeGas, recordAccountRead, pushWord, advance, hstack,
+    Stack.pop]
+  simp only [bind, Except.bind, pure, Except.pure, hacc]
+  have recorded : Except.mapError EvmError.state
+      ((evm.state.recordAccountRead (toAddressMasked word)).getCode
+        ((evm.state.recordAccountRead (toAddressMasked word)).getAccount
+          (toAddressMasked word)).codeHash) = Except.error e := missing
+  have recorded' : Except.mapError EvmError.state
+      ((evm.state.recordAccountRead (toAddressMasked word)).getCode
+        (evm.state.getAccount (toAddressMasked word)).codeHash) = Except.error e := missing
+  rcases hc : GasMeter.charge _ _ with _ | _ <;>
+    simp [Except.map, accountCode, recorded, recorded']
+
+/-- At the EXTCODESIZE of the upgraded address (any of the six pcs), a run of the loop that ends
+with no error found the code of the address in the state. -/
+theorem fromExt_found (hfork : .berlin ≤ fork) {p : Nat}
+    (hp : p = 3719 ∨ p = 4874 ∨ p = 5739 ∨ p = 3213 ∨ p = 4200 ∨ p = 7186)
+    {U : U256} {rest : List U256} {M : ByteArray} {st : State.TransactionState} {ss : Substate}
+    {G : Nat} {evm s : Evm fork Nat}
+    (start : At CODE message p (U :: rest) M G st ss evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hok : s.error = none) :
+    ∃ c, st.getCode (st.getAccount (toAddressMasked U)).codeHash = .ok c := by
+  have key : ∃ (h0 : p < CODE.size), CODE[p] = 0x3b := by
+    rcases hp with rfl | rfl | rfl | rfl | rfl | rfl <;> exact ⟨by code_fact, by code_fact⟩
+  obtain ⟨h0, b0⟩ := key
+  rcases hgc : st.getCode (st.getAccount (toAddressMasked U)).codeHash with e | c
+  · exfalso
+    obtain ⟨hc, -, -, hpc, hst, -, -, hr, -, -, hs, -⟩ := start
+    have missing : accountCode evm (toAddressMasked U) = .error (.state e) := by
+      simp [accountCode, hs, hgc, Except.mapError]
+    obtain ⟨e', he'⟩ := extcodesizeStep_notFound hst missing
+    refine ok_step_error (e := e') hr ?_ hrun hok
+    rw [step_of_instruction (by rw [hc, hpc]; exact h0)
+      (by simp only [hc, hpc, b0]; exact ofByte_of_decode (op := .extcodesize) rfl (Fork.frontier_le _)) instruction_extcodesize', he']
+    rfl
+  · exact ⟨c, rfl⟩
+
 /-! ## From EXTCODESIZE to the frame after CALL, for any gas -/
 
 /-- From EXTCODESIZE of the upgraded address at 3719 (totalSupply), 4874 (balanceOf), 5739
@@ -366,7 +416,8 @@ loop that ends with no error had a nonzero code size, the gas of EXTCODESIZE, th
 CALL's access and memory (`accCost + 128 + memory`), a depth below the limit, and it goes through
 `CallEnd` (the runner gave a frame, and the loop goes on from the frame after CALL).
 
-Hypotheses: the code `c` of the address is found (`hcode`) and is no delegation from Pectra
+Hypotheses: the code `c` of the address is found (`hcode`; `fromExt_found` proves it for a
+successful run) and is no delegation from Pectra
 (`hdel`). -/
 theorem fromExt (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {p q : Nat}
     (hp : (p = 3719 ∧ q = 3736) ∨ (p = 4874 ∧ q = 4891) ∨ (p = 5739 ∧ q = 5756) ∨

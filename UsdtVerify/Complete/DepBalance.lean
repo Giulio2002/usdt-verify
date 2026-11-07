@@ -8,8 +8,8 @@ import UsdtVerify.Functions.DeprecatedBalance
 `dep_balanceOf_complete`: every run that ends with no error, with any gas and ANY runner, is the
 forward of `balanceOf(a)` to the upgraded address (`Sends … (dataB message)`), the runner gave a
 frame with no error, and the run returns the word at 0x60 after the CALL wrote the start of that
-frame's output; gas, state and substate exact. Named hypotheses `hcode`, `hdel` as for
-totalSupply.
+frame's output; gas, state and substate exact. The code found and the named hypothesis `hdel`
+as for totalSupply.
 -/
 
 namespace UsdtVerify.Complete
@@ -79,14 +79,15 @@ theorem dep_balanceOf_split (hfork : .berlin ≤ fork) (hsize' : message.data.si
 
 theorem dep_balanceOf_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x70a08231)
-    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0) {c : ByteArray}
-    (hcode : state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c)
-    (hdel : .pectra ≤ fork → delegatedAddress c = none)
+    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
+    (hdel : ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
+      .pectra ≤ fork → delegatedAddress c = none)
     {gas : Nat} {evm s : Evm fork Nat}
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    ∃ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c ∧
     BitVec.ofNat 256 c.size ≠ 0 ∧
     preCostB (coldIn substate message.currentTarget 10)
       (decide (upAddr state message ∉ substate.accessedAddresses)) + 100 ≤ gas ∧
@@ -113,6 +114,8 @@ theorem dep_balanceOf_complete (hfork : .berlin ≤ fork) (hglam : fork < .glams
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
   obtain ⟨hg0, z, w, hz, hrunz⟩ := dep_balanceOf_split hfork hsize' hsel hdep start within hrun hok
+  obtain ⟨c, hcode⟩ := fromExt_found hfork (by decide) hz w hrunz hok
+  have hdel := hdel c hcode
   obtain ⟨hw, hgc, hdepth, hCE⟩ := fromExt (U := upWord (storageAt state message.currentTarget 10))
     (rest := [0x84, 0x70a08231, upWord (storageAt state message.currentTarget 10), 0,
       addrArg message.data 0, 0x05e7, BitVec.ofNat 256 (selector message.data)])
@@ -140,7 +143,7 @@ theorem dep_balanceOf_complete (hfork : .berlin ≤ fork) (hglam : fork < .glams
     hmdep, hmst, after, wa, hat, hruna⟩ := hCE
   rw [hext] at hmg hmd hat
   simp only [Bool.false_eq_true, ↓reduceIte] at hmg hat
-  refine ⟨hw, by simp only [preCostB, accCost]; omega, hdepth, ?_⟩
+  refine ⟨c, hcode, hw, by simp only [preCostB, accCost]; omega, hdepth, ?_⟩
   have hfwd : Sends message (upAddr state message) c (dataB message) msg := by
     refine ⟨hmc, hmt, hmtg, hmca, hmcode, ?_, hmv, hmdep, hmst⟩
     rw [hmd]; exact data_M2B _

@@ -10,7 +10,7 @@ gas, any gas bound and ANY message runner, is the forward of `allowance(owner, s
 upgraded address (`Sends … (dataAl message)`): the runner gave a frame with no error, and the run
 returns the word at 0x60 after the CALL wrote the start of that frame's output; gas, state and
 substate exact. `Complete.fromExt` covers the pcs of this path (7186 to 7203) since round 15.
-Named hypotheses `hcode`, `hdel`, and the coldness flags `hc10`, `hcU`.
+The code found is in the conclusion; named hypotheses `hdel` and the coldness flags `hc10`, `hcU`.
 -/
 
 namespace UsdtVerify.Complete
@@ -55,9 +55,9 @@ forward that the runner ended with no error; then the run returns the word at 0x
 CALL wrote the start of the child's output there; gas, state and substate exact. -/
 theorem dep_allowance_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xdd62ed3e)
-    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0) {c : ByteArray}
-    (hcode : state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c)
-    (hdel : .pectra ≤ fork → delegatedAddress c = none)
+    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
+    (hdel : ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
+      .pectra ≤ fork → delegatedAddress c = none)
     {c10 cU : Bool} (hc10 : coldIn substate message.currentTarget 10 = c10)
     (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
     {gas : Nat} {evm s : Evm fork Nat}
@@ -65,6 +65,7 @@ theorem dep_allowance_complete (hfork : .berlin ≤ fork) (hglam : fork < .glams
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    ∃ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c ∧
     BitVec.ofNat 256 c.size ≠ 0 ∧
     preCostAl c10 cU + 100 ≤ gas ∧
     message.depth + 1 ≤ STACK_DEPTH_LIMIT ∧
@@ -85,6 +86,8 @@ theorem dep_allowance_complete (hfork : .berlin ≤ fork) (hglam : fork < .glams
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
   obtain ⟨hg0, z, w, hz, hrunz⟩ := ok_split (Nat.le_refl _)
     (fun g hg => prefixG_allowance hfork h4 hsize' hsel hv hdep hc10 hg) start within hrun hok
+  obtain ⟨c, hcode⟩ := fromExt_found hfork (by decide) hz w hrunz hok
+  have hdel := hdel c hcode
   obtain ⟨hw, hgc, hdepth, hCE⟩ := fromExt (U := upWord (storageAt state message.currentTarget 10))
     (rest := [0xa4, 0xdd62ed3e, upWord (storageAt state message.currentTarget 10), 0,
       addrArg message.data 1, addrArg message.data 0, BitVec.ofNat 256 2132,
@@ -113,7 +116,7 @@ theorem dep_allowance_complete (hfork : .berlin ≤ fork) (hglam : fork < .glams
     hmdep, hmst, after, wa, hat, hruna⟩ := hCE
   rw [hext] at hmg hmd hat
   simp only [Bool.false_eq_true, ↓reduceIte] at hmg hat
-  refine ⟨hw, by simp only [preCostAl, accCost]; omega, hdepth, ?_⟩
+  refine ⟨c, hcode, hw, by simp only [preCostAl, accCost]; omega, hdepth, ?_⟩
   have hfwd : Sends message (upAddr state message) c (dataAl message) msg := by
     refine ⟨hmc, hmt, hmtg, hmca, hmcode, ?_, hmv, hmdep, hmst⟩
     rw [hmd, memoryExtend_zero]; exact data_M3A _ _

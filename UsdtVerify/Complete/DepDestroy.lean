@@ -20,8 +20,8 @@ gas bound and ANY message runner:
   `tailState S C a d` (`balances[a] := 0`, then `_totalSupply := T' - d`, unchecked), substate
   `tailSub`, gas exact (`tailCost`).
 
-Named hypotheses: `hstatic` (the frame is not static), `hcode`, `hdel` (as for the other
-deprecated functions), the coldness flags, and `hkeep`, a hypothesis on the runner: when it ends
+The code found is in the conclusion, as for the other deprecated functions. Named hypotheses:
+`hstatic` (the frame is not static), `hdel` (as for the other deprecated functions), the coldness flags, and `hkeep`, a hypothesis on the runner: when it ends
 the forwarded message, sent from the caller state at the CALL, with no error, the contract still
 has an account in the child's state (the SSTOREs of the tail need it; the case without an account
 is not covered).
@@ -81,16 +81,16 @@ exact. -/
 theorem dep_destroy_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hstatic : message.isStatic = false)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
-    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0) {c : ByteArray}
-    (hcode : state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c)
-    (hdel : .pectra ≤ fork → delegatedAddress c = none)
+    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
+    (hdel : ∀ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c →
+      .pectra ≤ fork → delegatedAddress c = none)
     {c0 cL c10 cU : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (hcL : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
       (listSlot (addrArg message.data 0)) = cL)
     (hc10 : coldIn (preSub substate message) message.currentTarget 10 = c10)
     (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
-    (hkeep : ∀ caller msg lt child, runChild caller msg lt = .ok child →
-      Sends message (upAddr state message) c (dataB message) msg →
+    (hkeep : ∀ caller msg lt child (c' : ByteArray), runChild caller msg lt = .ok child →
+      Sends message (upAddr state message) c' (dataB message) msg →
       caller.state = ((callStateD state message).recordAccountRead
         (upAddr state message)).recordAccountRead message.currentTarget →
       child.1.error = none → hasAccount child.1.state message.currentTarget)
@@ -99,6 +99,7 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamste
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
+    ∃ c, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c ∧
     callerWord message = ownerOf state message.currentTarget ∧
     (storageAt state message.currentTarget (listSlot (addrArg message.data 0))).toNat % 256 ≠ 0 ∧
     BitVec.ofNat 256 c.size ≠ 0 ∧
@@ -144,6 +145,8 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamste
   obtain ⟨hg0, z, w, hz, hrunz⟩ := ok_split (Nat.le_refl _)
     (fun g hg => prefixG_destroy hfork h4 hsize' hsel hv hown hl hdep hc0 hcL hc10 hg)
     start within hrun hok
+  obtain ⟨c, hcode⟩ := fromExt_found hfork (by decide) hz w hrunz hok
+  have hdel := hdel c hcode
   obtain ⟨hw, hgc, hdepth, hCE⟩ := fromExt (U := upWord (storageAt state message.currentTarget 10))
     (rest := [0x84, 0x70a08231, upWord (storageAt state message.currentTarget 10), 0,
       addrArg message.data 0, 0x1f48, 0, addrArg message.data 0, 0x09b6,
@@ -172,14 +175,14 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork) (hglam : fork < .glamste
     hmdep, hmst, after, wa, hat, hruna⟩ := hCE
   rw [hext] at hmg hmd hat
   simp only [Bool.false_eq_true, ↓reduceIte] at hmg hat
-  refine ⟨hown, hl, hw, by simp only [preCostD, accCost]; omega, hdepth, ?_⟩
+  refine ⟨c, hcode, hown, hl, hw, by simp only [preCostD, accCost]; omega, hdepth, ?_⟩
   have hfwd : Sends message (upAddr state message) c (dataB message) msg := by
     refine ⟨hmc, hmt, hmtg, hmca, hmcode, ?_, hmv, hmdep, hmst⟩
     rw [hmd, memoryExtend_zero]; exact data_memD message
   by_cases he : child.1.error = none
   · simp only [he, Option.isNone_none, ↓reduceIte] at hat
     have hacc : hasAccount (incorporateChild fork caller child.1).state message.currentTarget := by
-      rw [state_incorporateChild]; exact hkeep caller msg lt child hch hfwd hcs he
+      rw [state_incorporateChild]; exact hkeep caller msg lt child c hch hfwd hcs he
     obtain ⟨hcost, hr, ho, hgs, hst, hss⟩ := ok_exact2
       (fun g h1 _ => tailD (fork := fork) (message := message)
         hfork hglam (mkey_addrArg0 message.data) hstatic hacc
