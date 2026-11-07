@@ -616,11 +616,49 @@ entry; `DESTS` = the 32 destinations).
   CALL) give another result with more gas, so the shift argument needs the chain to avoid them.
   A triple over `StepG` carries that for each step.
 
+### Round 12: the function specs over `StepG`; completeness of totalSupply, balanceOf, transfer (GasRules2.lean, Complete/Exact.lean, Complete/Read.lean, Complete/Transfer.lean)
+- `RunMono` for POP, JUMP, MLOAD, KECCAK256, EXP, RETURN, STOP, SLOAD, SSTORE and LOG0..LOG4
+  (`runMono_pop` ... `runMono_log`), for every frame. SSTORE: the stipend check, the charge,
+  the state-gas charge, the static check and the write all fail (or halt with an error through
+  `keepReads`) with less gas, or give the same frame with `k` less gas. G rules: `popG`, `jumpG`,
+  `mloadG`, `keccak256G`, `expG`, `expLG` (the local `Local.exp`), `returnG`, `stopG`, `sloadG`,
+  `sstoreG`, `sstoreWG` (the local `sstoreW`), `logG`, `SpecG.reshape`; `branchTableG` moved here.
+- `StepLift R R'` (every `R` step is an `R'` step; instances `R R` and `StepG Step`),
+  `Triple.lift`, `Triple.seqL`; `Coe` from `HoareG`/`SpecG` to `Hoare`/`Spec`. The `step` macro
+  is `refine Gas.Triple.seqL r ?_`, so a rule over `StepG` also runs in a goal over `Step`. The
+  macros of Steps.lean (`pushR`, `binR`, `popR`, `jumpR`, ...) give the G rules; `repc`/`restate`
+  are over `StepG` (`repcH`/`restateH` over `Step`).
+- Every function file was restated by a script (code regions only): `Hoare fork` → `HoareG fork`,
+  `Spec fork` → `SpecG fork`, each EthLib rule → its G rule. The theorem names did not change;
+  every non-deprecated specification (and the Summary aliases) is now a `SpecG` (it implies the
+  old `Spec` by `SpecG.toSpec`, also a coercion). The 34 deprecated theorems whose path goes
+  through EXTCODESIZE, GAS, CALL or states a callee specification (`toCall`, `preCall*`,
+  `spec_dep*`, `noCode*`, ...) stay over `Step`, closed under use; the blocks they use before and
+  after the call are now over `StepG`.
+- `ok_exact`: a `SpecG` to a normal halt paying `cost`, for every gas from `B ≥ cost`, and a run
+  of the loop from the same frame with any gas that ends with no error ⇒ `cost ≤ gas`, output,
+  `s.gas = gas - cost`, state and substate as stated. `no_ok`: a `SpecG` to an error for every gas
+  from some bound ⇒ no run from that frame ends with no error.
+- `ok_totalSupply`, `ok_balanceOf` (Berlin ≤ fork, size < 2^256, the selector, not deprecated):
+  every successful run returns the slot word with the exact gas, state and substate.
+- `ok_transfer` (also fork < Glamsterdam, not static, the contract has an account, not
+  deprecated, the eight coldness flags named as in the specs): every successful run passed all
+  the checks (68 ≤ size, not paused, caller not blacklisted, no overflow of `v * rate`,
+  `fee ≤ v`, `v ≤ balances[caller]`, no overflow at the recipient) and is `spec_ok` (fee 0) or
+  `spec_fee` (fee > 0 and no overflow at the owner), exact gas, state, substate, empty output.
+
 ## Open (not proved)
-- Completeness per function: that every successful run of each function is one of its proved
-  paths. Done for the dispatcher (round 11). Plan: restate the function files over `StepG`
-  (G-rules still missing: pop, jump, mload, sload, sstore/`sstoreW`, keccak256, exp, log, return,
-  stop), then one case split per function with `SpecG.not_ok` / `SpecG.halted`.
+- Completeness per function: done for the dispatcher (round 11) and for totalSupply, balanceOf,
+  transfer, not deprecated (round 12). Still to do, same method (`ok_exact`/`no_ok`): approve
+  (needs a new spec: the payload revert when size < 68 is not proved), transferFrom, the owner
+  functions, the getters, name/symbol (slot words that are odd with w/2 < 32 are not covered by
+  a spec, so they stay a named hypothesis),
+  destroyBlackFunds.
+- The deprecated paths split at GAS (the prefix is now over `StepG`; the GAS step itself and
+  the CALL need a separate argument), and the invariant over every successful call.
+- Hypotheses the completeness theorems keep, by name: `hstatic` (frame not static; a static
+  SSTORE/LOG fails, but no spec of that failure is proved), `hacc` (the contract has an account;
+  the write needs it), Berlin ≤ fork < Glamsterdam on the writing paths, size < 2^256.
 - The deprecated paths in the invariant (deprecated destroyBlackFunds subtracts the balance that
   the upgraded contract reports from this contract's `_totalSupply`, see round 10).
 

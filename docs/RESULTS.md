@@ -256,8 +256,16 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   exactly `k` less gas left. The specifications used for this are re-proved over `Gas.StepG`
   (steps from frames whose instruction gives the same result with more gas, or fails with less;
   GAS and the calls are not such instructions).
-- Not yet proved: the same per function (that each successful run of each function is one of
-  its proved paths), and so the invariant over all successful calls.
+- Every specification of a non-deprecated path is now stated over `StepG` (round 12), so the
+  same argument applies to each function. Proved so far: totalSupply(), balanceOf(address) and
+  transfer(address,uint256), when the contract is not deprecated. For each, every run that
+  ends with no error, with any gas, is one of the proved success paths, with the exact output,
+  gas left, state and substate. For transfer, the run also passed every check (paused,
+  blacklist, payload size, the SafeMath overflows, the balance), and it is the fee-0 path or
+  the fee path. Its hypotheses: Berlin ≤ fork < Glamsterdam, the frame not static, the contract
+  has an account.
+- Not yet proved: the same for the other functions, and so the invariant over all successful
+  calls.
 
 ## What is trusted
 
@@ -274,8 +282,9 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
 
 ## What is not covered
 
-- That the proved success paths are all the successful runs of a call, and the invariant on the
-  deprecated paths.
+- That the proved success paths are all the successful runs of a call, for the functions other
+  than totalSupply, balanceOf and transfer (not deprecated), and the invariant on the deprecated
+  paths.
 - `KeccakSep` (a hypothesis of the invariant theorems, about keccak).
 - Runs that run out of gas below the stated bounds, except at the dispatcher (see above).
 - Forks before Berlin, and Glamsterdam onwards on the writing and calling paths.

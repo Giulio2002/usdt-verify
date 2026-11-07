@@ -1,3 +1,5 @@
+import UsdtVerify.Complete.Read
+import UsdtVerify.Complete.Transfer
 import UsdtVerify.Complete.Dispatch
 import UsdtVerify.Functions.TotalSupply
 import UsdtVerify.Functions.Strings
@@ -272,3 +274,22 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Complete.spec_unknownG
 #print axioms UsdtVerify.Complete.spec_shortG
 #print axioms UsdtVerify.Complete.runFrame_ok_dispatch
+#print axioms UsdtVerify.Gas.runMono_pop
+#print axioms UsdtVerify.Gas.runMono_jump
+#print axioms UsdtVerify.Gas.runMono_mload
+#print axioms UsdtVerify.Gas.runMono_keccak256
+#print axioms UsdtVerify.Gas.runMono_exp
+#print axioms UsdtVerify.Gas.runMono_return
+#print axioms UsdtVerify.Gas.runMono_stop
+#print axioms UsdtVerify.Gas.runMono_sload
+#print axioms UsdtVerify.Gas.runMono_sstore
+#print axioms UsdtVerify.Gas.runMono_log
+#print axioms UsdtVerify.Gas.sstoreWG
+#print axioms UsdtVerify.Gas.logG
+#print axioms UsdtVerify.Gas.Triple.seqL
+#print axioms UsdtVerify.Complete.ok_exact
+#print axioms UsdtVerify.Complete.no_ok
+#print axioms UsdtVerify.Complete.ok_totalSupply
+#print axioms UsdtVerify.Complete.ok_balanceOf
+#print axioms UsdtVerify.TransferFee.spec_fee
+#print axioms UsdtVerify.Complete.ok_transfer
