@@ -18,7 +18,7 @@ what they state. Theorem names in parentheses; the one-place index is `UsdtVerif
 
 Each theorem starts from a fresh call frame running `CODE` at pc 0. Under the stated hypotheses on
 the call data, the call value, the storage words read and the gas, every run reaches the stated
-end frame. Most theorems are also given for the real interpreter loop `runFrame`, for every gas
+end frame. Every theorem from pc 0 is also given for the real interpreter loop `runFrame`, for every gas
 bound and every message runner (`runFrame_*`).
 
 The end frames are:
@@ -157,6 +157,20 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
     when `d ≤ _totalSupply`), and every other slot is unchanged. The gas is exact.
   - The deprecated case, where the getter calls the upgraded contract, is not covered.
 
+- **The getters** (`Getters.lean`, `GettersMap.lean`). Each call with no value returns exactly
+  32 bytes, writes nothing, and reads only the slots named; the gas is exact.
+  - `decimals()`, `maximumFee()`, `_totalSupply()`, `basisPointsRate()` return the word of
+    slot 9, 4, 1 and 3. `MAX_UINT()` returns 2^256 − 1 and reads nothing.
+  - `deprecated()` and `paused()` return 1 if byte 20 of slot 10 (resp. slot 0) is nonzero,
+    and 0 otherwise.
+  - `upgradedAddress()` returns the low 160 bits of slot 10; `owner()` and `getOwner()` the low
+    160 bits of slot 0.
+  - `balances(a)` returns `balances[a]`, the same slot as `balanceOf`, with no deprecation
+    check. `isBlackListed(a)` and `getBlackListStatus(a)` return 1 if the low byte of
+    `isBlackListed[a]` is nonzero, and 0 otherwise.
+  - `allowed(a0, a1)` returns `allowed[a0][a1]`; `allowance(a0, a1)`, when not deprecated,
+    returns the same word after reading slot 10.
+
 ## What is trusted
 
 - The Lean 4 kernel (v4.35.0).
@@ -172,8 +186,8 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
 
 ## What is not covered
 
-- destroyBlackFunds when deprecated, the getters other than totalSupply and balanceOf, and
-  the fallback.
+- destroyBlackFunds and allowance when deprecated, the string getters name() and symbol(),
+  and the fallback.
 - Properties across several calls (invariants), and the global "sum of all balances =
   `_totalSupply`". The global statement needs a sum over a mapping and is not stated.
 - The output buffer after STOP. `At` does not track it, so for transfer the theorems do not say

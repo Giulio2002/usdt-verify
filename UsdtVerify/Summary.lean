@@ -22,6 +22,8 @@ import UsdtVerify.Functions.SetParamsSpec
 import UsdtVerify.Functions.AddrWriteSpec
 import UsdtVerify.Functions.Destroy
 import UsdtVerify.Functions.DestroySpec
+import UsdtVerify.Functions.GettersMap
+import UsdtVerify.Functions.RunFrames
 
 /-!
 # Summary: what is proved about the deployed USDT bytecode
@@ -167,8 +169,8 @@ read: state and substate unchanged, gas left `gas - (87 + 22 * (i + 1))`.
 `caller & (2^160 - 1)` (`callerWord`). The check is inlined in each owner function; `ownerOk` /
 `ownerRevert` cover all ten copies (`CHECKS`). A caller other than the owner gets REVERT with no
 output after reading slot 0.
-From round 7 on, the `runFrame` form of a `Spec` is EthLib's `Spec.runFrame` (as in every
-`runFrame_*` wrapper); the new specs are stated as `Spec` only.
+Every `spec_*` of rounds 7 and 8 from pc 0 has a `runFrame_*` wrapper in the same namespace
+(RunFrames.lean, generated from the statements; each proof applies EthLib's `Spec.runFrame`).
 
 ## pause() 0x8456cb59 / unpause() 0x3f4ba83a (PauseSpec.lean)
 `paused` is byte 20 of slot 0.
@@ -235,8 +237,22 @@ From round 7 on, the `runFrame` form of a `Spec` is EthLib's `Spec.runFrame` (as
   when `d ≤ T`), every other slot unchanged.
   The deprecated case (the getter calls the upgraded contract) is not covered.
 
+## Getters (Getters.lean, GettersMap.lean)
+Each returns 32 bytes and only reads; `a`, `a0`, `a1` are argument words masked to 160 bits.
+- `decimals`, `maximumFee`, `totalSupplyVar` (`_totalSupply()`), `basisPointsRate`: the word of
+  slot 9, 4, 1, 3 (`getter_slot` covers the four).
+- `maxUint` (`MAX_UINT()`): the word 2^256 - 1, no read.
+- `deprecatedFlag` (`deprecated()`), `pausedFlag` (`paused()`): the word 1 if byte 20 of slot 10
+  / slot 0 is nonzero, else 0.
+- `upgradedAddress`: the low 160 bits of slot 10. `owner`, `getOwner`: the low 160 bits of slot
+  0 (`ownerOf`).
+- `balances(a)`: `balances[a]` (no deprecation check). `isBlackListed(a)`,
+  `getBlackListStatus(a)`: 1 if the low byte of `isBlackListed[a]` is nonzero, else 0.
+- `allowed(a0, a1)`: `allowed[a0][a1]`, slot `keccak(a1 ++ keccak(a0 ++ 5))`; `allowance(a0, a1)`,
+  not deprecated: the same word, after reading slot 10. (Deprecated allowance is not covered.)
+
 ## Not proved
-The owner functions and the remaining getters (see docs/STATUS.md); the fallback. The returned bytes of a STOP (`At` does
+name() and symbol() (string getters), allowance() when deprecated (see docs/STATUS.md); the fallback. The returned bytes of a STOP (`At` does
 not track the output buffer).
 -/
 
@@ -338,6 +354,22 @@ alias destroyBlackFunds_notListed := Destroy.spec_notListed
 alias destroyBlackFunds := DestroySpec.spec
 alias runFrame_destroyBlackFunds := DestroySpec.runFrame_spec
 alias destroyBlackFunds_effects := DestroySpec.destroy_effects
+alias getter_slot := Getters.spec_slot
+alias decimals := Getters.spec_decimals
+alias maximumFee := Getters.spec_maximumFee
+alias totalSupplyVar := Getters.spec_totalSupplyVar
+alias basisPointsRate := Getters.spec_basisPointsRate
+alias maxUint := Getters.spec_maxUint
+alias deprecatedFlag := Getters.spec_deprecated
+alias pausedFlag := Getters.spec_paused
+alias upgradedAddress := Getters.spec_upgradedAddress
+alias owner := Getters.spec_owner
+alias getOwner := Getters.spec_getOwner
+alias balances := GettersMap.spec_balances
+alias isBlackListed := GettersMap.spec_isBlackListed
+alias getBlackListStatus := GettersMap.spec_getBlackListStatus
+alias allowed := GettersMap.spec_allowed
+alias allowance := GettersMap.spec_allowance
 
 variable {fork : Fork} {message : Message fork}
 

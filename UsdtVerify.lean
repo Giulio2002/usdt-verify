@@ -29,5 +29,9 @@ import UsdtVerify.Functions.SetParamsSpec
 import UsdtVerify.Functions.AddrWriteSpec
 import UsdtVerify.Functions.Destroy
 import UsdtVerify.Functions.DestroySpec
+import UsdtVerify.Functions.MemRev
+import UsdtVerify.Functions.Getters
+import UsdtVerify.Functions.GettersMap
+import UsdtVerify.Functions.RunFrames
 import UsdtVerify.Test.Axioms
 import UsdtVerify.Summary

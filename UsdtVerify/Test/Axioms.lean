@@ -22,6 +22,8 @@ import UsdtVerify.Functions.SetParamsSpec
 import UsdtVerify.Functions.AddrWriteSpec
 import UsdtVerify.Functions.Destroy
 import UsdtVerify.Functions.DestroySpec
+import UsdtVerify.Functions.GettersMap
+import UsdtVerify.Functions.RunFrames
 import UsdtVerify.Functions.Deprecated
 import UsdtVerify.Functions.DeprecatedBalance
 
@@ -154,3 +156,31 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.DestroySpec.spec
 #print axioms UsdtVerify.DestroySpec.runFrame_spec
 #print axioms UsdtVerify.DestroySpec.destroy_effects
+#print axioms UsdtVerify.Getters.spec_slot
+#print axioms UsdtVerify.Getters.spec_decimals
+#print axioms UsdtVerify.Getters.spec_maximumFee
+#print axioms UsdtVerify.Getters.spec_totalSupplyVar
+#print axioms UsdtVerify.Getters.spec_basisPointsRate
+#print axioms UsdtVerify.Getters.spec_maxUint
+#print axioms UsdtVerify.Getters.spec_flag
+#print axioms UsdtVerify.Getters.spec_deprecated
+#print axioms UsdtVerify.Getters.spec_paused
+#print axioms UsdtVerify.Getters.spec_upgradedAddress
+#print axioms UsdtVerify.Getters.spec_owner
+#print axioms UsdtVerify.Getters.spec_getOwner
+#print axioms UsdtVerify.GettersMap.spec_balances
+#print axioms UsdtVerify.GettersMap.spec_isBlackListed
+#print axioms UsdtVerify.GettersMap.spec_getBlackListStatus
+#print axioms UsdtVerify.GettersMap.spec_allowed
+#print axioms UsdtVerify.GettersMap.spec_allowance
+#print axioms UsdtVerify.memoryReadBytes_write_rev
+#print axioms UsdtVerify.PauseSpec.runFrame_pause
+#print axioms UsdtVerify.BlackListSpec.runFrame_add
+#print axioms UsdtVerify.IssueSpec.runFrame_issue
+#print axioms UsdtVerify.IssueSpec.runFrame_redeem
+#print axioms UsdtVerify.SetParamsSpec.runFrame_setParams
+#print axioms UsdtVerify.AddrWriteSpec.runFrame_deprecate
+#print axioms UsdtVerify.AddrWriteSpec.runFrame_transferOwnership
+#print axioms UsdtVerify.Destroy.runFrame_notListed
+#print axioms UsdtVerify.Getters.runFrame_slot
+#print axioms UsdtVerify.GettersMap.runFrame_allowance

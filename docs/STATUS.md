@@ -417,8 +417,40 @@ entry; `DESTS` = the 32 destinations).
   `sub T d` (and `T - d` as numbers when `d ≤ T`), every other slot unchanged.
 - Not covered: destroyBlackFunds when deprecated (the getter calls the upgraded contract).
 
+### Round 8: the getters (Getters.lean, GettersMap.lean, MemRev.lean; Common.lean generalized)
+- Return blocks: `ret` now covers its ten copies (`RET_PCS`) with any `rest` below the word;
+  `retB` (`BOOL_PCS`: 695, 1277, 1430, 2250; four ISZERO, 65 gas) and `retA` (`ADDR_PCS`: 935,
+  1573, 1658; masked twice, 65 gas). `depCheck` also covers allowance's copy at 6925.
+- Entries: `entry0` (ten getters without arguments, 34), `entry1m` (three one-address getters,
+  74), `entry2` (two two-address getters, 104), `toEntry` (pc 0 to the entry, 62 + 22t).
+- `spec_slot` (one theorem for decimals/maximumFee/_totalSupply/basisPointsRate, slots
+  9/4/1/3, `164 + 22t + slot`), corollaries `spec_decimals` (384), `spec_maximumFee` (406),
+  `spec_totalSupplyVar` (428), `spec_basisPointsRate` (758); `spec_maxUint` (824, no read);
+  `spec_flag` / `spec_deprecated` (350) / `spec_paused` (614): word `if byte20 w = 0 then 0
+  else 1` (`isZero4_flag`); `spec_upgradedAddress` (388), `spec_owner` (652), `spec_getOwner`
+  (638): `w & (2^160 - 1)` (`addr_expr`). Gas numbers are `+ slot price`.
+- `spec_balances` (478 + slot; `hashPub`), `spec_isBlackListed` (933 + slot),
+  `spec_getBlackListStatus` (663 + slot; `hashTail7` at 4531): word `if w % 256 = 0 then 0
+  else 1` (`isZero4_low`); `spec_allowed` (705 + slot; `hashPub2`, `hashPub`),
+  `spec_allowance` (not deprecated; 1156 + slot 10 + slot; lookup at 10814 with `hashTail7` at
+  10822 and 10883). Slot `allowSlot = keccak(a1 ++ keccak(a0 ++ 5))`.
+- Generic (local, no sorry): `memoryReadBytes_write_rev` (a read across two adjacent writes made
+  in reverse address order; EthLib has only the in-order one), used by the public mapping
+  getters, which write the base word at 32 before the key at 0.
+- Not covered: name() and symbol() (string getters: copy loop and padding), allowance() when
+  deprecated (forwards to the upgraded contract).
+
+### Round 8: runFrame wrappers (RunFrames.lean)
+- 50 `runFrame_*` theorems: the five deprecated no-code reverts (`runFrame_dep{,B,T,A,F}NoCode`)
+  and every `spec_*` from pc 0 of PauseSpec, BlackListSpec,
+  IssueSpec, SetParamsSpec, AddrWriteSpec, Destroy, Getters and GettersMap (DestroySpec has
+  its own). Same hypotheses plus `start`/`within`; the conclusion is the spec's end frame for
+  the `runFrame` result, for every gas bound and message runner. The file is generated from the
+  statements by a script (scratch, not in the repo); each proof is `(spec_* …).runFrame start
+  within`.
+
 ## Open (not proved)
-- destroyBlackFunds when deprecated, the getters other than totalSupply/balanceOf, the fallback, invariants across calls, the global
+- destroyBlackFunds and allowance when deprecated, name() and symbol(), the fallback, invariants across calls, the global
   "sum of balances = totalSupply" (needs a sum over a mapping).
 - The returned bytes after STOP (generic gap 8).
 
@@ -508,6 +540,9 @@ entry; `DESTS` = the 32 destinations).
    atom. (d) `if_neg`/`if_false` are deprecated in this toolchain (`ite_false`, or `split`).
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+Round 8 (pin d4d422780, unchanged): clean project build (`rm -rf .lake/build`) 103.12 s wall,
+1342144512 bytes (1280 MiB) max RSS (/usr/bin/time -l), exit 0, 0 "error:" lines, 1342 jobs,
+155 `#print axioms`, all [propext, Classical.choice, Quot.sound]. New files of round 8 (DestroySpec, Getters, GettersMap, MemRev, RunFrames): 2488 lines (wc -l).
 Round 7 (pin d4d422780, unchanged): clean project build (`rm -rf .lake/build`) 98.19 s wall,
 1345454080 bytes (1283 MiB) max RSS (/usr/bin/time -l), exit 0, 0 "error:" lines, 1337 jobs,
 124 `#print axioms`, all [propext, Classical.choice, Quot.sound]. New files of round 7: 3960 lines.
