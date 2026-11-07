@@ -114,12 +114,12 @@ So in deprecated mode the supply invariant depends on the upgraded contract answ
 
 `inv_call_all` in `UsdtVerify/Complete/Static.lean` drops the "not deprecated" hypothesis. For any successful call to USDT, with any call data, value and gas, the invariant holds after if it held before. When the contract is deprecated it needs these named assumptions:
 
-- `KeepsInv`: every message USDT sends to the upgraded contract, when it ends without an error, ends in a state where USDT still has its account and the invariant still holds. This covers an upgraded contract that calls back into USDT.
+- `KeepsInv`: every message USDT sends to the upgraded contract that starts with the invariant and ends without an error ends with the invariant. It says nothing about USDT's account. This covers an upgraded contract that calls back into USDT. An earlier form that also tracked the account is kept as `KeepsInvAcc`. Neither form implies the other.
 - `HonestBalance`, only for `destroyBlackFunds`: the balance the upgraded contract reports equals the local balance.
 
 The six other forwarding functions write nothing locally after the forwarded call, which is also proved.
 
-`inv_call_all` also covers static calls, such as a `STATICCALL` into USDT. A static run of USDT changes no state, so the invariant holds trivially. This uses a named assumption, `StaticKeeps`, about the message runner, which is proved for EthLib's own runner from Paris. When the contract is deprecated and the call is not static, the contract's account is still a named assumption.
+`inv_call_all` also covers static calls, such as a `STATICCALL` into USDT. A static run of USDT changes no state, so the invariant holds trivially. This uses a named assumption, `StaticKeeps`, about the message runner, which is proved for EthLib's own runner from Paris. No theorem of the invariant assumes the contract's account any more. A missing account at the forwarded call is proved harmless to USDT's own code, so the case is left to `KeepsInv`.
 
 ### Sequences of calls
 

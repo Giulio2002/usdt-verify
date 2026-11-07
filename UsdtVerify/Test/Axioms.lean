@@ -415,7 +415,9 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Complete.prefixG_destroy
 #print axioms UsdtVerify.Complete.dep_destroy_complete
 #print axioms UsdtVerify.Complete.storageAt_route
-#print axioms UsdtVerify.Complete.hasAccount_route
+#print axioms UsdtVerify.Complete.hasAccount_caller_iff
+#print axioms UsdtVerify.Complete.keepsInv_of_acc
+#print axioms UsdtVerify.Complete.localForward_noAcc
 #print axioms UsdtVerify.Complete.inv_of_local
 #print axioms UsdtVerify.Complete.dep_totalSupply_local
 #print axioms UsdtVerify.Complete.dep_balanceOf_local

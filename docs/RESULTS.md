@@ -399,11 +399,11 @@ left. The callee may call back into this contract, so `S` can differ from the st
 hypothesis "not deprecated". From Berlin on (Glamsterdam included; through round 18 before Glamsterdam when deprecated), take a fresh frame of the
 deployed code at pc 0, with any call data below 2^256 bytes, any value, any gas, any gas bound
 and any message runner. Assume `KeccakSep`, `StrForm` of slots 7
-and 8, and `Inv` at the start (through round 18 also a frame that is not static). When the contract is deprecated, also assume an account for the
-contract `C` (round 18: only when deprecated) and:
+and 8, and `Inv` at the start (through round 18 also a frame that is not static). When the
+contract is deprecated, also assume (through round 19 also an account for the contract `C`):
 - `KeepsInv` (`hkeeps`): whenever the runner ends a message from `C` to `ua` with no error, and
-  `C` had an account and `Inv` held in the caller's state, then `C` still has an account and
-  `Inv` holds in the child's end state. The callee may call back into `C`; this assumption is
+  `Inv` held in the caller's state, then `Inv` holds in the child's end state. It asks nothing
+  about the account of `C` (round 20). The callee may call back into `C`; this assumption is
   about the end state only, so it covers that;
 - for destroyBlackFunds, `HonestBalance` (`hhonest`): the word that the forwarded `balanceOf(a)`
   writes at 0x60 is `balances[a]` in the child's end state.
@@ -425,13 +425,32 @@ it, from Paris, for the interpreter's own runner (EthLib's `processMessage_stati
 - `inv_static`: so `Inv C` at the start gives `Inv C` at the end.
 - `Complete.inv_call_all` now covers static frames: it takes `hstat` (when static:
   `message.code = CODE`, `StaticCode`, `StaticKeeps`), and is `inv_static` or `inv_call_ns` by
-  the flag. The hypothesis "not static" is gone from it. Round 18: the account is assumed only
-  for a frame that is not static and when deprecated (`byte20 (slot 10) ≠ 0 → isStatic = false →
-  hasAccount state C`); the deprecated paths need it for the premise of `KeepsInv` (round 19:
-  the account in the child's end state that destroyBlackFunds needs for `inv_tail_iff` is now
-  proved by `dep_destroy_complete`, but `KeepsInv` still asks for the account in the caller
-  state). The same holds for `GoodCall`,
-  `goodCall_process` and `process_step`.
+  the flag. The hypothesis "not static" is gone from it. Rounds 18 and 19 assumed the account
+  only for a frame that is not static and when deprecated (`hacc`), for the premise of the
+  callee assumption; round 20 removed `hacc` from `inv_call_ns`, `inv_call_all`, `GoodCall`,
+  `goodCall_process` and `process_step` (see below).
+
+## The invariant without an account of the contract (round 20)
+
+`UsdtVerify/Complete/DepInvAll.lean`. The callee assumption was restated so that it does not
+need the account of `C`:
+- `KeepsInv runChild C ua` now has `Inv C` of the caller state as its only premise and `Inv C` of
+  the child's end state as its conclusion. The assumption of rounds 15 to 19 is kept as
+  `KeepsInvAcc` (premise also an account of `C`, conclusion also that account), and
+  `keepsInv_of_acc` proves that `KeepsInvAcc` together with its missing case `KeepsInvNoAcc` (a
+  caller state with no account of `C`) gives `KeepsInv`.
+- A missing account of `C` does not make a step of the forwarding paths fail: no forward
+  specification or completeness theorem of those paths takes an account. (In EthLib's
+  `finishCall` the balance check is `balance < value`, and these calls send value 0.) The missing
+  account reaches the runner: `LocalForward` now states that `C` has an account in the caller
+  state of the CALL iff it has one in the start state, and `localForward_noAcc` restates it for
+  the case with no account. So `KeepsInv` assumes that case of the runner; the code cannot rule
+  it out.
+- destroyBlackFunds needs the account in the child's end state (for `inv_tail_iff`);
+  `dep_destroy_complete` proves it for every run that ends with no error, so `dep_destroy_local`,
+  `inv_dep_destroy_iff` and `inv_dep_destroy` take no account either.
+- `inv_call_ns`, `inv_call_all`, `GoodCall`, `goodCall_process` and `process_step` no longer
+  take `hacc`.
 
 ## A finite sequence of calls (round 17)
 

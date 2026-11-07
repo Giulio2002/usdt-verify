@@ -357,12 +357,11 @@ destroyBlackFunds keeps `Inv`: under `Inv`, `d ≤ _totalSupply`, so its uncheck
 not wrap (`destroy_inv`).
 Every successful call, not deprecated, static or not, with or without an account:
 `Complete.inv_call`. Deprecated or not: `Complete.inv_call_ns` (Complete/DepInvAll.lean, from
-Berlin, Glamsterdam included; when deprecated, under an account of the
-contract and the named assumptions `KeepsInv` on the runner and `HonestBalance` for
-destroyBlackFunds; the upgraded code may be an EIP-7702 delegation). Static or not:
+Berlin, Glamsterdam included; when deprecated, under the named assumptions `KeepsInv` on the
+runner and `HonestBalance` for destroyBlackFunds, and since round 20 with no account of the
+contract assumed; the upgraded code may be an EIP-7702 delegation). Static or not:
 `Complete.inv_call_all` (Complete/Static.lean; "not static" replaced by `hstat`: when static,
-`message.code = CODE`, `StaticCode` and `StaticKeeps`; the account only when deprecated and not
-static; a static frame keeps the state, EthLib's `staticStep_runFrame`, under the named runner
+`message.code = CODE`, `StaticCode` and `StaticKeeps`; a static frame keeps the state, EthLib's `staticStep_runFrame`, under the named runner
 assumption `StaticKeeps`, proved for the interpreter's runner from Paris by
 `staticKeeps_process`). Along a finite sequence of such calls and of steps that keep the storage
 of `C`: `Complete.inv_calls` (Complete/Seq.lean); a successful top-level `processMessage` of

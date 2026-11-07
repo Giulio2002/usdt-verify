@@ -10,8 +10,8 @@ between states, each of which is:
 - `GoodCall C S S'`: a successful run of a fresh frame of `CODE` for a message to `C`, from the
   state `S`, that ends in `S'`, with the hypotheses of `inv_call_all` for that run (its own fork
   from Berlin, Glamsterdam included), message, gas, gas bound, runner, and the named assumptions
-  `StrForm`, `hstat`, `hacc` (an account of `C` only when deprecated and not static), `KeepsInv`,
-  `HonestBalance`, each at the state `S` of that call);
+  `StrForm`, `hstat`, `KeepsInv`, `HonestBalance`, each at the state `S` of that call; since
+  round 20 no account of `C`);
 - or `Untouched C S S'`: any change that keeps every storage word of `C`. This is where the
   model puts what is not a successful run of `C`'s code: a failed call rolled back by the message
   layer, transactions to other accounts, fees. For a failed top-level message (any code) that
@@ -54,7 +54,6 @@ def GoodCall (C : Address) (S S' : State.TransactionState) : Prop :=
     message.currentTarget = C ∧ .berlin ≤ fork ∧
     (message.isStatic = true →
       message.code = CODE ∧ StaticCode S message ∧ StaticKeeps runChild) ∧
-    (byte20 (storageAt S C 10) ≠ 0 → message.isStatic = false → hasAccount S C) ∧
     message.data.size < 2 ^ 256 ∧
     StrForm (storageAt S C 7) ∧ StrForm (storageAt S C 8) ∧
     (byte20 (storageAt S C 10) ≠ 0 → KeepsInv runChild C (upAddr S message)) ∧
@@ -79,9 +78,9 @@ inductive Calls (C : Address) : State.TransactionState → State.TransactionStat
 theorem inv_goodCall (K : KeccakSep) {C : Address} {S S' : State.TransactionState}
     (h : GoodCall C S S') (hI : Inv C S) : Inv C S' := by
   obtain ⟨fork, message, substate, gas, bound, runChild, evm, s, within, hC, hfork, hstat,
-    hacc, hsize, h7, h8, hkeeps, hhonest, start, hrun, hok, rfl⟩ := h
+    hsize, h7, h8, hkeeps, hhonest, start, hrun, hok, rfl⟩ := h
   subst hC
-  exact inv_call_all K hfork hstat hacc hsize h7 h8 hkeeps hhonest hI start within hrun hok
+  exact inv_call_all K hfork hstat hsize h7 h8 hkeeps hhonest hI start within hrun hok
 
 /-- `Inv C` along every finite sequence of successful calls to `C` and of changes that keep the
 storage of `C`, under `KeccakSep`. -/
@@ -102,8 +101,6 @@ theorem goodCall_process {fork : Fork} (hparis : .paris ≤ fork)
     (noValue : ¬(message.shouldTransferValue = true ∧ message.value ≠ 0))
     (noPrecompile : precompileAddress fork message = none)
     (hstat : message.isStatic = true → StaticCode state message)
-    (hacc : byte20 (storageAt state message.currentTarget 10) ≠ 0 → message.isStatic = false →
-      hasAccount state message.currentTarget)
     (hsize : message.data.size < 2 ^ 256)
     (h7 : StrForm (storageAt state message.currentTarget 7))
     (h8 : StrForm (storageAt state message.currentTarget 8))
@@ -140,7 +137,7 @@ theorem goodCall_process {fork : Fork} (hparis : .paris ≤ fork)
     rw [hst] at start hres
     refine ⟨fork, message, substate, message.gas, message.gas, processRunner fork message.gas, _, s,
       Nat.le_refl _, rfl, hberlin, fun h => ⟨hmc, hstat h, staticKeeps_process hparis⟩,
-      hacc, hsize, h7, h8, hkeeps, hhonest, start, hres, hse, by rw [hend]⟩
+      hsize, h7, h8, hkeeps, hhonest, start, hres, hse, by rw [hend]⟩
 
 /-! ## Failed top-level calls and calls with value -/
 
@@ -208,8 +205,6 @@ theorem process_step {fork : Fork} (hparis : .paris ≤ fork)
     (hmc : message.code = CODE)
     (noPrecompile : precompileAddress fork message = none)
     (hstat : message.isStatic = true → StaticCode state message)
-    (hacc : byte20 (storageAt state message.currentTarget 10) ≠ 0 → message.isStatic = false →
-      hasAccount state message.currentTarget)
     (hsize : message.data.size < 2 ^ 256)
     (h7 : StrForm (storageAt state message.currentTarget 7))
     (h8 : StrForm (storageAt state message.currentTarget 8))
@@ -226,7 +221,7 @@ theorem process_step {fork : Fork} (hparis : .paris ≤ fork)
   · by_cases ht : message.shouldTransferValue = true ∧ message.value ≠ 0
     · exact absurd herr (process_value_fails (Nat.le_trans (by decide) hparis) hmc noPrecompile
         hsize ht.2 hproc)
-    · exact .inl (goodCall_process hparis hmc ht noPrecompile hstat hacc hsize h7 h8 hkeeps
+    · exact .inl (goodCall_process hparis hmc ht noPrecompile hstat hsize h7 h8 hkeeps
         hhonest hproc herr)
   · exact .inr (untouched_process_failed hproc herr _)
 

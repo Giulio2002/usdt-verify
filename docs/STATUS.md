@@ -987,10 +987,9 @@ entry; `DESTS` = the 32 destinations).
 - `inv_X` (writing functions) and `inv_call` take neither; `inv_call_ns` takes `hacc` only when
   deprecated, and still takes `hstatic` (not static) for every call; `inv_call_all`, `GoodCall`, `goodCall_process`, `process_step` take
   `byte20 (slot 10) ≠ 0 → isStatic = false → hasAccount state C`.
-- Still assumed, by name: the account when deprecated (the forwarders: premise of `KeepsInv`;
-  destroyBlackFunds: `inv_tail_iff` needs it in the child's end state), `hstatic`/`hkeep` of
-  deprecated destroyBlackFunds (`dep_destroy_complete`, whose first local write is after the
-  CALL), and `hstatic` of `inv_call_ns` (`inv_call_all` replaces it by `hstat`).
+- Still assumed, by name, in the invariant theorems: `KeccakSep`, `StrForm`, and when deprecated
+  the runner assumptions `KeepsInv` and `HonestBalance` (`inv_call_all` also `hstat`). Since
+  round 20 no account of the contract (`hacc`) is assumed by any of them.
 
 ### Round 19: the deprecated paths at Glamsterdam (Local/Extcodesize.lean, Functions/Route.lean, Complete/DepCall.lean, the Dep* files)
 - Prices over the fork (Functions/Route.lean): `accCost fork cold := accountAccessCost fork cold`
@@ -1061,6 +1060,29 @@ entry; `DESTS` = the 32 destinations).
   and `hkeep`), and the helper theorems that take an account. The list was made from the
   signatures of the alias targets (a script over the `alias` lines), not from memory.
 
+### Round 20: the invariant without `hacc` (Complete/DepInvAll.lean, Static.lean, Seq.lean)
+- `KeepsInv` restated: premise `Inv C caller.state` only, conclusion `Inv C child.state` only.
+  The round 15-19 form is kept as `KeepsInvAcc`; `KeepsInvNoAcc` is its missing case (no account
+  of `C` in the caller state); `keepsInv_of_acc`: both give `KeepsInv`.
+- Which one, at the CALL: a missing account is harmless to the frame (no step fails: no
+  forwarding spec or `dep_*_complete` takes an account; the CALL sends value 0, so EthLib's
+  `finishCall` balance check `balance < value` is false). It reaches the runner: `LocalForward`
+  now states `hasAccount caller.state C ↔ hasAccount state C` (proof: `hasAccount_caller_iff`,
+  all the intermediate states are reads, definitionally the same accounts), and
+  `localForward_noAcc` states the missing case. So `KeepsInv` covers it as an assumption; it is
+  not derivable from the code.
+- destroyBlackFunds: the account in the child's end state comes from `dep_destroy_complete`
+  (round 19), `Inv` there from `KeepsInv`.
+- `hacc` removed from `inv_of_local`, `dep_destroy_local`, `inv_dep_destroy_iff`,
+  `inv_dep_destroy`, `inv_call_ns`, `inv_call_all`, `GoodCall`, `goodCall_process`,
+  `process_step`. The unused `hasAccount_rec`, `hasAccount_route` were deleted.
+- What changed in meaning: `KeepsInv` is now a different runner assumption. It asks more in one
+  case (a caller state without an account of `C`, which the old form did not cover) and less in
+  the other (it no longer asks the child to keep the account). Neither form implies the other.
+- `lake build UsdtVerify` (incremental): exit 0, 0 "error:" lines, 1384 jobs; `#print axioms`:
+  398 [propext, Classical.choice, Quot.sound], 4 [propext, Quot.sound], 5 [propext], 1 none.
+  No clean rebuild in this round (left to the reorganization).
+
 ## Open (not proved)
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
   transfer (round 12), approve, transferFrom, the ten owner functions (round 13), not deprecated
@@ -1080,8 +1102,8 @@ entry; `DESTS` = the 32 destinations).
 - Failed top-level calls and calls with value: done (round 18, `untouched_process_failed`,
   `process_value_fails`, `process_step`).
 - The deprecated paths in the invariant: done (round 15, now `inv_call_ns`; static frames too in `inv_call_all`, round 17, and in `inv_call_ns`, round 19) under the named runner
-  assumptions `KeepsInv` and `HonestBalance`, and an account of the contract when deprecated and
-  not static (`hacc`; `inv_call_ns` took `hstatic` through round 18). Without `HonestBalance`, deprecated
+  assumptions `KeepsInv` and `HonestBalance` (through round 19 also an account of the contract
+  when deprecated and not static, `hacc`; `inv_call_ns` took `hstatic` through round 18). Without `HonestBalance`, deprecated
   destroyBlackFunds keeps `Inv` exactly when the answer is the local balance
   (`inv_dep_destroy_iff`); `exists_breaks` gives a state where a different answer breaks it.
   `KeepsInv` is not proved for any concrete upgraded contract.
