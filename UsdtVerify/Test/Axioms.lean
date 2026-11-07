@@ -382,6 +382,8 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Complete.ok_step_bad
 #print axioms UsdtVerify.Gas.writeCost_le
 #print axioms UsdtVerify.DeprecatedDestroy.TAIL_MAX_of_lt
+#print axioms UsdtVerify.DeprecatedDestroy.zeroBalBadD
+#print axioms UsdtVerify.DeprecatedDestroy.tailBadD
 #print axioms UsdtVerify.Complete.routes_congr
 #print axioms UsdtVerify.Complete.routes_rec
 #print axioms UsdtVerify.Complete.routeCost_insert_insert

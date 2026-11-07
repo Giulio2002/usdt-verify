@@ -1032,6 +1032,26 @@ entry; `DESTS` = the 32 destinations).
   `externalBaseCost`, `accountAccessCost`, `callStep` (`checkGas`, `accessDelegation`, `payCall`),
   `sstoreCost` and `sstoreStateGas` for that fork.
 
+### Round 19: deprecated destroyBlackFunds without `hstatic`/`hkeep` (DeprecatedDestroy.lean, Complete/DepDestroy.lean)
+- `zeroBalBadD` (8008, memory of 160 bytes) and `tailBadD` (4892 after a successful call, then
+  `okTailD`): in a static frame, or with no account for `C` in the state the call left, the run
+  reaches the SSTORE of `balances[a]`, which is `Stuck` (`Gas.sstoreStuckW`).
+- `dep_destroy_complete` takes neither `hstatic` nor `hkeep`. In the case of a successful child
+  it splits on "not static and an account in the incorporated state"; otherwise `no_ok_stuck`
+  with `tailBadD`. The conclusion adds `message.isStatic = false ∧ hasAccount child.1.state C`.
+  Its named hypotheses are now the coldness flags only.
+- `dep_destroy_local`, `inv_dep_destroy_iff`, `inv_dep_destroy` and `inv_call_ns` drop `hstatic`
+  (`inv_call_ns` now holds for static frames too; `inv_call_all` still splits on the flag, since
+  its `hacc` is asked only when not static).
+- Still assumed: the account of the contract when deprecated, `hacc` (`byte20 (slot 10) ≠ 0 →
+  isStatic = false → hasAccount state C` in `inv_call_all`, `GoodCall`, `goodCall_process`,
+  `process_step`; `deprecated → hasAccount` in `inv_call_ns`). It is the premise of the named
+  runner assumption `KeepsInv`. It cannot be derived from the deprecated flag: in EthLib's
+  `TransactionState` the storage (`getStorage`, the write overlay over `preState`) is not tied to
+  the existence of the account, so a nonzero slot 10 does not give an account. Removing it would
+  mean restating `KeepsInv` (for example with `Inv` alone as premise and conclusion), a different
+  assumption; not done.
+
 ## Open (not proved)
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
   transfer (round 12), approve, transferFrom, the ten owner functions (round 13), not deprecated
@@ -1041,17 +1061,18 @@ entry; `DESTS` = the 32 destinations).
 - The deprecated paths: done (rounds 14, 15). Every deprecated function (totalSupply,
   balanceOf, transfer, approve, transferFrom, allowance, destroyBlackFunds) has its completeness
   theorem for any gas and any runner (`dep_*_complete`), with or without an EIP-7702 delegation
-  at the upgraded address (round 16). Named hypotheses that stay: for destroyBlackFunds,
-  `hstatic` and `hkeep` (the contract keeps an account after a successful forwarded call).
+  at the upgraded address (round 16). destroyBlackFunds no longer takes `hstatic` or `hkeep`
+  (round 19: both are in its conclusion); every `dep_*_complete` takes only the coldness flags
+  beyond the fork, size, selector and flag.
 - Hypotheses the completeness theorems of the writing paths keep, by name: size < 2^256
-  (`hstatic` and `hacc` removed in round 18; deprecated destroyBlackFunds keeps `hstatic` and
-  `hkeep`, and takes no `hacc`). Every fork from Berlin, Glamsterdam included (round 17 for the
+  (`hstatic` and `hacc` removed in round 18; for deprecated destroyBlackFunds `hstatic` and
+  `hkeep` removed in round 19). Every fork from Berlin, Glamsterdam included (round 17 for the
   non-deprecated writing paths, round 19 for the deprecated paths).
 - Failed top-level calls and calls with value: done (round 18, `untouched_process_failed`,
   `process_value_fails`, `process_step`).
 - The deprecated paths in the invariant: done (round 15, now `inv_call_ns`; static frames too in `inv_call_all`, round 17) under the named runner
   assumptions `KeepsInv` and `HonestBalance`, and an account of the contract when deprecated and
-  not static (`hacc`; `inv_call_ns` also takes `hstatic`). Without `HonestBalance`, deprecated
+  not static (`hacc`; `inv_call_ns` took `hstatic` until round 18). Without `HonestBalance`, deprecated
   destroyBlackFunds keeps `Inv` exactly when the answer is the local balance
   (`inv_dep_destroy_iff`); `exists_breaks` gives a state where a different answer breaks it.
   `KeepsInv` is not proved for any concrete upgraded contract.

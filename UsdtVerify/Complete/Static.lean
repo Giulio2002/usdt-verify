@@ -23,8 +23,8 @@ static child message with a state that differs from its caller's only by reads.
   is `inv_static`, with the hypotheses `message.code = CODE`, `StaticCode` and `StaticKeeps`; in
   a frame that is not static it is `inv_call_ns` (Complete/DepInvAll.lean), with the
   deprecated-path assumptions, among them `hacc` (when deprecated and not static, the contract
-  has an account). The hypothesis "not static" of
-  `inv_call_ns` is gone.
+  has an account). The hypothesis "not static" of `inv_call_all` is gone; since round 19
+  `inv_call_ns` takes it neither.
 -/
 
 namespace UsdtVerify.Complete
@@ -123,7 +123,7 @@ theorem inv_call_all (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   cases hs : message.isStatic
-  · exact inv_call_ns K hfork hs (fun h => hacc h hs) hsize' h7 h8 hkeeps hhonest hI start within hrun
+  · exact inv_call_ns K hfork (fun h => hacc h hs) hsize' h7 h8 hkeeps hhonest hI start within hrun
       hok
   · obtain ⟨hmc, hhold, hkeep⟩ := hstat hs
     exact inv_static hs hmc hhold hkeep hI start within hrun

@@ -21,11 +21,10 @@ gas bound and ANY message runner:
   `tailSub`, gas exact (`tailCost`).
 
 The code found is in the conclusion, as for the other deprecated functions. Named hypotheses:
-`hstatic` (the frame is not static), the coldness flags, and `hkeep`, a hypothesis on the
-runner: when it ends the forwarded message, sent along any route from the caller state at the
-CALL, with no error, the contract still
-has an account in the child's state (the SSTOREs of the tail need it; the case without an account
-is not covered).
+the coldness flags only. The conclusion also states that the frame is not static and that the
+contract has an account in the child's end state (round 19): otherwise the first SSTORE of the
+tail is `Stuck` (`DeprecatedDestroy.tailBadD`), so no such run ends with no error. Until round 18
+both were hypotheses (`hstatic`, and `hkeep` on the runner).
 -/
 
 namespace UsdtVerify.Complete
@@ -75,12 +74,11 @@ theorem prefixG_destroy (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.s
   rw [hU]
   exact Gas.reshapeG rfl rfl (by gas_ok)
 
-/-- Every successful deprecated `destroyBlackFunds(a)` run, for any gas and any runner, under
-`hkeep`: the owner's call, `a` blacklisted, the forward of `balanceOf(a)` answered with no error,
-then the two writes over the state the call left and the log; output, gas, state and substate
+/-- Every successful deprecated `destroyBlackFunds(a)` run, for any gas and any runner: the
+owner's call, not static, `a` blacklisted, the forward of `balanceOf(a)` answered with no error
+(and the contract has an account in the child's end state), then the two writes over the state the call left and the log; output, gas, state and substate
 exact. -/
 theorem dep_destroy_complete (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
     {c0 cL c10 cU : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
@@ -88,11 +86,6 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork)
       (listSlot (addrArg message.data 0)) = cL)
     (hc10 : coldIn (preSub substate message) message.currentTarget 10 = c10)
     (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
-    (hkeep : ∀ caller msg lt child (c' : ByteArray) (r' : Route), runChild caller msg lt = .ok child →
-      SendsVia message (upAddr state message) c' r' (dataB message) msg →
-      caller.state = (routeState ((callStateD state message).recordAccountRead
-        (upAddr state message)) r').recordAccountRead message.currentTarget →
-      child.1.error = none → hasAccount child.1.state message.currentTarget)
     {gas : Nat} {evm s : Evm fork Nat}
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
@@ -106,6 +99,7 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork)
     preCostD fork c0 cL c10 cU + 100 + routeCost fork (callSubD substate state message).accessedAddresses r ≤ gas ∧
     message.depth + 1 ≤ STACK_DEPTH_LIMIT ∧
     ∃ caller msg lt child, runChild caller msg lt = .ok child ∧ child.1.error = none ∧
+      message.isStatic = false ∧ hasAccount child.1.state message.currentTarget ∧
       SendsVia message (upAddr state message) c r (dataB message) msg ∧
       msg.gas = (depCallGas fork (askedOfD fork gas c0 cL c10 cU) (gas - preCostD fork c0 cL c10 cU)
         (routeCost fork (callSubD substate state message).accessedAddresses r)).subCall ∧
@@ -191,15 +185,21 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork)
     rw [hmd, memoryExtend_zero]; exact data_memD message
   by_cases he : child.1.error = none
   · simp only [he, Option.isNone_none, ↓reduceIte] at hat
-    have hacc : hasAccount (incorporateChild fork caller child.1).state message.currentTarget := by
-      rw [state_incorporateChild]; exact hkeep caller msg lt child c r hch hfwd hcs he
+    by_cases hgood : ¬(message.isStatic = false ∧
+        hasAccount (incorporateChild fork caller child.1).state message.currentTarget)
+    · exact (no_ok_stuck (fun g hg => tailBadD (x := BitVec.ofNat 256 (selector message.data))
+        (bad_of_not hgood) (size_outMemOf hB child.1.output)
+        (mload_outMemOf hB (by rw [memoryExtend_zero]; exact ptr_memD message) child.1.output) hg)
+        hat wa hruna hok).elim
+    obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
     obtain ⟨hcost, hr, ho, hgs, hst, hss⟩ := ok_exact2
       (fun g h1 _ => tailD (fork := fork) (message := message)
         hfork (mkey_addrArg0 message.data) hstatic hacc
         (size_outMemOf hB child.1.output)
         (mload_outMemOf hB (by rw [memoryExtend_zero]; exact ptr_memD message) child.1.output)
         (x := BitVec.ofNat 256 (selector message.data)) rfl rfl (gas := g) h1) hat wa hruna hok
-    refine ⟨caller, msg, lt, child, hch, he, hfwd, hmg, hcs, hcss, ?_, hr, ho, ?_, hst, hss⟩
+    refine ⟨caller, msg, lt, child, hch, he, hstatic, by rwa [state_incorporateChild] at hacc,
+      hfwd, hmg, hcs, hcss, ?_, hr, ho, ?_, hst, hss⟩
     · simp only [Nat.add_zero, balSlot] at hcost ⊢
       exact hcost
     · rw [hgs]

@@ -30,14 +30,14 @@ on the runner. Named assumptions:
   the data `balanceOf(a)` (`dataB message`) with no error, the word the call writes at 0x60 is
   `balances[a]` in the child's end state.
 
-`inv_call_ns`: `Complete.inv_call` without `hdep`: under `KeccakSep`, not static, `StrForm` of
+`inv_call_ns`: `Complete.inv_call` without `hdep`: under `KeccakSep`, `StrForm` of
 slots 7 and 8, `Inv` at the start, and, when deprecated, an account of the contract (`hacc`),
 `KeepsInv` and (for destroyBlackFunds) `HonestBalance`, every successful call ends with `Inv`.
 When not deprecated no account is assumed (`inv_call`: each writing path that succeeds had one).
 When deprecated the account is used only by the forwarding functions and destroyBlackFunds: the
 premise of `KeepsInv` asks for an account of `C` in the caller state of the CALL (`LocalForward`
 carries it there from the start state), and destroyBlackFunds needs the account in the child's
-end state (from `KeepsInv`) for `DepInv.inv_tail_iff`. Nothing here shows that a successful
+end state for `DepInv.inv_tail_iff` (round 19: `dep_destroy_complete` proves it for a successful run; `KeepsInv` gives `Inv` there). Nothing here shows that a successful
 deprecated forward implies an account (the code writes nothing locally before or after the CALL),
 so it stays a hypothesis, only when deprecated.
 No hypothesis on the code of the upgraded address: when it is an EIP-7702 delegation, the message
@@ -226,7 +226,6 @@ theorem dep_transferFrom_local (hfork : .berlin ≤ fork)
 /-- Deprecated destroyBlackFunds: one call as in `LocalForward`, then the end state is
 `tailState S C a d` over the child's end state `S`, with `d` the word at 0x60. -/
 theorem dep_destroy_local (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
     (hkeeps : KeepsInv runChild message.currentTarget (upAddr state message))
@@ -252,12 +251,9 @@ theorem dep_destroy_local (hfork : .berlin ≤ fork)
         (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc))))))
     · rw [hcs]
       simp only [callStateD, preState, storageAt_rec, storageAt_route, storageAt_readSlot]
-  obtain ⟨_, _, -, -, -, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
-    dep_destroy_complete hfork hstatic hsize' hsel hdep rfl rfl rfl rfl
-      (fun caller msg lt child _ r' hch hfwd hcs he =>
-        (hkeeps caller msg lt child hch hfwd.1 hfwd.2.1 he (hpre caller r' hcs).1
-          (hpre caller r' hcs).2).1)
-      start within hrun hok
+  obtain ⟨_, _, -, -, -, -, -, -, -, caller, msg, lt, child, hch, he, -, -, hfwd, -, hcs, -, -, -,
+      -, -, hst, -⟩ :=
+    dep_destroy_complete hfork hsize' hsel hdep rfl rfl rfl rfl start within hrun hok
   obtain ⟨hacc', hI'⟩ := hkeeps caller msg lt child hch hfwd.1 hfwd.2.1 he (hpre caller _ hcs).1
     (hpre caller _ hcs).2
   refine ⟨caller, msg, lt, child, hch, he, hfwd.1, hfwd.2.1, hfwd.2.2.2.2.2.2.1, hacc', hI', ?_⟩
@@ -266,7 +262,6 @@ theorem dep_destroy_local (hfork : .berlin ≤ fork)
 /-- Deprecated destroyBlackFunds under `KeepsInv`: `Inv` holds at the end iff the answer `d` is
 the local `balances[a]` in the state the call left. -/
 theorem inv_dep_destroy_iff (K : KeccakSep) (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
     (hkeeps : KeepsInv runChild message.currentTarget (upAddr state message))
@@ -281,7 +276,7 @@ theorem inv_dep_destroy_iff (K : KeccakSep) (hfork : .berlin ≤ fork)
       (Inv message.currentTarget s.state ↔ resWord (outMemOf (memD message) child.1.output) =
         storageAt child.1.state message.currentTarget (balSlot message)) := by
   obtain ⟨caller, msg, lt, child, hch, he, hmc, hmt, hmd, hacc', hI', hst⟩ :=
-    dep_destroy_local hfork hstatic hsize' hsel hdep hkeeps hacc hI start within
+    dep_destroy_local hfork hsize' hsel hdep hkeeps hacc hI start within
       hrun hok
   refine ⟨caller, msg, lt, child, hch, he, hmc, hmt, hmd, ?_⟩
   rw [hst]
@@ -289,7 +284,6 @@ theorem inv_dep_destroy_iff (K : KeccakSep) (hfork : .berlin ≤ fork)
 
 /-- Deprecated destroyBlackFunds under `KeepsInv` and `HonestBalance` keeps `Inv`. -/
 theorem inv_dep_destroy (K : KeccakSep) (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
     (hkeeps : KeepsInv runChild message.currentTarget (upAddr state message))
@@ -300,7 +294,7 @@ theorem inv_dep_destroy (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨caller, msg, lt, child, hch, he, hmc, hmt, hmd, hiff⟩ :=
-    inv_dep_destroy_iff K hfork hstatic hsize' hsel hdep hkeeps hacc hI start
+    inv_dep_destroy_iff K hfork hsize' hsel hdep hkeeps hacc hI start
       within hrun hok
   exact hiff.2 (hhonest caller msg lt child hch hmc hmt hmd he)
 
@@ -310,13 +304,12 @@ theorem inv_dep_destroy (K : KeccakSep) (hfork : .berlin ≤ fork)
 
 `inv_call` with `hdep` replaced by what the deprecated paths need. From Berlin (Glamsterdam
 included), a fresh frame of `CODE` at pc 0 with any call data below 2^256 bytes, any value, any
-gas, any gas bound and any message runner. Under `KeccakSep`, a frame that is not static, with
+gas, any gas bound and any message runner (static or not since round 19). Under `KeccakSep`, with
 string slots 7 and 8 of `StrForm`, and, when deprecated (byte 20 of slot 10 not 0): the contract
 has an account (`hacc`), the runner meets `KeepsInv` (`hkeeps`), and for destroyBlackFunds it
 meets `HonestBalance` (`hhonest`). If `Inv C state` holds and the interpreter loop ends with no error,
 then `Inv C s.state` holds. -/
 theorem inv_call_ns (K : KeccakSep) (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false)
     (hacc : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
       hasAccount state message.currentTarget)
     (hsize' : message.data.size < 2 ^ 256)
@@ -368,7 +361,7 @@ theorem inv_call_ns (K : KeccakSep) (hfork : .berlin ≤ fork)
   | ⟨28, _⟩, hi => exact inv_removeBlackList K hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨29, _⟩, hi => exact inv_maxUint hfork hsize' (hi.trans rfl) hI start within hrun hok
   | ⟨30, _⟩, hi => exact inv_transferOwnership K hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨31, _⟩, hi => exact inv_dep_destroy K hfork hstatic hsize' (hi.trans rfl) hdep hk (hhonest hdep (hi.trans rfl)) hacc hI start within hrun hok
+  | ⟨31, _⟩, hi => exact inv_dep_destroy K hfork hsize' (hi.trans rfl) hdep hk (hhonest hdep (hi.trans rfl)) hacc hI start within hrun hok
   | ⟨n + 32, h⟩, _ => exact absurd h (by omega)
 
 end UsdtVerify.Complete

@@ -356,10 +356,11 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   blacklisted. The runner was called with the forward of `balanceOf(a)` and returned a frame with
   no error. The run then stopped with no output, after setting, over the state `S` that the call
   left, `balances[a]` to 0 and `_totalSupply` to `_totalSupply - d` (unchecked), where `d` is the
-  word the call wrote at 0x60, and logging `DestroyedBlackFunds(a, d)`; gas exact. Beyond
-  `hstatic`, it assumes by name (`hkeep`) that when the runner ends the forwarded message (along
-  either route, from the caller state at the CALL) with no error, the contract still has an
-  account in the child's state.
+  word the call wrote at 0x60, and logging `DestroyedBlackFunds(a, d)`; gas exact. The frame was
+  not static and the contract has an account in the child's end state: both are in the
+  conclusion (round 19), since otherwise the first SSTORE after the call is `Stuck`
+  (`DeprecatedDestroy.tailBadD`). Until round 18 they were the hypotheses `hstatic` and `hkeep`
+  (an assumption on the runner); no named hypothesis beyond the coldness flags remains.
 
 ## The invariant when deprecated: destroyBlackFunds (round 14)
 
@@ -397,8 +398,8 @@ left. The callee may call back into this contract, so `S` can differ from the st
 `inv_call_all`). It is `inv_call` without the
 hypothesis "not deprecated". From Berlin on (Glamsterdam included; until round 18 before Glamsterdam when deprecated), take a fresh frame of the
 deployed code at pc 0, with any call data below 2^256 bytes, any value, any gas, any gas bound
-and any message runner. Assume `KeccakSep`, a frame that is not static, `StrForm` of slots 7
-and 8, and `Inv` at the start. When the contract is deprecated, also assume an account for the
+and any message runner. Assume `KeccakSep`, `StrForm` of slots 7
+and 8, and `Inv` at the start (until round 18 also a frame that is not static). When the contract is deprecated, also assume an account for the
 contract `C` (round 18: only when deprecated) and:
 - `KeepsInv` (`hkeeps`): whenever the runner ends a message from `C` to `ua` with no error, and
   `C` had an account and `Inv` held in the caller's state, then `C` still has an account and
@@ -426,9 +427,10 @@ it, from Paris, for the interpreter's own runner (EthLib's `processMessage_stati
   `message.code = CODE`, `StaticCode`, `StaticKeeps`), and is `inv_static` or `inv_call_ns` by
   the flag. The hypothesis "not static" is gone from it. Round 18: the account is assumed only
   for a frame that is not static and when deprecated (`byte20 (slot 10) ≠ 0 → isStatic = false →
-  hasAccount state C`); the deprecated paths need it for the premise of `KeepsInv`, and
-  destroyBlackFunds then needs the account that `KeepsInv` gives in the child's end state for
-  its writes after the CALL (`inv_tail_iff`). The same holds for `GoodCall`,
+  hasAccount state C`); the deprecated paths need it for the premise of `KeepsInv` (round 19:
+  the account in the child's end state that destroyBlackFunds needs for `inv_tail_iff` is now
+  proved by `dep_destroy_complete`, but `KeepsInv` still asks for the account in the caller
+  state). The same holds for `GoodCall`,
   `goodCall_process` and `process_step`.
 
 ## A finite sequence of calls (round 17)
@@ -486,8 +488,6 @@ call. destroyBlackFunds ends in `tailState S C a d` over the child's end state `
 ## What is not covered
 
 - name/symbol on slot words outside `StrForm`.
-- Deprecated destroyBlackFunds when the runner's child state has no account for the contract
-  (`hkeep`).
 - The invariant over deprecated calls without the runner assumptions `KeepsInv` and
   `HonestBalance` (destroyBlackFunds can break it, see above). No concrete upgraded contract is
   shown to meet them.

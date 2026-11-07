@@ -336,7 +336,7 @@ destroyBlackFunds keeps `Inv`: under `Inv`, `d ≤ _totalSupply`, so its uncheck
 not wrap (`destroy_inv`).
 Every successful call, not deprecated, static or not, with or without an account:
 `Complete.inv_call`. Deprecated or not: `Complete.inv_call_ns` (Complete/DepInvAll.lean, from
-Berlin, Glamsterdam included; not static; when deprecated, under an account of the
+Berlin, Glamsterdam included; when deprecated, under an account of the
 contract and the named assumptions `KeepsInv` on the runner and `HonestBalance` for
 destroyBlackFunds; the upgraded code may be an EIP-7702 delegation). Static or not:
 `Complete.inv_call_all` (Complete/Static.lean; "not static" replaced by `hstat`: when static,
@@ -412,9 +412,10 @@ beyond the fork range, size, selector and flag: the coldness flags only.
 `destroyBlackFunds_dep_complete`: the owner's call, `a` blacklisted, the forward of
 `balanceOf(a)` answered with no error, then over the state `S` the call left and the word `d` at
 0x60: STOP with empty output in `tailState S C a d` (`balances[a] := 0`, `_totalSupply := T' - d`
-unchecked), `tailSub`, gas exact. Extra named hypotheses: `hstatic` and `hkeep` (when the runner
-ends the forwarded message with no error, the contract still has an account in the child's
-state).
+unchecked), `tailSub`, gas exact; the frame is not static and the contract has an account in
+the child's end state (round 19: proved, the first SSTORE of the tail is `Stuck` otherwise;
+until round 18 these were the named hypotheses `hstatic` and `hkeep`). Named hypotheses: the
+coldness flags only.
 -/
 
 namespace UsdtVerify.Summary

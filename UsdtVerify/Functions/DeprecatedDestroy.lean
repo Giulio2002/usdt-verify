@@ -355,6 +355,38 @@ theorem zeroBalD (hfork : .berlin ≤ fork) {a b : U256}
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
+/-- At 8008 on a memory of 160 bytes, in a static frame or with no account for `C`: the run
+reaches the `SSTORE` of `balances[a]`, which is `Stuck`. -/
+theorem zeroBalBadD {a b : U256} {rest : List U256} (hrest : rest.length ≤ 800)
+    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget) {M : ByteArray}
+    (hM : M.size = 160) {gas : Nat} (hg : 110 ≤ gas) :
+    Gas.HoareG fork (At CODE message 8008 (b :: 0 :: a :: rest) M gas state substate)
+      Gas.Stuck := by
+  step jumpdestR
+  step swapR 0
+  norm
+  step popR
+  step pushR 1 (0 : U256)
+  step pushR 1 (0x02 : U256)
+  step pushR 1 (0 : U256)
+  step dupR 4
+  step hashTail160 (by simp; omega) hM (by gas_ok)
+  step dupR 1
+  step swapR 0
+  norm
+  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
+
+/-- From 4892 after a call that succeeded, in a static frame or with no account for `C` in the
+state `S` the call left: the run reaches the first `SSTORE` of the tail, which is `Stuck`. -/
+theorem tailBadD {a x U : U256} {S : State.TransactionState} {ss : Substate}
+    (hbad : message.isStatic = true ∨ ¬hasAccount S message.currentTarget) {M : ByteArray}
+    (hM : M.size = 160) (hptr : loadWord (memoryReadBytes M 64 32) 0 32 = 0x60) {gas : Nat}
+    (hg : 186 ≤ gas) :
+    Gas.HoareG fork (At CODE message 4892 [1, 0x84, 0x70a08231, U, 0, a, 0x1f48, 0, a, 0x09b6, x] M
+        gas S ss) Gas.Stuck := by
+  step okTailD hM hptr (rest := [0, a, 0x09b6, x]) (by simp) (by omega)
+  exact zeroBalBadD (by simp) hbad hM (by omega)
+
 /-- At 8096 on a memory of 160 bytes: logs `DestroyedBlackFunds(a, b)` (the words written at 0x60
 and 0x80, no growth), returns to 2486 and stops. -/
 theorem logBlockD {a b x : U256} (hstatic : message.isStatic = false) {M : ByteArray}
