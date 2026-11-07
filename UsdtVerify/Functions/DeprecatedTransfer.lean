@@ -130,12 +130,18 @@ theorem read40_W4 : memoryReadBytes (W4 M sel k b w) 64 32 = memoryReadBytes M 6
 /-- The 100 bytes from 0x60: the 4 bytes of the selector, then the words `k`, `b`, `w`. -/
 theorem data_W4 : memoryReadBytes (W4 M sel k b w) 96 100 =
     (wordBytes (selWord sel)).extract 0 4 ++ wordBytes k ++ wordBytes b ++ wordBytes w := by
-  have h4 := memoryReadBytes_write_after (X := memoryExtend (W3 M sel k b) 32) (w := wordBytes w)
-    (s := 96) (k := 68) (by rw [size_wordBytes, size_memoryExtend, size_W3 hM]; omega)
-  have h3 := memoryReadBytes_write_after (X := memoryExtend (W2 M sel k) 32) (w := wordBytes b)
-    (s := 96) (k := 36) (by rw [size_wordBytes, size_memoryExtend, size_W2 hM]; omega)
-  have h2 := memoryReadBytes_write_after (X := memoryExtend (W1 M sel) 32) (w := wordBytes k)
-    (s := 96) (k := 4) (by rw [size_wordBytes, size_memoryExtend, size_W1 hM]; omega)
+  have h4 := memoryReadBytes_memoryWrite_eq_append
+    (memory := memoryExtend (W3 M sel k b) 32)
+    (value := wordBytes w) (s := 96) (k := 68)
+    (by rw [size_wordBytes, size_memoryExtend, size_W3 hM]; omega)
+  have h3 := memoryReadBytes_memoryWrite_eq_append
+    (memory := memoryExtend (W2 M sel k) 32)
+    (value := wordBytes b) (s := 96) (k := 36)
+    (by rw [size_wordBytes, size_memoryExtend, size_W2 hM]; omega)
+  have h2 := memoryReadBytes_memoryWrite_eq_append
+    (memory := memoryExtend (W1 M sel) 32)
+    (value := wordBytes k) (s := 96) (k := 4)
+    (by rw [size_wordBytes, size_memoryExtend, size_W1 hM]; omega)
   rw [size_wordBytes] at h4 h3 h2
   rw [W4, h4, read_ext (by rw [size_W3 hM]; omega), W3, h3, read_ext (by rw [size_W2 hM]; omega), W2, h2,
     read_ext (by rw [size_W1 hM]; omega), W1,
@@ -329,7 +335,7 @@ theorem encode3 {p q : Nat} (hp : (p = 5568 ∧ q = 5739) ∨ (p = 3042 ∧ q = 
 to 1930 and stops. -/
 theorem okTailT {sel U v a x : U256} {M : ByteArray} {gas : Nat} (hg : 51 ≤ gas) :
     Spec fork (At CODE message 5757 [1, 0xc4, sel, U, v, a, 0x078a, x] M gas state substate)
-      (Local.Stopped (gas - 51) state substate) := by
+      (Halted false .empty (gas - 51) state substate) := by
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step pushR 2 (0x1687 : U256)
@@ -347,9 +353,9 @@ theorem okTailT {sel U v a x : U256} {M : ByteArray} {gas : Nat} (hg : 51 ≤ ga
   step jumpR
   step repc (pc' := 1930) (by decide)
   step jumpdestR
-  refine (Local.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; gas_ok, hs, hss⟩
+  refine (Logic.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 /-- The selector of `transferByLegacy(address,address,uint256)`. -/
 def SEL_T : ByteArray := ⟨#[0x6e, 0x18, 0x98, 0x0a]⟩
@@ -506,7 +512,7 @@ the run ends (or the runner aborts) in a stopped frame for which there are a cal
 message `msg` and an ended frame `child` with `callee caller msg child`, `msg` sent to `ua` with
 the data `transferByLegacy(caller, to, value)` (`dataT`) and no value, with the gas of EIP-150
 (`callGasT`), and:
-- if `child` ended with no error, the frame STOPs with no error (`Local.Stopped`);
+- if `child` ended with no error, the frame STOPs with no error (`Halted false .empty`);
 - otherwise it reverts with no output.
 Gas left, state and substate are given exactly (the state and substate after the CALL are those
 of `incorporateChild`). -/
@@ -525,7 +531,7 @@ theorem spec_depT {c : ByteArray} {c0 cB c10 cU : Bool}
           accessedAddresses :=
             (callSubT substate state message).accessedAddresses.insert (upAddr state message) } ∧
         (child.error = none →
-          Local.Stopped
+          Halted false .empty
             (gas - preCostT c0 cB c10 cU - (callGasT fork gas c0 cB c10 cU).cost + child.gas - 51)
             (incorporateChild fork caller child).state
             (incorporateChild fork caller child).substate evm) ∧
@@ -568,8 +574,8 @@ theorem spec_depT {c : ByteArray} {c0 cB c10 cU : Bool}
       (by omega) evm hat
     refine ⟨after, hreach, hrun, caller, msg, child, hcal, hfwd, hmg, hcs, hcss, fun _ => ?_,
       fun h => absurd he h⟩
-    obtain ⟨h1, h2, h3, h4, h5⟩ := hq
-    exact ⟨h1, h2, by rw [h3]; omega, h4, h5⟩
+    obtain ⟨h1, h2, h0, h3, h4, h5⟩ := hq
+    exact ⟨h1, h2, h0, by rw [h3]; omega, h4, h5⟩
   · have hz : child.error.isNone = false := by
       cases h : child.error
       · exact absurd h he
@@ -614,7 +620,7 @@ theorem spec_depT_succeeds {c : ByteArray} {c0 cB c10 cU : Bool}
     SpecUnder fork callee (At CODE message 0 [] .empty gas state substate)
       fun evm => ∃ caller msg child, callee caller msg child ∧
         Sends message (upAddr state message) c (dataT message) msg ∧ child.error = none ∧
-        Local.Stopped
+        Halted false .empty
           (gas - preCostT c0 cB c10 cU - (callGasT fork gas c0 cB c10 cU).cost + child.gas - 51)
           (incorporateChild fork caller child).state
           (incorporateChild fork caller child).substate evm := by
@@ -677,7 +683,7 @@ theorem runFrame_depT_process {c : ByteArray} {c0 cB c10 cU : Bool}
     (∃ stopped, runFrame (step fork) (step_decreases fork) bound (processRunner fork bound) evm
         within = .ok stopped ∧ ∃ caller msg child, RunsAs c G Q caller msg child ∧
         Sends message (upAddr state message) c (dataT message) msg ∧ child.error = none ∧
-        Local.Stopped
+        Halted false .empty
           (gas - preCostT c0 cB c10 cU - (callGasT fork gas c0 cB c10 cU).cost + child.gas - 51)
           (incorporateChild fork caller child).state
           (incorporateChild fork caller child).substate stopped) ∨
@@ -753,7 +759,7 @@ to 674 and stops. -/
 theorem okTailA {sel U v s x : U256} {M : ByteArray} {gas : Nat} (hg : 53 ≤ gas) :
     Spec fork (At CODE message 3231 [1, 0xc4, sel, U, 0x40, v, s, 0x02a2, x] M gas state
         substate)
-      (Local.Stopped (gas - 53) state substate) := by
+      (Halted false .empty (gas - 53) state substate) := by
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step pushR 2 (0x0ca9 : U256)
@@ -772,9 +778,9 @@ theorem okTailA {sel U v s x : U256} {M : ByteArray} {gas : Nat} (hg : 53 ≤ ga
   step jumpR
   step repc (pc' := 674) (by decide)
   step jumpdestR
-  refine (Local.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; gas_ok, hs, hss⟩
+  refine (Logic.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 /-- The selector of `approveByLegacy(address,address,uint256)`. -/
 def SEL_A : ByteArray := ⟨#[0xae, 0xe9, 0x2d, 0x33]⟩
@@ -884,7 +890,7 @@ theorem spec_depA {c : ByteArray} {c10 cU : Bool}
           accessedAddresses :=
             (callSub substate state message).accessedAddresses.insert (upAddr state message) } ∧
         (child.error = none →
-          Local.Stopped
+          Halted false .empty
             (gas - preCostA c10 cU - (callGasA fork gas c10 cU).cost + child.gas - 53)
             (incorporateChild fork caller child).state
             (incorporateChild fork caller child).substate evm) ∧
@@ -948,8 +954,8 @@ theorem spec_depA {c : ByteArray} {c10 cU : Bool}
       (by omega) evm hat
     refine ⟨after, hreach, hrun, caller, msg, child, hcal, hfwd, hmg, hcs, hcss, fun _ => ?_,
       fun h => absurd he h⟩
-    obtain ⟨h1, h2, h3, h4, h5⟩ := hq
-    exact ⟨h1, h2, by rw [h3]; omega, h4, h5⟩
+    obtain ⟨h1, h2, h0, h3, h4, h5⟩ := hq
+    exact ⟨h1, h2, h0, by rw [h3]; omega, h4, h5⟩
   · have hz : child.error.isNone = false := by
       cases h : child.error
       · exact absurd h he
@@ -980,7 +986,7 @@ theorem spec_depA_succeeds {c : ByteArray} {c10 cU : Bool}
     SpecUnder fork callee (At CODE message 0 [] .empty gas state substate)
       fun evm => ∃ caller msg child, callee caller msg child ∧
         Sends message (upAddr state message) c (dataA message) msg ∧ child.error = none ∧
-        Local.Stopped
+        Halted false .empty
           (gas - preCostA c10 cU - (callGasA fork gas c10 cU).cost + child.gas - 53)
           (incorporateChild fork caller child).state
           (incorporateChild fork caller child).substate evm := by
@@ -1024,7 +1030,7 @@ theorem runFrame_depA_process {c : ByteArray} {c10 cU : Bool}
     (∃ stopped, runFrame (step fork) (step_decreases fork) bound (processRunner fork bound) evm
         within = .ok stopped ∧ ∃ caller msg child, RunsAs c G Q caller msg child ∧
         Sends message (upAddr state message) c (dataA message) msg ∧ child.error = none ∧
-        Local.Stopped
+        Halted false .empty
           (gas - preCostA c10 cU - (callGasA fork gas c10 cU).cost + child.gas - 53)
           (incorporateChild fork caller child).state
           (incorporateChild fork caller child).substate stopped) ∨

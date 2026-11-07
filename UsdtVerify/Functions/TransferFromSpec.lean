@@ -123,7 +123,7 @@ theorem spec_ok (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     {gas : Nat} (hstip : stipCostF fork state message c0 cB c10 cA c3 c4 cF cT ≤ gas)
     (hg : okCostF fork state message c0 cB c10 cA c3 c4 cF cT ≤ gas) :
     Spec fork (At CODE message 0 [] .empty gas state substate)
-      (Local.Stopped (gas - okCostF fork state message c0 cB c10 cA c3 c4 cF cT)
+      (Halted false .empty (gas - okCostF fork state message c0 cB c10 cA c3 c4 cF cT)
         (creditedF (checkState state message) message (valArg message) (toArg message)
           (fromArg message))
         (loggedSubF fork (checkSub substate message) (checkState state message) message
@@ -159,8 +159,8 @@ theorem spec_ok (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   step payload hlong hsz (by simp) (by gas_ok)
   step reshape (g' := gas - (795 + slotCost c0 + slotCost cB + slotCost c10)) rfl rfl (by gas_ok)
   refine hB.consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas, Nat.sub_sub], hs, hss⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas, Nat.sub_sub], hs, hss⟩
 
 /-- The loop of the interpreter runs a successful `transferFrom` call with a fee of 0 to its
 specification. It holds for every bound on the gas of messages and every runner of messages. -/
@@ -204,7 +204,7 @@ theorem runFrame_ok (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (within : GasMeter.gasHeld evm.gas ≤ bound) :
     ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok stopped ∧
-      Local.Stopped (gas - okCostF fork state message c0 cB c10 cA c3 c4 cF cT)
+      Halted false .empty (gas - okCostF fork state message c0 cB c10 cA c3 c4 cF cT)
         (creditedF (checkState state message) message (valArg message) (toArg message)
           (fromArg message))
         (loggedSubF fork (checkSub substate message) (checkState state message) message

@@ -62,30 +62,10 @@ theorem mload_M2B (a : U256) :
     (by rw [size_wordBytes, size_M1B]; decide) (.inl (by decide))]
   exact h
 
-/-- A read across a write: the bytes before the written range, then the written bytes. -/
-theorem memoryReadBytes_write_after {X w : ByteArray} {s k : Nat}
-    (hfit : s + k + w.size ≤ X.size) :
-    memoryReadBytes (memoryWrite X (s + k) w) s (k + w.size) = memoryReadBytes X s k ++ w := by
-  have hw : (memoryWrite X (s + k) w).size = X.size := size_memoryWrite hfit
-  apply EthLib.Base.eq_of_byteAt
-  · rw [size_memoryReadBytes (by omega), ByteArray.size_append,
-      size_memoryReadBytes (by omega)]
-  · intro i
-    rw [byteAt_memoryReadBytes (by omega), byteAt_memoryWrite hfit, EthLib.Base.byteAt_append,
-      size_memoryReadBytes (by omega)]
-    by_cases hi : i < k
-    · rw [ite_eq_left (by omega), ite_eq_left hi, byteAt_memoryReadBytes (by omega),
-        ite_eq_right (by omega), ite_eq_left hi]
-    · rw [ite_eq_right hi]
-      by_cases hj : i < k + w.size
-      · rw [ite_eq_left hj, ite_eq_left (by omega)]
-        congr 1; omega
-      · rw [ite_eq_right hj, EthLib.Base.byteAt_of_size_le (by omega)]
-
 theorem data_M2B (a : U256) :
     memoryReadBytes (memoryExtend (M2B a) 0) 96 36 = SEL_B ++ wordBytes a := by
   rw [memoryExtend_zero, M2B]
-  have h := memoryReadBytes_write_after (X := M1B) (w := wordBytes a) (s := 96) (k := 4)
+  have h := memoryReadBytes_memoryWrite_eq_append (memory := M1B) (value := wordBytes a) (s := 96) (k := 4)
     (by rw [size_wordBytes, size_M1B]; decide)
   rw [size_wordBytes] at h
   rw [h, sel_M1B]

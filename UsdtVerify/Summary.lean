@@ -24,6 +24,9 @@ import UsdtVerify.Functions.Destroy
 import UsdtVerify.Functions.DestroySpec
 import UsdtVerify.Functions.GettersMap
 import UsdtVerify.Functions.RunFrames
+import UsdtVerify.Functions.Strings
+import UsdtVerify.Functions.DeprecatedAllowance
+import UsdtVerify.Functions.Fallback
 
 /-!
 # Summary: what is proved about the deployed USDT bytecode
@@ -43,10 +46,11 @@ checks. `C` is the contract. `fee = min(v * basisPointsRate / 10000, maximumFee)
 the bytecode computes it (`feeOf`). Balances are the words of `balances[x]` = slot
 `keccak(x ++ 2)`; allowances of `allowed[x][y]` = slot `keccak(y ++ keccak(x ++ 5))`.
 
-The end conditions: `Stopped` (STOP: no error; the state and substate given, gas left exact;
-the output is not tracked, see STATUS), `Halted true .empty` (REVERT, no output; the caller rolls
-the state back), `Faulted (.invalidOpcode 0xfe)` (a failed SafeMath assert: no output, no gas
-left; the caller discards the state). The writes of the success paths are stated as the sequence
+The end conditions: `Halted false .empty` after STOP (no error, empty output: transfer and the
+other STOP paths return no bytes; the state and substate given, gas left exact), `Halted false
+out` after RETURN, `Halted true .empty` (REVERT, no output; the caller rolls the state back),
+`Faulted (.invalidOpcode 0xfe)` (a failed SafeMath assert: no output, no gas left; the caller
+discards the state). The writes of the success paths are stated as the sequence
 of writes the code makes, each read in the state where the code reads it; the `*_effects`
 theorems below turn those end states into plain facts about the slots and logs.
 
@@ -147,7 +151,7 @@ StandardToken, which are not reached).
   `0xaee92d33 ++ caller ++ s ++ v` (`approveByLegacy`, `dataA`),
   `0x8b477adb ++ caller ++ f ++ t ++ v` (`transferFromByLegacy`, `dataF`), each address argument
   as a word masked to 160 bits; the CALL has an output range of size 0. If that call ends with no
-  error, the frame STOPs with no error (`Local.Stopped`); if it ends with an error, it reverts
+  error, the frame STOPs with no error (`Halted false .empty`); if it ends with an error, it reverts
   with no output. Gas left, state and substate: exact (after the call, `incorporateChild`).
 - `*_dep_succeeds`: a callee that ends every such message with no error ⇒ STOP, no error, state and
   substate from `incorporateChild` of the callee's frame. `*_dep_fails`: REVERT, no output.
@@ -251,9 +255,35 @@ Each returns 32 bytes and only reads; `a`, `a0`, `a1` are argument words masked 
 - `allowed(a0, a1)`: `allowed[a0][a1]`, slot `keccak(a1 ++ keccak(a0 ++ 5))`; `allowance(a0, a1)`,
   not deprecated: the same word, after reading slot 10. (Deprecated allowance is not covered.)
 
+## name(), symbol() — `name`, `symbol`, `name_tether`, `symbol_usdt`
+name() reads slot 7, symbol() slot 8 (`string`). For a slot word `w` in Solidity's short form
+with `n` bytes, 1 ≤ n ≤ 31 (`w mod 256 = 2n`): the run returns 96 bytes, the word 0x20 (offset),
+the word n (length), and `topBytes w n` (the first n bytes of `w`, then zeros); the slot is read
+three times (first at the cold/warm price, then warm); gas `1010 + slot` / `1450 + slot`.
+For the words of "Tether USD" and "USDT" (`NAME_WORD`, `SYMBOL_WORD`) the data word is the UTF-8
+bytes of the string padded with zeros. Not covered: the empty string and strings of 32 bytes or
+more (the long form).
+
+## allowance(owner, spender) when deprecated — `allowance_dep`, `allowance_dep_answers`, ...
+With byte 20 of slot 10 set and `ua` holding a code `c`: the frame sends `ua` one message
+(`Sends`) with no value, the gas of EIP-150, and the data `0xdd62ed3e ++ owner ++ spender`
+(`dataAl`, each argument word masked to 160 bits, 68 bytes); the CALL's output range is 32 bytes
+at 0x60. If that call ends with no error the frame returns the word at 0x60 after the copy of the
+callee's output; otherwise it reverts with no output. `*_answers`: a callee that answers `o`
+(≥ 32 bytes) ⇒ the run returns the first word of `o`. `*_fails` ⇒ REVERT, no output.
+`runFrame_allowance_dep_process`: the interpreter's own runner, for upgraded code with a `Spec`.
+`allowance_depNoCode`: empty code at `ua` ⇒ REVERT before any call (gas `1184 + slot 10 +
+address`).
+
+## A call that names no function — `fallback_unknown`, `fallback_short`
+TetherToken has no fallback function; both paths end at 406 (`JUMPDEST PUSH1 0 DUP1 REVERT`) and
+neither checks the call value. Call data of 4 bytes or more whose selector is no key of the
+32-entry table ⇒ REVERT, no output, state and substate unchanged, gas 773. Fewer than 4 bytes ⇒
+REVERT, no output, unchanged, gas 46.
+
 ## Not proved
-name() and symbol() (string getters), allowance() when deprecated (see docs/STATUS.md); the fallback. The returned bytes of a STOP (`At` does
-not track the output buffer).
+destroyBlackFunds when deprecated (its internal `balanceOf` call then forwards to
+the upgraded contract).
 -/
 
 namespace UsdtVerify.Summary
@@ -370,6 +400,22 @@ alias isBlackListed := GettersMap.spec_isBlackListed
 alias getBlackListStatus := GettersMap.spec_getBlackListStatus
 alias allowed := GettersMap.spec_allowed
 alias allowance := GettersMap.spec_allowance
+alias name := Strings.spec_name
+alias symbol := Strings.spec_symbol
+alias name_tether := Strings.spec_name_tether
+alias symbol_usdt := Strings.spec_symbol_usdt
+alias runFrame_name := Strings.runFrame_name
+alias runFrame_symbol := Strings.runFrame_symbol
+alias allowance_dep := DeprecatedAllowance.spec_depAl
+alias allowance_dep_answers := DeprecatedAllowance.spec_depAl_answers
+alias allowance_dep_fails := DeprecatedAllowance.spec_depAl_fails
+alias runFrame_allowance_dep_process := DeprecatedAllowance.runFrame_depAl_process
+alias allowance_depNoCode := DeprecatedAllowance.spec_depAlNoCode
+alias runFrame_allowance_depNoCode := DeprecatedAllowance.runFrame_depAlNoCode
+alias fallback_unknown := Fallback.spec_unknown
+alias fallback_short := Fallback.spec_short
+alias runFrame_fallback_unknown := Fallback.runFrame_unknown
+alias runFrame_fallback_short := Fallback.runFrame_short
 
 variable {fork : Fork} {message : Message fork}
 
@@ -379,7 +425,7 @@ plus `v`; when the two slots differ, `balances[caller]` is its word in `S` minus
 recipient's word read was its word in `S`; one log was appended, `Transfer(caller, to, v)`. -/
 theorem transfer_ok_effects {S : State.TransactionState} (hacc : hasAccount S message.currentTarget)
     {ss : Substate} {g : Nat} {v a : U256} {evm : Evm fork Nat}
-    (h : Local.Stopped g (credited S message v a) (loggedSub fork ss S message v a) evm) :
+    (h : Halted false .empty g (credited S message v a) (loggedSub fork ss S message v a) evm) :
     evm.running = false ∧ evm.error = none ∧
     storageAt evm.state message.currentTarget (recipientSlot a) =
       add (balT S message v a) v ∧
@@ -388,7 +434,7 @@ theorem transfer_ok_effects {S : State.TransactionState} (hacc : hasAccount S me
       balT S message v a = storageAt S message.currentTarget (recipientSlot a)) ∧
     evm.substate.logs = ss.logs.push (transferLog message.currentTarget
       (bitwiseAnd ADDR_MASK message.caller.toU256) (bitwiseAnd ADDR_MASK a) v) := by
-  obtain ⟨hr, he, -, hs, hss⟩ := h
+  obtain ⟨hr, he, -, -, hs, hss⟩ := h
   have hacc3 : hasAccount (reads3 S message) message.currentTarget :=
     hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc))
   have hacc4 : hasAccount (readSlot (debited S message v) message.currentTarget
@@ -418,7 +464,7 @@ holds `A` if `A = MAX_UINT`, else `A - v`; one log was appended, `Transfer(f, t,
 theorem transferFrom_ok_effects {S : State.TransactionState}
     (hacc : hasAccount S message.currentTarget) {ss : Substate} {g : Nat} {v t f : U256}
     {evm : Evm fork Nat}
-    (h : Local.Stopped g (creditedF S message v t f) (loggedSubF fork ss S message v t f) evm) :
+    (h : Halted false .empty g (creditedF S message v t f) (loggedSubF fork ss S message v t f) evm) :
     evm.running = false ∧ evm.error = none ∧
     storageAt evm.state message.currentTarget (recipientSlot t) =
       add (balTo S message v t f) v ∧
@@ -431,7 +477,7 @@ theorem transferFrom_ok_effects {S : State.TransactionState}
         else sub (allowOf S message f) v) ∧
     evm.substate.logs = ss.logs.push (transferLog message.currentTarget
       (bitwiseAnd ADDR_MASK f) (bitwiseAnd ADDR_MASK t) v) := by
-  obtain ⟨hr, he, -, hs, hss⟩ := h
+  obtain ⟨hr, he, -, -, hs, hss⟩ := h
   have hacc3 : hasAccount (readsF S message f) message.currentTarget :=
     hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc))
   have hacc4 : hasAccount (readSlot (allowedF S message v f) message.currentTarget
@@ -467,7 +513,7 @@ plus `v - fee`, and `balances[caller]` is its word in `S` minus `v`; two logs we
 theorem transfer_fee_effects {S : State.TransactionState}
     (hacc : hasAccount S message.currentTarget) {ss : Substate} {g : Nat} {v a : U256}
     {evm : Evm fork Nat}
-    (h : Local.Stopped g (feeState S message v a) (feeSub fork ss S message v a) evm) :
+    (h : Halted false .empty g (feeState S message v a) (feeSub fork ss S message v a) evm) :
     evm.running = false ∧ evm.error = none ∧
     storageAt evm.state message.currentTarget (ownerSlot (ownerWord S message v a)) =
       add (balO S message v a) (feeOf S message v) ∧
@@ -485,7 +531,7 @@ theorem transfer_fee_effects {S : State.TransactionState}
       (feeOf S message v))).push (transferLog message.currentTarget
         (bitwiseAnd ADDR_MASK message.caller.toU256) (bitwiseAnd ADDR_MASK a)
         (sendOf S message v)) := by
-  obtain ⟨hr, he, -, hs, hss⟩ := h
+  obtain ⟨hr, he, -, -, hs, hss⟩ := h
   have hacc3 : hasAccount (reads3 S message) message.currentTarget :=
     hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc))
   have hacc4 : hasAccount (readSlot (debited S message v) message.currentTarget
@@ -518,7 +564,7 @@ then `Transfer(f, t, v - fee)`. -/
 theorem transferFrom_fee_effects {S : State.TransactionState}
     (hacc : hasAccount S message.currentTarget) {ss : Substate} {g : Nat} {v t f : U256}
     {evm : Evm fork Nat}
-    (h : Local.Stopped g (feeStateF S message v t f) (feeSubF fork ss S message v t f) evm) :
+    (h : Halted false .empty g (feeStateF S message v t f) (feeSubF fork ss S message v t f) evm) :
     evm.running = false ∧ evm.error = none ∧
     storageAt evm.state message.currentTarget (ownerSlot (ownerWordF S message v t f)) =
       add (balOF S message v t f) (feeOf S message v) ∧
@@ -531,7 +577,7 @@ theorem transferFrom_fee_effects {S : State.TransactionState}
         message.currentTarget (feeOf S message v)) message.currentTarget 0)))
       (feeOf S message v))).push (transferLog message.currentTarget
         (bitwiseAnd ADDR_MASK f) (bitwiseAnd ADDR_MASK t) (sendOf S message v)) := by
-  obtain ⟨hr, he, -, hs, hss⟩ := h
+  obtain ⟨hr, he, -, -, hs, hss⟩ := h
   have hacc3 : hasAccount (readsF S message f) message.currentTarget :=
     hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc))
   have hacc4 : hasAccount (readSlot (allowedF S message v f) message.currentTarget
@@ -594,7 +640,7 @@ no underflow and no overflow (as the spec's hypotheses, read in `S`), the sender
 theorem transfer_ok_conserves {S : State.TransactionState}
     (hacc : hasAccount S message.currentTarget) {ss : Substate} {g : Nat} {v a : U256}
     {evm : Evm fork Nat}
-    (h : Local.Stopped g (credited S message v a) (loggedSub fork ss S message v a) evm)
+    (h : Halted false .empty g (credited S message v a) (loggedSub fork ss S message v a) evm)
     (hne : recipientSlot a ≠ senderSlot message)
     (hbal : v.toNat ≤ (storageAt S message.currentTarget (senderSlot message)).toNat)
     (hto : (storageAt S message.currentTarget (recipientSlot a)).toNat + v.toNat < 2 ^ 256) :
@@ -638,7 +684,7 @@ zero. -/
 theorem transfer_fee_conserves {S : State.TransactionState}
     (hacc : hasAccount S message.currentTarget) {ss : Substate} {g : Nat} {v a : U256}
     {evm : Evm fork Nat}
-    (h : Local.Stopped g (feeState S message v a) (feeSub fork ss S message v a) evm)
+    (h : Halted false .empty g (feeState S message v a) (feeSub fork ss S message v a) evm)
     (hsr : senderSlot message ≠ recipientSlot a)
     (hso : senderSlot message ≠ ownerSlot (storageAt S message.currentTarget 0))
     (hro : recipientSlot a ≠ ownerSlot (storageAt S message.currentTarget 0))
@@ -699,7 +745,7 @@ slot of `f` changes by `-v`, the slot of `t` by `+v`, and the two changes sum to
 theorem transferFrom_ok_conserves {S : State.TransactionState}
     (hacc : hasAccount S message.currentTarget) {ss : Substate} {g : Nat} {v t f : U256}
     {evm : Evm fork Nat}
-    (h : Local.Stopped g (creditedF S message v t f) (loggedSubF fork ss S message v t f) evm)
+    (h : Halted false .empty g (creditedF S message v t f) (loggedSubF fork ss S message v t f) evm)
     (hft : recipientSlot f ≠ recipientSlot t)
     (haf : allowFrom message f ≠ recipientSlot f) (hat : allowFrom message f ≠ recipientSlot t)
     (hbal : v.toNat ≤ (storageAt S message.currentTarget (recipientSlot f)).toNat)
@@ -759,7 +805,7 @@ zero. -/
 theorem transferFrom_fee_conserves {S : State.TransactionState}
     (hacc : hasAccount S message.currentTarget) {ss : Substate} {g : Nat} {v t f : U256}
     {evm : Evm fork Nat}
-    (h : Local.Stopped g (feeStateF S message v t f) (feeSubF fork ss S message v t f) evm)
+    (h : Halted false .empty g (feeStateF S message v t f) (feeSubF fork ss S message v t f) evm)
     (hft : recipientSlot f ≠ recipientSlot t)
     (hfo : recipientSlot f ≠ ownerSlot (storageAt S message.currentTarget 0))
     (hto' : recipientSlot t ≠ ownerSlot (storageAt S message.currentTarget 0))
@@ -784,7 +830,7 @@ theorem transferFrom_fee_conserves {S : State.TransactionState}
         (ownerSlot (storageAt S message.currentTarget 0)) = 0 := by
   have hw := ownerWordF_eq (v := v) (t := t) hacc hf0 ht0 ha0
   obtain ⟨-, -, hO, hR, -⟩ := transferFrom_fee_effects hacc h
-  obtain ⟨-, -, -, hst, -⟩ := h
+  obtain ⟨-, -, -, -, hst, -⟩ := h
   rw [hw] at hO hR
   have hacc3 : hasAccount (readsF S message f) message.currentTarget :=
     hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc))

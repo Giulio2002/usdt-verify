@@ -16,7 +16,6 @@ import UsdtVerify.Functions.TransferFaults
 import UsdtVerify.Functions.TransferFromFault
 import UsdtVerify.Functions.TransferFromFeeSpec
 import UsdtVerify.Functions.TransferFromFault2
-import UsdtVerify.Local.Account
 import UsdtVerify.Functions.Deprecated
 import UsdtVerify.Functions.DeprecatedBalance
 import UsdtVerify.Functions.DeprecatedTransfer
@@ -33,5 +32,8 @@ import UsdtVerify.Functions.MemRev
 import UsdtVerify.Functions.Getters
 import UsdtVerify.Functions.GettersMap
 import UsdtVerify.Functions.RunFrames
+import UsdtVerify.Functions.Strings
+import UsdtVerify.Functions.DeprecatedAllowance
+import UsdtVerify.Functions.Fallback
 import UsdtVerify.Test.Axioms
 import UsdtVerify.Summary

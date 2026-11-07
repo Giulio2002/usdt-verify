@@ -59,7 +59,7 @@ theorem suffixA (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     {M : ByteArray} (hM : M.size = 96) (hptr : loadWord (memoryReadBytes M 64 32) 0 32 = 0x60) :
     Spec fork (At CODE message 8384 [0x40, v, s, 0x0cbb, 0x40, v, s, 0x02a2, sel] M gas state
         substate)
-      (Local.Stopped (gas - (2056 + sstoreCost fork
+      (Halted false .empty (gas - (2056 + sstoreCost fork
           (originalAt state message.currentTarget (allowSlot message s))
           (storageAt state message.currentTarget (allowSlot message s)) v cA))
         (writeSlot state message.currentTarget (allowSlot message s) v)
@@ -72,8 +72,8 @@ theorem suffixA (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   step logApproval (by simp) hstatic (by gas_ok) (size_mapMem (size_mapMem hM _ _) _ _)
     (ptr_mapMem (size_mapMem hM _ _) (ptr_mapMem hM hptr _ _) _ _)
   refine (stopA (by gas_ok)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; gas_ok, hs, hss⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 /-- The slot of `allowed[msg.sender][spender]` for the spender in argument word 0. -/
 abbrev allowArg (message : Message fork) : U256 := allowSlot message (addrArg message.data 0)
@@ -102,7 +102,7 @@ theorem spec_zero (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (originalAt state message.currentTarget (allowArg message))
       (storageAt state message.currentTarget (allowArg message)) 0 cA ≤ gas) :
     Spec fork (At CODE message 0 [] .empty gas state substate)
-      (Local.Stopped (gas - (2560 + slotCost c10 + sstoreCost fork
+      (Halted false .empty (gas - (2560 + slotCost c10 + sstoreCost fork
           (originalAt state message.currentTarget (allowArg message))
           (storageAt state message.currentTarget (allowArg message)) 0 cA))
         (writeSlot (readSlot state message.currentTarget 10) message.currentTarget
@@ -120,8 +120,8 @@ theorem spec_zero (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   refine (suffixA hfork hglam hstatic (hasAccount_readSlot hacc) hcA (by gas_ok)
     (by simp only [storageAt_readSlot, originalAt_readSlot]; gas_ok) size_MEM0 mload_MEM0).consequence
     (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; simp only [storageAt_readSlot, originalAt_readSlot]; gas_ok, hs, hss⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; simp only [storageAt_readSlot, originalAt_readSlot]; gas_ok, hs, hss⟩
 
 /-- The specification of `approve(spender, v)` for `v ≠ 0` when the allowance is 0.
 
@@ -146,7 +146,7 @@ theorem spec_set (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (originalAt state message.currentTarget (allowArg message)) 0
       (wordArg message.data 1) false ≤ gas) :
     Spec fork (At CODE message 0 [] .empty gas state substate)
-      (Local.Stopped (gas - (2753 + slotCost c10 + slotCost cA + sstoreCost fork
+      (Halted false .empty (gas - (2753 + slotCost c10 + slotCost cA + sstoreCost fork
           (originalAt state message.currentTarget (allowArg message)) 0
           (wordArg message.data 1) false))
         (writeSlot (readSlot (readSlot state message.currentTarget 10) message.currentTarget
@@ -168,8 +168,8 @@ theorem spec_set (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (size_mapMem (size_mapMem size_MEM0 _ _) _ _)
     (ptr_mapMem (size_mapMem size_MEM0 _ _) (ptr_mapMem size_MEM0 mload_MEM0 _ _) _ _)).consequence
     (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  refine ⟨hr, he, ?_, hs, ?_⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  refine ⟨hr, he, ho, ?_, hs, ?_⟩
   · rw [hgas]; simp only [storageAt_readSlot, originalAt_readSlot, hallow]; gas_ok
   · rw [hss]; simp only [storageAt_readSlot, originalAt_readSlot, hallow]
 
@@ -193,7 +193,7 @@ theorem runFrame_zero (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (within : GasMeter.gasHeld evm.gas ≤ bound) :
     ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok stopped ∧
-      Local.Stopped (gas - (2560 + slotCost c10 + sstoreCost fork
+      Halted false .empty (gas - (2560 + slotCost c10 + sstoreCost fork
             (originalAt state message.currentTarget (allowArg message))
             (storageAt state message.currentTarget (allowArg message)) 0 cA))
           (writeSlot (readSlot state message.currentTarget 10) message.currentTarget
@@ -228,7 +228,7 @@ theorem runFrame_set (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (within : GasMeter.gasHeld evm.gas ≤ bound) :
     ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok stopped ∧
-      Local.Stopped (gas - (2753 + slotCost c10 + slotCost cA + sstoreCost fork
+      Halted false .empty (gas - (2753 + slotCost c10 + slotCost cA + sstoreCost fork
             (originalAt state message.currentTarget (allowArg message)) 0
             (wordArg message.data 1) false))
           (writeSlot (readSlot (readSlot state message.currentTarget 10) message.currentTarget

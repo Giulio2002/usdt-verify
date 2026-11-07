@@ -10,7 +10,7 @@ what they state. Theorem names in parentheses; the one-place index is `UsdtVerif
 - The Lean constant `CODE` holds those bytes. A build-time check (`UsdtVerify/Test/Hash.lean`)
   compares `CODE` with the hex file and its keccak256 with `b44fb4e9…ea55`. The interpreter runs
   this check; it is a test, not a kernel-checked theorem.
-- The semantics is EthLib's EVM model (pinned commit d4d422780), with its program logic and the
+- The semantics is EthLib's EVM model (pinned commit fd3457dbf), with its program logic and the
   one-counter gas meter. Forks: Berlin onwards, and before Glamsterdam where storage is written or a
   call is made.
 
@@ -22,7 +22,7 @@ end frame. Every theorem from pc 0 is also given for the real interpreter loop `
 bound and every message runner (`runFrame_*`).
 
 The end frames are:
-- a normal halt: RETURN with the given bytes, or STOP;
+- a normal halt: RETURN with the given bytes, or STOP with an empty output;
 - REVERT with empty output;
 - an exceptional halt with INVALID (0xfe): a failed SafeMath `assert`. No gas is left and the
   caller discards the state.
@@ -90,6 +90,24 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   `runFrame_dep{T,A,F}_process`: with EthLib's own runner, for any code at the upgraded address
   with a proved specification whose runs end with no error, the run stops with no error, unless the
   runner aborts.
+- **Deprecated allowance(owner, spender)** (`DeprecatedAllowance.lean`). The same callee
+  abstraction. With the flag set, USDT:
+  - sends exactly one message to the upgraded address, with no value and the call data
+    `0xdd62ed3e ++ owner ++ spender` (68 bytes, the addresses masked to 160 bits), with an output
+    range of 32 bytes;
+  - returns the first word of the callee's output if the callee succeeds with at least 32 bytes
+    of output;
+  - reverts with empty output if the callee fails;
+  - reverts before any call if the address has no code.
+
+  `runFrame_depAl_process` instantiates this with EthLib's own message runner, as for balanceOf.
+
+- **A call that names no function** (`Fallback.lean`). TetherToken has no fallback function.
+  - With at least 4 bytes of call data whose first four are not the selector of any of the 32
+    functions, the run reverts with empty output, leaves the state and substate unchanged, and
+    uses exactly 773 gas.
+  - With fewer than 4 bytes of call data, the run reverts the same way after 46 gas.
+  - Neither path checks the call value.
 
 - **Nonzero call value** (`Nonpayable.lean`, `nonpayable`). All 32 functions are nonpayable. For
   every entry `i` of the selector table, a call whose selector is the key of entry `i` and whose
@@ -170,6 +188,16 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
     `isBlackListed[a]` is nonzero, and 0 otherwise.
   - `allowed(a0, a1)` returns `allowed[a0][a1]`; `allowance(a0, a1)`, when not deprecated,
     returns the same word after reading slot 10.
+- **name() and symbol()** (`Strings.lean`). They read the string in slot 7 (name) or slot 8
+  (symbol). The theorems cover a string of 1 to 31 bytes in Solidity's short form: the bytes
+  from the top of the slot word, and the low byte equal to twice the length `n`.
+  - The call returns 96 bytes, the ABI encoding of a string: the word 0x20, the word `n`, and a
+    word holding the first `n` bytes of the slot word followed by zeros.
+  - The run goes through the code's copy loop once and through its padding branch. It reads
+    the slot three times, writes nothing, and the gas is exact.
+  - For the slot words of "Tether USD" and "USDT", the third word is the UTF-8 bytes of the
+    string followed by zero bytes (`spec_name_tether`, `spec_symbol_usdt`).
+  - The empty string and strings of 32 bytes or more are not covered.
 
 ## What is trusted
 
@@ -181,16 +209,14 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
 - The bytecode file is the deployed code. The interpreted hash check ties `CODE` to the file,
   and `data/SOURCE.md` ties the file to the chain.
 - A few generic opcode rules are proved locally in this repository, and EthLib's model is not
-  modified. These rules are EXTCODESIZE, GAS, STOP, EXP with its price worked out, and some
-  instruction table entries (`UsdtVerify/Local/`). They are proved from EthLib's semantics, not assumed.
+  modified. These rules are EXP with its price worked out and some instruction table
+  entries (`UsdtVerify/Local/`). STOP, GAS and EXTCODESIZE now come from EthLib. They are proved from EthLib's semantics, not assumed.
 
 ## What is not covered
 
-- destroyBlackFunds and allowance when deprecated, the string getters name() and symbol(),
-  and the fallback.
+- destroyBlackFunds when deprecated.
+- name() and symbol() for the empty string or a string of 32 bytes or more.
 - Properties across several calls (invariants), and the global "sum of all balances =
   `_totalSupply`". The global statement needs a sum over a mapping and is not stated.
-- The output buffer after STOP. `At` does not track it, so for transfer the theorems do not say
-  that the returned data is empty.
 - Runs that run out of gas below the stated bounds.
 - Forks before Berlin, and Glamsterdam onwards on the writing and calling paths.

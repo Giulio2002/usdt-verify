@@ -258,7 +258,7 @@ theorem runFrame_pause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (within : GasMeter.gasHeld evm.gas ≤ bound) :
     ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok stopped ∧
-      (Local.Stopped (gas - (PAUSE_COST + slotCost c0 + flagCost fork state message 1))
+      (Halted false .empty (gas - (PAUSE_COST + slotCost c0 + flagCost fork state message 1))
           (writeSlot state message.currentTarget 0
             (withPaused (storageAt state message.currentTarget 0) 1))
           { storeSub fork substate message.currentTarget 0
@@ -282,7 +282,7 @@ theorem runFrame_unpause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam
     (within : GasMeter.gasHeld evm.gas ≤ bound) :
     ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok stopped ∧
-      (Local.Stopped (gas - (UNPAUSE_COST + slotCost c0 + flagCost fork state message 0))
+      (Halted false .empty (gas - (UNPAUSE_COST + slotCost c0 + flagCost fork state message 0))
           (writeSlot state message.currentTarget 0
             (withPaused (storageAt state message.currentTarget 0) 0))
           { storeSub fork substate message.currentTarget 0
@@ -351,7 +351,7 @@ theorem runFrame_add (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (within : GasMeter.gasHeld evm.gas ≤ bound) :
     ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok stopped ∧
-      (Local.Stopped (gas - (1567 + slotCost c0 + slotCost cB + listCost fork state message 1))
+      (Halted false .empty (gas - (1567 + slotCost c0 + slotCost cB + listCost fork state message 1))
           (listState state message 1) (listSub fork substate state message 1 ADDED_TOPIC)) stopped :=
   (spec_add hfork hglam hstatic hacc hsize hsize' hsel hv hown hc0 hcB hstip hg).runFrame start within
 
@@ -371,7 +371,7 @@ theorem runFrame_remove (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (within : GasMeter.gasHeld evm.gas ≤ bound) :
     ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok stopped ∧
-      (Local.Stopped (gas - (2095 + slotCost c0 + slotCost cB + listCost fork state message 0))
+      (Halted false .empty (gas - (2095 + slotCost c0 + slotCost cB + listCost fork state message 0))
           (listState state message 0) (listSub fork substate state message 0 REMOVED_TOPIC)) stopped :=
   (spec_remove hfork hglam hstatic hacc hsize hsize' hsel hv hown hc0 hcB hstip hg).runFrame start within
 
@@ -502,7 +502,7 @@ theorem runFrame_issue (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (within : GasMeter.gasHeld evm.gas ≤ bound) :
     ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok stopped ∧
-      (Local.Stopped (gas - (3024 + slotCost c0 + slotCost c1 + slotCost cO +
+      (Halted false .empty (gas - (3024 + slotCost c0 + slotCost c1 + slotCost cO +
             issueCostO fork state message + issueCostT fork state message))
           (issueState state message) (issueSub fork substate state message)) stopped :=
   (spec_issue hfork hglam hstatic hacc hsize hsize' hsel hv hown hT hB hc0 hc1 hcO hstip hg).runFrame start within
@@ -550,7 +550,7 @@ theorem runFrame_redeem (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (within : GasMeter.gasHeld evm.gas ≤ bound) :
     ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok stopped ∧
-      (Local.Stopped (gas - (2614 + slotCost c0 + slotCost c1 + slotCost cO +
+      (Halted false .empty (gas - (2614 + slotCost c0 + slotCost c1 + slotCost cO +
             redeemCostT fork state message + redeemCostO fork state message))
           (redeemState state message) (redeemSub fork substate state message)) stopped :=
   (spec_redeem hfork hglam hstatic hacc hsize hsize' hsel hv hown hT hB hc0 hc1 hcO hstip hg).runFrame start within
@@ -642,7 +642,7 @@ theorem runFrame_setParams (hfork : .berlin ≤ fork) (hglam : fork < .glamsterd
     (within : GasMeter.gasHeld evm.gas ≤ bound) :
     ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok stopped ∧
-      (Local.Stopped (gas - (2425 + paramsCost fork state message c0 c3 c9 c4))
+      (Halted false .empty (gas - (2425 + paramsCost fork state message c0 c3 c9 c4))
           (paramsState state message) (paramsSub fork substate state message)) stopped :=
   (spec_setParams hfork hglam hstatic hacc hsize hsize' hsel hv hown hb hm hov hc0 hc3 hc9 hc4 hstip hg).runFrame start within
 
@@ -702,7 +702,7 @@ theorem runFrame_transferOwnership_zero (hfork : .berlin ≤ fork) (hsize : 4 �
     (within : GasMeter.gasHeld evm.gas ≤ bound) :
     ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok stopped ∧
-      (Local.Stopped (gas - (947 + slotCost c0)) (readSlot state message.currentTarget 0)
+      (Halted false .empty (gas - (947 + slotCost c0)) (readSlot state message.currentTarget 0)
           (accessSlot substate message.currentTarget 0)) stopped :=
   (spec_transferOwnership_zero hfork hsize hsize' hsel hv hown hz hc0 hg).runFrame start within
 
@@ -721,7 +721,7 @@ theorem runFrame_transferOwnership (hfork : .berlin ≤ fork) (hglam : fork < .g
     (within : GasMeter.gasHeld evm.gas ≤ bound) :
     ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok stopped ∧
-      (Local.Stopped (gas - (1114 + slotCost c0 + ownCost fork state message))
+      (Halted false .empty (gas - (1114 + slotCost c0 + ownCost fork state message))
           (writeSlot state message.currentTarget 0
             (withAddr (storageAt state message.currentTarget 0) (addrArg message.data 0)))
           (storeSub fork substate message.currentTarget 0 (originalAt state message.currentTarget 0)
@@ -747,7 +747,7 @@ theorem runFrame_deprecate (hfork : .berlin ≤ fork) (hglam : fork < .glamsterd
     (within : GasMeter.gasHeld evm.gas ≤ bound) :
     ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok stopped ∧
-      (Local.Stopped (gas - (1628 + slotCost c0 + slotCost c10 + depCost fork state message))
+      (Halted false .empty (gas - (1628 + slotCost c0 + slotCost c10 + depCost fork state message))
           (depState state message) (depSub fork substate state message)) stopped :=
   (spec_deprecate hfork hglam hstatic hacc hsize hsize' hsel hv hown hc0 hc10 hstip hg).runFrame start within
 

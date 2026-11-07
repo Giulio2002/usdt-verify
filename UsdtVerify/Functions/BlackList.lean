@@ -123,7 +123,7 @@ theorem listLog {q : Nat} {t : U256} {r : Nat}
     {a x : U256} (hstatic : message.isStatic = false) {M : ByteArray} (hM : M.size = 96)
     (hptr : loadWord (memoryReadBytes M 64 32) 0 32 = 0x60) {gas : Nat} (hg : 1087 ≤ gas) :
     Spec fork (At CODE message q [a, BitVec.ofNat 256 r, x] M gas state substate)
-      (Local.Stopped (gas - 1087) state
+      (Halted false .empty (gas - 1087) state
         { substate with logs := substate.logs.push (log1W message.currentTarget t (mkey a)) }) := by
   have hext0 : extendMemory M.size [((0x40 : U256), (32 : U256))] = ⟨0, 0⟩ := by
     rw [hM]; decide
@@ -187,9 +187,9 @@ theorem listLog {q : Nat} {t : U256} {r : Nat}
     step popR
     step jumpR
     step jumpdestR
-    refine (Local.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
-    rintro evm ⟨hr, he, hgas, hs, hss⟩
-    refine ⟨hr, he, by rw [hgas]; gas_ok, hs, ?_⟩
+    refine (Logic.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
+    rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+    refine ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, ?_⟩
     rw [hss, hext3, memoryExtend_zero, show (0x60 : U256).toNat = 96 from rfl,
       show (0x20 : U256).toNat = 32 from rfl, read_after hM _ (size_wordBytes (mkey a))]
 

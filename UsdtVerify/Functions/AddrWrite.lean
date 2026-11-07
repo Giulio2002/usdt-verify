@@ -216,7 +216,7 @@ theorem ownSkip {n x : U256} (hn : bitwiseAnd ADDR_MASK n = 0) {M : ByteArray} {
     (hg : 25 ≤ gas) :
     Spec fork (At CODE message 7747 (isZero (isZero (equal (bitwiseAnd ADDR_MASK n)
         (bitwiseAnd ADDR_MASK 0))) :: [n, 0x097d, x]) M gas state substate)
-      (Local.Stopped (gas - 25) state substate) := by
+      (Halted false .empty (gas - 25) state substate) := by
   have ht : isZero (isZero (equal (bitwiseAnd ADDR_MASK n) (bitwiseAnd ADDR_MASK 0))) ≠ 0 := by
     rw [hn]; decide
   step pushAnyR 2
@@ -227,9 +227,9 @@ theorem ownSkip {n x : U256} (hn : bitwiseAnd ADDR_MASK n = 0) {M : ByteArray} {
   step jumpR
   at_pc 2429
   step jumpdestR
-  refine (Local.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; gas_ok, hs, hss⟩
+  refine (Logic.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 /-- `newOwner` masked to 160 bits is not 0: the code sets up the write of slot 0. -/
 theorem ownGo {n : U256} (hn : bitwiseAnd ADDR_MASK n ≠ 0) {rest : List U256}
@@ -250,14 +250,14 @@ theorem ownGo {n : U256} (hn : bitwiseAnd ADDR_MASK n ≠ 0) {rest : List U256}
 /-- At 7815 (transferOwnership after the write): back to 2429 and STOP. -/
 theorem ownEnd {n x : U256} {M : ByteArray} {gas : Nat} (hg : 12 ≤ gas) :
     Spec fork (At CODE message 7815 [n, 0x097d, x] M gas state substate)
-      (Local.Stopped (gas - 12) state substate) := by
+      (Halted false .empty (gas - 12) state substate) := by
   step jumpdestR
   step popR
   step jumpR
   at_pc 2429
   step jumpdestR
-  refine (Local.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; gas_ok, hs, hss⟩
+  refine (Logic.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 end UsdtVerify.AddrWrite

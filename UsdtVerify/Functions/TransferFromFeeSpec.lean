@@ -180,7 +180,7 @@ theorem ownerPartF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (add (balOf st message.currentTarget) fee) false ≤ gas) :
     Spec fork (At CODE message 9351 [0x60, send, fee, A, v, t, f, 0x1097, v, t, f, 0x0392, sel]
         M gas st ss)
-      (Local.Stopped (gas - (4417 + slotCost cO + sstoreCost fork o (balOf st message.currentTarget)
+      (Halted false .empty (gas - (4417 + slotCost cO + sstoreCost fork o (balOf st message.currentTarget)
           (add (balOf st message.currentTarget) fee) false))
         (readSlot (ownedB st message.currentTarget fee) message.currentTarget 0)
         (feeSubBF fork ss st message o fee send t f)) := by
@@ -206,8 +206,8 @@ theorem ownerPartF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (by rw [read64_append (size_mapMem (size_mapMem hM _ _) _ _)]
         exact ptr_mapMem (size_mapMem hM _ _) (ptr_mapMem hM hptr _ _) _ _)
   refine (endBlock (by gas_ok)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; gas_ok, hs, hss⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 /-- The word of slot 0 read for the owner's credit (after the write of `_to`). -/
 abbrev ownerWordF (state : State.TransactionState) (message : Message fork) (v t f : U256) :
@@ -272,7 +272,7 @@ theorem bodyFeeF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       creditCostFeeF fork state message v t f + ownerCostF fork state message v t f ≤ gas) :
     Spec fork (At CODE message 8648 [0x60, 0, 0, 0, v, t, f, 0x1097, v, t, f, 0x0392, sel] M gas
         state substate)
-      (Local.Stopped (gas - (5516 + slotCost cA + slotCost c3 + slotCost c4 + slotCost cF +
+      (Halted false .empty (gas - (5516 + slotCost cA + slotCost c3 + slotCost c4 + slotCost cF +
         slotCost cT + slotCost cO + mulCost v +
         capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
         allowCostF fork state message v f + debitCostF fork state message v f +
@@ -319,8 +319,8 @@ theorem bodyFeeF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
           creditCostFeeF fork state message v t f))
     (by simp only [ownerCostF, ownerSlotOf, balOf, balOF, ownerWordF] at hg ⊢; omega)
   refine Triple.seq hA (hB.consequence (fun _ h => h) ?_)
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  refine ⟨hr, he, ?_, hs, hss⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  refine ⟨hr, he, ho, ?_, hs, hss⟩
   rw [hgas]
   simp only [ownerCostF, ownerSlotOf, balOf, balOF, ownerWordF]
   omega
@@ -401,7 +401,7 @@ theorem spec_feeF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
         (fromArg message))) = cO)
     {gas : Nat} (hg : feeCostF fork state message c0 cB c10 cA c3 c4 cF cT cO ≤ gas) :
     Spec fork (At CODE message 0 [] .empty gas state substate)
-      (Local.Stopped (gas - feeCostF fork state message c0 cB c10 cA c3 c4 cF cT cO)
+      (Halted false .empty (gas - feeCostF fork state message c0 cB c10 cA c3 c4 cF cT cO)
         (feeStateF (checkState state message) message (valArg message) (toArg message)
           (fromArg message))
         (feeSubF fork (checkSub substate message) (checkState state message) message
@@ -420,8 +420,8 @@ theorem spec_feeF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     Nat.le_trans (Nat.le_add_right _ _) hg
   refine Triple.seq (preF hfork hlong hsz hsel hv hnp hnb hdep hc0 hcB hc10 hpre)
     (hB.consequence (fun _ h => h) ?_)
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas, Nat.sub_sub], hs, hss⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas, Nat.sub_sub], hs, hss⟩
 
 /-- The loop of the interpreter runs a successful `transferFrom` call with a fee above 0 to its
 specification. It holds for every bound on the gas of messages and every runner of messages. -/
@@ -474,7 +474,7 @@ theorem runFrame_feeF (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (within : GasMeter.gasHeld evm.gas ≤ bound) :
     ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok stopped ∧
-      (Local.Stopped (gas - feeCostF fork state message c0 cB c10 cA c3 c4 cF cT cO)
+      (Halted false .empty (gas - feeCostF fork state message c0 cB c10 cA c3 c4 cF cT cO)
         (feeStateF (checkState state message) message (valArg message) (toArg message)
           (fromArg message))
         (feeSubF fork (checkSub substate message) (checkState state message) message

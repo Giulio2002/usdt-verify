@@ -1,4 +1,7 @@
 import UsdtVerify.Functions.TotalSupply
+import UsdtVerify.Functions.Strings
+import UsdtVerify.Functions.DeprecatedAllowance
+import UsdtVerify.Functions.Fallback
 import UsdtVerify.Functions.BalanceOf
 import UsdtVerify.Functions.Transfer
 import UsdtVerify.Functions.TransferSuccess
@@ -89,8 +92,6 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Deprecated.runFrame_dep_answers
 #print axioms UsdtVerify.Deprecated.runFrame_dep_process
 #print axioms UsdtVerify.Deprecated.spec_depNoCode
-#print axioms UsdtVerify.Local.extcodesize
-#print axioms UsdtVerify.Local.gasOp
 #print axioms UsdtVerify.DeprecatedBalance.spec_depB
 #print axioms UsdtVerify.DeprecatedBalance.spec_depB_answers
 #print axioms UsdtVerify.DeprecatedBalance.spec_depB_fails
@@ -184,3 +185,20 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Destroy.runFrame_notListed
 #print axioms UsdtVerify.Getters.runFrame_slot
 #print axioms UsdtVerify.GettersMap.runFrame_allowance
+#print axioms UsdtVerify.Strings.spec_str
+#print axioms UsdtVerify.Strings.spec_name
+#print axioms UsdtVerify.Strings.spec_symbol
+#print axioms UsdtVerify.Strings.spec_name_tether
+#print axioms UsdtVerify.Strings.spec_symbol_usdt
+#print axioms UsdtVerify.Strings.runFrame_name
+#print axioms UsdtVerify.Strings.runFrame_symbol
+#print axioms UsdtVerify.DeprecatedAllowance.spec_depAl
+#print axioms UsdtVerify.DeprecatedAllowance.spec_depAl_answers
+#print axioms UsdtVerify.DeprecatedAllowance.spec_depAl_fails
+#print axioms UsdtVerify.DeprecatedAllowance.runFrame_depAl_process
+#print axioms UsdtVerify.DeprecatedAllowance.spec_depAlNoCode
+#print axioms UsdtVerify.DeprecatedAllowance.runFrame_depAlNoCode
+#print axioms UsdtVerify.Fallback.spec_unknown
+#print axioms UsdtVerify.Fallback.spec_short
+#print axioms UsdtVerify.Fallback.runFrame_unknown
+#print axioms UsdtVerify.Fallback.runFrame_short

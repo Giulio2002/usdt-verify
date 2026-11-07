@@ -107,7 +107,7 @@ theorem ownerPart (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hg : 4409 + slotCost cO + sstoreCost fork o (balOf st message.currentTarget)
       (add (balOf st message.currentTarget) fee) false ≤ gas) :
     Spec fork (At CODE message 10298 [0x40, send, fee, v, a, 0x1699, v, a, 0x078a, sel] M gas st ss)
-      (Local.Stopped (gas - (4409 + slotCost cO + sstoreCost fork o (balOf st message.currentTarget)
+      (Halted false .empty (gas - (4409 + slotCost cO + sstoreCost fork o (balOf st message.currentTarget)
           (add (balOf st message.currentTarget) fee) false))
         (readSlot (ownedB st message.currentTarget fee) message.currentTarget 0)
         (feeSubB fork ss st message o fee send a)) := by
@@ -133,8 +133,8 @@ theorem ownerPart (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (by rw [read64_append (size_mapMem (size_mapMem hM _ _) _ _)]
         exact ptr_mapMem (size_mapMem hM _ _) (ptr_mapMem hM hptr _ _) _ _)
   refine (TransferOk.endBlock (by gas_ok)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; gas_ok, hs, hss⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 /-- The price of the recipient's write (warm). -/
 abbrev creditCostFee (fork : Fork) (state : State.TransactionState) (message : Message fork)
@@ -265,7 +265,7 @@ theorem bodyFee (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       debitCost fork state message v + creditCostFee fork state message v a +
       ownerCost fork state message v a ≤ gas) :
     Spec fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
-      (Local.Stopped (gas - (5373 + readCost c3 c4 cS cT + slotCost cO + mulCost v +
+      (Halted false .empty (gas - (5373 + readCost c3 c4 cS cT + slotCost cO + mulCost v +
         capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
         debitCost fork state message v + creditCostFee fork state message v a +
         ownerCost fork state message v a))
@@ -299,8 +299,8 @@ theorem bodyFee (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
           debitCost fork state message v + creditCostFee fork state message v a))
     (by simp only [ownerCost, ownerSlotOf, balOf, balO, ownerWord] at hg ⊢; omega)
   refine Triple.seq hA (hB.consequence (fun _ h => h) ?_)
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  refine ⟨hr, he, ?_, hs, hss⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  refine ⟨hr, he, ho, ?_, hs, hss⟩
   rw [hgas]
   simp only [ownerCost, ownerSlotOf, balOf, balO, ownerWord]
   omega

@@ -347,7 +347,7 @@ theorem spec_issue (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hg : 3024 + slotCost c0 + slotCost c1 + slotCost cO + issueCostO fork state message +
       issueCostT fork state message ≤ gas) :
     Spec fork (At CODE message 0 [] .empty gas state substate)
-      (Local.Stopped (gas - (3024 + slotCost c0 + slotCost c1 + slotCost cO +
+      (Halted false .empty (gas - (3024 + slotCost c0 + slotCost c1 + slotCost cO +
           issueCostO fork state message + issueCostT fork state message))
         (issueState state message) (issueSub fork substate state message)) := by
   simp only [issueCostO, issueCostT, issueState1] at hstip hg ⊢
@@ -388,8 +388,8 @@ theorem spec_issue (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (ptr_mapMem (size_mapMem (size_mapMem size_MEM0 _ _) _ _)
       (ptr_mapMem (size_mapMem size_MEM0 _ _) (ptr_mapMem size_MEM0 mload_MEM0 _ _) _ _) _ _)
     (by gas_ok)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; gas_ok, hs, hss⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 /-- From pc 0 to the JUMPI of redeem's second `require`. -/
 theorem redeemPre (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
@@ -514,7 +514,7 @@ theorem spec_redeem (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hg : 2614 + slotCost c0 + slotCost c1 + slotCost cO + redeemCostT fork state message +
       redeemCostO fork state message ≤ gas) :
     Spec fork (At CODE message 0 [] .empty gas state substate)
-      (Local.Stopped (gas - (2614 + slotCost c0 + slotCost c1 + slotCost cO +
+      (Halted false .empty (gas - (2614 + slotCost c0 + slotCost c1 + slotCost cO +
           redeemCostT fork state message + redeemCostO fork state message))
         (redeemState state message) (redeemSub fork substate state message)) := by
   simp only [redeemCostO, redeemCostT, redeemState1] at hstip hg ⊢
@@ -561,8 +561,8 @@ theorem spec_redeem (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (size_mapMem (size_mapMem size_MEM0 _ _) _ _)
     (ptr_mapMem (size_mapMem size_MEM0 _ _) (ptr_mapMem size_MEM0 mload_MEM0 _ _) _ _)
     (by gas_ok)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; gas_ok, hs, hss⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 /-! ## The end states in plain terms -/
 

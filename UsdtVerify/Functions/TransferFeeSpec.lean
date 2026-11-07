@@ -83,7 +83,7 @@ theorem spec_fee (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
         (addrArg message.data 0))) = cO)
     {gas : Nat} (hg : feeCost fork state message c0 cB c10 c3 c4 cS cT cO ≤ gas) :
     Spec fork (At CODE message 0 [] .empty gas state substate)
-      (Local.Stopped (gas - feeCost fork state message c0 cB c10 c3 c4 cS cT cO)
+      (Halted false .empty (gas - feeCost fork state message c0 cB c10 c3 c4 cS cT cO)
         (feeState (shortState state message) message (wordArg message.data 1)
           (addrArg message.data 0))
         (feeSub fork (shortSubstate substate message) (shortState state message) message
@@ -121,8 +121,8 @@ theorem spec_fee (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   step toBasic (by gas_ok)
   step reshape (g' := gas - (1034 + slotCost c0 + slotCost cB + slotCost c10)) rfl rfl (by gas_ok)
   refine hB.consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas, Nat.sub_sub], hs, hss⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas, Nat.sub_sub], hs, hss⟩
 
 /-- The loop of the interpreter runs a successful `transfer` call with a fee above 0 to its
 specification, for every bound on the gas of messages and every runner of messages. -/
@@ -167,7 +167,7 @@ theorem runFrame_fee (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (within : GasMeter.gasHeld evm.gas ≤ bound) :
     ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok stopped ∧
-      Local.Stopped (gas - feeCost fork state message c0 cB c10 c3 c4 cS cT cO)
+      Halted false .empty (gas - feeCost fork state message c0 cB c10 c3 c4 cS cT cO)
         (feeState (shortState state message) message (wordArg message.data 1)
           (addrArg message.data 0))
         (feeSub fork (shortSubstate substate message) (shortState state message) message

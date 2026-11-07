@@ -13,6 +13,11 @@ They belong in EthLib's program logic and are kept here only until it has them.
 
 The proofs follow the rules of `Logic/Rules.lean` line for line.
 
+Checked again at the re-pin to fd3457dbf (#1300, after #1292 and #1299): EthLib has STOP
+(`Logic.stop`, `Halted false .empty`), GAS (`gas_rule`) and EXTCODESIZE (`extcodesize`), which
+replaced the local Halt.lean and Account.lean; it still has no named instruction-table lemmas for
+the opcodes below and no EXP rule with the price of a fork worked out.
+
 Removed at the re-pin to d4d422780: the frame-read rules (CALLVALUE, CALLDATASIZE; EthLib
 `push_of_readFrame`, #1258) and JUMPI on a condition proved 0 (EthLib `jumpi_of_eq_zero`).
 -/

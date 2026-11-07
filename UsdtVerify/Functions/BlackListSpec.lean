@@ -114,7 +114,7 @@ theorem listTail (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {s p q
     (hg : 1314 + slotCost c0 + slotCost cB + listCost fork state message v ≤ gas) :
     Spec fork (At CODE message s [0, 0, addrArg message.data 0, BitVec.ofNat 256 r, x] MEM0 gas
         state substate)
-      (Local.Stopped (gas - (1314 + slotCost c0 + slotCost cB + listCost fork state message v))
+      (Halted false .empty (gas - (1314 + slotCost c0 + slotCost cB + listCost fork state message v))
         (listState state message v) (listSub fork substate state message v t)) := by
   have hm := mkey_addrArg0 message.data
   simp only [listCost] at hg ⊢
@@ -137,8 +137,8 @@ theorem listTail (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {s p q
     · exact Or.inr (Or.inl ⟨h1, h2, h3⟩)
   refine (listLog hqt hstatic (size_mapMem size_MEM0 _ _) (ptr_mapMem size_MEM0 mload_MEM0 _ _)
     (by gas_ok)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  refine ⟨hr, he, by rw [hgas]; gas_ok, hs, ?_⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  refine ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, ?_⟩
   rw [hss, hm]
 
 /-- The specification of `addBlackList(a)` by the owner.
@@ -162,14 +162,14 @@ theorem spec_add (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hstip : 2779 + slotCost c0 + slotCost cB ≤ gas)
     (hg : 1567 + slotCost c0 + slotCost cB + listCost fork state message 1 ≤ gas) :
     Spec fork (At CODE message 0 [] .empty gas state substate)
-      (Local.Stopped (gas - (1567 + slotCost c0 + slotCost cB + listCost fork state message 1))
+      (Halted false .empty (gas - (1567 + slotCost c0 + slotCost cB + listCost fork state message 1))
         (listState state message 1) (listSub fork substate state message 1 ADDED_TOPIC)) := by
   refine Spec.seq (toBody1 (e := 721) (r := 0x0308) (b := 3284) (t := 5) (by decide) (by decide)
     (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
   refine (listTail hfork hglam (Or.inl ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩) hstatic hacc hown hc0 hcB
     (by omega) (by omega)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; omega, hs, hss⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; omega, hs, hss⟩
 
 /-- The specification of `removeBlackList(a)` by the owner: as `spec_add`, with selector
 0xe4997dc5, the word written `setLow w 0` (low byte 0), the log `RemovedBlackList(a)` (topic
@@ -185,14 +185,14 @@ theorem spec_remove (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hstip : 3307 + slotCost c0 + slotCost cB ≤ gas)
     (hg : 2095 + slotCost c0 + slotCost cB + listCost fork state message 0 ≤ gas) :
     Spec fork (At CODE message 0 [] .empty gas state substate)
-      (Local.Stopped (gas - (2095 + slotCost c0 + slotCost cB + listCost fork state message 0))
+      (Halted false .empty (gas - (2095 + slotCost c0 + slotCost cB + listCost fork state message 0))
         (listState state message 0) (listSub fork substate state message 0 REMOVED_TOPIC)) := by
   refine Spec.seq (toBody1 (e := 2276) (r := 0x091b) (b := 7288) (t := 29) (by decide)
     (by decide) (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
   refine (listTail hfork hglam (Or.inr ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩) hstatic hacc hown hc0 hcB
     (by omega) (by omega)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; omega, hs, hss⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; omega, hs, hss⟩
 
 /-- In plain terms: after `addBlackList(a)` / `removeBlackList(a)` the low byte of
 `isBlackListed[a]` is 1 / 0 (the flag that transfer and transferFrom test), and every other

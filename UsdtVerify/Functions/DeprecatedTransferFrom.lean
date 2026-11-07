@@ -50,8 +50,9 @@ theorem read40_W5 : memoryReadBytes (W5 M sel k f t w) 64 32 = memoryReadBytes M
 theorem data_W5 : memoryReadBytes (W5 M sel k f t w) 96 132 =
     (wordBytes (selWord sel)).extract 0 4 ++ wordBytes k ++ wordBytes f ++ wordBytes t ++
       wordBytes w := by
-  have h5 := memoryReadBytes_write_after (X := memoryExtend (W4 M sel k f t) 32)
-    (w := wordBytes w) (s := 96) (k := 100)
+  have h5 := memoryReadBytes_memoryWrite_eq_append
+    (memory := memoryExtend (W4 M sel k f t) 32)
+    (value := wordBytes w) (s := 96) (k := 100)
     (by rw [size_wordBytes, size_memoryExtend, size_W4 hM]; omega)
   rw [size_wordBytes] at h5
   rw [W5, h5, read_ext (by rw [size_W4 hM]; omega), data_W4 hM]
@@ -186,7 +187,7 @@ theorem encode4 {M : ByteArray} (hM : M.size = 96)
 to 914 and stops. -/
 theorem okTailF {sel U v t f x : U256} {M : ByteArray} {gas : Nat} (hg : 53 ≤ gas) :
     Spec fork (At CODE message 4218 [1, 0xe4, sel, U, v, t, f, 0x0392, x] M gas state substate)
-      (Local.Stopped (gas - 53) state substate) := by
+      (Halted false .empty (gas - 53) state substate) := by
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step pushR 2 (0x1084 : U256)
@@ -205,9 +206,9 @@ theorem okTailF {sel U v t f x : U256} {M : ByteArray} {gas : Nat} (hg : 53 ≤ 
   step jumpR
   step repc (pc' := 914) (by decide)
   step jumpdestR
-  refine (Local.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; gas_ok, hs, hss⟩
+  refine (Logic.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 /-- The selector of `transferFromByLegacy(address,address,address,uint256)`. -/
 def SEL_F : ByteArray := ⟨#[0x8b, 0x47, 0x7a, 0xdb]⟩
@@ -354,7 +355,7 @@ theorem spec_depF {c : ByteArray} {c0 cB c10 cU : Bool}
           accessedAddresses :=
             (callSubF substate state message).accessedAddresses.insert (upAddr state message) } ∧
         (child.error = none →
-          Local.Stopped
+          Halted false .empty
             (gas - preCostF c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU).cost + child.gas - 53)
             (incorporateChild fork caller child).state
             (incorporateChild fork caller child).substate evm) ∧
@@ -416,8 +417,8 @@ theorem spec_depF {c : ByteArray} {c0 cB c10 cU : Bool}
       (by omega) evm hat
     refine ⟨after, hreach, hrun, caller, msg, child, hcal, hfwd, hmg, hcs, hcss, fun _ => ?_,
       fun h => absurd he h⟩
-    obtain ⟨h1, h2, h3, h4, h5⟩ := hq
-    exact ⟨h1, h2, by rw [h3]; omega, h4, h5⟩
+    obtain ⟨h1, h2, h0, h3, h4, h5⟩ := hq
+    exact ⟨h1, h2, h0, by rw [h3]; omega, h4, h5⟩
   · have hz : child.error.isNone = false := by
       cases h : child.error
       · exact absurd h he
@@ -448,7 +449,7 @@ theorem spec_depF_succeeds {c : ByteArray} {c0 cB c10 cU : Bool}
     SpecUnder fork callee (At CODE message 0 [] .empty gas state substate)
       fun evm => ∃ caller msg child, callee caller msg child ∧
         Sends message (upAddr state message) c (dataF message) msg ∧ child.error = none ∧
-        Local.Stopped
+        Halted false .empty
           (gas - preCostF c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU).cost + child.gas - 53)
           (incorporateChild fork caller child).state
           (incorporateChild fork caller child).substate evm := by
@@ -492,7 +493,7 @@ theorem runFrame_depF_process {c : ByteArray} {c0 cB c10 cU : Bool}
     (∃ stopped, runFrame (step fork) (step_decreases fork) bound (processRunner fork bound) evm
         within = .ok stopped ∧ ∃ caller msg child, RunsAs c G Q caller msg child ∧
         Sends message (upAddr state message) c (dataF message) msg ∧ child.error = none ∧
-        Local.Stopped
+        Halted false .empty
           (gas - preCostF c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU).cost + child.gas - 53)
           (incorporateChild fork caller child).state
           (incorporateChild fork caller child).substate stopped) ∨

@@ -354,7 +354,7 @@ theorem logApproval {v s : U256} {rest : List U256} (hrest : rest.length ≤ 900
 /-- At 3259, the code returns to 674, where it stops. -/
 theorem stopA {v s sel : U256} {gas : Nat} (hg : 17 ≤ gas) {M : ByteArray} :
     Spec fork (At CODE message 3259 [0x40, v, s, 0x02a2, sel] M gas state substate)
-      (Local.Stopped (gas - 17) state substate) := by
+      (Halted false .empty (gas - 17) state substate) := by
   step jumpdestR
   step jumpdestR
   step popR
@@ -363,8 +363,8 @@ theorem stopA {v s sel : U256} {gas : Nat} (hg : 17 ≤ gas) {M : ByteArray} :
   step jumpR
   step repc (pc' := 674) (by decide)
   step jumpdestR
-  refine (Local.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; gas_ok, hs, hss⟩
+  refine (Logic.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 end UsdtVerify.Approve

@@ -255,7 +255,7 @@ theorem paramsLogBlock {b m x : U256} (hstatic : message.isStatic = false)
     (hptr : loadWord (memoryReadBytes M 64 32) 0 32 = 0x60) (hfork : .berlin ≤ fork)
     {gas : Nat} (hg : 1556 ≤ gas) :
     Spec fork (At CODE message 5949 [m, b, 0x07b6, x] M gas state substate)
-      (Local.Stopped (gas - 1556)
+      (Halted false .empty (gas - 1556)
         (readSlot (readSlot state message.currentTarget 3) message.currentTarget 4)
         { accessSlot (accessSlot substate message.currentTarget 3) message.currentTarget 4 with
           logs := substate.logs.push (paramsLog message.currentTarget
@@ -352,9 +352,9 @@ theorem paramsLogBlock {b m x : U256} (hstatic : message.isStatic = false)
   step popR
   step jumpR
   step jumpdestR
-  refine (Local.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  refine ⟨hr, he, by rw [hgas]; gas_ok, hs, ?_⟩
+  refine (Logic.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  refine ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, ?_⟩
   rw [hss, hext4, memoryExtend_zero, show (0x60 : U256).toNat = 96 from rfl,
     show (0x40 : U256).toNat = 64 from rfl, read_after64 hM _ _ (size_wordBytes _) (size_wordBytes _)]
 

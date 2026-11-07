@@ -149,7 +149,7 @@ theorem body (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       creditCostF fork state message v t f ≤ gas) :
     Spec fork (At CODE message 8648 [0x60, 0, 0, 0, v, t, f, 0x1097, v, t, f, 0x0392, sel] M gas
         state substate)
-      (Local.Stopped (gas - (2971 + slotCost cA + slotCost c3 + slotCost c4 + slotCost cF +
+      (Halted false .empty (gas - (2971 + slotCost cA + slotCost c3 + slotCost c4 + slotCost cF +
         slotCost cT + mulCost v +
         capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
         allowCostF fork state message v f + debitCostF fork state message v f +
@@ -225,7 +225,7 @@ theorem body (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (ptr_mapMem (size_mapMem (size_mapMem hMb _ _) _ _)
         (ptr_mapMem (size_mapMem hMb _ _) (ptr_mapMem hMb hPb _ _) _ _) _ _) _ _)
   refine (endBlock (by gas_ok)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; gas_ok, hs, hss⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 end UsdtVerify.TransferFrom

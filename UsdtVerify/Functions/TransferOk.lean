@@ -1,6 +1,6 @@
 import UsdtVerify.Functions.Transfer
 import UsdtVerify.Functions.SafeMath
-import UsdtVerify.Local.Halt
+import EthLib.Execution.Proofs.Evm.Logic.Rules
 import UsdtVerify.Spec.Write
 import EthLib.Execution.Proofs.Evm.Logic.Log
 
@@ -489,7 +489,7 @@ theorem logBlock {send fee v a : U256} {rest : List U256} (hrest : rest.length �
 /-- At 5785, the code returns to 1930, where it stops. -/
 theorem endBlock {w a sel : U256} {gas : Nat} (hg : 15 ≤ gas) {M : ByteArray} :
     Spec fork (At CODE message 5785 [w, a, 0x078a, sel] M gas state substate)
-      (Local.Stopped (gas - 15) state substate) := by
+      (Halted false .empty (gas - 15) state substate) := by
   step jumpdestR
   step jumpdestR
   step popR
@@ -497,8 +497,8 @@ theorem endBlock {w a sel : U256} {gas : Nat} (hg : 15 ≤ gas) {M : ByteArray} 
   step jumpR
   step repc (pc' := 1930) (by decide)
   step jumpdestR
-  refine (Local.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; gas_ok, hs, hss⟩
+  refine (Logic.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 end UsdtVerify.TransferOk

@@ -78,16 +78,10 @@ theorem originalAt_writeSlot {state : State.TransactionState} {target : Address}
 
 theorem hasAccount_writeSlot {state : State.TransactionState} {target : Address} {n v : U256}
     (h : hasAccount state target) : hasAccount (writeSlot state target n v) target := by
-  have h' : ((state.recordStorageRead target (U256.toBeBytes n)).getAccountOptional
-      target).isNone = false := by
-    rw [(State.TransactionState.recordStorageRead_reads state target target (U256.toBeBytes n)
+  rw [hasAccount, State.TransactionState.getAccountOptional_setStorage (setStorage_writeSlot h),
+    (State.TransactionState.recordStorageRead_reads state target target (U256.toBeBytes n)
       (U256.toBeBytes n) default).1]
-    simpa [Option.isNone_iff_eq_none, Option.isSome_iff_ne_none] using h
-  unfold writeSlot State.TransactionState.setStorage
-  simp only [h', Bool.false_eq_true, ite_false]
-  simpa [hasAccount, State.TransactionState.getAccountOptional,
-    State.TransactionState.recordAccountRead,
-    State.TransactionState.recordStorageRead] using h
+  exact h
 
 theorem hasAccount_readSlot {state : State.TransactionState} {target other : Address} {n : U256}
     (h : hasAccount state target) : hasAccount (readSlot state other n) target := by
@@ -127,37 +121,16 @@ theorem sstoreW (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {key ne
           (storageAt state message.currentTarget key) new)) :=
   sstore hfork hglam hlt hbyte hstatic hcold hstipend hgas (setStorage_writeSlot hacc)
 
-/-- Recording a read twice is recording it once. -/
+/-- Recording a read twice is recording it once (EthLib's `recordStorageRead_recordStorageRead`). -/
 theorem readSlot_readSlot (state : State.TransactionState) (target : Address) (n : U256) :
-    readSlot (readSlot state target n) target n = readSlot state target n := by
-  simp only [readSlot, State.TransactionState.recordStorageRead]
-  congr 1
-  apply Std.ExtTreeMap.ext_getElem?
-  intro k
-  by_cases hk : k = target
-  · subst hk
-    simp only [Std.ExtTreeMap.getElem?_insert_self, Std.ExtTreeMap.getD_insert_self]
-    congr 1
-    ext x
-    simp only [Std.ExtTreeSet.mem_insert]
-    exact or_self_left
-  · simp [Std.ExtTreeMap.getElem?_insert, Ne.symm hk]
+    readSlot (readSlot state target n) target n = readSlot state target n :=
+  State.TransactionState.recordStorageRead_recordStorageRead state target (U256.toBeBytes n)
 
-/-- Accessing a slot twice is accessing it once. -/
+/-- Accessing a slot twice is accessing it once (EthLib's `insert_insert_getD_self`). -/
 theorem accessSlot_accessSlot (substate : Substate) (target : Address) (n : U256) :
     accessSlot (accessSlot substate target n) target n = accessSlot substate target n := by
   simp only [accessSlot]
-  congr 1
-  apply Std.ExtTreeMap.ext_getElem?
-  intro k
-  by_cases hk : k = target
-  · subst hk
-    simp only [Std.ExtTreeMap.getElem?_insert_self, Std.ExtTreeMap.getD_insert_self]
-    congr 1
-    ext x
-    simp only [Std.ExtTreeSet.mem_insert]
-    exact or_self_left
-  · simp [Std.ExtTreeMap.getElem?_insert, Ne.symm hk]
+  rw [insert_insert_getD_self]
 
 /-- An accessed slot is warm. -/
 theorem coldIn_accessSlot_self (substate : Substate) (target : Address) (n : U256) :

@@ -1,5 +1,5 @@
 import UsdtVerify.Functions.TotalSupply
-import UsdtVerify.Local.Account
+import EthLib.Execution.Proofs.Evm.Logic.Call
 import UsdtVerify.Spec.Write
 import EthLib.Execution.Proofs.Evm.Logic.Callee
 
@@ -255,14 +255,14 @@ theorem toCall (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {p q : N
       10 - 1 - 3 - 2 = g - ((if cU = true then 2600 else 100) + 25) := by intro g; gas_ok
   rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
   all_goals
-    step Local.extcodesize hfork hglam (by code_fact) (by code_fact) hcode hcold (by gas_ok)
+    step Logic.extcodesize hfork hglam (by code_fact) (by code_fact) hcode hcold (by gas_ok)
     step unR 0x15 instruction_iszero
     step unR 0x15 instruction_iszero
     step pushAnyR 2
     step jumpiR (isZero2_ne (ofNat_size_ne hsz hszl))
     step jumpdestR
     step pushR 2 (0x02c6 : U256)
-    step Local.gasOp (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+    step Logic.gas_rule (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
     step binR 0x03 Local.instruction_sub
     refine (repc (by decide)).seq (reshape ?_ rfl (by gas_ok))
     rw [he]
@@ -771,7 +771,7 @@ theorem noCode (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {p : Nat
     simp [extendMemory]
   rcases hp with rfl | rfl | rfl | rfl | rfl
   all_goals
-    step Local.extcodesize hfork hglam (by code_fact) (by code_fact) hcode hcold (by gas_ok)
+    step Logic.extcodesize hfork hglam (by code_fact) (by code_fact) hcode hcold (by gas_ok)
     step unR 0x15 instruction_iszero
     step unR 0x15 instruction_iszero
     step pushAnyR 2

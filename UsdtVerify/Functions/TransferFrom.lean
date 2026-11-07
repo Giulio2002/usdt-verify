@@ -756,7 +756,7 @@ theorem logBlock {send fee A v t f : U256} {rest : List U256} (hrest : rest.leng
 /-- At 4247, the code returns to 914, where it stops. -/
 theorem endBlock {v t f sel : U256} {gas : Nat} (hg : 17 ≤ gas) {M : ByteArray} :
     Spec fork (At CODE message 4247 [v, t, f, 0x0392, sel] M gas state substate)
-      (Local.Stopped (gas - 17) state substate) := by
+      (Halted false .empty (gas - 17) state substate) := by
   step jumpdestR
   step jumpdestR
   step popR
@@ -765,8 +765,8 @@ theorem endBlock {v t f sel : U256} {gas : Nat} (hg : 17 ≤ gas) {M : ByteArray
   step jumpR
   step repc (pc' := 914) (by decide)
   step jumpdestR
-  refine (Local.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; gas_ok, hs, hss⟩
+  refine (Logic.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 end UsdtVerify.TransferFrom

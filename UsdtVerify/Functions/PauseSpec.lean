@@ -158,7 +158,7 @@ theorem spec_pause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hstip : 3297 + slotCost c0 ≤ gas)
     (hg : PAUSE_COST + slotCost c0 + flagCost fork state message 1 ≤ gas) :
     Spec fork (At CODE message 0 [] .empty gas state substate)
-      (Local.Stopped (gas - (PAUSE_COST + slotCost c0 + flagCost fork state message 1))
+      (Halted false .empty (gas - (PAUSE_COST + slotCost c0 + flagCost fork state message 1))
         (writeSlot state message.currentTarget 0
           (withPaused (storageAt state message.currentTarget 0) 1))
         { storeSub fork substate message.currentTarget 0
@@ -179,8 +179,8 @@ theorem spec_pause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     accessSlot_accessSlot, storeSub_accessSlot]
   refine (logStop (Or.inl ⟨rfl, rfl, rfl⟩) hstatic size_MEM0 mload_MEM0
     (by gas_ok)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; gas_ok, hs, hss⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 /-- The specification of `unpause()` by the owner, when paused.
 
@@ -197,7 +197,7 @@ theorem spec_unpause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hstip : 3184 + slotCost c0 ≤ gas)
     (hg : UNPAUSE_COST + slotCost c0 + flagCost fork state message 0 ≤ gas) :
     Spec fork (At CODE message 0 [] .empty gas state substate)
-      (Local.Stopped (gas - (UNPAUSE_COST + slotCost c0 + flagCost fork state message 0))
+      (Halted false .empty (gas - (UNPAUSE_COST + slotCost c0 + flagCost fork state message 0))
         (writeSlot state message.currentTarget 0
           (withPaused (storageAt state message.currentTarget 0) 0))
         { storeSub fork substate message.currentTarget 0
@@ -218,7 +218,7 @@ theorem spec_unpause (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     accessSlot_accessSlot, storeSub_accessSlot]
   refine (logStop (Or.inr ⟨rfl, rfl, rfl⟩) hstatic size_MEM0 mload_MEM0
     (by gas_ok)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; gas_ok, hs, hss⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 end UsdtVerify.PauseSpec

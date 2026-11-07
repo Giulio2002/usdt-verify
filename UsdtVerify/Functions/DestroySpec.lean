@@ -199,7 +199,7 @@ theorem logBlock {a b x : U256} (hstatic : message.isStatic = false) {M : ByteAr
     (hM : M.size = 96) (hptr : loadWord (memoryReadBytes M 64 32) 0 32 = 0x60) {gas : Nat}
     (hg : 1368 ≤ gas) :
     Spec fork (At CODE message 8096 [b, a, 0x09b6, x] M gas state substate)
-      (Local.Stopped (gas - 1368) state
+      (Halted false .empty (gas - 1368) state
         { substate with logs := substate.logs.push (destroyLog message.currentTarget (mkey a) b) }) := by
   have hext0 : extendMemory M.size [((0x40 : U256), (32 : U256))] = ⟨0, 0⟩ := by
     rw [hM]; decide
@@ -280,9 +280,9 @@ theorem logBlock {a b x : U256} (hstatic : message.isStatic = false) {M : ByteAr
   step popR
   step jumpR
   step jumpdestR
-  refine (Local.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  refine ⟨hr, he, by rw [hgas]; gas_ok, hs, ?_⟩
+  refine (Logic.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  refine ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, ?_⟩
   rw [hss, hext4, memoryExtend_zero, show (0x60 : U256).toNat = 96 from rfl,
     show (0x40 : U256).toNat = 64 from rfl, SetParams.read_after64 hM _ _ (size_wordBytes _) (size_wordBytes _)]
 
@@ -373,7 +373,7 @@ theorem spec (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (hg : 2865 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB + slotCost c1 +
       costB fork state message + costT fork state message ≤ gas) :
     Spec fork (At CODE message 0 [] .empty gas state substate)
-      (Local.Stopped (gas - (2865 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB +
+      (Halted false .empty (gas - (2865 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB +
           slotCost c1 + costB fork state message + costT fork state message))
         (destroyState state message) (destroySub fork substate state message)) := by
   simp only [costB, costT, dirty, balSlot, state1] at hstip2 hg ⊢
@@ -404,8 +404,8 @@ theorem spec (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   refine (logBlock hstatic (size_mapMem (BalanceOf.size_lookMem hM1 _) _ _)
     (ptr_mapMem (BalanceOf.size_lookMem hM1 _) (ptr_mapMem hM1 hp1 _ _) _ _)
     (by gas_ok)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  refine ⟨hr, he, by rw [hgas]; gas_ok, hs, ?_⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  refine ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, ?_⟩
   rw [hss, hk]
 
 /-- After `destroyBlackFunds(a)`, when `balances[a]` is not slot 1: `balances[a]` is 0,
@@ -467,7 +467,7 @@ theorem runFrame_spec (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     (within : GasMeter.gasHeld evm.gas ≤ bound) :
     ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok stopped ∧
-      Local.Stopped (gas - (2865 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB +
+      Halted false .empty (gas - (2865 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB +
           slotCost c1 + costB fork state message + costT fork state message))
         (destroyState state message) (destroySub fork substate state message) stopped :=
   (spec hfork hglam hstatic hacc hsize hsize' hsel hv hown hl hdep hc0 hcL hc10 hcB hc1 hstip1

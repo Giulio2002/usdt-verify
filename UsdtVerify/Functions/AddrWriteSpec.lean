@@ -67,7 +67,7 @@ theorem spec_transferOwnership_zero (hfork : .berlin ≤ fork) (hsize : 4 ≤ me
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
     (hg : 947 + slotCost c0 ≤ gas) :
     Spec fork (At CODE message 0 [] .empty gas state substate)
-      (Local.Stopped (gas - (947 + slotCost c0)) (readSlot state message.currentTarget 0)
+      (Halted false .empty (gas - (947 + slotCost c0)) (readSlot state message.currentTarget 0)
         (accessSlot substate message.currentTarget 0)) := by
   refine Spec.seq (toBody1 (e := 2374) (r := 0x097d) (b := 7605) (t := 31) (by decide)
     (by decide) (by rw [hsel]; decide) hsize hsize' hv (by omega)) ?_
@@ -75,8 +75,8 @@ theorem spec_transferOwnership_zero (hfork : .berlin ≤ fork) (hsize : 4 ≤ me
   at_pc 7696
   step ownTest (by simp) (by gas_ok)
   refine (ownSkip (by rw [addrArg, mask_mask, ← addrArg]; exact hz) (by gas_ok)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; gas_ok, hs, hss⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 /-- The price of the write of slot 0 in transferOwnership (warm). -/
 abbrev ownCost (fork : Fork) (state : State.TransactionState) (message : Message fork) : Nat :=
@@ -96,7 +96,7 @@ theorem spec_transferOwnership (hfork : .berlin ≤ fork) (hglam : fork < .glams
     (hstip : 3401 + slotCost c0 ≤ gas)
     (hg : 1114 + slotCost c0 + ownCost fork state message ≤ gas) :
     Spec fork (At CODE message 0 [] .empty gas state substate)
-      (Local.Stopped (gas - (1114 + slotCost c0 + ownCost fork state message))
+      (Halted false .empty (gas - (1114 + slotCost c0 + ownCost fork state message))
         (writeSlot state message.currentTarget 0
           (withAddr (storageAt state message.currentTarget 0) (addrArg message.data 0)))
         (storeSub fork substate message.currentTarget 0 (originalAt state message.currentTarget 0)
@@ -114,8 +114,8 @@ theorem spec_transferOwnership (hfork : .berlin ≤ fork) (hglam : fork < .glams
     (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
   rw [originalAt_readSlot, storageAt_readSlot, writeSlot_readSlot _ _ hacc, storeSub_accessSlot]
   refine (ownEnd (by gas_ok)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  exact ⟨hr, he, by rw [hgas]; gas_ok, hs, hss⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 /-- After `transferOwnership(a)` with `a ≠ 0`: the owner is `a`, `paused` is kept, every other
 slot is unchanged. -/
@@ -184,7 +184,7 @@ theorem spec_deprecate (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       (withPaused (storageAt state message.currentTarget 10) 1) false ≤ gas)
     (hg : 1628 + slotCost c0 + slotCost c10 + depCost fork state message ≤ gas) :
     Spec fork (At CODE message 0 [] .empty gas state substate)
-      (Local.Stopped (gas - (1628 + slotCost c0 + slotCost c10 + depCost fork state message))
+      (Halted false .empty (gas - (1628 + slotCost c0 + slotCost c10 + depCost fork state message))
         (depState state message) (depSub fork substate state message)) := by
   simp only [depCost, depWord] at hg ⊢
   have hacc0 := hasAccount_readSlot (n := 0) (other := message.currentTarget) hacc
@@ -208,8 +208,8 @@ theorem spec_deprecate (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
   rw [originalAt_writeSlot hacc0, originalAt_readSlot, storageAt_writeSlot_self hacc0]
   refine (listLog (Or.inr (Or.inr ⟨rfl, rfl, rfl⟩)) hstatic size_MEM0 mload_MEM0
     (by gas_ok)).consequence (fun _ h => h) ?_
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  refine ⟨hr, he, by rw [hgas]; gas_ok, hs, ?_⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  refine ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, ?_⟩
   rw [hss, mkey_addrArg0]
 
 /-- After `deprecate(a)`: byte 20 of slot 10 (`deprecated`) is 1, its low 160 bits

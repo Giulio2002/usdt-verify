@@ -1,6 +1,6 @@
 import UsdtVerify.Functions.Common
 import UsdtVerify.Spec.Write
-import UsdtVerify.Local.Halt
+import EthLib.Execution.Proofs.Evm.Logic.Rules
 
 /-!
 # The `onlyOwner` check

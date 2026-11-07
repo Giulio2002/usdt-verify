@@ -165,7 +165,7 @@ theorem spec_setParams (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
       mulCost (wordArg message.data 1) ≤ gas)
     (hg : 2425 + paramsCost fork state message c0 c3 c9 c4 ≤ gas) :
     Spec fork (At CODE message 0 [] .empty gas state substate)
-      (Local.Stopped (gas - (2425 + paramsCost fork state message c0 c3 c9 c4))
+      (Halted false .empty (gas - (2425 + paramsCost fork state message c0 c3 c9 c4))
         (paramsState state message) (paramsSub fork substate state message)) := by
   simp only [paramsCost, feeWord] at hg ⊢
   have hacc0 := hasAccount_readSlot (n := 0) (other := message.currentTarget) hacc
@@ -222,8 +222,8 @@ theorem spec_setParams (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
     exact TransferFee.coldIn_storeSub_false (TransferFrom.coldIn_accessSlot_false
       (coldIn_accessSlot_self _ _ _))
   case c4 => exact coldIn_accessSlot_self _ _ _
-  rintro evm ⟨hr, he, hgas, hs, hss⟩
-  refine ⟨hr, he, by rw [hgas]; gas_ok, hs, ?_⟩
+  rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
+  refine ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, ?_⟩
   rw [hss, hR3, hR4]
 
 /-- After `setParams(b, m)`: slot 3 is `b`, slot 4 is `m * 10^d`, every other slot is unchanged.

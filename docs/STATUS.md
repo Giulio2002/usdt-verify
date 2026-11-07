@@ -1,7 +1,15 @@
 # Status of the USDT verification
 
-Pinned EthLib: d4d422780 (merge of #1266: memory reads after disjoint/adjacent writes; also on it
-#1258, the frame-read rules CALLVALUE/CALLDATASIZE/...).
+Pinned EthLib: fd3457dbf (master after #1300; includes #1292, `At` names an empty output and STOP
+gives `Halted false .empty`, and #1299, DELEGATECALL/CALLCODE).
+Re-pinned in round 9: EthLib's `stop` (#1272/#1292), `gas_rule` and `extcodesize` (#1280) replace the
+local `Local.stop`/`Stopped` (Local/Halt.lean) and `Local.extcodesize`/`gasOp` (Local/Account.lean),
+both files deleted; `memoryReadBytes_memoryWrite_eq_append` (#1266 follow-up on master) replaces the
+local `memoryReadBytes_write_after`; `recordStorageRead_recordStorageRead`,
+`insert_insert_getD_self`, `getAccountOptional_setStorage` (#1277) now prove the local
+`readSlot_readSlot`, `accessSlot_accessSlot`, `hasAccount_writeSlot`. Every STOP-ending spec now
+states the empty output (`Halted false .empty`).
+Previous pin: d4d422780 (merge of #1266, kept).
 Re-pinned in round 6: EthLib's `callvalue`, `calldatasize`, `jumpi_of_eq_zero`,
 `memoryReadBytes_memoryWrite_of_disjoint` (no read bound) and `memoryReadBytes_memoryWrite_memoryWrite`
 replace the local `Local.read/callvalue/calldatasize/jumpi_zero'` and `Generic/Memory.lean` (deleted).
@@ -87,8 +95,8 @@ Conclusion: the frame stops normally (STOP) with
 - gas left exactly `gas - okCost`, okCost = 3863 + seven slot prices (EIP-2929 cold/warm, each in
   the substate where the code reads it) + `mulCost v` (72 if v = 0, 138 otherwise) + `capCost`
   (108 if the cap applies, the second, warm read of slot 4) + the two `sstoreCost`s (both warm).
-- Returned bytes: transfer returns NO word (USDT's known non-standard ABI); STOP leaves the output
-  buffer as it was. `At` does not track the output, so `Stopped` does not state it (generic gap).
+- Returned bytes: transfer returns NO word (USDT's known non-standard ABI): the end frame is
+  `Halted false .empty`, the output is empty (since the round-9 re-pin).
 Fee > 0: `TransferFee.spec_fee`; insufficient balance: `spec_low` (both below). Overflows and fee > v:
 the INVALID specs below. Not covered: deprecated (CALL).
 
@@ -204,7 +212,7 @@ and also `Approve.runFrame_zero/_set`.
 
 ### Round 5: local conservation of balances (UsdtVerify/Summary.lean)
 `transfer_ok_conserves`, `transfer_fee_conserves`, `transferFrom_ok_conserves`,
-`transferFrom_fee_conserves`. Each takes the end frame of a success path (`Local.Stopped ...`, as
+`transferFrom_fee_conserves`. Each takes the end frame of a success path (`Halted false .empty ...`, as
 the `*_effects` lemmas), with `S` the state after the checks, and states, with
 `delta S S' C k = (S'[k] : Int) - S[k]`:
 - transfer, fee 0: sender `-v`, recipient `+v`, sum 0. Hypotheses: the two slots differ,
@@ -293,13 +301,13 @@ approve: 68 ≤ size, no paused/blacklist read). Size: transfer and transferFrom
   `dataA` = 0xaee92d33 ++ callerKey ++ addrArg 0 ++ wordArg 1 (100 bytes),
   `dataF` = 0x8b477adb ++ callerKey ++ addrArg 0 ++ addrArg 1 ++ wordArg 2 (132 bytes);
   msg.gas = (callGas…).subCall; caller state/substate exact; child.error = none ⇒
-  `Local.Stopped (gas - preCost - callCost + child.gas - 51/53/53)` with the
+  `Halted false .empty (gas - preCost - callCost + child.gas - 51/53/53)` with the
   `incorporateChild` state and substate; child.error ≠ none ⇒ `Halted true .empty (… - 25)`.
   preCost: transfer 1357 + 3 slot prices + account price; approve 724 + slot 10 + account;
   transferFrom 1093 + 3 slot prices + account. `hg`: preCost + 100 ≤ gas; `htail`: 51/53/53 left
   after the CALL's price.
 - `_succeeds` (callee assumption `SucceedsD`: every such message ends with no error) ⇒ STOP, no
-  error, `∃ caller msg child` with `Sends`, `child.error = none`, `Local.Stopped …`.
+  error, `∃ caller msg child` with `Sends`, `child.error = none`, `Halted false .empty …`.
   `_fails` (`FailsD`) ⇒ `evm.error = some .revert ∧ evm.output = .empty`.
 - `runFrame_dep{T,A,F}_process`: `processRunner`, any code at `ua` with a `Spec` (as
   `meets_of_spec`) whose stopped frames have no error; `ua` no precompile (`succeedsD_runsAs`).
@@ -334,7 +342,7 @@ entry; `DESTS` = the 32 destinations).
 - `spec_pause_paused` (786 + slot 0), `spec_unpause_notPaused` (673 + slot 0): REVERT.
 - `spec_pause` / `spec_unpause`: Berlin ≤ fork < Glamsterdam, not static, account exists, owner
   caller, flag clear / set, `hstip` (3297 / 3184 + slot 0 ≤ gas: more than 2300 at the SSTORE) ⇒
-  `Local.Stopped (gas - (1784 / 1671 + slotCost c0 + flagCost))`, state
+  `Halted false .empty (gas - (1784 / 1671 + slotCost c0 + flagCost))`, state
   `writeSlot S C 0 (withPaused w0 1 / 0)`, substate `storeSub … ` with the log
   `log0 C PAUSE_TOPIC / UNPAUSE_TOPIC` (one topic, empty data) appended.
 - `withPaused w b = (b * 2^160) | (~(0xff * 2^160) & w)`; `bit_withPaused`, `byte20_withPaused`,
@@ -348,7 +356,7 @@ entry; `DESTS` = the 32 destinations).
   read and written to `setLow w 1 / 0`; `listLog`: `AddedBlackList(a)` / `RemovedBlackList(a)`
   (LOG1, data = the masked word `a`, memory grows to 128 bytes), jump back, STOP.
 - `spec_add_notOwner` (328 + slot 0), `spec_remove_notOwner` (856 + slot 0): REVERT.
-- `spec_add` / `spec_remove`: `Local.Stopped (gas - (1567 / 2095 + slot 0 + slot L + write))`,
+- `spec_add` / `spec_remove`: `Halted false .empty (gas - (1567 / 2095 + slot 0 + slot L + write))`,
   state `writeSlot (readSlot S C 0) C L (setLow w v)`, substate with both accesses, the write's
   refund and the log; `hstip`: 2779 / 3307 + slot 0 + slot L ≤ gas.
 - `listState_flag`, `listState_other`: the end state in plain terms.
@@ -363,7 +371,7 @@ entry; `DESTS` = the 32 destinations).
 - Reverts: `spec_issue_notOwner` (740), `spec_redeem_notOwner` (762), `spec_issue_req1`
   (875 + slots 0, 1), `spec_issue_req2` (1462 + slots 0, 1, O), `spec_redeem_req1` (794 + …),
   `spec_redeem_req2` (1052 + …).
-- `spec_issue`: `Local.Stopped (gas - (3024 + slots 0, 1, O + issueCostO + issueCostT))`, state
+- `spec_issue`: `Halted false .empty (gas - (3024 + slots 0, 1, O + issueCostO + issueCostT))`, state
   `issueState` (reads 0, 1, 0, O; `O := B + a`; read 0; `1 := T' + a`), substate `issueSub`;
   `hstip`: 4248 + slots + issueCostO ≤ gas. `spec_redeem`: 2614 + …, `redeemState`
   (`1 := T - a`, then `O := B' - a`), `redeemSub`; `hstip` 3838 + slots + redeemCostT.
@@ -376,7 +384,7 @@ entry; `DESTS` = the 32 destinations).
   `paramsLogBlock` (slots 3 and 4 read back, two MSTOREs growing memory to 160 bytes, LOG1 of 64
   bytes, 1556 gas to STOP). Generic: `read_after64`.
 - `spec_notOwner` (742 + slot 0), `spec_bpHigh` (771 + slot 0), `spec_feeHigh` (800 + slot 0).
-- `spec_setParams`: `Local.Stopped (gas - (2425 + paramsCost))`, `paramsState`, `paramsSub` (log
+- `spec_setParams`: `Halted false .empty (gas - (2425 + paramsCost))`, `paramsState`, `paramsSub` (log
   `Params(b, f)` with data `wordBytes b ++ wordBytes f`); `hstip` 3168 + … ≤ gas;
   `params_effects`.
 
@@ -387,7 +395,7 @@ entry; `DESTS` = the 32 destinations).
   `Deprecate(a)` log at 2830. `withAddr`, `bit_withAddr`, `addr_withAddr`, `byte20_withAddr`.
 - `spec_deprecate_notOwner` (262), `spec_transferOwnership_notOwner` (900),
   `spec_transferOwnership_zero` (947 + slot 0: STOP, no write).
-- `spec_deprecate`: `Local.Stopped (gas - (1628 + slots 0, 10 + depCost))`, `depState`, `depSub`;
+- `spec_deprecate`: `Halted false .empty (gas - (1628 + slots 0, 10 + depCost))`, `depState`, `depSub`;
   `hstip` 2840 + … . `spec_transferOwnership`: `gas - (1114 + slot 0 + ownCost)`, state
   `writeSlot S C 0 (withAddr w0 a)`, substate `storeSub …` (no log); `hstip` 3401 + slot 0.
 - `deprecate_effects`, `transferOwnership_effects`.
@@ -409,7 +417,7 @@ entry; `DESTS` = the 32 destinations).
   2409), `subTotal` (8080: SLOAD slot 1, unchecked SUB, SSTORE; 33 + slot 1 + write, `hstip`
   2332 + slot 1), `logBlock` (8096: `DestroyedBlackFunds(mkey a, d)`, 64 bytes of data, back to
   2486, STOP; 1368).
-- `spec`: `Local.Stopped (gas - (2865 + slots 0, L, 10, B, 1 + costB + costT))`,
+- `spec`: `Halted false .empty (gas - (2865 + slots 0, L, 10, B, 1 + costB + costT))`,
   `destroyState` (`B := 0`, then slot 1 `:= T' - d`, `T'` read after the first write),
   `destroySub` (both `storeSub`s and the log). Hypotheses: not deprecated, `a` blacklisted,
   `hstip1` 3763 + four reads, `hstip2` 3796 + four reads + costB + slot 1.
@@ -437,8 +445,7 @@ entry; `DESTS` = the 32 destinations).
 - Generic (local, no sorry): `memoryReadBytes_write_rev` (a read across two adjacent writes made
   in reverse address order; EthLib has only the in-order one), used by the public mapping
   getters, which write the base word at 32 before the key at 0.
-- Not covered: name() and symbol() (string getters: copy loop and padding), allowance() when
-  deprecated (forwards to the upgraded contract).
+- allowance() when deprecated: round 9, DeprecatedAllowance.lean (below).
 
 ### Round 8: runFrame wrappers (RunFrames.lean)
 - 50 `runFrame_*` theorems: the five deprecated no-code reverts (`runFrame_dep{,B,T,A,F}NoCode`)
@@ -449,10 +456,64 @@ entry; `DESTS` = the 32 destinations).
   statements by a script (scratch, not in the repo); each proof is `(spec_* …).runFrame start
   within`.
 
+### Round 9: name() and symbol() (Strings.lean)
+- `spec_str` over `STR_GETTERS` (name: selector 0x06fdde03, entry 411, body 2488, return block
+  430, slot 7; symbol: 0x95d89b41, 1724, 5206, 1743, slot 8), `spec_name` / `spec_symbol`,
+  `runFrame_name` / `runFrame_symbol`. Hypotheses: selector, size, no value, the slot word `w`
+  with `w.toNat % 256 = 2 * n` and 1 ≤ n ≤ 31 (short form), coldness `ck` of the slot, gas
+  `1010 + slotCost ck` (name) / `1450 + slotCost ck` (symbol). Conclusion: `Halted false
+  (wordBytes 0x20 ++ wordBytes n ++ wordBytes (topBytes w n))`, exact gas, state `readSlot`
+  and substate `accessSlot` of the slot (three reads, folded by `readSlot_readSlot`).
+  `topBytes w n = (w / 2^(8(32-n))) * 2^(8(32-n))` (the first n bytes, then zeros), proved equal
+  to the code's `NOT(256^(32-n) - 1) AND ((w / 256) * 256)` bit by bit (`strWord_eq`).
+- `spec_name_tether` / `spec_symbol_usdt`: with the slot equal to `NAME_WORD` ("Tether USD",
+  low byte 0x14) / `SYMBOL_WORD` ("USDT", 0x08) the output is `wordBytes 0x20 ++ wordBytes 10 ++
+  ("Tether USD".toUTF8 ++ 22 zero bytes)` / `... 4 ++ ("USDT".toUTF8 ++ 28 zero bytes)`
+  (`name_bytes`, `symbol_bytes` by `decide +kernel`). That the mainnet slots hold these words is a
+  hypothesis (not read from chain here).
+- Blocks: `entryS`, `body1` (to the free-pointer write, 102 + slot), `body2` (length write,
+  warm read, the two length tests, 217), `body3` (data word at 0x80, return jump, 173), `retA`
+  (offset and length words, 99), `retL` (one round of the copy loop, 78), `retE1` (loop exit,
+  padding test, 77), `retE2` (mask, write back, RETURN 0xa0..0x100, 146). Memory as appended
+  words (`MEMB`..`MEME`), reads by the generic local `read_left`, `read_right`, `ld`,
+  `write_end` (MSTORE at the end appends).
+- Not covered: the empty string (`n = 0`, the JUMPI at 2567 taken) and the long form
+  (n ≥ 32, the loop over `keccak(slot)` at 2595 and more rounds of the copy loop).
+- Pitfall: one theorem for the whole body (60+ steps, two cases) hit the 200000-heartbeat limit;
+  split into three blocks (no limit raised).
+
+### Round 9: allowance(owner, spender) when deprecated (DeprecatedAllowance.lean)
+- Path read off the bytecode: entry 2046 (`entry2`), deprecation check 6925 (`depSetA`, flag set,
+  on at 6949), `fwdArgsA` (6949 → 7186: warm read of slot 10, `upWord`, 0 at 0x80, the selector
+  word at 0x60, owner at 0x64, spender at 0x84; memory grows to 192 bytes, `M3A`), EXTCODESIZE
+  7186 (`toCallA`/`noCodeA`), CALL 7203 (gas `gasleft - 710`, value 0, input 0x60..0xa4 = 68
+  bytes, output 32 bytes at 0x60), 7204 (`failTailA` / `okTailA`), return block 2132 on 192
+  bytes (`retAl`).
+- `spec_depAl` (any callee): `Sends message ua c (dataAl message) msg`, `dataAl` = SEL 0xdd62ed3e
+  ++ addrArg 0 ++ addrArg 1; msg.gas = `(callGasAl …).subCall`; caller state/substate exact;
+  child.error = none ⇒ `Halted false (wordBytes (resWord (outMemOf (memAl message) child.output)))
+  (gas - preCostAl - callCost + child.gas - 128)` with the `incorporateChild` state and substate;
+  else `Halted true .empty (… - 25)`. `preCostAl = 1187 + slot 10 + account`.
+  `spec_depAl_answers` (`AnswersD`, output ≥ 32 bytes ⇒ returns its first word),
+  `spec_depAl_fails`, `runFrame_depAl_process`, `spec_depAlNoCode` / `runFrame_depAlNoCode`
+  (gas `1184 + slot 10 + account`).
+- The shared blocks of Deprecated.lean take their pcs as a disjunction used positionally by the
+  callers; rather than renumber them, `depSetA`, `toCallA`, `noCodeA`, `failTailA`, `retAl`
+  repeat their proofs at the pcs of this path (192-byte memory for the return block).
+
+### Round 9: the fallback (Fallback.lean)
+- `revert406`: `JUMPDEST PUSH1 0 DUP1 REVERT` at 406, 7 gas, any stack and memory.
+- `spec_unknown`: `4 ≤ size < 2^256` and `BitVec.ofNat 256 (selector data) ∉ ENTRIES.map
+  Prod.fst` ⇒ `Halted true .empty (gas - 773) state substate` (EthLib's `branch_of_forall_ne`,
+  `tested_of_forall_ne`: the table falls through to 54 + 32 * 11 = 406 after 32 tests). No value
+  hypothesis.
+- `spec_short`: `size < 4` ⇒ the prelude's JUMPI to 0x196 is taken; `Halted true .empty
+  (gas - 46) state substate`. No value hypothesis.
+- `runFrame_unknown`, `runFrame_short`.
+
 ## Open (not proved)
-- destroyBlackFunds and allowance when deprecated, name() and symbol(), the fallback, invariants across calls, the global
+- destroyBlackFunds when deprecated, name()/symbol() for the empty or long strings, invariants across calls, the global
   "sum of balances = totalSupply" (needs a sum over a mapping).
-- The returned bytes after STOP (generic gap 8).
 
 ## Generic gaps found (for the EthLib program-logic agent)
 1. Missing opcode rules at the pin (kept as LOCAL lemmas, UsdtVerify/Local/Rules.lean):
@@ -473,9 +534,10 @@ entry; `DESTS` = the 32 destinations).
    also contains `CODE.size` in its bound proof, so `rw [size_CODE]; decide` on it unfolds `CODE`.
    Order alternatives so the byte lemma runs first.
 6. (SOLVED upstream in #1250, used since pin c1fe45a71) INVALID / exceptional halts.
-7. No rule for STOP (0x00) at the pin: LOCAL rule `Local.stop` (UsdtVerify/Local/Halt.lean),
-   with postcondition `Stopped` (no error, gas, state, substate).
-8. `At` does not name the output buffer, so a STOP-ended run cannot state its (empty) output.
+7. (CLOSED in round 9 by EthLib #1272/#1292) No rule for STOP (0x00): the local `Local.stop` /
+   `Stopped` were removed; EthLib's `stop` concludes `Halted false .empty`.
+8. (CLOSED in round 9 by EthLib #1292) `At` did not name the output buffer; it now carries
+   `evm.output = .empty`, so every STOP-ended spec states the empty output.
 9. Storage writes over slots (UsdtVerify/Spec/Write.lean, generic): `writeSlot` (the `.ok` branch
    of setStorage after the read is recorded, under `hasAccount`), `storeSub`, `sstoreW` (EthLib's
    `sstore` restated), read/access idempotence (`readSlot_readSlot`, `accessSlot_accessSlot`),
@@ -504,7 +566,8 @@ entry; `DESTS` = the 32 destinations).
    `mulFault`), `TransferFrom.coldIn_allowSub_false`, `Summary.logs_allowSub`. No new gap in
    EthLib's rules was hit this round.
 
-14. Round 5 (LOCAL, UsdtVerify/Local/Account.lean, no sorry): EthLib's program logic at the pin has
+14. (CLOSED in round 9 by EthLib #1280: `extcodesize`, `gas_rule`, `externalBaseCost_of_berlin`;
+   Local/Account.lean deleted.) Round 5 (LOCAL, UsdtVerify/Local/Account.lean, no sorry): EthLib's program logic at the pin has
    no rule for EXTCODESIZE (0x3b) nor GAS (0x5a). Local generic rules: `Local.extcodesize` (Berlin ≤
    fork < Glamsterdam: pushes the code size, pays 2600 cold / 100 warm, `externalBaseCost_of_berlin`,
    inserts the address into the accessed addresses, records the account read) and `Local.gasOp`
@@ -540,6 +603,19 @@ entry; `DESTS` = the 32 destinations).
    atom. (d) `if_neg`/`if_false` are deprecated in this toolchain (`ite_false`, or `split`).
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+Round 9, with the fallback (Fallback.lean, 120 lines): clean project build 119.67 s wall,
+1345945600 bytes max RSS, exit 0, 0 "error:" lines, 1344 jobs, 170 `#print axioms`, all
+[propext, Classical.choice, Quot.sound].
+Round 9, with deprecated allowance (DeprecatedAllowance.lean, 785 lines): clean project build
+110.45 s wall, 1353220096 bytes max RSS, exit 0, 0 "error:" lines, 1343 jobs, 166
+`#print axioms`, all [propext, Classical.choice, Quot.sound].
+Round 9, with name()/symbol() (Strings.lean, 958 lines): clean project build 100.12 s wall,
+1343651840 bytes max RSS, exit 0, 0 "error:" lines, 1342 jobs, 160 `#print axioms`, all
+[propext, Classical.choice, Quot.sound].
+Round 9, re-pin to fd3457dbf alone: clean project build (`rm -rf .lake/build`) 103.21 s wall,
+1342636032 bytes max RSS (/usr/bin/time -l), exit 0, 0 "error:" lines, 1340 jobs, 153
+`#print axioms` (the two of the deleted local EXTCODESIZE/GAS rules removed), all
+[propext, Classical.choice, Quot.sound].
 Round 8 (pin d4d422780, unchanged): clean project build (`rm -rf .lake/build`) 103.12 s wall,
 1342144512 bytes (1280 MiB) max RSS (/usr/bin/time -l), exit 0, 0 "error:" lines, 1342 jobs,
 155 `#print axioms`, all [propext, Classical.choice, Quot.sound]. New files of round 8 (DestroySpec, Getters, GettersMap, MemRev, RunFrames): 2488 lines (wc -l).
