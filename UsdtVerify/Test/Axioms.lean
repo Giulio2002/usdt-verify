@@ -1,3 +1,4 @@
+import UsdtVerify.Complete.DepAllowance
 import UsdtVerify.Complete.DepTransfer
 import UsdtVerify.Complete.DepBalance
 import UsdtVerify.Complete.DepTotalSupply
@@ -382,3 +383,5 @@ import UsdtVerify.Functions.DeprecatedBalance
 #print axioms UsdtVerify.Complete.dep_approve_complete
 #print axioms UsdtVerify.Complete.prefixG_transferFrom
 #print axioms UsdtVerify.Complete.dep_transferFrom_complete
+#print axioms UsdtVerify.Complete.prefixG_allowance
+#print axioms UsdtVerify.Complete.dep_allowance_complete

@@ -480,7 +480,7 @@ theorem dep_transferFrom_complete (hfork : .berlin ≤ fork) (hglam : fork < .gl
     (rest := [0xe4, 0x8b477adb, upWord (storageAt state message.currentTarget 10), valArg message,
       toArg message, fromArg message, 0x0392, BitVec.ofNat 256 (selector message.data)])
     (st := checkState state message) (ss := checkSub substate message)
-    hfork hglam (Or.inr (Or.inr (Or.inr (Or.inr ⟨rfl, rfl⟩)))) (by simp) hcode hdel hz w hrunz hok
+    hfork hglam (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩))))) (by simp) hcode hdel hz w hrunz hok
   have hext : extendMemory (memFD message).size
       [((0x60 : U256), (0x84 : U256)), ((0x60 : U256), (0 : U256))] = ⟨0, 0⟩ := by
     rw [memFD, size_W5 (size_memF message)]; decide

@@ -308,7 +308,9 @@ Gas left, the storage writes (in order), the logs, and the accessed slots and ad
   `approveByLegacy`, `transferFromByLegacy` with the caller as first argument) and returned a
   frame with no error. The run stopped with no output, with the exact gas, and the state and
   substate are those after the call. The same named hypotheses `hcode` and `hdel`.
-- Not yet proved: the same completeness for deprecated allowance and destroyBlackFunds (the part
+- Deprecated allowance(address,address) (`Complete.dep_allowance_complete`, round 15): the
+  statement of balanceOf, for the forward of `allowance(owner, spender)`.
+- Not yet proved: the same completeness for deprecated destroyBlackFunds (the part
   from EXTCODESIZE to after the CALL, `Complete.fromExt`, is proved for the call inside
   destroyBlackFunds), and so the invariant over every deprecated call.
 

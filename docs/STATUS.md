@@ -761,7 +761,13 @@ entry; `DESTS` = the 32 destinations).
   - the run stopped with empty output, gas `gas - preCost - callGas.cost + child.gas - 51/53/53`
     (at least that tail was left), and the state and substate of `incorporateChild`.
   Named hypotheses: `hcode`, `hdel`, and the coldness flags (`hc0`, `hcB`, `hc10`, `hcU`).
-- Summary aliases: `totalSupply_dep_complete`, `balanceOf_dep_complete`,
+- Allowance (Complete/DepAllowance.lean): `fromExt`, `midG`, `noCodeG`, `subG` now also take
+  the pcs of allowance (EXTCODESIZE at 7186, GAS 7201, SUB 7202, CALL 7203; the same byte layout);
+  the deep-CALL case at 7204 uses `DeprecatedAllowance.failTailA`. `prefixG_allowance` (0 → 7186)
+  and `dep_allowance_complete`: the statement of `dep_balanceOf_complete` for the forward
+  `Sends … (dataAl message)` (selector 0xdd62ed3e, owner, spender), output
+  `wordBytes (resWord (outMemOf (memAl message) child.output))`, tail 128.
+- Summary aliases: `totalSupply_dep_complete`, `balanceOf_dep_complete`, `allowance_dep_complete`,
   `transfer_dep_complete`, `approve_dep_complete`, `transferFrom_dep_complete`.
 
 ## Open (not proved)
@@ -774,8 +780,8 @@ entry; `DESTS` = the 32 destinations).
   (`fromExt`, round 14), and deprecated totalSupply() in full (`dep_totalSupply_complete`, round
   14), and deprecated balanceOf(address) in full (`dep_balanceOf_complete`, Complete/DepBalance.lean,
   round 14; same hypotheses, the forward is `Sends … (dataB message)`, tail 126), and transfer,
-  approve, transferFrom (round 15, Complete/DepTransfer.lean). Still open: allowance (own pcs: `toCallA`, so
-  a variant of `fromExt`), destroyBlackFunds (prefix to 4874, `fromExt`, then the tail `tailD`,
+  approve, transferFrom, allowance (round 15, Complete/DepTransfer.lean, DepAllowance.lean).
+  Still open: destroyBlackFunds (prefix to 4874, `fromExt`, then the tail `tailD`,
   whose cost depends on the state, via `ok_exact`). Delegation from Pectra stays a named
   hypothesis (`hdel`). Old plan, per deprecated function
   (totalSupply, balanceOf, transfer, approve, transferFrom, allowance, destroyBlackFunds):

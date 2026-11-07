@@ -1,4 +1,5 @@
 import UsdtVerify.Complete.Split
+import UsdtVerify.Functions.DeprecatedAllowance
 
 /-!
 # The deprecated paths from EXTCODESIZE on, for any gas and any runner
@@ -304,12 +305,13 @@ theorem call_ok (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam)
 
 /-- After EXTCODESIZE pushed a nonzero size: the JUMPI goes on, then PUSH2 710, up to GAS. -/
 theorem midG {p q : Nat} (hp : (p = 3720 ∧ q = 3734) ∨ (p = 4875 ∧ q = 4889) ∨
-      (p = 5740 ∧ q = 5754) ∨ (p = 3214 ∧ q = 3228) ∨ (p = 4201 ∧ q = 4215))
+      (p = 5740 ∧ q = 5754) ∨ (p = 3214 ∧ q = 3228) ∨ (p = 4201 ∧ q = 4215) ∨
+      (p = 7187 ∧ q = 7201))
     {w : U256} (hw : w ≠ 0) {rest : List U256} (hrest : rest.length ≤ 15) {M : ByteArray}
     {st : State.TransactionState} {ss : Substate} {g : Nat} (hg : 23 ≤ g) :
     HoareG fork (At CODE message p (w :: rest) M g st ss)
       (At CODE message q (0x02c6 :: rest) M (g - 23) st ss) := by
-  rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
+  rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
   all_goals
     step unR 0x15 instruction_iszero
     step unR 0x15 instruction_iszero
@@ -321,13 +323,13 @@ theorem midG {p q : Nat} (hp : (p = 3720 ∧ q = 3734) ∨ (p = 4875 ∧ q = 488
 
 /-- After EXTCODESIZE pushed 0: the code reverts with no output. -/
 theorem noCodeG (hfork : .berlin ≤ fork) {p : Nat}
-    (hp : p = 3720 ∨ p = 4875 ∨ p = 5740 ∨ p = 3214 ∨ p = 4201) {M : ByteArray}
+    (hp : p = 3720 ∨ p = 4875 ∨ p = 5740 ∨ p = 3214 ∨ p = 4201 ∨ p = 7187) {M : ByteArray}
     {rest : List U256} (hrest : rest.length ≤ 16) {st : State.TransactionState} {ss : Substate}
     {g : Nat} (hg : 25 ≤ g) :
     SpecG fork (At CODE message p (0 :: rest) M g st ss) (Halted true .empty (g - 25) st ss) := by
   have hz : extendMemory M.size [((0 : U256), (0 : U256))] = ⟨0, 0⟩ := by
     simp [extendMemory]
-  rcases hp with rfl | rfl | rfl | rfl | rfl
+  rcases hp with rfl | rfl | rfl | rfl | rfl | rfl
   all_goals
     step unR 0x15 instruction_iszero
     step unR 0x15 instruction_iszero
@@ -344,12 +346,13 @@ theorem noCodeG (hfork : .berlin ≤ fork) {p : Nat}
 
 /-- SUB before the CALL. -/
 theorem subG {p q : Nat} (hp : (p = 3735 ∧ q = 3736) ∨ (p = 4890 ∧ q = 4891) ∨
-      (p = 5755 ∧ q = 5756) ∨ (p = 3229 ∧ q = 3230) ∨ (p = 4216 ∧ q = 4217))
+      (p = 5755 ∧ q = 5756) ∨ (p = 3229 ∧ q = 3230) ∨ (p = 4216 ∧ q = 4217) ∨
+      (p = 7202 ∧ q = 7203))
     {x y : U256} {rest : List U256} {M : ByteArray} {st : State.TransactionState} {ss : Substate}
     {g : Nat} (hg : 3 ≤ g) :
     HoareG fork (At CODE message p (x :: y :: rest) M g st ss)
       (At CODE message q (sub x y :: rest) M (g - 3) st ss) := by
-  rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
+  rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
   all_goals
     step binR 0x03 Local.instruction_sub
     exact Gas.reshapeG rfl rfl (by gas_ok)
@@ -357,7 +360,8 @@ theorem subG {p q : Nat} (hp : (p = 3735 ∧ q = 3736) ∨ (p = 4890 ∧ q = 489
 /-! ## From EXTCODESIZE to the frame after CALL, for any gas -/
 
 /-- From EXTCODESIZE of the upgraded address at 3719 (totalSupply), 4874 (balanceOf), 5739
-(transfer), 3213 (approve) or 4200 (transferFrom), with ANY gas `G`, under ANY runner: a run of the
+(transfer), 3213 (approve), 4200 (transferFrom) or 7186 (allowance; its failure tail at 7204 is
+`DeprecatedAllowance.failTailA`), with ANY gas `G`, under ANY runner: a run of the
 loop that ends with no error had a nonzero code size, the gas of EXTCODESIZE, the blocks and the
 CALL's access and memory (`accCost + 128 + memory`), a depth below the limit, and it goes through
 `CallEnd` (the runner gave a frame, and the loop goes on from the frame after CALL).
@@ -366,7 +370,7 @@ Hypotheses: the code `c` of the address is found (`hcode`) and is no delegation 
 (`hdel`). -/
 theorem fromExt (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {p q : Nat}
     (hp : (p = 3719 ∧ q = 3736) ∨ (p = 4874 ∧ q = 4891) ∨ (p = 5739 ∧ q = 5756) ∨
-      (p = 3213 ∧ q = 3230) ∨ (p = 4200 ∧ q = 4217))
+      (p = 3213 ∧ q = 3230) ∨ (p = 4200 ∧ q = 4217) ∨ (p = 7186 ∧ q = 7203))
     {U i isz o osz : U256} {rest : List U256} (hrest : rest.length ≤ 9) {M : ByteArray}
     {st : State.TransactionState} {ss : Substate} {c : ByteArray}
     (hcode : st.getCode (st.getAccount (toAddressMasked U)).codeHash = .ok c)
@@ -386,20 +390,22 @@ theorem fromExt (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {p q : 
       { ss with accessedAddresses := ss.accessedAddresses.insert (toAddressMasked U) } false c s := by
   have key : ∃ (h0 : p < CODE.size) (h15 : p + 15 < CODE.size) (hq : q < CODE.size),
       CODE[p] = 0x3b ∧ CODE[p + 15] = 0x5a ∧ CODE[q] = 0xf1 ∧ q = p + 17 := by
-    rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;>
+    rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;>
       exact ⟨by code_fact, by code_fact, by code_fact, by code_fact, by code_fact, by code_fact, rfl⟩
   have hm : (p + 1 = 3720 ∧ p + 15 = 3734) ∨ (p + 1 = 4875 ∧ p + 15 = 4889) ∨
       (p + 1 = 5740 ∧ p + 15 = 5754) ∨ (p + 1 = 3214 ∧ p + 15 = 3228) ∨
-      (p + 1 = 4201 ∧ p + 15 = 4215) := by
-    rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;> simp
-  have hn : p + 1 = 3720 ∨ p + 1 = 4875 ∨ p + 1 = 5740 ∨ p + 1 = 3214 ∨ p + 1 = 4201 := by
-    rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;> simp
+      (p + 1 = 4201 ∧ p + 15 = 4215) ∨ (p + 1 = 7187 ∧ p + 15 = 7201) := by
+    rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;> simp
+  have hn : p + 1 = 3720 ∨ p + 1 = 4875 ∨ p + 1 = 5740 ∨ p + 1 = 3214 ∨ p + 1 = 4201 ∨
+      p + 1 = 7187 := by
+    rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;> simp
   have hsb : (p + 15 + 1 = 3735 ∧ q = 3736) ∨ (p + 15 + 1 = 4890 ∧ q = 4891) ∨
       (p + 15 + 1 = 5755 ∧ q = 5756) ∨ (p + 15 + 1 = 3229 ∧ q = 3230) ∨
-      (p + 15 + 1 = 4216 ∧ q = 4217) := by
-    rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;> simp
-  have hf : q + 1 = 3737 ∨ q + 1 = 4892 ∨ q + 1 = 5757 ∨ q + 1 = 3231 ∨ q + 1 = 4218 := by
-    rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;> simp
+      (p + 15 + 1 = 4216 ∧ q = 4217) ∨ (p + 15 + 1 = 7202 ∧ q = 7203) := by
+    rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;> simp
+  have hf : (q + 1 = 3737 ∨ q + 1 = 4892 ∨ q + 1 = 5757 ∨ q + 1 = 3231 ∨ q + 1 = 4218) ∨
+      q + 1 = 7204 := by
+    rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;> simp
   obtain ⟨h0, h15, hqs, b0, b15, bq, -⟩ := key
   generalize hA : accCost (decide (toAddressMasked U ∉ ss.accessedAddresses)) = A
   have hr0 : evm.running = true := start.2.2.2.2.2.2.2.1
@@ -453,8 +459,12 @@ theorem fromExt (hfork : .berlin ≤ fork) (hglam : fork < .glamsterdam) {p q : 
         after.substate after :=
       ⟨by rw [a1, hc4], by rw [a2, hj4], by rw [a3, hm4], by rw [a4, hpc4], a5, rfl, rfl,
         by rw [a6, hr4], by rw [a7, herr4], by rw [a8, hout4], rfl, rfl⟩
-    exact (no_ok (fun g hg => failTail hfork hf (by omega) hg)
-      (fun g e h => by rw [h.2.1]; simp) hat _ hrun4 hok).elim
+    rcases hf with hf | hf
+    · exact (no_ok (fun g hg => failTail hfork hf (by omega) hg)
+        (fun g e h => by rw [h.2.1]; simp) hat _ hrun4 hok).elim
+    · rw [hf] at hat
+      exact (no_ok (fun g hg => DeprecatedAllowance.failTailA hfork (by omega) hg)
+        (fun g e h => by rw [h.2.1]; simp) hat _ hrun4 hok).elim
   refine ⟨hw, by omega, by omega, ?_⟩
   exact call_ok (state := st.recordAccountRead (toAddressMasked U))
     (substate := { ss with accessedAddresses := ss.accessedAddresses.insert (toAddressMasked U) })
