@@ -333,7 +333,10 @@ Every successful call, not deprecated: `Complete.inv_call`. Deprecated or not:
 assumptions `KeepsInv` on the runner and `HonestBalance` for destroyBlackFunds; the upgraded code
 may be an EIP-7702 delegation). Static or not: `Complete.inv_call_all` (Complete/Static.lean; a
 static frame keeps the state, EthLib's `staticStep_runFrame`, under the named runner assumption
-`StaticKeeps`, proved for the interpreter's runner from Paris by `staticKeeps_process`). None
+`StaticKeeps`, proved for the interpreter's runner from Paris by `staticKeeps_process`). Along a
+finite sequence of such calls and of steps that keep the storage of `C`: `Complete.inv_calls`
+(Complete/Seq.lean); a successful top-level `processMessage` with no value is such a call from
+Paris (`Complete.goodCall_process`). None
 has an alias here, since Invariant imports this file.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)

@@ -900,6 +900,22 @@ entry; `DESTS` = the 32 destinations).
   lemma for SSTORE without an account. The completeness theorems keep `hstatic` and `hacc` for the
   same reason (per-path fault proofs at the first write).
 
+### Round 17: a finite sequence of calls (Complete/Seq.lean)
+- `GoodCall C S S'`: an existential over fork, message, substate, gas, bound, runner, start
+  frame and end frame: a successful run of `CODE` at pc 0 for a message to `C` from `S`, ending in
+  `S'`, with every hypothesis of `inv_call_all` stated at `S`. `Untouched C S S'`: every storage
+  word of `C` is the same. `Calls C`: the inductive finite sequences of both kinds of steps.
+- `inv_goodCall`, `inv_calls` (`KeccakSep`): `Inv C` is kept along `Calls C`.
+- `goodCall_process` (Paris ≤ fork < Glamsterdam): a message with `message.code = CODE`, no value
+  transfer and no precompile, with `processMessage … = .ok ended` and `ended.val.error = none`, is
+  a `GoodCall` from the start state to `ended.val.state` (EthLib's `processMessage_map_val`,
+  `at_startFrame`; `StaticKeeps` by `staticKeeps_process`).
+- Not proved: that a failed top-level call keeps the storage of `C` after the rollback. EthLib's
+  `getStorage_restoreTxState` needs the block (`parent`) of the end state to be the start's, and
+  EthLib proves that only for static runs. So failed calls enter a sequence as `Untouched` steps,
+  an assumption. Messages with value (all of which revert, `nonpayable`) are not covered by
+  `goodCall_process` either.
+
 ## Open (not proved)
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
   transfer (round 12), approve, transferFrom, the ten owner functions (round 13), not deprecated

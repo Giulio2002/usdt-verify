@@ -121,6 +121,10 @@ The six other forwarding functions write nothing locally after the forwarded cal
 
 `inv_call_all` also covers static calls, such as a `STATICCALL` into USDT. A static run of USDT changes no state, so the invariant holds trivially. This uses a named assumption, `StaticKeeps`, about the message runner, which is proved for EthLib's own runner from Paris. The account of the contract is now needed only for calls that are not static.
 
+### Sequences of calls
+
+`inv_calls` in `UsdtVerify/Complete/Seq.lean` lifts the invariant to any finite sequence of steps. A step is either a successful call that meets the hypotheses of `inv_call_all`, each with its own fork, message and runner, or a step that leaves every storage word of USDT unchanged. `goodCall_process` shows that a successful top-level message to USDT with no value, from Paris and before Glamsterdam, is such a call. That a failed call leaves USDT's storage unchanged after the rollback is not proved here, so failed calls enter a sequence as unchanged steps by assumption. Calls with value are not covered.
+
 ## What you have to trust
 
 - The Lean 4 kernel.

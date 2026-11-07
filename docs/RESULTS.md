@@ -407,6 +407,21 @@ it, from Paris, for the interpreter's own runner (EthLib's `processMessage_stati
 - The completeness theorems of the writing functions still take `hstatic`: in a static frame a
   successful run of a writing path does not exist, but this is not proved per function.
 
+## A finite sequence of calls (round 17)
+
+`UsdtVerify/Complete/Seq.lean`. `Calls C S S'` is a finite sequence of steps, each either a
+`GoodCall` (one successful run of the deployed code for a message to `C`, from the state at
+that point, under the hypotheses of `inv_call_all` for that run, each with its own fork, message,
+gas and runner) or `Untouched` (any change that keeps every storage word of `C`).
+- `inv_calls`: under `KeccakSep`, `Inv C S` and `Calls C S S'` give `Inv C S'`.
+- `goodCall_process`: from Paris to before Glamsterdam, a top-level message to `C` with the
+  deployed code, no value and no precompile, run by EthLib's `processMessage`, that ends with no
+  error, is a `GoodCall` from its start state to its end state, under the named assumptions for
+  the interpreter's own runner (`StaticKeeps` is proved for it).
+- What the `Untouched` steps stand for is assumed, not proved: a call that failed and was rolled
+  back by the message layer, a transaction that does not reach `C`, fees. A transaction that
+  reaches `C` through another contract is not a top-level call and is not covered.
+
 On the way (`dep_*_local`): when deprecated, the six forwarders (totalSupply, balanceOf,
 allowance, approve, transfer, transferFrom) make one call, from a caller state with the start
 storage of `C`, and end in exactly the child's end state: nothing is written locally after the
