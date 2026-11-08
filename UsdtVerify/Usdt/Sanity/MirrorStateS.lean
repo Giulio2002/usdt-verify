@@ -22,8 +22,10 @@ included), from a frame with any reservoir.
   bound: the loop of the interpreter with `processRunnerM` ends with no error. The run passes the
   checks, forwards `balanceOf(a)` to `UA`, `MIRROR` answers, and both writes of the tail go
   through, refills allowed.
-- `mDOG`, `destroy_mirror_runsG` (round 45): the same for the message with any gas field `G` and
-  reservoir field `R` (`destroy_mirror_runsS` is the case `G = R = 0`).
+- `mDOG`, `destroy_mirror_runsT`, `destroy_mirror_runsG` (round 45): the same for the message
+  with any gas field `G` and reservoir field `R`, from any state with the facts the run needs
+  (slot 10 of `C` is `W`, the owner `CALLER_A`, `a` blacklisted, `MIRROR` at `UA`, an account at
+  `C`; `runsT`), and from `S2` (`runsG`; `destroy_mirror_runsS` is the case `G = R = 0`).
 - `destroy_mirror_processS` (round 45): from Paris, with `C` no precompile, EthLib's
   `processMessage` of that message over `StateGasMeter`, from any substate and any starting meter
   with at least 1000000 and below 2^255 execution gas left (its held gas at most `G`), ends with a
@@ -128,23 +130,30 @@ def mDOG (b : BlockEnvironment fork) (t : TransactionEnvironment fork) (C : Addr
     (G R : Nat) : Message fork :=
   { mDO b t C a with gas := G, reservoir := R }
 
-/-- `destroy_mirror_runsS` for the message `mDOG b t C a G R` (any gas and reservoir fields of
-the message; round 45). -/
-theorem destroy_mirror_runsG (hparis : .paris ≤ fork) (G R : Nat)
+/-- `destroy_mirror_runsG` from any state `S` whose slot 10 at `C` is `W`, with the owner
+`CALLER_A`, `a` blacklisted, `MIRROR` at `UA` and an account at `C` (round 45; `S2 C H a` is one,
+and so is `S2 C H a` with reads recorded). -/
+theorem destroy_mirror_runsT (hparis : .paris ≤ fork) (G R : Nat)
     (b : BlockEnvironment fork) (t : TransactionEnvironment fork) (C : Address) (a : U256)
-    (ss : Substate) (H : Hash32) (hH : H ≠ State.EMPTY_CODE_HASH) {m : Evm fork StateGasMeter}
-    (start : At CODE (mDOG b t C a G R) 0 [] .empty m.gas.gasLeft (S2 C H a) ss (toNat m))
+    (ss : Substate) {S : State.TransactionState} (hS10 : storageAt S C 10 = W)
+    (hown : IsOwner S (mDOG b t C a G R))
+    (hlist : (storageAt S (mDOG b t C a G R).currentTarget
+      (listSlot (addrArg (mDOG b t C a G R).data 0))).toNat % 256 ≠ 0)
+    (hcodeU : S.getCode (S.getAccount UA).codeHash = .ok MIRROR) (hacc : hasAccount S C)
+    {m : Evm fork StateGasMeter}
+    (start : At CODE (mDOG b t C a G R) 0 [] .empty m.gas.gasLeft S ss (toNat m))
     (hg : 1000000 ≤ m.gas.gasLeft) (hg' : m.gas.gasLeft < 2 ^ 255) {bound : Nat}
     (within : GasMeter.gasHeld m.gas ≤ bound) :
     Shadow.RunsOkS fork bound (ProcessMeter.processRunnerM fork bound) m within := by
   have hberlin : .berlin ≤ fork := Nat.le_trans (by decide) hparis
-  obtain ⟨hdep0, hown0, hlist0, -, -, -, -, -, -⟩ := process_step_dep_hyps2 hparis b t C a H hH 0
-  have hdep : byte20 (storageAt (S2 C H a) (mDOG b t C a G R).currentTarget 10) ≠ 0 := hdep0
-  have hown : IsOwner (S2 C H a) (mDOG b t C a G R) := hown0
-  have hlist : (storageAt (S2 C H a) (mDOG b t C a G R).currentTarget
-      (listSlot (addrArg (mDOG b t C a G R).data 0))).toNat % 256 ≠ 0 := hlist0
-  have hup : upAddr (S2 C H a) (mDOG b t C a G R) = UA := up_S2 rfl H a
-  have hcodeUA := hcode_SM (M := mDOG b t C a G R) (C := C) (kvs := KD a) H hH hup
+  have hdep : byte20 (storageAt S (mDOG b t C a G R).currentTarget 10) ≠ 0 := by
+    show byte20 (storageAt S C 10) ≠ 0
+    rw [hS10]; decide
+  have hup : upAddr S (mDOG b t C a G R) = UA := by
+    show toAddressMasked (upWord (storageAt S C 10)) = UA
+    rw [hS10]; rfl
+  have hcodeUA : S.getCode (S.getAccount (upAddr S (mDOG b t C a G R))).codeHash = .ok MIRROR := by
+    rw [hup]; exact hcodeU
   have h4 : 4 ≤ (mDOG b t C a G R).data.size := by
     show 4 ≤ (data1 SEL_D a).size
     rw [size_data1 size_SEL_D]; decide
@@ -167,16 +176,16 @@ theorem destroy_mirror_runsG (hparis : .paris ≤ fork) (G R : Nat)
       [((0x60 : U256), (0x24 : U256)), ((0x60 : U256), (0x20 : U256))] = ⟨0, 0⟩ := by
     rw [size_memD]; decide
   have hA := extCost_le hberlin
-    (decide (toAddressMasked (upWord (storageAt (S2 C H a) (mDOG b t C a G R).currentTarget 10)) ∉
+    (decide (toAddressMasked (upWord (storageAt (S) (mDOG b t C a G R).currentTarget 10)) ∉
       (accessSlot (preSub ss (mDOG b t C a G R)) (mDOG b t C a G R).currentTarget 10).accessedAddresses))
   obtain ⟨mC, caller, msg, hgC, hrC, hrunC, hstepC, k1, k2, k3, k4, k5, k6, k7, k8, k9, ko, k10,
       k11, m0, mg, mcl, mct, mtg, mca, mcode, mdp, md, mv, mdep, mst, mbe, mte, msh⟩ :=
     fromExtS (message := mDOG b t C a G R)
-      (U := upWord (storageAt (S2 C H a) (mDOG b t C a G R).currentTarget 10))
-      (rest := [0x84, 0x70a08231, upWord (storageAt (S2 C H a) (mDOG b t C a G R).currentTarget 10), 0,
+      (U := upWord (storageAt (S) (mDOG b t C a G R).currentTarget 10))
+      (rest := [0x84, 0x70a08231, upWord (storageAt (S) (mDOG b t C a G R).currentTarget 10), 0,
         addrArg (mDOG b t C a G R).data 0, 0x1f48, 0, addrArg (mDOG b t C a G R).data 0, 0x09b6,
         BitVec.ofNat 256 (selector (mDOG b t C a G R).data)])
-      (st := readSlot (preState (S2 C H a) (mDOG b t C a G R)) (mDOG b t C a G R).currentTarget 10)
+      (st := readSlot (preState (S) (mDOG b t C a G R)) (mDOG b t C a G R).currentTarget 10)
       (ss := accessSlot (preSub ss (mDOG b t C a G R)) (mDOG b t C a G R).currentTarget 10)
       (r := none) (R := 0)
       hberlin (by simp) hM hcodeUA (by rw [size_MIRROR]; decide) (fun _ => delegatedAddress_mirror)
@@ -184,7 +193,7 @@ theorem destroy_mirror_runsG (hparis : .paris ≤ fork) (G R : Nat)
   -- the message to `MIRROR`
   have hpre : precompileAddress fork msg = none :=
     precompile_none_of (fork := fork) (by
-      show Precompiles.isPrecompile fork (upAddr (S2 C H a) (mDOG b t C a G R)).toU256.toNat = false
+      show Precompiles.isPrecompile fork (upAddr (S) (mDOG b t C a G R)).toU256.toNat = false
       rw [hup]; exact hnp_UA fork) mca
   have hk : loadWord msg.data 4 32 = addrArg (mDOG b t C a G R).data 0 := by
     rw [md, data_memD]; exact loadWord_append_wordBytes SEL_B _
@@ -192,14 +201,14 @@ theorem destroy_mirror_runsG (hparis : .paris ≤ fork) (G R : Nat)
     slotCost (coldIn (accessSlot ss (mDOG b t C a G R).currentTarget 0) (mDOG b t C a G R).currentTarget
       (listSlot (addrArg (mDOG b t C a G R).data 0))) +
     slotCost (coldIn (preSub ss (mDOG b t C a G R)) (mDOG b t C a G R).currentTarget 10)) -
-    (extCost fork (decide (toAddressMasked (upWord (storageAt (S2 C H a)
+    (extCost fork (decide (toAddressMasked (upWord (storageAt (S)
       (mDOG b t C a G R).currentTarget 10)) ∉ (accessSlot (preSub ss (mDOG b t C a G R))
         (mDOG b t C a G R).currentTarget 10).accessedAddresses)) + 28) = G4 at k7 mg
   have e25 : m.gas.gasLeft - (1472 + slotCost (coldIn ss (mDOG b t C a G R).currentTarget 0) +
     slotCost (coldIn (accessSlot ss (mDOG b t C a G R).currentTarget 0) (mDOG b t C a G R).currentTarget
       (listSlot (addrArg (mDOG b t C a G R).data 0))) +
     slotCost (coldIn (preSub ss (mDOG b t C a G R)) (mDOG b t C a G R).currentTarget 10)) -
-    (extCost fork (decide (toAddressMasked (upWord (storageAt (S2 C H a)
+    (extCost fork (decide (toAddressMasked (upWord (storageAt (S)
       (mDOG b t C a G R).currentTarget 10)) ∉ (accessSlot (preSub ss (mDOG b t C a G R))
         (mDOG b t C a G R).currentTarget 10).accessedAddresses)) + 25) = G4 + 3 := by omega
   rw [e25] at k7 mg
@@ -223,8 +232,8 @@ theorem destroy_mirror_runsG (hparis : .paris ≤ fork) (G R : Nat)
   -- the tail
   have hB := size_memD (mDOG b t C a G R)
   have hacc : hasAccount (incorporateChild fork caller chS.1).state (mDOG b t C a G R).currentTarget := by
-    have h0 : hasAccount (readSlot (preState (S2 C H a) (mDOG b t C a G R)) C 10) C :=
-      hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot (hasAccount_SM C H _)))
+    have h0 : hasAccount (readSlot (preState (S) (mDOG b t C a G R)) C 10) C :=
+      hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc))
     obtain ⟨-, hs⟩ := process_mirrorS hparis caller lt mcode mtg mv hpre hk hch he
     rw [Security.state_incorporateChildS, hs]
     refine hasAccount_readSlot ?_
@@ -315,6 +324,21 @@ theorem destroy_mirror_runsG (hparis : .paris ≤ fork) (G R : Nat)
     simp only [tailDM2, tailDM1] at g1 g2 ⊢
     omega⟩
   exact ⟨s, (e1.trans eC).trans (ey.trans hs), hok⟩
+
+/-- `destroy_mirror_runsS` for the message `mDOG b t C a G R` (any gas and reservoir fields of
+the message; round 45). -/
+theorem destroy_mirror_runsG (hparis : .paris ≤ fork) (G R : Nat)
+    (b : BlockEnvironment fork) (t : TransactionEnvironment fork) (C : Address) (a : U256)
+    (ss : Substate) (H : Hash32) (hH : H ≠ State.EMPTY_CODE_HASH) {m : Evm fork StateGasMeter}
+    (start : At CODE (mDOG b t C a G R) 0 [] .empty m.gas.gasLeft (S2 C H a) ss (toNat m))
+    (hg : 1000000 ≤ m.gas.gasLeft) (hg' : m.gas.gasLeft < 2 ^ 255) {bound : Nat}
+    (within : GasMeter.gasHeld m.gas ≤ bound) :
+    Shadow.RunsOkS fork bound (ProcessMeter.processRunnerM fork bound) m within := by
+  obtain ⟨-, hown0, hlist0, -, hup0, -, -, -, -⟩ := process_step_dep_hyps2 hparis b t C a H hH 0
+  have hcodeU := hcode_SM (M := mDO b t C a) (C := C) (kvs := KD a) H hH hup0
+  rw [hup0] at hcodeU
+  exact destroy_mirror_runsT hparis G R b t C a ss (slot10_S2 C H a) hown0 hlist0 hcodeU
+    (hasAccount_SM C H _) start hg hg' within
 
 /-- **A successful deprecated destroyBlackFunds over the EIP-8037 meter, through `MIRROR`.** See
 the module doc. -/

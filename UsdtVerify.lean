@@ -12,6 +12,7 @@ import UsdtVerify.Evm.Shadow
 import UsdtVerify.Evm.Dom
 import UsdtVerify.Evm.NoState
 import UsdtVerify.Evm.ProcessMeter
+import UsdtVerify.Evm.FirstFrame
 import UsdtVerify.Evm.CallMeter
 import UsdtVerify.Evm.CallSim
 import UsdtVerify.Evm.StepSim
@@ -143,6 +144,7 @@ import UsdtVerify.Usdt.Sanity.Process
 import UsdtVerify.Usdt.Sanity.ProcessMeter
 import UsdtVerify.Usdt.Sanity.ProcessMeterR
 import UsdtVerify.Usdt.Sanity.MirrorStateS
+import UsdtVerify.Usdt.Sanity.MirrorCallS
 import UsdtVerify.Usdt.Sanity.ProcessExact
 import UsdtVerify.Usdt.Sanity.Mirror
 import UsdtVerify.Evm.Mirror

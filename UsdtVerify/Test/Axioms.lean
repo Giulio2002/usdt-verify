@@ -23,6 +23,7 @@ import UsdtVerify.Usdt.Security.SeqDepMeter
 import UsdtVerify.Usdt.Sanity.ProcessMeter
 import UsdtVerify.Usdt.Sanity.ProcessMeterR
 import UsdtVerify.Usdt.Sanity.MirrorStateS
+import UsdtVerify.Usdt.Sanity.MirrorCallS
 import UsdtVerify.Usdt.Meter
 import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.MeterOwner
@@ -1419,3 +1420,14 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 -- Round 45: the concrete deprecated run as a processMessage over StateGasMeter
 #print axioms UsdtVerify.Sanity.destroy_mirror_runsG
 #print axioms UsdtVerify.Sanity.destroy_mirror_processS
+
+-- Round 45: the first frame of a call with no authorization; the concrete call through processMessageCall
+#print axioms UsdtVerify.FirstFrame.prepareFirstFrame_call
+#print axioms UsdtVerify.Sanity.destroy_mirror_runsT
+#print axioms UsdtVerify.Sanity.storageAt_S3
+#print axioms UsdtVerify.Sanity.hcodeU_S3
+#print axioms UsdtVerify.Sanity.hcodeC_S3
+#print axioms UsdtVerify.Sanity.hasAccount_S3
+#print axioms UsdtVerify.Sanity.delegatedAddress_CODE
+#print axioms UsdtVerify.Sanity.destroy_mirror_processT
+#print axioms UsdtVerify.Sanity.destroy_mirror_callS
