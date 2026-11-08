@@ -62,6 +62,7 @@ When USDT is deprecated, it forwards each call to an upgraded contract. Those pa
 - `UsdtVerify/Usdt/Complete/` holds the completeness theorems.
 - `UsdtVerify/Usdt/Invariant/` holds the supply invariant.
 - `UsdtVerify/Usdt/Security/` holds the access control, pause, blacklist, allowance and supply properties.
+- `UsdtVerify/Usdt/Sanity/` shows that the named assumptions can hold, so the theorems are not vacuous.
 - `UsdtVerify/Summary.lean` indexes the main theorems.
 
 `docs/LAYOUT.md` describes each folder and maps the old paths to the new ones.
@@ -170,7 +171,7 @@ A few general opcode rules are proved locally in `UsdtVerify/Evm/Local/` while t
 
 - Forks before Berlin.
 - `KeccakSep` and `AllowSep` are hypotheses about keccak, not theorems.
-- `KeepsInv` and `HonestBalance` are not shown to hold for any real upgraded contract. They say what the upgraded contract must do.
+- `KeepsInv`, `HonestBalance` and the `Keeps*` assumptions are not shown to hold for any real upgraded contract. They say what the upgraded contract must do. `UsdtVerify/Usdt/Sanity/Runner.lean` shows they can all hold at once: a runner whose upgraded contract only runs `STOP` meets every runner assumption except `HonestBalance`, and a runner that answers each address's local balance meets all of them.
 - Slot words for `name` and `symbol` in a form Solidity never writes.
 - The individual path specs still state exact gas bounds. Completeness and the invariant hold for any gas.
 

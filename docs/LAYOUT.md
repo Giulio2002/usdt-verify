@@ -8,6 +8,7 @@ Where to look:
 - The supply invariant: `UsdtVerify/Usdt/Invariant/`.
 - The security properties (access control, pause, blacklist, allowances, supply): `UsdtVerify/Usdt/Security/`.
 - Lemmas about the EVM that hold for every code: `UsdtVerify/Evm/`.
+- That the assumptions of the main theorems can hold together (non-vacuity): `UsdtVerify/Usdt/Sanity/`.
 - One index of the main theorems, with aliases: `UsdtVerify/Summary.lean`.
 
 ## Folders
@@ -22,6 +23,7 @@ No file there imports a file outside `Evm/`.
 - `Steps.lean`: `repc`, `restate`, `slotCost` and the tactics `gas_ok`, `stk_ok`, `step`, `at_pc`.
 - `Frame.lean`: which slots a change of state may write (`Writes`), and a slot that does not decrease (`NoDec`).
 - `Keeps.lean`: a call from one account to another that a message runner ends with no error (`Forwarded`), and a relation the runner keeps over such calls (`Keeps`, the form of the runner assumptions of the security properties when deprecated).
+- `Runners.lean`: two concrete message runners that keep the storage of every account (`stopRunner`: EthLib's `processRunner` on the messages to `ua` that run the one byte STOP, the other messages to `ua` fail; `answerRunner`), and `SameStore`.
 - `MemRev.lean`: a read across two adjacent memory writes made in reverse order.
 - `Exact.lean`, `Split.lean`: from a specification over `StepG` to every successful run of the interpreter loop.
 - `Route.lean`, `Call.lean`: the route of a CALL (EIP-7702 delegation included), and the EXTCODESIZE, GAS, SUB and CALL steps for any gas and any runner.
@@ -42,6 +44,8 @@ No file there imports a file outside `Evm/`.
 
 - `Security/`: `Effect.lean` (what every successful call, not deprecated, does to the storage: `Effect`, `effect_call`; the slot classes; `AllowSep`; sequences `Seq` and `seq_lift`), `Access.lean` (access control), `Pause.lean` (no balance moves while paused), `Blacklist.lean` (a blacklisted address cannot lower its balance), `Allowance.lean` (transferFrom within the allowance; only approve and transferFrom change allowances), `Supply.lean` (`_totalSupply` changes only through issue, redeem and destroyBlackFunds).
   Since round 23 each file also has the forms deprecated or not (`*_call_all`, `*_seq_all`, with the runner assumptions `KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); `Effect.lean` has `effect_local`, `EffectD`, `effect_all`, `RunOkR`, `SeqR`, `seqR_lift`; `Access.lean` has `owner_only` and `nonOwner_local`; `Pause.lean` has `transfer_checks_all` and `transferFrom_checks_all`.
+
+- `Sanity/` (round 24): the assumptions of the main theorems hold for some runner, state, message and gas. `Runner.lean`: runners that meet `KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`, `KeepsInv`, `StaticKeeps`, `HonestBalance`.
 
 `UsdtVerify/Test/`: `Hash.lean` (the build checks that `CODE` is the bytes of `data/usdt.runtime.hex` with the recorded keccak256) and `Axioms.lean` (`#print axioms` of the main theorems).
 

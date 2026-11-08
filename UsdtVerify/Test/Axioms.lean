@@ -1,3 +1,4 @@
+import UsdtVerify.Usdt.Sanity.Runner
 import UsdtVerify.Usdt.Security.Supply
 import UsdtVerify.Usdt.Security.Allowance
 import UsdtVerify.Usdt.Security.Blacklist
@@ -499,3 +500,18 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Security.EffectD.supply
 #print axioms UsdtVerify.Security.supply_call_all
 #print axioms UsdtVerify.Security.supply_seq_all
+#print axioms UsdtVerify.storageAt_startState
+#print axioms UsdtVerify.stopRunner_ok
+#print axioms UsdtVerify.stopRunner_keeps
+#print axioms UsdtVerify.answerRunner_ok
+#print axioms UsdtVerify.answerRunner_keeps
+#print axioms UsdtVerify.loadWord_append_wordBytes
+#print axioms UsdtVerify.Sanity.keepsAll_of_same
+#print axioms UsdtVerify.Sanity.keepsInv_of_same
+#print axioms UsdtVerify.Sanity.stop_keeps_all
+#print axioms UsdtVerify.Sanity.stop_staticKeeps
+#print axioms UsdtVerify.Sanity.bal_keeps_all
+#print axioms UsdtVerify.Sanity.bal_staticKeeps
+#print axioms UsdtVerify.Sanity.honestBalance_of_answers
+#print axioms UsdtVerify.Sanity.bal_honest
+#print axioms UsdtVerify.Sanity.runner_assumptions_hold
