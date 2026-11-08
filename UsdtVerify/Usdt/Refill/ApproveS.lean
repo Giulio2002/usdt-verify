@@ -99,7 +99,7 @@ Berlin, from a frame `m` of `StateGasMeter` with any meter whose `toNat` is the 
 an account: the run of the loop, for any gas bound and message runner, ends with no error if and
 only if `2997 + price(slot 10) ≤ gas` and `2560 + price(slot 10) + writeCost ≤ gas + bump`, where
 `bump = sstoreBump m.gas A S` for the refill `A` and the state gas `S` of the write of 0 over the
-allowance. Every run that ends with no error stops, with the output empty, the allowance written,
+allowance. Every run that ends with no error stops, with the output empty, the allowance written, the substate of the write and the log,
 `gasLeft + 2560 + price(slot 10) + writeCost = gas + bump`, and the meter `sstoreMeter m.gas A c S`
 for the rest. -/
 theorem approve_zero_sgm (hfork : .berlin ≤ fork)
@@ -132,6 +132,12 @@ theorem approve_zero_sgm (hfork : .berlin ≤ fork)
       s.running = false ∧ s.output = .empty ∧
       s.state = writeSlot (readSlot state message.currentTarget 10) message.currentTarget
         (allowArg message) 0 ∧
+      s.substate = { storeSub fork (accessSlot substate message.currentTarget 10) message.currentTarget (allowArg message)
+          (originalAt (readSlot state message.currentTarget 10) message.currentTarget (allowArg message))
+          (storageAt (readSlot state message.currentTarget 10) message.currentTarget (allowArg message)) 0 with
+        logs := substate.logs.push (approvalLog message.currentTarget
+          (bitwiseAnd ADDR_MASK message.caller.toU256) (bitwiseAnd ADDR_MASK (addrArg message.data 0))
+          0) } ∧
       s.gas.gasLeft + (696 + slotCost c10) + Gas.writeCost fork
           (originalAt (readSlot state message.currentTarget 10) message.currentTarget (allowArg message))
           (storageAt (readSlot state message.currentTarget 10) message.currentTarget (allowArg message))
@@ -167,11 +173,11 @@ theorem approve_zero_sgm (hfork : .berlin ≤ fork)
   refine ⟨Complete.one_write_sgm hfork (preZero hfork hlong hsz hsel hv hdep hzero hc10) hP
     (fun _ _ => rfl) (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc) hcA hpost
     (by decide) (fun _ _ => rfl) start within, fun s hrun hok => ?_⟩
-  obtain ⟨h1, h2, h3, h4, h5, -, h7, h8⟩ := Complete.one_write_end hfork
+  obtain ⟨h1, h2, h3, h4, h5, h6, h7, h8⟩ := Complete.one_write_end hfork
     (preZero hfork hlong hsz hsel hv hdep hzero hc10) hP (fun _ _ => rfl) (by code_fact)
     (by code_fact) hstatic (hasAccount_readSlot hacc) hcA hpost (by decide) (fun _ _ => rfl) start
     hrun hok
-  exact ⟨h3, h4, h5, by omega, h8⟩
+  exact ⟨h3, h4, h5, h6, by omega, h8⟩
 
 /-- From pc 0 to the SSTORE at 8512 of `approve(s, v)`, `v ≠ 0`, over an allowance of 0. -/
 theorem preSet (hfork : .berlin ≤ fork) (hlong : 68 ≤ message.data.size)
@@ -227,6 +233,12 @@ theorem approve_set_sgm (hfork : .berlin ≤ fork)
       s.error = none →
       s.running = false ∧ s.output = .empty ∧
       s.state = writeSlot (readSlot (readSlot state message.currentTarget 10) message.currentTarget (allowArg message)) message.currentTarget (allowArg message) (wordArg message.data 1) ∧
+      s.substate = { storeSub fork (accessSlot (accessSlot substate message.currentTarget 10) message.currentTarget (allowArg message))
+          message.currentTarget (allowArg message) (originalAt (readSlot (readSlot state message.currentTarget 10) message.currentTarget (allowArg message)) message.currentTarget (allowArg message))
+          (storageAt (readSlot (readSlot state message.currentTarget 10) message.currentTarget (allowArg message)) message.currentTarget (allowArg message)) (wordArg message.data 1) with
+        logs := substate.logs.push (approvalLog message.currentTarget
+          (bitwiseAnd ADDR_MASK message.caller.toU256) (bitwiseAnd ADDR_MASK (addrArg message.data 0))
+          (wordArg message.data 1)) } ∧
       s.gas.gasLeft + (889 + slotCost c10 + slotCost cA) + Gas.writeCost fork (originalAt (readSlot (readSlot state message.currentTarget 10) message.currentTarget (allowArg message)) message.currentTarget (allowArg message)) (storageAt (readSlot (readSlot state message.currentTarget 10) message.currentTarget (allowArg message)) message.currentTarget (allowArg message)) (wordArg message.data 1) false +
           1864 =
         gas + sstoreBump m.gas (sstoreStateRefill fork (originalAt (readSlot (readSlot state message.currentTarget 10) message.currentTarget (allowArg message)) message.currentTarget (allowArg message)) (storageAt (readSlot (readSlot state message.currentTarget 10) message.currentTarget (allowArg message)) message.currentTarget (allowArg message)) (wordArg message.data 1))
@@ -253,9 +265,9 @@ theorem approve_set_sgm (hfork : .berlin ≤ fork)
     coldIn_accessSlot_self _ _ _
   refine ⟨Complete.one_write_sgm hfork hpre hP (fun _ _ => rfl) (by code_fact) (by code_fact)
     hstatic hacc' hcold hpost (by decide) (fun _ _ => rfl) start within, fun s hrun hok => ?_⟩
-  obtain ⟨h1, h2, h3, h4, h5, -, h7, h8⟩ := Complete.one_write_end hfork hpre hP (fun _ _ => rfl)
+  obtain ⟨h1, h2, h3, h4, h5, h6, h7, h8⟩ := Complete.one_write_end hfork hpre hP (fun _ _ => rfl)
     (by code_fact) (by code_fact) hstatic hacc' hcold hpost (by decide) (fun _ _ => rfl) start
     hrun hok
-  exact ⟨h3, h4, h5, by omega, h8⟩
+  exact ⟨h3, h4, h5, h6, by omega, h8⟩
 
 end UsdtVerify.Approve

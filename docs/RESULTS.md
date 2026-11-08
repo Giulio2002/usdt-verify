@@ -440,11 +440,53 @@ of `CODE`, deprecated, for any gas bound and message runner over `StateGasMeter`
   and `approve_set_sgm` apply it to approve, with no refill hypothesis and at any reservoir: `A` is
   97,920 when approve writes 0 over an allowance that was 0 at the start of the transaction and is
   not 0 now, and `S` is 97,920 when it writes a word other than 0 into such a slot.
-- Still not covered with refills: the exact condition and gas of transfer, transferFrom and the ten
-  owner functions. For the six owner functions with one write the path has the shape of
-  `one_write_sgm`, but the instances are not written. transfer, transferFrom, issue, redeem,
-  setParams and destroyBlackFunds write two or three slots, and a refill of one write can pay the
-  state gas of a later one, which needs `one_write_sgm` extended to a chain of writes.
+- Round 42 left the exact condition and gas with refills open for transfer, transferFrom and the
+  ten owner functions. Round 43 closes it (next section).
+
+## The EIP-8037 meter, round 43: the exact gas and success condition with refills, every writing function (READY)
+
+Status: READY for the scope stated in this section, after the clean rebuild and the independent
+review recorded in docs/AUDIT.md (T1, round 43). The trust assumptions of "What is trusted" apply
+unchanged.
+
+- A chain of writes (Evm/Chain.lean). `ExactS fork code message pc stack memory state substate Ok
+  End` says: from every frame `m` over `StateGasMeter` whose `toNat` is that `At` frame with
+  `m.gas.gasLeft` execution gas, for every gas bound and message runner, the run ends with no error
+  if and only if `Ok m.gas`, and every run that ends with no error meets `End m.gas`.
+  `exactS_halt`: a cheap stretch of `T` gas to a normal halt has `Ok g := T ≤ g.gasLeft`.
+  `exactS_write`: a cheap stretch of `P` gas to an SSTORE, then a path with `ExactS … Ok End`, has
+  `Ok g := wOk fork g P o c n cold ∧ Ok (wMeter fork g P o c n cold)`, where `wOk` is
+  `P + 2301 ≤ gasLeft ∧ P + writeCost ≤ gasLeft + wBump` and `wMeter` is the meter after the
+  SSTORE (`sstoreMeter`). The refill of a write goes to the reservoir and the spill of `wMeter`,
+  which the next write reads, so a refill of one write can pay the state gas of a later one.
+  "Cheap" means below 97,920 gas with no write.
+- The functions. From Berlin, from a frame `m` of `StateGasMeter` with any meter (any reservoir,
+  any spill) whose `toNat` is the fresh frame of `CODE`, for any gas bound and message runner, under
+  the hypotheses of the Nat success specification other than the gas, and with no hypothesis on
+  refills: the run ends with no error if and only if the chain condition holds, and every run that
+  ends with no error ends as the Nat specification says (output, state, substate), with
+  `gasLeft + cost = gas + the bumps of the writes` (`cost` the gas of the Nat specification) and
+  the meter after the last write for the reservoir and the spill.
+  - One write (`Complete.one_write_sgm`, Usdt/Refill/OwnerS.lean, ApproveS.lean): `approve_zero_sgm`,
+    `approve_set_sgm`, `pause_sgm`, `unpause_sgm`, `addBlackList_sgm`, `removeBlackList_sgm`,
+    `transferOwnership_sgm`.
+  - Two writes (Usdt/Refill/ChainOwner.lean, ChainTransfer.lean): `deprecate_sgm` (slot 10 twice),
+    `issue_sgm`, `redeem_sgm`, `setParams_sgm`, `destroyBlackFunds_sgm`, `transfer_sgm` (fee 0).
+  - Three writes (Usdt/Refill/ChainFee.lean): `transferFee_sgm` (fee above 0: sender, recipient,
+    owner).
+  - transferFrom (Usdt/Refill/TransferFromS.lean): `transferFrom_max_sgm` (fee 0, allowance
+    MAX_UINT, two writes), `transferFrom_sgm` (fee 0, allowance not MAX_UINT with `v ≤ A`, three
+    writes, the allowance first), `transferFromFee_max_sgm` (fee above 0, MAX_UINT, three writes),
+    `transferFromFee_sgm` (fee above 0, not MAX_UINT, four writes).
+- Scope. These theorems are about the success paths not deprecated, under the guard of each Nat
+  success specification. When deprecated, a call forwards with a CALL: `dep_X_completeR` (round 42)
+  states the sum of execution gas and reservoir at the end, exactly for six paths and as a lower
+  bound for destroyBlackFunds, and does not state its split. Each theorem starts from the first
+  frame. The preparation of that frame (`prepareFirstFrame`, the authorizations) is not verified
+  here.
+- Evidence: clean rebuild of 95aa5ad from an empty build directory, exit 0, 1440 jobs; `#print
+  axioms` on each theorem gives [propext, Classical.choice, Quot.sound] (UsdtVerify/Test/Axioms.lean);
+  independent read-only review PASS WITH FIXES, fixes in 7f29631.
 
 ## Completeness of the dispatcher, for every gas
 

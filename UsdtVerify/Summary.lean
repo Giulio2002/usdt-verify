@@ -588,13 +588,27 @@ frame less the path to the CALL and its price, plus the execution gas left and t
 child, and for destroyBlackFunds that sum is a lower bound. Round 42 (Usdt/Exact/):
 `Exact.X_ok_dom` for the 13 writing functions: under the guard and the threshold of `X_ok_iff`, met
 by the execution gas left of the first frame alone (the reservoir not counted), a run over `StateGasMeter` at any reservoir ends with no error,
-with no refill hypothesis (`Shadow.dom_run`). Not covered: the exact threshold and gas when a write
-refills, except for approve (below), and the split of the gas after the CALL.
+with no refill hypothesis (`Shadow.dom_run`). Not covered there: the split of the gas after the
+CALL. The exact threshold and gas when a write refills: approve below (round 42), the other
+writing functions in round 43.
 Round 42 (Usdt/Refill/ApproveS.lean): `Approve.approve_zero_sgm`, `Approve.approve_set_sgm`: approve
 over `StateGasMeter` from any meter succeeds exactly when the gas passes the 2300 check at the write
 and `cost ≤ gas + sstoreBump`, where the bump is the refill credited to execution gas plus the state
 gas the reservoir pays, and every successful run ends with that exact gas
-(`Complete.one_write_sgm`). The same for the other writing functions is not proved.
+(`Complete.one_write_sgm`).
+Round 43 (READY for this scope; Evm/Chain.lean, Usdt/Refill/OwnerS.lean, ChainOwner.lean,
+ChainTransfer.lean, ChainFee.lean, TransferFromS.lean): `Complete.exactS_write` and
+`Complete.exactS_halt` compose a path of cheap stretches and SSTOREs over `StateGasMeter`, with the
+meter after each write (`Complete.wMeter`) as the meter the next write reads, so a refill of one
+write can pay the state gas of a later one. For every writing function on its success path not
+deprecated (`pause_sgm`, `unpause_sgm`, `addBlackList_sgm`, `removeBlackList_sgm`,
+`transferOwnership_sgm`, `deprecate_sgm`, `issue_sgm`, `redeem_sgm`, `setParams_sgm`,
+`destroyBlackFunds_sgm`, `transfer_sgm`, `transferFee_sgm`, `transferFrom_max_sgm`,
+`transferFrom_sgm`, `transferFromFee_max_sgm`, `transferFromFee_sgm`, with approve above): from
+any meter, for any gas bound and message runner, under the guard of the Nat specification and with
+no refill hypothesis, the run ends with no error if and only if the chain condition holds, and every
+successful run ends as the Nat specification says with `gasLeft + cost = gas` plus the bumps of the
+writes and the meter after the last write.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

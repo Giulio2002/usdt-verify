@@ -1766,7 +1766,7 @@ T1 (third audit), continued. Item 1 of the plan of round 37, at the level of one
   `CallCorr`, `routes_or_missing`, `step_callX` (every CALL frame with value 0 and code found).
 - Not done: items 2 to 4 (the deprecated cases of `inv_call_any` and `process_stepS`, the
   `dep_*_complete` theorems and the deprecated security properties over `StateGasMeter`). The
-  route is in the local note `handoff-usdt38.md`: a predicate on runs of the meter `Nat` with an abstract
+  route is in the round 38 handoff notes: a predicate on runs of the meter `Nat` with an abstract
   relation for the child and an exit at frames the simulation does not cover, the `dep_*` proofs
   restated over it, and a bridge from a run over `StateGasMeter` at reservoir 0.
 
@@ -1886,16 +1886,51 @@ T1 (third audit), the two items left open in round 41, and the refill cases.
   and `approve_set_sgm` apply it to approve, with no refill hypothesis and at any reservoir: `A` is
   97,920 when approve writes 0 over an allowance that was 0 at the start of the transaction and is
   not 0 now, and `S` is 97,920 when it writes a word other than 0 into such a slot.
-- Still not covered with refills: the exact condition and gas of transfer, transferFrom and the ten
+- (Closed in round 43, see below.) Still not covered with refills: the exact condition and gas of transfer, transferFrom and the ten
   owner functions. For the six owner functions with one write the path has the shape of
   `one_write_sgm`, but the instances are not written. transfer, transferFrom, issue, redeem,
   setParams and destroyBlackFunds write two or three slots, and a refill of one write can pay the
   state gas of a later one, which needs `one_write_sgm` extended to a chain of writes.
-- Not done: the exact threshold and gas with refills for the writing functions other than
-  approve (`X_iff_gas_sgm`, `X_gas_any` keep `hnrD`, `hnrA` and the owner forms); the invariant and
+- Not done (the first item closed in round 43): the exact threshold and gas with refills for the
+  writing functions other than approve (`X_iff_gas_sgm`, `X_gas_any` keep `hnrD`, `hnrA` and the owner forms); the invariant and
   the security properties over `StateGasMeter` from a reservoir other than 0 when deprecated; equality
   of the gas for deprecated destroyBlackFunds over `StateGasMeter`; the split of the gas after the
   CALL; a concrete deprecated state over `StateGasMeter` with a run of USDT that ends with no error.
+
+### Round 43: the exact gas and success condition with refills for every writing function (Evm/Chain.lean, Usdt/Refill/OwnerS.lean, ChainOwner.lean, ChainTransfer.lean, ChainFee.lean, TransferFromS.lean) (READY)
+
+READY for the scope stated in this entry: clean rebuild of 95aa5ad from an empty build directory,
+exit 0, 1440 jobs, 3:43 wall; independent read-only review (round 43): PASS WITH FIXES, fixes
+applied in 7f29631 (the substate in the approve conclusions, docstrings, `#print axioms` of the path
+pieces). The trust assumptions of "What is trusted" in docs/RESULTS.md are unchanged.
+
+T1 (third audit), the item left open in round 42: the exact threshold and gas with refills for
+the writing functions other than approve.
+- Evm/Chain.lean: `ExactS`, `ExactS.run`, `exactS_halt`, `exactS_write`, `wOk`, `wMeter`, `wBump`,
+  `wSgm`, `wMeter_gasLeft`, `getStorage_readSlot`. A path of cheap stretches (below 97,920 gas, no
+  write) separated by SSTOREs is exact over `StateGasMeter` from any meter: the run ends with no
+  error if and only if, at each write, `P + 2301 ≤ gasLeft` and `P + writeCost ≤ gasLeft + wBump`
+  from the meter left by the previous write (`wMeter`), and the tail fits in the last meter. A
+  refill of one write goes to the reservoir and the spill of the next meter, so it can pay the
+  state gas of a later write.
+- Usdt/Refill/OwnerS.lean (one write, through `one_write_sgm`): `pause_sgm`, `unpause_sgm`,
+  `addBlackList_sgm`, `removeBlackList_sgm` (`list_sgm`), `transferOwnership_sgm`, with the paths
+  split at the SSTORE (`pausePre`, `unpausePre`, `listPre`, `ownPre` and the stretches after).
+- Usdt/Refill/ChainOwner.lean (two writes): `deprecate_sgm` (slot 10 twice), `issue_sgm`,
+  `redeem_sgm`, `setParams_sgm`, `destroyBlackFunds_sgm`.
+- Usdt/Refill/ChainTransfer.lean, ChainFee.lean: `transfer_sgm` (fee 0, two writes),
+  `transferFee_sgm` (fee above 0, three writes).
+- Usdt/Refill/TransferFromS.lean: `transferFrom_max_sgm` (fee 0, allowance MAX_UINT: `balances[f]`, `balances[t]`), `transferFrom_sgm` (fee 0, allowance not MAX_UINT with `v ≤ A`: the allowance, then the two balances), `transferFromFee_max_sgm` (fee above 0, MAX_UINT: three writes, the owner's balance last), `transferFromFee_sgm` (fee above 0, not MAX_UINT: four writes).
+- Each theorem: from Berlin, from a frame with any meter whose `toNat` is the fresh frame of
+  `CODE`, for any gas bound and message runner, under the hypotheses of the Nat success
+  specification other than the gas, with no hypothesis on refills or on the reservoir: success if
+  and only if the chain condition, and every successful run ends as the Nat specification says,
+  with `gasLeft + cost = gas + the bumps` and the meter after the last write.
+- Not covered here: the deprecated paths (round 42 `dep_X_completeR`: exact sum of execution gas
+  and reservoir for six paths, a lower bound for destroyBlackFunds, the split not stated); the
+  invariant and the security properties from a reservoir other than 0 when deprecated; a concrete
+  deprecated state over `StateGasMeter` with a successful run; the preparation of the first frame
+  (`prepareFirstFrame`).
 
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
@@ -1924,9 +1959,12 @@ T1 (third audit), the two items left open in round 41, and the refill cases.
   left plus the reservoir at the end exact for six paths and bounded below for destroyBlackFunds
   (`dep_X_completeR`), and success of the 13 writing functions at any reservoir with refills
   allowed from the one-counter threshold (`X_ok_dom`), and the exact condition and gas of approve
-  with refills at any reservoir (`approve_zero_sgm`, `approve_set_sgm`). Still open: the exact
-  threshold and gas with refills for the other writing functions, the split of the gas after the
-  CALL, and the invariant and security properties from a reservoir other than 0 when deprecated.
+  with refills at any reservoir (`approve_zero_sgm`, `approve_set_sgm`).
+  Round 43 (READY): the exact success condition and gas with refills at any reservoir for every
+  writing function on its success path not deprecated (Evm/Chain.lean and the `X_sgm` theorems of
+  Usdt/Refill/), see the round 43 entry above. Still open: the split of the gas after the CALL when
+  deprecated, and the invariant and security properties from a reservoir other than 0 when
+  deprecated.
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
   contract (round 24: concrete runners meet them, `Sanity/Runner.lean`). `transferFrom_bound` has

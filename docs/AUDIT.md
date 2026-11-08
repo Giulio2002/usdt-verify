@@ -645,6 +645,31 @@ threshold.
   reservoir other than 0 when deprecated, and a concrete deprecated state over `StateGasMeter` with
   a successful run.
 
+**Resolution (round 43, READY): the exact threshold and gas with refills, success paths not
+deprecated.**
+The item left open in round 42 ("the exact threshold and gas with refills for transfer,
+transferFrom and the owner functions") is resolved for every writing function on its success path
+not deprecated. Evidence:
+- Evm/Chain.lean: `exactS_write` composes a cheap stretch, one SSTORE and the rest of a path over
+  `StateGasMeter`, with the meter after the SSTORE (`wMeter`, from `sstoreMeter`) as the meter of
+  the rest. So a refill of one write, credited to the reservoir and the spill, is read by the next
+  write's `wBump`. With `exactS_halt` this gives, for any number of writes, success if and only if
+  the chain condition, and the exact meter at the end.
+- The instances, each from any meter, for any gas bound and message runner, under the guard of
+  the Nat specification, with no refill or reservoir hypothesis: `approve_zero_sgm`,
+  `approve_set_sgm` (round 42), `pause_sgm`, `unpause_sgm`, `addBlackList_sgm`,
+  `removeBlackList_sgm`, `transferOwnership_sgm`, `deprecate_sgm`, `issue_sgm`, `redeem_sgm`,
+  `setParams_sgm`, `destroyBlackFunds_sgm`, `transfer_sgm`, `transferFee_sgm`, `transferFrom_max_sgm`, `transferFrom_sgm`, `transferFromFee_max_sgm`, `transferFromFee_sgm`.
+- Clean rebuild of 95aa5ad from an empty build directory: exit 0, 1440 jobs. `#print axioms` on each: [propext, Classical.choice,
+  Quot.sound]. Independent read-only review (round 43): PASS WITH FIXES, the fixes applied in 7f29631 (the approve conclusions state the
+  substate, docstrings name the hypotheses, `#print axioms` for the path pieces).
+- Still open under T1, unchanged: the split of the gas after the CALL when deprecated
+  (`dep_X_completeR` states the sum), equality of that sum for deprecated destroyBlackFunds, the
+  invariant and the security properties from a reservoir other than 0 when deprecated, and a
+  concrete deprecated state over `StateGasMeter` with a successful run. The trust assumptions
+  (local keccak hypotheses `SepOn` / `SecSep`, the runner assumptions, EthLib's model, the Lean
+  kernel) are unchanged.
+
 ## T2. The runner hypotheses range over every block and transaction environment (Medium)
 
 **Evidence.** `SendsVia` (Evm/Route.lean:134) fixes `caller`, `currentTarget`, `target`,

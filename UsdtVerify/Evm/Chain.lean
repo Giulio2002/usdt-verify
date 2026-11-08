@@ -22,6 +22,11 @@ ends with no error meets `End m.gas`.
 Applied once per write, this gives the exact success condition and the exact meter at the end
 of a path with any number of writes, from any meter: a refill of one write can pay the state
 gas of a later one. No hypothesis on refills or on the reservoir.
+
+Status (round 43): READY for the statements of this file and of the `X_sgm` theorems of
+Usdt/Refill/ (OwnerS, ChainOwner, ChainTransfer, ChainFee, TransferFromS, ApproveS): clean rebuild
+and independent review recorded in docs/AUDIT.md (T1, round 43). The trust assumptions of
+docs/RESULTS.md ("What is trusted") apply.
 -/
 
 namespace UsdtVerify.Complete

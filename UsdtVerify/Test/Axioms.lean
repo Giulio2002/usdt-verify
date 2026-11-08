@@ -11,6 +11,7 @@ import UsdtVerify.Usdt.Refill.OwnerS
 import UsdtVerify.Usdt.Refill.ChainOwner
 import UsdtVerify.Usdt.Refill.ChainTransfer
 import UsdtVerify.Usdt.Refill.ChainFee
+import UsdtVerify.Usdt.Refill.TransferFromS
 import UsdtVerify.Evm.StepSim
 import UsdtVerify.Usdt.Complete.Deprecated.Meter
 import UsdtVerify.Usdt.Complete.Deprecated.MeterR
@@ -1172,6 +1173,50 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.TransferFee.feeW3
 #print axioms UsdtVerify.TransferFee.feePost
 #print axioms UsdtVerify.TransferFee.transferFee_sgm
+#print axioms UsdtVerify.TransferFrom.segA
+#print axioms UsdtVerify.TransferFrom.toDebitW
+#print axioms UsdtVerify.TransferFrom.maxToDebitW
+#print axioms UsdtVerify.TransferFrom.allowToDebitW
+#print axioms UsdtVerify.TransferFrom.debitToCreditW
+#print axioms UsdtVerify.TransferFrom.creditPostF
+#print axioms UsdtVerify.TransferFrom.transferFrom_max_sgm
+#print axioms UsdtVerify.TransferFrom.transferFrom_sgm
+#print axioms UsdtVerify.TransferFrom.segAFee
+#print axioms UsdtVerify.TransferFrom.toDebitWFee
+#print axioms UsdtVerify.TransferFrom.maxToDebitWFee
+#print axioms UsdtVerify.TransferFrom.allowToDebitWFee
+#print axioms UsdtVerify.TransferFrom.debitToCreditWFee
+#print axioms UsdtVerify.TransferFrom.ownerToWF
+#print axioms UsdtVerify.TransferFrom.creditToOwnerW
+#print axioms UsdtVerify.TransferFrom.ownerPostF
+#print axioms UsdtVerify.TransferFrom.transferFromFee_max_sgm
+#print axioms UsdtVerify.TransferFrom.transferFromFee_sgm
+#print axioms UsdtVerify.Complete.sstoreMeter_gasLeft
+#print axioms UsdtVerify.Complete.one_write_at
+#print axioms UsdtVerify.Complete.sstore_post_at
+#print axioms UsdtVerify.Approve.storePre
+#print axioms UsdtVerify.Approve.postA
+#print axioms UsdtVerify.Approve.preZero
+#print axioms UsdtVerify.Approve.preSet
+#print axioms UsdtVerify.PauseSpec.pauseToW
+#print axioms UsdtVerify.PauseSpec.unpauseToW
+#print axioms UsdtVerify.PauseSpec.postPause
+#print axioms UsdtVerify.PauseSpec.postUnpause
+#print axioms UsdtVerify.BlackListSpec.listToW
+#print axioms UsdtVerify.BlackListSpec.listPost
+#print axioms UsdtVerify.AddrWriteSpec.addrToW
+#print axioms UsdtVerify.AddrWriteSpec.ownPost
+#print axioms UsdtVerify.AddrWriteSpec.depToW
+#print axioms UsdtVerify.AddrWriteSpec.depPost
+#print axioms UsdtVerify.Issue.ownerToW
+#print axioms UsdtVerify.Issue.totalToW
+#print axioms UsdtVerify.IssueSpec.amountPost
+#print axioms UsdtVerify.SetParamsSpec.paramsPost
+#print axioms UsdtVerify.DestroySpec.zeroToW
+#print axioms UsdtVerify.DestroySpec.destroyPost
+#print axioms UsdtVerify.TransferOk.debitToW
+#print axioms UsdtVerify.TransferOk.creditToW
+#print axioms UsdtVerify.TransferFee.ownerToW
 #print axioms UsdtVerify.Exact.approve_ok_dom
 #print axioms UsdtVerify.Exact.transfer_ok_dom
 #print axioms UsdtVerify.Exact.transferFrom_ok_dom

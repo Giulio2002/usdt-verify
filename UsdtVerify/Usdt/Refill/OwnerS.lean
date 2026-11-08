@@ -21,7 +21,7 @@ gas bound and message runner:
   reservoir and the spill.
 
 No hypothesis on refills or on the reservoir. `gas` is the execution gas left of the first frame.
-deprecate writes slot 10 twice: it is a chain of two writes (Evm/Chain.lean), not covered here.
+deprecate writes slot 10 twice: it is a chain of two writes, in Usdt/Refill/ChainOwner.lean.
 -/
 
 namespace UsdtVerify.PauseSpec
@@ -468,8 +468,10 @@ theorem list_sgm (hfork : .berlin ≤ fork) {sel e r b t s p P : Nat} {v tp : U2
     rw [h6, originalAt_readSlot, originalAt_readSlot, storageAt_readSlot, storageAt_readSlot,
       storeSub_accessSlot, mkey_addrArg]
 
-/-- **addBlackList(a) over the EIP-8037 meter, exactly, at any reservoir, refills allowed.** By
-the owner: the run ends with no error if and only if `478 + price(slot 0) + price(L) + 2301 ≤ gas`
+/-- **addBlackList(a) over the EIP-8037 meter, exactly, at any reservoir, refills allowed.** From
+Berlin, from a frame `m` of `StateGasMeter` with any meter whose `toNat` is the fresh frame of
+`CODE`, by the owner, a frame that is not static and an account, for any gas bound and message
+runner: the run ends with no error if and only if `478 + price(slot 0) + price(L) + 2301 ≤ gas`
 and `1567 + price(slot 0) + price(L) + price(write) ≤ gas + bump`; every run that ends with no
 error ends as `spec_add` says with `gasLeft + 1567 + … = gas + bump` and the meter `wSgm` of the
 write. -/
@@ -509,8 +511,10 @@ theorem addBlackList_sgm (hfork : .berlin ≤ fork)
   list_sgm hfork (.inl ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩) hstatic hacc hsize
     hsize' hsel hv hown hc0 hcB start within
 
-/-- **removeBlackList(a) over the EIP-8037 meter, exactly, at any reservoir, refills allowed.** By
-the owner: the run ends with no error if and only if `1006 + price(slot 0) + price(L) + 2301 ≤ gas`
+/-- **removeBlackList(a) over the EIP-8037 meter, exactly, at any reservoir, refills allowed.** From
+Berlin, from a frame `m` of `StateGasMeter` with any meter whose `toNat` is the fresh frame of
+`CODE`, by the owner, a frame that is not static and an account, for any gas bound and message
+runner: the run ends with no error if and only if `1006 + price(slot 0) + price(L) + 2301 ≤ gas`
 and `2095 + price(slot 0) + price(L) + price(write) ≤ gas + bump`; every run that ends with no
 error ends as `spec_remove` says with `gasLeft + 2095 + … = gas + bump` and the meter `wSgm` of the
 write. -/
@@ -616,7 +620,9 @@ theorem ownPost {a x : U256} {M : ByteArray} {gas : Nat} (hg : 14 ≤ gas) :
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
 /-- **transferOwnership(a), a ≠ 0, over the EIP-8037 meter, exactly, at any reservoir, refills
-allowed.** By the owner: the run ends with no error if and only if `1100 + price(slot 0) + 2301 ≤
+allowed.** From Berlin, from a frame `m` of `StateGasMeter` with any meter whose `toNat` is the
+fresh frame of `CODE`, by the owner, a frame that is not static and an account, for any gas bound
+and message runner: the run ends with no error if and only if `1100 + price(slot 0) + 2301 ≤
 gas` and `1114 + price(slot 0) + price(write) ≤ gas + bump`; every run that ends with no error ends
 as `spec_transferOwnership` says with `gasLeft + 1114 + … = gas + bump` and the meter `wSgm` of the
 write. -/
