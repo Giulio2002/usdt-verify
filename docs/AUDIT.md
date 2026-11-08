@@ -846,6 +846,14 @@ held` with any `meter : StateGasMeter` and `held`, and `GasMeter.reservoir meter
 whose frame starts with a fresh meter, which excludes transactions whose authorizations pay state
 gas (replacement sent).
 
+**Resolution (round 41).** Fixed as suggested. The seven theorems take
+`processMessage fork message state substate meter held = .ok ended` for any
+`meter : StateGasMeter` and `held`, and the deprecated forms take `meter.reservoir = 0`.
+`processMessage_map_valM`, `processMessage_map_val_valueM` and `at_startFrameS` take the starting
+meter. The old statements remain as `goodCall_processS_start`, `process_value_failsS_start`,
+`process_stepS_start`, `process_stepDS_start`, `process_stepSD_start`, `runOkS_process_start` and
+`process_stepSec_start`.
+
 ## U2. No instance of the runner assumptions over `StateGasMeter` (Low)
 
 **Evidence.** No file in Usdt/Sanity/ mentions `StateGasMeter`. `KeepsInvAtS`, `HonestBalanceAtS`

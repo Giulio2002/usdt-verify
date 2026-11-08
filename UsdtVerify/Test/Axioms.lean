@@ -1037,6 +1037,9 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Complete.goodCall_processS
 #print axioms UsdtVerify.Complete.process_value_failsS
 #print axioms UsdtVerify.Complete.process_stepS
+#print axioms UsdtVerify.Complete.goodCall_processS_start
+#print axioms UsdtVerify.Complete.process_value_failsS_start
+#print axioms UsdtVerify.Complete.process_stepS_start
 #print axioms UsdtVerify.Shadow.shadow_runQ
 #print axioms UsdtVerify.Shadow.gas_ge_any
 #print axioms UsdtVerify.Shadow.gas_eq_any
@@ -1078,6 +1081,8 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Security.supply_seqS
 #print axioms UsdtVerify.Security.runOkS_process
 #print axioms UsdtVerify.Security.process_stepSec
+#print axioms UsdtVerify.Security.runOkS_process_start
+#print axioms UsdtVerify.Security.process_stepSec_start
 #print axioms UsdtVerify.Complete.callStep_child_rS
 #print axioms UsdtVerify.Complete.resumeCall_sgm
 #print axioms UsdtVerify.Complete.lifts_gasStep
@@ -1144,6 +1149,8 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Complete.inv_callsDS
 #print axioms UsdtVerify.Complete.process_stepDS
 #print axioms UsdtVerify.Complete.process_stepSD
+#print axioms UsdtVerify.Complete.process_stepDS_start
+#print axioms UsdtVerify.Complete.process_stepSD_start
 #print axioms UsdtVerify.Security.KeepsAtS.fwd
 #print axioms UsdtVerify.Security.state_incorporateChildS
 #print axioms UsdtVerify.Security.fwdS_of

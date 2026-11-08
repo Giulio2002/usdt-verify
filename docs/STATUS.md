@@ -1808,6 +1808,15 @@ T1 (third audit), continued. Items 2 to 4 of the plan of round 38.
   properties over `StateGasMeter`; `owner_only` for deprecated destroyBlackFunds over
   `StateGasMeter`.
 
+### Round 41: the fourth audit (USDT-40), findings U1 to U3
+
+- U1. `goodCall_processS`, `process_value_failsS`, `process_stepS`, `process_stepDS`,
+  `process_stepSD`, `runOkS_process` and `process_stepSec` take any starting meter of
+  `processMessage` (`meter`, `held`), as `processMessageCall` passes the meter left by the
+  authorizations. The deprecated forms take `meter.reservoir = 0`. The old statements are the
+  `_start` corollaries. `processMessage_map_valM`, `processMessage_map_val_valueM` and
+  `at_startFrameS` (Evm/ProcessMeter.lean) take the starting meter.
+
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
   Glamsterdam (third audit, T1; rounds 33 to 36 above). Round 36 covers, not deprecated: the
@@ -1824,6 +1833,10 @@ T1 (third audit), continued. Items 2 to 4 of the plan of round 38.
   the single-call security properties). Still open there: a reservoir other than 0 when
   deprecated, the gas left after the CALL, the deprecated sequence forms of the security
   properties.
+  Round 41: the `processMessage` forms over `StateGasMeter` hold for any starting meter (fourth
+  audit, U1), so they cover the meter that `processMessageCall` passes after the authorizations.
+  The preparation of the first frame itself (`prepareFirstFrame`, the authorizations) is not
+  verified here. The theorems start from its result.
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
   contract (round 24: concrete runners meet them, `Sanity/Runner.lean`). `transferFrom_bound` has

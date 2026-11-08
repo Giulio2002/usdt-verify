@@ -559,6 +559,12 @@ Round 39: the deprecated paths over `StateGasMeter` from reservoir 0. `Complete.
 `Complete.process_stepSD` (the invariant, under `KeepsInvAtS` and `HonestBalanceAtS`), and
 `Security.effect_allS` with the five `_call_allS` security properties. Not covered: a reservoir
 other than 0 when deprecated, the gas left after the CALL.
+Round 41 (fourth audit, U1): `Complete.goodCall_processS`, `Complete.process_value_failsS`,
+`Complete.process_stepS`, `Complete.process_stepDS`, `Complete.process_stepSD`,
+`Security.runOkS_process` and `Security.process_stepSec` take any starting meter of
+`processMessage`, as EthLib's `processMessageCall` passes the meter left by the authorizations of
+the transaction. The deprecated forms ask that meter to have reservoir 0. The forms for the fresh
+meter of the message are the `_start` corollaries.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

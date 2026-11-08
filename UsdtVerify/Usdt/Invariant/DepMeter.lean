@@ -399,11 +399,92 @@ theorem inv_callsDS {C : Address} {S S' : State.TransactionState}
   | callDS hg _ ih => exact ih (inv_goodCallDS hg hI)
 
 /-- **Deprecated top-level messages over the EIP-8037 meter.** From Paris, a top-level message to
-`C` (code `CODE`, no precompile, call data below 2^256 bytes, deprecated, reservoir 0), run by
-EthLib's `processMessage` over `StateGasMeter` to the end, under `KeepsInvAtS` and, for
+`C` (code `CODE`, no precompile, call data below 2^256 bytes, deprecated), run by EthLib's
+`processMessage` over `StateGasMeter` to the end from a starting meter with reservoir 0, under `KeepsInvAtS` and, for
 destroyBlackFunds, `HonestBalanceAtS` of `processRunnerM`, is a `GoodCallDS` when it ends with no
 error and an `Untouched` step when it ends with an error. -/
 theorem process_stepDS {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256) (K : SepOn (callKeys message state))
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
+    (hkeeps : KeepsInvAtS (ProcessMeter.processRunnerM fork message.gas) message state)
+    (hhonest : selector message.data = 0xf3bdc228 →
+      HonestBalanceAtS (ProcessMeter.processRunnerM fork message.gas) message state)
+    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
+    (hres : meter.reservoir = 0)
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate meter held = .ok ended) :
+    GoodCallDS message.currentTarget state ended.val.state ∨
+      Untouched message.currentTarget state ended.val.state := by
+  by_cases herr : ended.val.error = none
+  · by_cases ht : message.shouldTransferValue = true ∧ message.value ≠ 0
+    · exact absurd herr (process_value_failsS (Nat.le_trans (by decide) hparis) hmc noPrecompile
+        hsize ht.2 hproc)
+    refine .inl ?_
+    have hst : startState fork message state = state := by
+      simp only [startState, show ¬fork < Fork.paris from Nat.not_lt.mpr hparis, ite_false]
+    have hberlin : Fork.berlin ≤ fork := Nat.le_trans (by decide) hparis
+    generalize hres' : runFrame (step fork) (step_decreases fork) message.gas
+      (ProcessMeter.processRunnerM fork message.gas)
+      (startFrame message (startState fork message state) substate meter) held = result
+    have hmap := ProcessMeter.processMessage_map_valM ht noPrecompile hres'
+    rw [hproc] at hmap
+    rcases result with e | s
+    · cases hmap
+    · simp only [Except.map, Except.ok.injEq] at hmap
+      have hse : s.error = none := by
+        rw [← herr, hmap]
+        unfold rollbackOnError
+        split <;> rfl
+      have hend : ended.val = s := by
+        rw [hmap]
+        unfold rollbackOnError
+        simp [hse]
+      have start := ProcessMeter.at_startFrameS hmc (startState fork message state) substate meter
+      rw [hst] at start hres'
+      exact ⟨fork, message, substate, _, message.gas, ProcessMeter.processRunnerM fork message.gas,
+        _, s, _, rfl, hberlin, hsize, K, h7, h8, hdep, hkeeps, hhonest, start, hres, hres', hse,
+        by rw [hend]⟩
+  · exact .inr (fun _ => Local.processMessage_failed_getStorage hproc herr _ _)
+
+/-- **Every top-level message over the EIP-8037 meter, deprecated or not.** From Paris, a
+top-level message to `C` (code `CODE`, no precompile, call data below 2^256 bytes) run by
+`processMessage` over `StateGasMeter` from any starting meter is a `GoodCallS` (not deprecated,
+any reservoir), a `GoodCallDS` (deprecated, under its hypotheses, a starting meter with reservoir
+0) or an `Untouched` step. -/
+theorem process_stepSD {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256) (K : SepOn (callKeys message state))
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsInvAtS (ProcessMeter.processRunnerM fork message.gas) message state)
+    (hhonest : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      selector message.data = 0xf3bdc228 →
+      HonestBalanceAtS (ProcessMeter.processRunnerM fork message.gas) message state)
+    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
+    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → meter.reservoir = 0)
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate meter held = .ok ended) :
+    GoodCallS message.currentTarget state ended.val.state ∨
+      GoodCallDS message.currentTarget state ended.val.state ∨
+      Untouched message.currentTarget state ended.val.state := by
+  by_cases hdep : byte20 (storageAt state message.currentTarget 10) = 0
+  · rcases process_stepS hparis hmc noPrecompile hsize K h7 h8 hdep hproc with h | h
+    · exact .inl h
+    · exact .inr (.inr h)
+  · exact .inr (process_stepDS hparis hmc noPrecompile hsize K h7 h8 hdep (hkeeps hdep)
+      (hhonest hdep) (hres hdep) hproc)
+
+/-- `process_stepDS` for the fresh meter of the message, whose reservoir is that of the
+message. -/
+theorem process_stepDS_start {fork : Fork} (hparis : .paris ≤ fork)
     {message : Message fork} {state : State.TransactionState} {substate : Substate}
     (hmc : message.code = CODE)
     (noPrecompile : precompileAddress fork message = none)
@@ -418,45 +499,12 @@ theorem process_stepDS {fork : Fork} (hparis : .paris ≤ fork)
     {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
     (hproc : processMessage fork message state substate = .ok ended) :
     GoodCallDS message.currentTarget state ended.val.state ∨
-      Untouched message.currentTarget state ended.val.state := by
-  by_cases herr : ended.val.error = none
-  · by_cases ht : message.shouldTransferValue = true ∧ message.value ≠ 0
-    · exact absurd herr (process_value_failsS (Nat.le_trans (by decide) hparis) hmc noPrecompile
-        hsize ht.2 hproc)
-    refine .inl ?_
-    have hst : startState fork message state = state := by
-      simp only [startState, show ¬fork < Fork.paris from Nat.not_lt.mpr hparis, ite_false]
-    have hberlin : Fork.berlin ≤ fork := Nat.le_trans (by decide) hparis
-    generalize hres' : runFrame (step fork) (step_decreases fork) message.gas
-      (ProcessMeter.processRunnerM fork message.gas)
-      (startFrame message (startState fork message state) substate
-        (GasMeter.start message.gas message.reservoir : StateGasMeter))
-      (Nat.le_of_eq (LawfulGasMeter.gasHeld_start _ _)) = result
-    have hmap := ProcessMeter.processMessage_map_valM ht noPrecompile hres'
-    rw [hproc] at hmap
-    rcases result with e | s
-    · cases hmap
-    · simp only [Except.map, Except.ok.injEq] at hmap
-      have hse : s.error = none := by
-        rw [← herr, hmap]
-        unfold rollbackOnError
-        split <;> rfl
-      have hend : ended.val = s := by
-        rw [hmap]
-        unfold rollbackOnError
-        simp [hse]
-      have start := ProcessMeter.at_startFrameS hmc (startState fork message state) substate
-      rw [hst] at start hres'
-      exact ⟨fork, message, substate, _, message.gas, ProcessMeter.processRunnerM fork message.gas,
-        _, s, _, rfl, hberlin, hsize, K, h7, h8, hdep, hkeeps, hhonest, start, hres, hres', hse,
-        by rw [hend]⟩
-  · exact .inr (fun _ => Local.processMessage_failed_getStorage hproc herr _ _)
+      Untouched message.currentTarget state ended.val.state :=
+  process_stepDS hparis hmc noPrecompile hsize K h7 h8 hdep hkeeps hhonest hres hproc
 
-/-- **Every top-level message over the EIP-8037 meter, deprecated or not.** From Paris, a
-top-level message to `C` (code `CODE`, no precompile, call data below 2^256 bytes) run by
-`processMessage` over `StateGasMeter` is a `GoodCallS` (not deprecated, any reservoir), a
-`GoodCallDS` (deprecated, under its hypotheses, reservoir 0) or an `Untouched` step. -/
-theorem process_stepSD {fork : Fork} (hparis : .paris ≤ fork)
+/-- `process_stepSD` for the fresh meter of the message, whose reservoir is that of the
+message. -/
+theorem process_stepSD_start {fork : Fork} (hparis : .paris ≤ fork)
     {message : Message fork} {state : State.TransactionState} {substate : Substate}
     (hmc : message.code = CODE)
     (noPrecompile : precompileAddress fork message = none)
@@ -473,13 +521,8 @@ theorem process_stepSD {fork : Fork} (hparis : .paris ≤ fork)
     (hproc : processMessage fork message state substate = .ok ended) :
     GoodCallS message.currentTarget state ended.val.state ∨
       GoodCallDS message.currentTarget state ended.val.state ∨
-      Untouched message.currentTarget state ended.val.state := by
-  by_cases hdep : byte20 (storageAt state message.currentTarget 10) = 0
-  · rcases process_stepS hparis hmc noPrecompile hsize K h7 h8 hdep hproc with h | h
-    · exact .inl h
-    · exact .inr (.inr h)
-  · exact .inr (process_stepDS hparis hmc noPrecompile hsize K h7 h8 hdep (hres hdep)
-      (hkeeps hdep) (hhonest hdep) hproc)
+      Untouched message.currentTarget state ended.val.state :=
+  process_stepSD hparis hmc noPrecompile hsize K h7 h8 hkeeps hhonest hres hproc
 
 end Meter
 

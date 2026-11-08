@@ -309,7 +309,8 @@ from Berlin, with the hypotheses of the Nat form:
   (`RunOkS`) and `Untouched` steps. `nonOwner_seqS`, `paused_seqS`, `listed_seqS`,
   `allowKept_seqS`, `supply_seqS` state the five properties over it. `process_stepSec`: from
   Paris, every top-level message with code `CODE`, no precompile, that EthLib's `processMessage`
-  over `StateGasMeter` ends is a `RunOkS` step or an `Untouched` step.
+  over `StateGasMeter` ends, from any starting meter (round 41), is a `RunOkS` step or an
+  `Untouched` step.
 - Route: `ends_any` gives, from such a run with no error, a loop of the meter `Nat` from a fresh
   frame of `CODE` with more gas that ends (`Gas.Ends`) in the same state (`Shadow.shadow_ends`).
   The properties depend only on the state.
@@ -343,8 +344,9 @@ of `CODE`, deprecated, for any gas bound and message runner over `StateGasMeter`
   the message are exact.
 - Invariant (Usdt/Invariant/DepMeter.lean): `inv_call_depS` under `KeepsInvAtS` and, for
   destroyBlackFunds, `HonestBalanceAtS`. `inv_call_anyD` adds the case not deprecated at any
-  reservoir. `process_stepDS`: from Paris, a deprecated top-level message with reservoir 0 that
-  `processMessage` over `StateGasMeter` ends is a `GoodCallDS` or an `Untouched` step.
+  reservoir. `process_stepDS`: from Paris, a deprecated top-level message that `processMessage`
+  over `StateGasMeter` ends from a starting meter with reservoir 0 (round 41: any such meter, not
+  only the fresh meter of the message) is a `GoodCallDS` or an `Untouched` step.
   `process_stepSD` covers every case.
 - Security (Usdt/Security/DepMeter.lean): `effect_allS` (deprecated or not, reservoir 0 when
   deprecated), `paused_call_allS`, `nonOwner_call_allS`, `listed_call_allS`,
@@ -354,6 +356,19 @@ of `CODE`, deprecated, for any gas bound and message runner over `StateGasMeter`
   over `Nat` now follow from `dep_X_completeC` over `RunC`, with unchanged statements.
 - Not covered: a reservoir other than 0 when deprecated, the gas left after the CALL, the
   deprecated sequence forms of the security properties over `StateGasMeter`.
+
+## The EIP-8037 meter, round 41: the fourth audit
+
+- U1, the starting meter of `processMessage`. EthLib's `processMessageCall` runs the first frame
+  with the meter left by the preparation of that frame. At Glamsterdam the authorizations of a
+  type-4 transaction charge state gas to it and commit it, so it is not the fresh meter of the
+  message. `goodCall_processS`, `process_value_failsS`, `process_stepS` (Usdt/Invariant/SeqMeter.lean),
+  `process_stepDS`, `process_stepSD` (Usdt/Invariant/DepMeter.lean), `runOkS_process` and
+  `process_stepSec` (Usdt/Security/Meter.lean) now take `processMessage fork message state
+  substate meter held = .ok ended` for any `meter : StateGasMeter`. The deprecated forms ask
+  `meter.reservoir = 0` in place of `message.reservoir = 0`. The forms for the fresh meter are the
+  `_start` corollaries. `ProcessMeter.processMessage_map_valM`, `processMessage_map_val_valueM`
+  and `at_startFrameS` take the starting meter too.
 
 ## Completeness of the dispatcher, for every gas
 
@@ -1259,8 +1274,8 @@ bound and message runner, not deprecated, from Berlin:
   transaction. `inv_call_any`; `GoodCallS`, `CallsS` (steps over `Nat`, steps over
   `StateGasMeter`, `Untouched` steps), `inv_callsS`; `goodCall_processS`, `process_value_failsS`,
   `process_stepS`: from Paris, every top-level message to `C` with code `CODE`, no precompile,
-  not deprecated, that EthLib's `processMessage` over `StateGasMeter` ends, is a `GoodCallS` or
-  an `Untouched` step. These carry the keccak hypothesis `SepOn (callKeys message S)` and `StrForm`
+  not deprecated, that EthLib's `processMessage` over `StateGasMeter` ends (round 41: from any
+  starting meter), is a `GoodCallS` or an `Untouched` step. These carry the keccak hypothesis `SepOn (callKeys message S)` and `StrForm`
   of slots 7 and 8, as `goodCall_process`.
 - Generic: `Refill.HoareG.toIW'`, `HoareG.toI1`, `SpecG.toIW'`, `SpecG.toIS` (lifts of a stretch
   or a whole path that changes one word); `Shadow.runsOk_of_specI` (a run over `StateGasMeter`
