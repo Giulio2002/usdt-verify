@@ -1112,3 +1112,15 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Complete.dep_totalSupply_completeC
 #print axioms UsdtVerify.Complete.incorporateChild_toNat
 #print axioms UsdtVerify.Complete.dep_totalSupply_completeS
+#print axioms UsdtVerify.Complete.dep_balanceOf_completeC
+#print axioms UsdtVerify.Complete.dep_balanceOf_completeS
+#print axioms UsdtVerify.Complete.dep_allowance_completeC
+#print axioms UsdtVerify.Complete.dep_allowance_completeS
+#print axioms UsdtVerify.Complete.dep_transfer_completeC
+#print axioms UsdtVerify.Complete.dep_transfer_completeS
+#print axioms UsdtVerify.Complete.dep_approve_completeC
+#print axioms UsdtVerify.Complete.dep_approve_completeS
+#print axioms UsdtVerify.Complete.dep_transferFrom_completeC
+#print axioms UsdtVerify.Complete.dep_transferFrom_completeS
+#print axioms UsdtVerify.Complete.dep_destroy_completeC
+#print axioms UsdtVerify.Complete.dep_destroy_completeS
