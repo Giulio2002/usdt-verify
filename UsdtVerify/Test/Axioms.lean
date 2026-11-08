@@ -1084,6 +1084,7 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Security.runOkS_process_start
 #print axioms UsdtVerify.Security.process_stepSec_start
 #print axioms UsdtVerify.Complete.callStep_child_rS
+#print axioms UsdtVerify.Complete.callStep_child_res0
 #print axioms UsdtVerify.Complete.resumeCall_sgm
 #print axioms UsdtVerify.Complete.lifts_gasStep
 #print axioms UsdtVerify.Complete.lifts_extcodesizeStep

@@ -1816,6 +1816,10 @@ T1 (third audit), continued. Items 2 to 4 of the plan of round 38.
   authorizations. The deprecated forms take `meter.reservoir = 0`. The old statements are the
   `_start` corollaries. `processMessage_map_valM`, `processMessage_map_val_valueM` and
   `at_startFrameS` (Evm/ProcessMeter.lean) take the starting meter.
+- U3. `callStep_child_res0` (Evm/CallMeter.lean): the CALL from reservoir 0 sends reservoir 0 and
+  leaves the caller with reservoir 0. `CallCorr`, `RunS`, `FwdAtS` and the seven
+  `dep_X_completeS` carry both facts, and `KeepsInvAtS`, `HonestBalanceAtS` and `KeepsAtS` ask
+  their property only of calls from a caller and with a message of reservoir 0.
 
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from

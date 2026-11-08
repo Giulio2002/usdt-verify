@@ -565,6 +565,10 @@ Round 41 (fourth audit, U1): `Complete.goodCall_processS`, `Complete.process_val
 `processMessage`, as EthLib's `processMessageCall` passes the meter left by the authorizations of
 the transaction. The deprecated forms ask that meter to have reservoir 0. The forms for the fresh
 meter of the message are the `_start` corollaries.
+Round 41 (U3): `Complete.callStep_child_res0`: the CALL from reservoir 0 sends a message with
+reservoir 0 and leaves the caller with reservoir 0. `KeepsInvAtS`, `HonestBalanceAtS` and
+`Security.KeepsAtS` ask their property only of such calls, and the `dep_X_completeS` conclusions
+state both facts.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

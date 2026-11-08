@@ -34,11 +34,12 @@ variable {fork : Fork}
 
 /-- The runs of a message runner over `StateGasMeter`, seen over `Nat`: the runner ran the
 message from a caller whose `toNat` is `cN` and gave a child whose `toNat` is `chN` with some
-gas. -/
+gas. The caller and the message have reservoir 0, as at the CALL from reservoir 0
+(`Meter.CallCorr`). -/
 def RunS {bound : Nat} (runChild : MessageRunner fork StateGasMeter bound) (cN : Evm fork Nat)
     (msg : Message fork) (chN : Evm fork Nat) : Prop :=
   ∃ cS lt chS, runChild cS msg lt = .ok chS ∧ toNat cS = cN ∧
-    chN = { toNat chS.1 with gas := chN.gas }
+    chN = { toNat chS.1 with gas := chN.gas } ∧ cS.gas.reservoir = 0 ∧ msg.reservoir = 0
 
 /-- The resume after a CALL over `Nat` from a child with other gas: the same frame, whose gas is
 the caller's plus the child's. -/
@@ -100,7 +101,7 @@ theorem runC_of_sgm (hfork : .berlin ≤ fork) {bound : Nat}
     by_cases hF : Fwd (toNat m)
     · rcases hF with ⟨hp, hnr⟩ | hc
       · exact hcorr (step_simX hr hp hnr)
-      · rcases step_callX hfork hr hc with hbad | hc' | ⟨caller, msg, o, osz, hS, hN, hcr⟩
+      · rcases step_callX hfork hr hc with hbad | hc' | ⟨caller, msg, o, osz, hS, hN, hcr, hmr⟩
         · rcases hbad with ⟨e, he⟩ | ⟨b, hb, hbr, hbe⟩
           · exact absurd hok (sgm_step_error hrun he h)
           · rw [runFrame_of_step_eq_next hrun hb, runFrame_of_running_eq_false hbr] at h
@@ -124,7 +125,7 @@ theorem runC_of_sgm (hfork : .berlin ≤ fork) {bound : Nat}
           obtain ⟨G, hE⟩ := Shadow.shadow_run hfork h hok
             (n := { y' with gas := (toNat caller).gas + budget y })
             (by rw [hty]) (Nat.le_add_left _ _)
-          exact ⟨G, .call hrn hN ⟨caller, lt, chS, hch, rfl, rfl⟩ hres' hE⟩
+          exact ⟨G, .call hrn hN ⟨caller, lt, chS, hch, rfl, rfl, hcr, hmr⟩ hres' hE⟩
     · exact ⟨0, .out hrn hF⟩
   · have hl : m.running = false := by simpa using hrun
     rw [runFrame_of_running_eq_false hl] at h

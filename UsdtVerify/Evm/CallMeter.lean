@@ -11,7 +11,8 @@ passes on its whole reservoir: the message carries the reservoir of the frame, a
 keeps a reservoir of 0 (EthLib's `finishCall`, `GasMeter.drain`). The other fields of the meter
 are kept. `resumeCall_sgm`: the resume after the child. `lifts_gasStep`, `lifts_extcodesizeStep`:
 GAS and EXTCODESIZE, the two other opcodes of the deprecated paths outside `simulated`, are
-`Lifts` of their instruction over `Nat`.
+`Lifts` of their instruction over `Nat`. `callStep_child_res0` (round 41): from a frame with
+reservoir 0, the message the CALL sends has reservoir 0, and so has the caller.
 -/
 
 namespace UsdtVerify.Complete
@@ -166,6 +167,25 @@ theorem callStep_child_rS (hfork : .berlin ≤ fork)
       refine ⟨_, _, ⟨rfl, rfl, rfl⟩, ?_⟩
       and_intros
       all_goals first | rfl | (dsimp only; omega) | (dsimp only; congr 1; omega) | skip
+
+/-- **The CALL from reservoir 0 sends reservoir 0** (round 41). Under the hypotheses of
+`callStep_child_rS`, from a frame with reservoir 0, the message the CALL sends has reservoir 0, and
+the caller frame that waits for it has reservoir 0. -/
+theorem callStep_child_res0 (hfork : .berlin ≤ fork)
+    {evm : Evm fork StateGasMeter} (hr : evm.gas.reservoir = 0) {g a i isz o osz : U256}
+    {rest : List U256} {calleeCode : ByteArray} {r : Route}
+    (hst : evm.stack.val = g :: a :: 0 :: i :: isz :: o :: osz :: rest)
+    (hcode : evm.state.getCode (evm.state.getAccount (toAddressMasked a)).codeHash = .ok calleeCode)
+    (hroute : Routes fork evm.state calleeCode r)
+    (hdepth : evm.message.depth + 1 ≤ STACK_DEPTH_LIMIT)
+    (hgas : callBaseCost fork (decide (toAddressMasked a ∉ evm.substate.accessedAddresses)) +
+      routeCost fork (evm.substate.accessedAddresses.insert (toAddressMasked a)) r +
+      (extendMemory evm.memory.size [(i, isz), (o, osz)]).cost ≤ evm.gas.gasLeft) :
+    ∃ caller msg, callStep .call evm = .ok (.child caller msg (resumeCall fork caller 0 o osz)) ∧
+      caller.gas.reservoir = 0 ∧ msg.reservoir = 0 := by
+  obtain ⟨caller, msg, h, -, -, -, -, -, -, hg, -, -, -, -, -, hmr, -⟩ :=
+    callStep_child_rS hfork hst hcode hroute hdepth hgas
+  exact ⟨caller, msg, h, by rw [hg], hmr.trans hr⟩
 
 /-- **The frame after the CALL over `StateGasMeter`** (round 37). When the caller frame resumes
 from the child frame over `StateGasMeter` (EthLib's `resumeCall`, with no state gas of a new

@@ -924,6 +924,14 @@ is the T2 pattern for one more field. It does not affect the STOP instances of U
 three definitions, carried by `RunS` from `CallCorr`. Otherwise say in the README that the gas and
 the reservoir of the forwarded message are free.
 
+**Resolution (round 41).** Fixed as suggested, with both facts. `callStep_child_res0`
+(Evm/CallMeter.lean): from a frame with reservoir 0, the CALL sends a message with reservoir 0
+and the caller frame has reservoir 0. `CallCorr` states `msg.reservoir = 0`, and `RunS` carries
+`cS.gas.reservoir = 0` and `msg.reservoir = 0`. `KeepsInvAtS`, `HonestBalanceAtS` and `KeepsAtS`
+take `caller.gas.reservoir = 0 → msg.reservoir = 0 →` before the run of the runner. `FwdAtS` and
+the conclusions of the seven `dep_X_completeS` state both facts. The gas of the forwarded message
+and the other fields of the caller's meter stay free in the three definitions, as before.
+
 ## U4. Smaller README overstatements in the Glamsterdam paragraph (Low)
 
 - "`UsdtVerify/Usdt/Meter.lean` carries the completeness theorems outside the deprecated mode …

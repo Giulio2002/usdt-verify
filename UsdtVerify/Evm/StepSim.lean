@@ -17,7 +17,7 @@ and CALL. Here:
   error or corresponding next frames (`CorrS`, at the greatest depth), or both send the same
   message (`CallCorr`): the caller over `Nat` is the `toNat` of the caller over `StateGasMeter`,
   whose reservoir is 0, and both resume through EthLib's `resumeCall`. The message carries the
-  reservoir of the frame, 0.
+  reservoir of the frame, 0 (stated in `CallCorr` since round 41).
 -/
 
 namespace UsdtVerify.Meter
@@ -71,12 +71,13 @@ def CallX (x : Evm fork Nat) : Prop :=
       x.state.getCode (x.state.getAccount (toAddressMasked a)).codeHash = .ok c
 
 /-- Two steps that send the same message: the caller over `Nat` is the `toNat` of the caller over
-`StateGasMeter`, whose reservoir is 0, and both resume through `resumeCall`. -/
+`StateGasMeter`, whose reservoir is 0, the message has reservoir 0, and both resume through
+`resumeCall`. -/
 def CallCorr (rS : Except EvmError (StepResult fork StateGasMeter))
     (rN : Except EvmError (StepResult fork Nat)) : Prop :=
   ∃ caller msg o osz, rS = .ok (.child caller msg (resumeCall fork caller 0 o osz)) ∧
     rN = .ok (.child (toNat caller) msg (resumeCall fork (toNat caller) 0 o osz)) ∧
-    caller.gas.reservoir = 0
+    caller.gas.reservoir = 0 ∧ msg.reservoir = 0
 
 /-- Every call has a route, or, from Pectra, delegates to an address whose code is not found. -/
 theorem routes_or_missing (st : State.TransactionState) (c : ByteArray) :
@@ -117,7 +118,10 @@ theorem step_callX (hfork : .berlin ≤ fork) {m : Evm fork StateGasMeter}
       exact .inr (.inl (.inr ⟨after, h1, h2, .inl h3⟩))
     · obtain ⟨caller, msg, h1, h2, h3⟩ :=
         callStep_child_sim hfork hr hst hcode hroute (by omega) hgas
-      exact .inr (.inr ⟨caller, msg, o, osz, h1, h2, h3⟩)
+      obtain ⟨c', msg', h1', -, hmr⟩ :=
+        callStep_child_res0 hfork hr hst hcode hroute (by omega) hgas
+      cases h1.symm.trans h1'
+      exact .inr (.inr ⟨caller, msg, o, osz, h1, h2, h3, hmr⟩)
   · exact .inl (callStep_missingS hfork hst hcode hpec hd hmiss)
 
 end UsdtVerify.Meter

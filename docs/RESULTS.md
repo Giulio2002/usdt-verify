@@ -369,6 +369,11 @@ of `CODE`, deprecated, for any gas bound and message runner over `StateGasMeter`
   `meter.reservoir = 0` in place of `message.reservoir = 0`. The forms for the fresh meter are the
   `_start` corollaries. `ProcessMeter.processMessage_map_valM`, `processMessage_map_val_valueM`
   and `at_startFrameS` take the starting meter too.
+- U3, the reservoir at the CALL. `callStep_child_res0` (Evm/CallMeter.lean): from a frame with
+  reservoir 0, the CALL sends a message with reservoir 0, and the caller frame has reservoir 0.
+  The runner assumptions `KeepsInvAtS`, `HonestBalanceAtS` (Usdt/Invariant/DepMeter.lean) and
+  `KeepsAtS` (Usdt/Security/DepMeter.lean) ask their property only of such calls, and the seven
+  `dep_X_completeS` state both facts of the call they find.
 
 ## Completeness of the dispatcher, for every gas
 

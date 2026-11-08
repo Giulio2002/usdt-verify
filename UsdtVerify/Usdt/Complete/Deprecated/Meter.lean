@@ -19,7 +19,8 @@ Each conclusion is the one of the theorem over `Nat` without the gas after the C
 `caller` and `child` and the message are those of the run over `StateGasMeter`, the code found,
 the route, the gas before the CALL, the gas of the message, the output, the state and the
 substate at the end are exact. The gas left at the end is not stated: after the CALL the child may
-give back a reservoir.
+give back a reservoir. Since round 41 each conclusion also states that the caller frame and the
+message of the CALL have reservoir 0.
 
 - `incorporateChild_toNat`: the state and substate of `incorporateChild` read no gas.
 - `dep_totalSupply_completeS`, `dep_balanceOf_completeS`, `dep_allowance_completeS`,
@@ -85,6 +86,7 @@ theorem dep_totalSupply_completeS (hfork : .berlin ≤ fork)
       routeCost fork (callSub substate state message).accessedAddresses r ≤ gas ∧
     message.depth + 1 ≤ STACK_DEPTH_LIMIT ∧
     ∃ caller msg lt child, runChild caller msg lt = .ok child ∧ child.1.error = none ∧
+      caller.gas.reservoir = 0 ∧ msg.reservoir = 0 ∧
       SendsVia message (upAddr state message) c r SEL_TS msg ∧
       msg.gas = (depCallGas fork (askedOf fork gas (coldIn substate message.currentTarget 10)
           (decide (upAddr state message ∉ substate.accessedAddresses)))
@@ -100,7 +102,7 @@ theorem dep_totalSupply_completeS (hfork : .berlin ≤ fork)
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
   obtain ⟨G, hC⟩ := runC_of_sgm hfork hrun hok (.inl hres)
-  obtain ⟨c, r, h1, h2, h3, h4, h5, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN⟩, he, hfwd,
+  obtain ⟨c, r, h1, h2, h3, h4, h5, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩, he, hfwd,
     hmg, hcs, hcss, -, hr, ho, -, hst, hss⟩ :=
     dep_totalSupply_completeC hfork hsize' hsel hdep start hC (endsOk_of_sgm hfork hrun hok) hok
   have cs : child.state = chS.1.state := by rw [hchN]; rfl
@@ -109,7 +111,7 @@ theorem dep_totalSupply_completeS (hfork : .berlin ≤ fork)
   have co : child.output = chS.1.output := by rw [hchN]; rfl
   obtain ⟨i1, i2⟩ := incorporateChild_toNat cS chS.1 child cs css ce (by rw [hchN]; rfl)
   simp only [i1, i2, cs, css, ce, co] at he ho hst hss
-  exact ⟨c, r, h1, h2, h3, h4, h5, cS, msg, lt, chS, hch, he, hfwd, hmg, hcs, hcss, hr, ho, hst, hss⟩
+  exact ⟨c, r, h1, h2, h3, h4, h5, cS, msg, lt, chS, hch, he, hcr, hmr, hfwd, hmg, hcs, hcss, hr, ho, hst, hss⟩
 
 /-- **Deprecated balanceOf(a) over the EIP-8037 meter.** `dep_balanceOf_complete` for a run of the loop over
 `StateGasMeter`, for any gas bound and message runner, from a frame `m` with reservoir 0 whose
@@ -132,6 +134,7 @@ theorem dep_balanceOf_completeS (hfork : .berlin ≤ fork)
       routeCost fork (callSub substate state message).accessedAddresses r ≤ gas ∧
     message.depth + 1 ≤ STACK_DEPTH_LIMIT ∧
     ∃ caller msg lt child, runChild caller msg lt = .ok child ∧ child.1.error = none ∧
+      caller.gas.reservoir = 0 ∧ msg.reservoir = 0 ∧
       SendsVia message (upAddr state message) c r (dataB message) msg ∧
       msg.gas = (depCallGas fork (askedOfB fork gas (coldIn substate message.currentTarget 10)
           (decide (upAddr state message ∉ substate.accessedAddresses)))
@@ -148,14 +151,14 @@ theorem dep_balanceOf_completeS (hfork : .berlin ≤ fork)
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
   obtain ⟨G, hC⟩ := runC_of_sgm hfork hrun hok (.inl hres)
-  obtain ⟨c, r, h1, h2, h3, h4, h5, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8⟩ :=
+  obtain ⟨c, r, h1, h2, h3, h4, h5, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8⟩ :=
     dep_balanceOf_completeC hfork hsize' hsel hdep start hC (endsOk_of_sgm hfork hrun hok) hok
   have cs : child.state = chS.1.state := by rw [hchN]; rfl
   have css : child.substate = chS.1.substate := by rw [hchN]; rfl
   have ce : child.error = chS.1.error := by rw [hchN]; rfl
   have co : child.output = chS.1.output := by rw [hchN]; rfl
   obtain ⟨i1, i2⟩ := incorporateChild_toNat cS chS.1 child cs css ce (by rw [hchN]; rfl)
-  exact ⟨c, r, h1, h2, h3, h4, h5, cS, msg, lt, chS, hch, (by first | (simp only [i1, i2, cs, css, ce, co] at f0; exact f0) | exact f0), (by first | (simp only [i1, i2, cs, css, ce, co] at q1; exact q1) | exact q1), (by first | (simp only [i1, i2, cs, css, ce, co] at q2; exact q2) | exact q2), (by first | (simp only [i1, i2, cs, css, ce, co] at q3; exact q3) | exact q3), (by first | (simp only [i1, i2, cs, css, ce, co] at q4; exact q4) | exact q4), (by first | (simp only [i1, i2, cs, css, ce, co] at q5; exact q5) | exact q5), (by first | (simp only [i1, i2, cs, css, ce, co] at q6; exact q6) | exact q6), (by first | (simp only [i1, i2, cs, css, ce, co] at q7; exact q7) | exact q7), (by first | (simp only [i1, i2, cs, css, ce, co] at q8; exact q8) | exact q8)⟩
+  exact ⟨c, r, h1, h2, h3, h4, h5, cS, msg, lt, chS, hch, (by first | (simp only [i1, i2, cs, css, ce, co] at f0; exact f0) | exact f0), hcr, hmr, (by first | (simp only [i1, i2, cs, css, ce, co] at q1; exact q1) | exact q1), (by first | (simp only [i1, i2, cs, css, ce, co] at q2; exact q2) | exact q2), (by first | (simp only [i1, i2, cs, css, ce, co] at q3; exact q3) | exact q3), (by first | (simp only [i1, i2, cs, css, ce, co] at q4; exact q4) | exact q4), (by first | (simp only [i1, i2, cs, css, ce, co] at q5; exact q5) | exact q5), (by first | (simp only [i1, i2, cs, css, ce, co] at q6; exact q6) | exact q6), (by first | (simp only [i1, i2, cs, css, ce, co] at q7; exact q7) | exact q7), (by first | (simp only [i1, i2, cs, css, ce, co] at q8; exact q8) | exact q8)⟩
 
 /-- **Deprecated allowance(a, b) over the EIP-8037 meter.** `dep_allowance_complete` for a run of the loop over
 `StateGasMeter`, for any gas bound and message runner, from a frame `m` with reservoir 0 whose
@@ -178,6 +181,7 @@ theorem dep_allowance_completeS (hfork : .berlin ≤ fork)
     preCostAl fork c10 cU + 100 + routeCost fork (callSub substate state message).accessedAddresses r ≤ gas ∧
     message.depth + 1 ≤ STACK_DEPTH_LIMIT ∧
     ∃ caller msg lt child, runChild caller msg lt = .ok child ∧ child.1.error = none ∧
+      caller.gas.reservoir = 0 ∧ msg.reservoir = 0 ∧
       SendsVia message (upAddr state message) c r (dataAl message) msg ∧
       msg.gas = (depCallGas fork (askedOfAl fork gas c10 cU) (gas - preCostAl fork c10 cU)
         (routeCost fork (callSub substate state message).accessedAddresses r)).subCall ∧
@@ -191,14 +195,14 @@ theorem dep_allowance_completeS (hfork : .berlin ≤ fork)
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
   obtain ⟨G, hC⟩ := runC_of_sgm hfork hrun hok (.inl hres)
-  obtain ⟨c, r, h1, h2, h3, h4, h5, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8⟩ :=
+  obtain ⟨c, r, h1, h2, h3, h4, h5, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8⟩ :=
     dep_allowance_completeC hfork hsize' hsel hdep hc10 hcU start hC (endsOk_of_sgm hfork hrun hok) hok
   have cs : child.state = chS.1.state := by rw [hchN]; rfl
   have css : child.substate = chS.1.substate := by rw [hchN]; rfl
   have ce : child.error = chS.1.error := by rw [hchN]; rfl
   have co : child.output = chS.1.output := by rw [hchN]; rfl
   obtain ⟨i1, i2⟩ := incorporateChild_toNat cS chS.1 child cs css ce (by rw [hchN]; rfl)
-  exact ⟨c, r, h1, h2, h3, h4, h5, cS, msg, lt, chS, hch, (by first | (simp only [i1, i2, cs, css, ce, co] at f0; exact f0) | exact f0), (by first | (simp only [i1, i2, cs, css, ce, co] at q1; exact q1) | exact q1), (by first | (simp only [i1, i2, cs, css, ce, co] at q2; exact q2) | exact q2), (by first | (simp only [i1, i2, cs, css, ce, co] at q3; exact q3) | exact q3), (by first | (simp only [i1, i2, cs, css, ce, co] at q4; exact q4) | exact q4), (by first | (simp only [i1, i2, cs, css, ce, co] at q5; exact q5) | exact q5), (by first | (simp only [i1, i2, cs, css, ce, co] at q6; exact q6) | exact q6), (by first | (simp only [i1, i2, cs, css, ce, co] at q7; exact q7) | exact q7), (by first | (simp only [i1, i2, cs, css, ce, co] at q8; exact q8) | exact q8)⟩
+  exact ⟨c, r, h1, h2, h3, h4, h5, cS, msg, lt, chS, hch, (by first | (simp only [i1, i2, cs, css, ce, co] at f0; exact f0) | exact f0), hcr, hmr, (by first | (simp only [i1, i2, cs, css, ce, co] at q1; exact q1) | exact q1), (by first | (simp only [i1, i2, cs, css, ce, co] at q2; exact q2) | exact q2), (by first | (simp only [i1, i2, cs, css, ce, co] at q3; exact q3) | exact q3), (by first | (simp only [i1, i2, cs, css, ce, co] at q4; exact q4) | exact q4), (by first | (simp only [i1, i2, cs, css, ce, co] at q5; exact q5) | exact q5), (by first | (simp only [i1, i2, cs, css, ce, co] at q6; exact q6) | exact q6), (by first | (simp only [i1, i2, cs, css, ce, co] at q7; exact q7) | exact q7), (by first | (simp only [i1, i2, cs, css, ce, co] at q8; exact q8) | exact q8)⟩
 
 /-- **Deprecated transfer(to, value) over the EIP-8037 meter.** `dep_transfer_complete` for a run of the loop over
 `StateGasMeter`, for any gas bound and message runner, from a frame `m` with reservoir 0 whose
@@ -227,6 +231,7 @@ theorem dep_transfer_completeS (hfork : .berlin ≤ fork)
     preCostT fork c0 cB c10 cU + 100 + routeCost fork (callSubT substate state message).accessedAddresses r ≤ gas ∧
     message.depth + 1 ≤ STACK_DEPTH_LIMIT ∧
     ∃ caller msg lt child, runChild caller msg lt = .ok child ∧ child.1.error = none ∧
+      caller.gas.reservoir = 0 ∧ msg.reservoir = 0 ∧
       SendsVia message (upAddr state message) c r (dataT message) msg ∧
       msg.gas = (depCallGas fork (askedOfT fork gas c0 cB c10 cU) (gas - preCostT fork c0 cB c10 cU)
         (routeCost fork (callSubT substate state message).accessedAddresses r)).subCall ∧
@@ -239,14 +244,14 @@ theorem dep_transfer_completeS (hfork : .berlin ≤ fork)
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
   obtain ⟨G, hC⟩ := runC_of_sgm hfork hrun hok (.inl hres)
-  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, h7, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8⟩ :=
+  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, h7, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8⟩ :=
     dep_transfer_completeC hfork hsize' hsel hdep hc0 hcB hc10 hcU start hC (endsOk_of_sgm hfork hrun hok) hok
   have cs : child.state = chS.1.state := by rw [hchN]; rfl
   have css : child.substate = chS.1.substate := by rw [hchN]; rfl
   have ce : child.error = chS.1.error := by rw [hchN]; rfl
   have co : child.output = chS.1.output := by rw [hchN]; rfl
   obtain ⟨i1, i2⟩ := incorporateChild_toNat cS chS.1 child cs css ce (by rw [hchN]; rfl)
-  exact ⟨c, r, h1, h2, h3, h4, h5, h6, h7, cS, msg, lt, chS, hch, (by first | (simp only [i1, i2, cs, css, ce, co] at f0; exact f0) | exact f0), (by first | (simp only [i1, i2, cs, css, ce, co] at q1; exact q1) | exact q1), (by first | (simp only [i1, i2, cs, css, ce, co] at q2; exact q2) | exact q2), (by first | (simp only [i1, i2, cs, css, ce, co] at q3; exact q3) | exact q3), (by first | (simp only [i1, i2, cs, css, ce, co] at q4; exact q4) | exact q4), (by first | (simp only [i1, i2, cs, css, ce, co] at q5; exact q5) | exact q5), (by first | (simp only [i1, i2, cs, css, ce, co] at q6; exact q6) | exact q6), (by first | (simp only [i1, i2, cs, css, ce, co] at q7; exact q7) | exact q7), (by first | (simp only [i1, i2, cs, css, ce, co] at q8; exact q8) | exact q8)⟩
+  exact ⟨c, r, h1, h2, h3, h4, h5, h6, h7, cS, msg, lt, chS, hch, (by first | (simp only [i1, i2, cs, css, ce, co] at f0; exact f0) | exact f0), hcr, hmr, (by first | (simp only [i1, i2, cs, css, ce, co] at q1; exact q1) | exact q1), (by first | (simp only [i1, i2, cs, css, ce, co] at q2; exact q2) | exact q2), (by first | (simp only [i1, i2, cs, css, ce, co] at q3; exact q3) | exact q3), (by first | (simp only [i1, i2, cs, css, ce, co] at q4; exact q4) | exact q4), (by first | (simp only [i1, i2, cs, css, ce, co] at q5; exact q5) | exact q5), (by first | (simp only [i1, i2, cs, css, ce, co] at q6; exact q6) | exact q6), (by first | (simp only [i1, i2, cs, css, ce, co] at q7; exact q7) | exact q7), (by first | (simp only [i1, i2, cs, css, ce, co] at q8; exact q8) | exact q8)⟩
 
 /-- **Deprecated approve(spender, value) over the EIP-8037 meter.** `dep_approve_complete` for a run of the loop over
 `StateGasMeter`, for any gas bound and message runner, from a frame `m` with reservoir 0 whose
@@ -270,6 +275,7 @@ theorem dep_approve_completeS (hfork : .berlin ≤ fork)
     preCostA fork c10 cU + 100 + routeCost fork (callSub substate state message).accessedAddresses r ≤ gas ∧
     message.depth + 1 ≤ STACK_DEPTH_LIMIT ∧
     ∃ caller msg lt child, runChild caller msg lt = .ok child ∧ child.1.error = none ∧
+      caller.gas.reservoir = 0 ∧ msg.reservoir = 0 ∧
       SendsVia message (upAddr state message) c r (dataA message) msg ∧
       msg.gas = (depCallGas fork (askedOfA fork gas c10 cU) (gas - preCostA fork c10 cU)
         (routeCost fork (callSub substate state message).accessedAddresses r)).subCall ∧
@@ -282,14 +288,14 @@ theorem dep_approve_completeS (hfork : .berlin ≤ fork)
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
   obtain ⟨G, hC⟩ := runC_of_sgm hfork hrun hok (.inl hres)
-  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8⟩ :=
+  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8⟩ :=
     dep_approve_completeC hfork hsize' hsel hdep hc10 hcU start hC (endsOk_of_sgm hfork hrun hok) hok
   have cs : child.state = chS.1.state := by rw [hchN]; rfl
   have css : child.substate = chS.1.substate := by rw [hchN]; rfl
   have ce : child.error = chS.1.error := by rw [hchN]; rfl
   have co : child.output = chS.1.output := by rw [hchN]; rfl
   obtain ⟨i1, i2⟩ := incorporateChild_toNat cS chS.1 child cs css ce (by rw [hchN]; rfl)
-  exact ⟨c, r, h1, h2, h3, h4, h5, h6, cS, msg, lt, chS, hch, (by first | (simp only [i1, i2, cs, css, ce, co] at f0; exact f0) | exact f0), (by first | (simp only [i1, i2, cs, css, ce, co] at q1; exact q1) | exact q1), (by first | (simp only [i1, i2, cs, css, ce, co] at q2; exact q2) | exact q2), (by first | (simp only [i1, i2, cs, css, ce, co] at q3; exact q3) | exact q3), (by first | (simp only [i1, i2, cs, css, ce, co] at q4; exact q4) | exact q4), (by first | (simp only [i1, i2, cs, css, ce, co] at q5; exact q5) | exact q5), (by first | (simp only [i1, i2, cs, css, ce, co] at q6; exact q6) | exact q6), (by first | (simp only [i1, i2, cs, css, ce, co] at q7; exact q7) | exact q7), (by first | (simp only [i1, i2, cs, css, ce, co] at q8; exact q8) | exact q8)⟩
+  exact ⟨c, r, h1, h2, h3, h4, h5, h6, cS, msg, lt, chS, hch, (by first | (simp only [i1, i2, cs, css, ce, co] at f0; exact f0) | exact f0), hcr, hmr, (by first | (simp only [i1, i2, cs, css, ce, co] at q1; exact q1) | exact q1), (by first | (simp only [i1, i2, cs, css, ce, co] at q2; exact q2) | exact q2), (by first | (simp only [i1, i2, cs, css, ce, co] at q3; exact q3) | exact q3), (by first | (simp only [i1, i2, cs, css, ce, co] at q4; exact q4) | exact q4), (by first | (simp only [i1, i2, cs, css, ce, co] at q5; exact q5) | exact q5), (by first | (simp only [i1, i2, cs, css, ce, co] at q6; exact q6) | exact q6), (by first | (simp only [i1, i2, cs, css, ce, co] at q7; exact q7) | exact q7), (by first | (simp only [i1, i2, cs, css, ce, co] at q8; exact q8) | exact q8)⟩
 
 /-- **Deprecated transferFrom(from, to, value) over the EIP-8037 meter.** `dep_transferFrom_complete` for a run of the loop over
 `StateGasMeter`, for any gas bound and message runner, from a frame `m` with reservoir 0 whose
@@ -318,6 +324,7 @@ theorem dep_transferFrom_completeS (hfork : .berlin ≤ fork)
     DeprecatedTransferFrom.preCostF fork c0 cB c10 cU + 100 + routeCost fork (callSubF substate state message).accessedAddresses r ≤ gas ∧
     message.depth + 1 ≤ STACK_DEPTH_LIMIT ∧
     ∃ caller msg lt child, runChild caller msg lt = .ok child ∧ child.1.error = none ∧
+      caller.gas.reservoir = 0 ∧ msg.reservoir = 0 ∧
       SendsVia message (upAddr state message) c r (dataF message) msg ∧
       msg.gas = (depCallGas fork (askedOfF fork gas c0 cB c10 cU) (gas - DeprecatedTransferFrom.preCostF fork c0 cB c10 cU)
         (routeCost fork (callSubF substate state message).accessedAddresses r)).subCall ∧
@@ -330,14 +337,14 @@ theorem dep_transferFrom_completeS (hfork : .berlin ≤ fork)
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
   obtain ⟨G, hC⟩ := runC_of_sgm hfork hrun hok (.inl hres)
-  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, h7, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8⟩ :=
+  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, h7, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8⟩ :=
     dep_transferFrom_completeC hfork hsize' hsel hdep hc0 hcB hc10 hcU start hC (endsOk_of_sgm hfork hrun hok) hok
   have cs : child.state = chS.1.state := by rw [hchN]; rfl
   have css : child.substate = chS.1.substate := by rw [hchN]; rfl
   have ce : child.error = chS.1.error := by rw [hchN]; rfl
   have co : child.output = chS.1.output := by rw [hchN]; rfl
   obtain ⟨i1, i2⟩ := incorporateChild_toNat cS chS.1 child cs css ce (by rw [hchN]; rfl)
-  exact ⟨c, r, h1, h2, h3, h4, h5, h6, h7, cS, msg, lt, chS, hch, (by first | (simp only [i1, i2, cs, css, ce, co] at f0; exact f0) | exact f0), (by first | (simp only [i1, i2, cs, css, ce, co] at q1; exact q1) | exact q1), (by first | (simp only [i1, i2, cs, css, ce, co] at q2; exact q2) | exact q2), (by first | (simp only [i1, i2, cs, css, ce, co] at q3; exact q3) | exact q3), (by first | (simp only [i1, i2, cs, css, ce, co] at q4; exact q4) | exact q4), (by first | (simp only [i1, i2, cs, css, ce, co] at q5; exact q5) | exact q5), (by first | (simp only [i1, i2, cs, css, ce, co] at q6; exact q6) | exact q6), (by first | (simp only [i1, i2, cs, css, ce, co] at q7; exact q7) | exact q7), (by first | (simp only [i1, i2, cs, css, ce, co] at q8; exact q8) | exact q8)⟩
+  exact ⟨c, r, h1, h2, h3, h4, h5, h6, h7, cS, msg, lt, chS, hch, (by first | (simp only [i1, i2, cs, css, ce, co] at f0; exact f0) | exact f0), hcr, hmr, (by first | (simp only [i1, i2, cs, css, ce, co] at q1; exact q1) | exact q1), (by first | (simp only [i1, i2, cs, css, ce, co] at q2; exact q2) | exact q2), (by first | (simp only [i1, i2, cs, css, ce, co] at q3; exact q3) | exact q3), (by first | (simp only [i1, i2, cs, css, ce, co] at q4; exact q4) | exact q4), (by first | (simp only [i1, i2, cs, css, ce, co] at q5; exact q5) | exact q5), (by first | (simp only [i1, i2, cs, css, ce, co] at q6; exact q6) | exact q6), (by first | (simp only [i1, i2, cs, css, ce, co] at q7; exact q7) | exact q7), (by first | (simp only [i1, i2, cs, css, ce, co] at q8; exact q8) | exact q8)⟩
 
 /-- **Deprecated destroyBlackFunds(a) over the EIP-8037 meter.** `dep_destroy_complete` for a run of the loop over
 `StateGasMeter`, for any gas bound and message runner, from a frame `m` with reservoir 0 whose
@@ -365,6 +372,7 @@ theorem dep_destroy_completeS (hfork : .berlin ≤ fork)
     preCostD fork c0 cL c10 cU + 100 + routeCost fork (callSubD substate state message).accessedAddresses r ≤ gas ∧
     message.depth + 1 ≤ STACK_DEPTH_LIMIT ∧
     ∃ caller msg lt child, runChild caller msg lt = .ok child ∧ child.1.error = none ∧
+      caller.gas.reservoir = 0 ∧ msg.reservoir = 0 ∧
       message.isStatic = false ∧ hasAccount child.1.state message.currentTarget ∧
       SendsVia message (upAddr state message) c r (dataB message) msg ∧
       msg.gas = (depCallGas fork (askedOfD fork gas c0 cL c10 cU) (gas - preCostD fork c0 cL c10 cU)
@@ -381,13 +389,13 @@ theorem dep_destroy_completeS (hfork : .berlin ≤ fork)
         (incorporateChild fork caller child.1).state message.currentTarget
         (addrArg message.data 0) (resWord (outMemOf (memD message) child.1.output)) := by
   obtain ⟨G, hC⟩ := runC_of_sgm hfork hrun hok (.inl hres)
-  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, h7, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN⟩, f0, q1, q2, q3, q4, q5, q6, -, q7, q8, -, q9, q10, -⟩ :=
+  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, h7, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩, f0, q1, q2, q3, q4, q5, q6, -, q7, q8, -, q9, q10, -⟩ :=
     dep_destroy_completeC hfork hsize' hsel hdep hc0 hcL hc10 hcU start hC (endsOk_of_sgm hfork hrun hok) hok
   have cs : child.state = chS.1.state := by rw [hchN]; rfl
   have css : child.substate = chS.1.substate := by rw [hchN]; rfl
   have ce : child.error = chS.1.error := by rw [hchN]; rfl
   have co : child.output = chS.1.output := by rw [hchN]; rfl
   obtain ⟨i1, i2⟩ := incorporateChild_toNat cS chS.1 child cs css ce (by rw [hchN]; rfl)
-  exact ⟨c, r, h1, h2, h3, h4, h5, h6, h7, cS, msg, lt, chS, hch, (by first | (simp only [i1, i2, cs, css, ce, co] at f0; exact f0) | exact f0), (by first | (simp only [i1, i2, cs, css, ce, co] at q1; exact q1) | exact q1), (by first | (simp only [i1, i2, cs, css, ce, co] at q2; exact q2) | exact q2), (by first | (simp only [i1, i2, cs, css, ce, co] at q3; exact q3) | exact q3), (by first | (simp only [i1, i2, cs, css, ce, co] at q4; exact q4) | exact q4), (by first | (simp only [i1, i2, cs, css, ce, co] at q5; exact q5) | exact q5), (by first | (simp only [i1, i2, cs, css, ce, co] at q6; exact q6) | exact q6), (by first | (simp only [i1, i2, cs, css, ce, co] at q7; exact q7) | exact q7), (by first | (simp only [i1, i2, cs, css, ce, co] at q8; exact q8) | exact q8), (by first | (simp only [i1, i2, cs, css, ce, co] at q9; exact q9) | exact q9), (by first | (simp only [i1, i2, cs, css, ce, co] at q10; exact q10) | exact q10)⟩
+  exact ⟨c, r, h1, h2, h3, h4, h5, h6, h7, cS, msg, lt, chS, hch, (by first | (simp only [i1, i2, cs, css, ce, co] at f0; exact f0) | exact f0), hcr, hmr, (by first | (simp only [i1, i2, cs, css, ce, co] at q1; exact q1) | exact q1), (by first | (simp only [i1, i2, cs, css, ce, co] at q2; exact q2) | exact q2), (by first | (simp only [i1, i2, cs, css, ce, co] at q3; exact q3) | exact q3), (by first | (simp only [i1, i2, cs, css, ce, co] at q4; exact q4) | exact q4), (by first | (simp only [i1, i2, cs, css, ce, co] at q5; exact q5) | exact q5), (by first | (simp only [i1, i2, cs, css, ce, co] at q6; exact q6) | exact q6), (by first | (simp only [i1, i2, cs, css, ce, co] at q7; exact q7) | exact q7), (by first | (simp only [i1, i2, cs, css, ce, co] at q8; exact q8) | exact q8), (by first | (simp only [i1, i2, cs, css, ce, co] at q9; exact q9) | exact q9), (by first | (simp only [i1, i2, cs, css, ce, co] at q10; exact q10) | exact q10)⟩
 
 end UsdtVerify.Complete

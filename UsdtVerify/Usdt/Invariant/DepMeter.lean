@@ -13,7 +13,8 @@ relation `Run` of the child, then for a run over `StateGasMeter` from reservoir 
 - `dep_X_localC` (the six forwarding functions), `dep_destroy_localC`, `inv_dep_destroy_iffC`,
   `inv_dep_destroyC`: the lemmas of All.lean over `RunC`.
 - `KeepsInvAtS`, `HonestBalanceAtS`: the two runner assumptions for a message runner over
-  `StateGasMeter`, about the calls the code makes (`SentVia`, of the `toNat` caller).
+  `StateGasMeter`, about the calls the code makes (`SentVia`, of the `toNat` caller), from a
+  caller and with a message of reservoir 0 (round 41).
   `keepsInvAtC_of_S`, `honestBalanceAtC_of_S`: they give the assumptions over `RunC` for `RunS`.
 - `inv_call_depS`: every deprecated call over `StateGasMeter` from reservoir 0 that ends with no
   error keeps `Inv`, under `KeepsInvAtS` and, for destroyBlackFunds, `HonestBalanceAtS`.
@@ -240,38 +241,42 @@ section Meter
 variable {bound : Nat} {runChild : MessageRunner fork StateGasMeter bound}
 
 /-- `KeepsInvAt` for a message runner over `StateGasMeter`: every call that the code of `C` makes
-from `state` (`SentVia`, of the `toNat` caller) and that the runner ends with no error keeps
-`Inv C` from the caller state to the child's end state. -/
+from `state` (`SentVia`, of the `toNat` caller), from a caller and with a message of reservoir 0
+(as the CALL from reservoir 0 sends it), and that the runner ends with no error keeps `Inv C` from
+the caller state to the child's end state. -/
 def KeepsInvAtS (runChild : MessageRunner fork StateGasMeter bound) (message : Message fork)
     (state : State.TransactionState) : Prop :=
   ∀ caller msg lt child, SentVia message state (upAddr state message) (toNat caller) msg →
+    caller.gas.reservoir = 0 → msg.reservoir = 0 →
     runChild caller msg lt = .ok child → child.1.error = none →
     Inv message.currentTarget caller.state → Inv message.currentTarget child.1.state
 
-/-- `HonestBalanceAt` for a message runner over `StateGasMeter`. -/
+/-- `HonestBalanceAt` for a message runner over `StateGasMeter`, for the calls from a caller and
+with a message of reservoir 0. -/
 def HonestBalanceAtS (runChild : MessageRunner fork StateGasMeter bound) (message : Message fork)
     (state : State.TransactionState) : Prop :=
   ∀ caller msg lt child, SentVia message state (upAddr state message) (toNat caller) msg →
+    caller.gas.reservoir = 0 → msg.reservoir = 0 →
     runChild caller msg lt = .ok child → msg.data = dataB message → child.1.error = none →
       resWord (outMemOf (memD message) child.1.output) =
         storageAt child.1.state message.currentTarget (balSlot message)
 
 theorem keepsInvAtC_of_S (h : KeepsInvAtS runChild message state) :
     KeepsInvAtC (RunS runChild) message state := by
-  rintro caller msg child hsv ⟨cS, lt, chS, hch, rfl, hchN⟩ he hI
+  rintro caller msg child hsv ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩ he hI
   have cs : child.state = chS.1.state := by rw [hchN]; rfl
   have ce : child.error = chS.1.error := by rw [hchN]; rfl
   rw [cs]
-  exact h cS msg lt chS hsv hch (ce ▸ he) hI
+  exact h cS msg lt chS hsv hcr hmr hch (ce ▸ he) hI
 
 theorem honestBalanceAtC_of_S (h : HonestBalanceAtS runChild message state) :
     HonestBalanceAtC (RunS runChild) message state := by
-  rintro caller msg child hsv ⟨cS, lt, chS, hch, rfl, hchN⟩ hmd he
+  rintro caller msg child hsv ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩ hmd he
   have cs : child.state = chS.1.state := by rw [hchN]; rfl
   have ce : child.error = chS.1.error := by rw [hchN]; rfl
   have co : child.output = chS.1.output := by rw [hchN]; rfl
   rw [cs, co]
-  exact h cS msg lt chS hsv hch hmd (ce ▸ he)
+  exact h cS msg lt chS hsv hcr hmr hch hmd (ce ▸ he)
 
 /-- **Every successful deprecated call over the EIP-8037 meter keeps the invariant.** From
 Berlin, from a frame `m` of `StateGasMeter` with reservoir 0 whose `toNat` is the fresh frame of

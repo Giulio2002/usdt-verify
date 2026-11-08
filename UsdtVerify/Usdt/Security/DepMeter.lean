@@ -10,7 +10,8 @@ reservoir is 0 when `C` is deprecated (no hypothesis on the reservoir otherwise)
 
 - `FwdAtS runS message S ua X Y`: `FwdAt` for a runner over `StateGasMeter` (`SentVia` of the
   `toNat` caller). `KeepsAtS runS message S ua R`: `KeepsAt` for such a runner;
-  `KeepsAtS.fwd`.
+  `KeepsAtS.fwd`. Since round 41 both are about calls from a caller and with a message of
+  reservoir 0, as the CALL from reservoir 0 sends them (`callStep_child_res0`).
 - `EffectDF F message S S'`: `EffectD` with the forwarded call given by a relation `F` on the
   states before and after it.
 - `effect_allS`: every run over `StateGasMeter` that ends with no error ends in a state described
@@ -39,24 +40,28 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
   {substate : Substate} {gas bound : Nat} {runS : MessageRunner fork StateGasMeter bound}
 
 /-- `FwdAt` for a message runner over `StateGasMeter`: one call that the code of `C` makes from
-`S` to `ua` (`SentVia` of the `toNat` caller), ended with no error, from `X` to `Y`. -/
+`S` to `ua` (`SentVia` of the `toNat` caller), from a caller and with a message of reservoir 0,
+ended with no error, from `X` to `Y`. -/
 def FwdAtS (runS : MessageRunner fork StateGasMeter bound) (message : Message fork)
     (S : State.TransactionState) (ua : Address) (X Y : State.TransactionState) : Prop :=
   ∃ caller msg lt child, SentVia message S ua (toNat caller) msg ∧
+    caller.gas.reservoir = 0 ∧ msg.reservoir = 0 ∧
     runS caller msg lt = .ok child ∧ child.1.error = none ∧ caller.state = X ∧ child.1.state = Y
 
-/-- `KeepsAt` for a message runner over `StateGasMeter`. -/
+/-- `KeepsAt` for a message runner over `StateGasMeter`, for the calls from a caller and with a
+message of reservoir 0, as the CALL from reservoir 0 sends them. -/
 def KeepsAtS (runS : MessageRunner fork StateGasMeter bound) (message : Message fork)
     (S : State.TransactionState) (ua : Address)
     (R : State.TransactionState → State.TransactionState → Prop) : Prop :=
   ∀ caller msg lt child, SentVia message S ua (toNat caller) msg →
+    caller.gas.reservoir = 0 → msg.reservoir = 0 →
     runS caller msg lt = .ok child → child.1.error = none → R caller.state child.1.state
 
 theorem KeepsAtS.fwd {S : State.TransactionState} {ua : Address}
     {R : State.TransactionState → State.TransactionState → Prop} {X Y : State.TransactionState}
     (hk : KeepsAtS runS message S ua R) (h : FwdAtS runS message S ua X Y) : R X Y := by
-  obtain ⟨caller, msg, lt, child, hs, hch, he, rfl, rfl⟩ := h
-  exact hk caller msg lt child hs hch he
+  obtain ⟨caller, msg, lt, child, hs, hcr, hmr, hch, he, rfl, rfl⟩ := h
+  exact hk caller msg lt child hs hcr hmr hch he
 
 /-- `EffectD` with the forwarded call given by the relation `F`. -/
 inductive EffectDF (F : State.TransactionState → State.TransactionState → Prop)
@@ -95,12 +100,13 @@ theorem fwdS_of {ua : Address} {c : ByteArray} {r : Route} {d : ByteArray}
     {S' : State.TransactionState}
     (hcode : state.getCode (state.getAccount ua).codeHash = .ok c) (hroute : Routes fork state c r)
     (hfwd : SendsVia message ua c r d msg) (hv : SameView caller.state state)
+    (hcr : caller.gas.reservoir = 0) (hmr : msg.reservoir = 0)
     (hch : runS caller msg lt = .ok child) (he : child.1.error = none)
     (hst : S' = (incorporateChild fork caller child.1).state) :
     ∃ X, (∀ n, storageAt X message.currentTarget n = storageAt state message.currentTarget n) ∧
       FwdAtS runS message state ua X S' :=
   ⟨caller.state, fun n => hv.1 _ n, caller, msg, lt, child,
-    ⟨c, r, hcode, hroute, sendsVia_data hfwd, hv⟩, hch, he, rfl,
+    ⟨c, r, hcode, hroute, sendsVia_data hfwd, hv⟩, hcr, hmr, hch, he, rfl,
     by rw [hst, state_incorporateChildS]⟩
 
 /-- **The effect of every successful call over the EIP-8037 meter, deprecated or not.** From
@@ -127,53 +133,53 @@ theorem effect_allS (hfork : .berlin ≤ fork)
   have ne : ∀ {a b : Nat}, selector message.data = a → a ≠ b → selector message.data ≠ b :=
     fun h hab e => hab (h.symm.trans e)
   rcases hf with (h | h | h | h | h | h) | h
-  · obtain ⟨c, r, hcode, hroute, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -,
+  · obtain ⟨c, r, hcode, hroute, -, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, hfwd, -, hcs, -, -,
       -, hst, -⟩ := dep_approve_completeS hfork hsize' h hdep rfl rfl start hr hrun hok
     obtain ⟨X, hX, hF⟩ := fwdS_of hcode hroute hfwd (by
       rw [hcs]; exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _) hch he hst
+        ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _) hcr hmr hch he hst
     exact .fwd hdep (.inl h) (fun e => absurd e (ne h (by decide)))
       (fun e => absurd e (ne h (by decide))) X hX hF
-  · obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -,
+  · obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, hfwd, -, hcs, -, -,
       -, hst, -⟩ := dep_totalSupply_completeS hfork hsize' h hdep start hr hrun hok
     obtain ⟨X, hX, hF⟩ := fwdS_of hcode hroute hfwd (by
       rw [hcs]; exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _) hch he hst
+        ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _) hcr hmr hch he hst
     exact .fwd hdep (.inr (.inl h)) (fun e => absurd e (ne h (by decide)))
       (fun e => absurd e (ne h (by decide))) X hX hF
-  · obtain ⟨c, r, hcode, hroute, hpause, hblack, -, -, -, caller, msg, lt, child, hch, he, hfwd, -,
+  · obtain ⟨c, r, hcode, hroute, hpause, hblack, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, hfwd, -,
       hcs, -, -, -, hst, -⟩ :=
       dep_transferFrom_completeS hfork hsize' h hdep rfl rfl rfl rfl start hr hrun hok
     obtain ⟨X, hX, hF⟩ := fwdS_of hcode hroute hfwd (by
       rw [hcs]; exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
         ⟨fun a n => by simp only [DeprecatedTransferFrom.callStateF,
-        TransferFrom.checkState, storageAt_readSlot], fun a => rfl⟩ _) r) _) hch he hst
+        TransferFrom.checkState, storageAt_readSlot], fun a => rfl⟩ _) r) _) hcr hmr hch he hst
     exact .fwd hdep (.inr (.inr (.inl h))) (fun e => absurd e (ne h (by decide)))
       (fun _ => ⟨hpause, hblack⟩) X hX hF
-  · obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -,
+  · obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, hfwd, -, hcs, -, -,
       -, hst, -⟩ := dep_balanceOf_completeS hfork hsize' h hdep start hr hrun hok
     obtain ⟨X, hX, hF⟩ := fwdS_of hcode hroute hfwd (by
       rw [hcs]; exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _) hch he hst
+        ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _) hcr hmr hch he hst
     exact .fwd hdep (.inr (.inr (.inr (.inl h)))) (fun e => absurd e (ne h (by decide)))
       (fun e => absurd e (ne h (by decide))) X hX hF
-  · obtain ⟨c, r, hcode, hroute, hpause, hblack, -, -, -, caller, msg, lt, child, hch, he, hfwd, -,
+  · obtain ⟨c, r, hcode, hroute, hpause, hblack, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, hfwd, -,
       hcs, -, -, -, hst, -⟩ :=
       dep_transfer_completeS hfork hsize' h hdep rfl rfl rfl rfl start hr hrun hok
     obtain ⟨X, hX, hF⟩ := fwdS_of hcode hroute hfwd (by
       rw [hcs]; exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
         ⟨fun a n => by simp only [DeprecatedTransfer.callStateT,
-        Transfer.shortState, storageAt_readSlot], fun a => rfl⟩ _) r) _) hch he hst
+        Transfer.shortState, storageAt_readSlot], fun a => rfl⟩ _) r) _) hcr hmr hch he hst
     exact .fwd hdep (.inr (.inr (.inr (.inr (.inl h))))) (fun _ => ⟨hpause, hblack⟩)
       (fun e => absurd e (ne h (by decide))) X hX hF
-  · obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -,
+  · obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, hfwd, -, hcs, -, -,
       -, hst, -⟩ := dep_allowance_completeS hfork hsize' h hdep rfl rfl start hr hrun hok
     obtain ⟨X, hX, hF⟩ := fwdS_of hcode hroute hfwd (by
       rw [hcs]; exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _) hch he hst
+        ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _) hcr hmr hch he hst
     exact .fwd hdep (.inr (.inr (.inr (.inr (.inr h))))) (fun e => absurd e (ne h (by decide)))
       (fun e => absurd e (ne h (by decide))) X hX hF
-  · obtain ⟨c, r, hcode, hroute, howner, hlisted, -, -, -, caller, msg, lt, child, hch, he, -,
+  · obtain ⟨c, r, hcode, hroute, howner, hlisted, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, -,
       hacc', hfwd, -, hcs, -, -, -, hst, -⟩ :=
       dep_destroy_completeS hfork hsize' h hdep rfl rfl rfl rfl start hr hrun hok
     have hv : SameView caller.state state := by
@@ -184,7 +190,8 @@ theorem effect_allS (hfork : .berlin ≤ fork)
     refine .dfwd hdep h howner hlisted caller.state child.1.state
       (resWord (DeprecatedBalance.outMemOf (DeprecatedDestroy.memD message) child.1.output))
       (fun n => hv.1 _ n)
-      ⟨caller, msg, lt, child, ⟨c, r, hcode, hroute, sendsVia_data hfwd, hv⟩, hch, he, rfl, rfl⟩
+      ⟨caller, msg, lt, child, ⟨c, r, hcode, hroute, sendsVia_data hfwd, hv⟩, hcr, hmr, hch, he,
+        rfl, rfl⟩
       hacc' ?_
     rw [hst, state_incorporateChildS]
 
