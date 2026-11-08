@@ -3,6 +3,7 @@ import UsdtVerify.Evm.StepSim
 import UsdtVerify.Usdt.Complete.Deprecated.Meter
 import UsdtVerify.Usdt.Invariant.DepMeter
 import UsdtVerify.Usdt.Security.DepMeter
+import UsdtVerify.Usdt.Sanity.ProcessMeter
 import UsdtVerify.Usdt.Meter
 import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.MeterOwner
@@ -1166,3 +1167,10 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Security.listed_call_allS
 #print axioms UsdtVerify.Security.allowKept_call_allS
 #print axioms UsdtVerify.Security.supply_call_allS
+#print axioms UsdtVerify.Sanity.step_stopS
+#print axioms UsdtVerify.Sanity.process_stopS
+#print axioms UsdtVerify.Sanity.sentVia_process_stopS
+#print axioms UsdtVerify.Sanity.keepsInvAtS_process_stop
+#print axioms UsdtVerify.Sanity.keepsAtS_process_stop
+#print axioms UsdtVerify.Sanity.process_mirrorS
+#print axioms UsdtVerify.Sanity.honestBalanceAtS_process_mirror

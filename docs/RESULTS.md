@@ -374,6 +374,14 @@ of `CODE`, deprecated, for any gas bound and message runner over `StateGasMeter`
   The runner assumptions `KeepsInvAtS`, `HonestBalanceAtS` (Usdt/Invariant/DepMeter.lean) and
   `KeepsAtS` (Usdt/Security/DepMeter.lean) ask their property only of such calls, and the seven
   `dep_X_completeS` state both facts of the call they find.
+- U2, instances of the runner assumptions over `StateGasMeter` (Usdt/Sanity/ProcessMeter.lean).
+  From Paris, EthLib's runner over `StateGasMeter` at any bound meets `KeepsInvAtS`
+  (`keepsInvAtS_process_stop`) and `KeepsAtS … R` for every reflexive `R`
+  (`keepsAtS_process_stop`) when the upgraded address holds STOP and is no precompile, and
+  `HonestBalanceAtS` (`honestBalanceAtS_process_mirror`) when it holds `MIRROR`, is no precompile,
+  and its slot `balSlot message` holds in the start state the word of USDT's `balances[a]`.
+  `process_mirrorS`: a `MIRROR` message run over `StateGasMeter` that ends with no error answers
+  the word of its slot, at any reservoir.
 
 ## Completeness of the dispatcher, for every gas
 

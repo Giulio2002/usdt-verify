@@ -1820,6 +1820,12 @@ T1 (third audit), continued. Items 2 to 4 of the plan of round 38.
   leaves the caller with reservoir 0. `CallCorr`, `RunS`, `FwdAtS` and the seven
   `dep_X_completeS` carry both facts, and `KeepsInvAtS`, `HonestBalanceAtS` and `KeepsAtS` ask
   their property only of calls from a caller and with a message of reservoir 0.
+- U2. Usdt/Sanity/ProcessMeter.lean: `step_stopS`, `process_stopS`, `sentVia_process_stopS`,
+  `keepsInvAtS_process_stop`, `keepsAtS_process_stop` (from Paris, `processRunnerM` over
+  `StateGasMeter` meets `KeepsInvAtS` and `KeepsAtS … R` for every reflexive `R` when the upgraded
+  address holds STOP), `process_mirrorS` and `honestBalanceAtS_process_mirror` (`HonestBalanceAtS`
+  when it holds `MIRROR` mirroring USDT's `balances[a]`). Not shown: a concrete deprecated state
+  over `StateGasMeter` with a run of USDT that ends with no error.
 
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from

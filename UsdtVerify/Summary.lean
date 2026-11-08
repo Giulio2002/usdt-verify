@@ -569,6 +569,11 @@ Round 41 (U3): `Complete.callStep_child_res0`: the CALL from reservoir 0 sends a
 reservoir 0 and leaves the caller with reservoir 0. `KeepsInvAtS`, `HonestBalanceAtS` and
 `Security.KeepsAtS` ask their property only of such calls, and the `dep_X_completeS` conclusions
 state both facts.
+Round 41 (U2, Usdt/Sanity/ProcessMeter.lean): from Paris, EthLib's runner over `StateGasMeter`
+(`ProcessMeter.processRunnerM`) meets `KeepsInvAtS` (`Sanity.keepsInvAtS_process_stop`) and
+`KeepsAtS` for every reflexive relation (`Sanity.keepsAtS_process_stop`) when the upgraded address
+holds STOP, and `HonestBalanceAtS` (`Sanity.honestBalanceAtS_process_mirror`) when it holds
+`MIRROR` whose queried slot holds USDT's `balances[a]` in the start state.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

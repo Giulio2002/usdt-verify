@@ -903,6 +903,14 @@ at the start of the transaction. None of them was found to be vacuous.
 **Suggested fix.** Add the two theorems above to Usdt/Sanity/ (for example Sanity/ProcessMeter.lean)
 and, if possible, an `HonestBalanceAtS` instance with `MIRROR`.
 
+**Resolution (round 41).** Fixed. Usdt/Sanity/ProcessMeter.lean has the reviewer's `step_stopS`,
+`process_stopS`, `keepsInvAtS_process_stop` and `keepsAtS_process_stop`, restated for the U3 forms
+of the definitions. It also has `process_mirrorS` and `honestBalanceAtS_process_mirror`: from
+Paris, `processRunnerM` over `StateGasMeter`, at any bound, meets `HonestBalanceAtS` when the
+upgraded address holds `MIRROR`, is no precompile, and its slot `balSlot message` holds in `S` the
+word of USDT's `balances[a]`. A concrete deprecated state over `StateGasMeter` where these hold
+together with a run of USDT that ends with no error is not shown.
+
 ## U3. The `…AtS` hypotheses leave the message reservoir and the caller meter free (Low)
 
 **Evidence.** `KeepsInvAtS`, `HonestBalanceAtS` and `KeepsAtS` constrain the caller only through
