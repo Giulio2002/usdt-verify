@@ -18,6 +18,11 @@ The allowance of `spender` over the tokens of `owner` is the slot `allowed[owner
 - `allowKept_seq`: along a finite sequence of such calls (each not deprecated, slots 7 and 8 of
   `StrForm`, at its own start state) and of `Untouched` steps, every slot of `allowed` keeps its
   word.
+
+Deprecated or not (round 23): `allowKept_call_all` and `allowKept_seq_all`, when deprecated with
+the runner assumption `KeepsAllow` (a call to the upgraded address keeps every slot of `allowed`
+of `C`). transferFrom and approve forward when deprecated, so `transferFrom_bound` has no
+deprecated form.
 -/
 
 namespace UsdtVerify.Security
@@ -26,6 +31,7 @@ open EthLib.Base (Fork U256 Address)
 open EthLib.Execution
 open EthLib.Execution.Evm
 open EthLib.Execution.Evm.Logic
+open Deprecated
 open Invariant Complete Owner Approve Transfer TransferOk TransferFee TransferFrom
 
 /-- Every slot of `allowed` keeps its word. -/
@@ -198,5 +204,78 @@ theorem allowKept_seq (K : KeccakSep) (A : AllowSep) {C : Address} {S S' : State
   subst hC
   obtain ⟨-, he⟩ := hr.effect hdep h7 h8
   exact ⟨he.allowKept K A ⟨ha, hf⟩, trivial⟩
+
+/-! ## Deprecated or not -/
+
+/-- The two writes of deprecated destroyBlackFunds after its call (`balances[a]`, slot 1) write
+only a slot of `balances` and slot 1. -/
+theorem writes_tail {C : Address} {Y : State.TransactionState} (hacc : hasAccount Y C)
+    {a : U256} (ha : BalSlot (mapSlot a 2)) (d : U256) :
+    Writes C BalOrOne Y (DeprecatedDestroy.tailState Y C a d) :=
+  Writes.wr (Writes.wr (Writes.refl _ _ _) hacc (.inl ha) 0) (hasAccount_writeSlot hacc)
+    (.inr rfl) _
+
+/-- The runner assumption of the allowance property when deprecated: every call from `C` to
+`ua` that the runner ends with no error keeps every slot of `allowed` of `C`. -/
+def KeepsAllow {fork : Fork} {bound : Nat} (runChild : MessageRunner fork Nat bound)
+    (C ua : Address) : Prop :=
+  Keeps runChild C ua (AllowKept C)
+
+theorem EffectD.allowKept (K : KeccakSep) (A : AllowSep) {S S' : State.TransactionState}
+    (h : EffectD runChild message S S')
+    (hsel : selector message.data ≠ 0x095ea7b3 ∧ selector message.data ≠ 0x23b872dd)
+    (hk : byte20 (storageAt S message.currentTarget 10) ≠ 0 →
+      KeepsAllow runChild message.currentTarget (upAddr S message)) :
+    AllowKept message.currentTarget S S' := by
+  cases h with
+  | loc h => exact h.allowKept K A hsel
+  | fwd hdep _ _ _ X hX hf => exact fun y z => ((hk hdep).fwd hf y z).trans (hX _)
+  | dfwd hdep _ _ _ X Y d hX hf hacc hst =>
+    intro y z
+    have hbo : ¬ BalOrOne (mapSlot y (mapSlot z 5)) := by
+      rintro (hb | e)
+      · exact bal_not_allow K hb (allow_mk y z)
+      · exact K.one_allow y z e
+    rw [hst, writes_tail hacc (bal_arg _ _) d _ hbo, (hk hdep).fwd hf y z, hX]
+
+/-- **Allowances, one call, deprecated or not.** As `allowKept_call` without `hdep`: when
+deprecated, the runner meets `KeepsAllow` for the calls to the upgraded address (`hkeeps`). If
+the selector is neither approve nor transferFrom and the run ends with no error, every slot of
+`allowed` keeps its word. -/
+theorem allowKept_call_all (K : KeccakSep) (A : AllowSep) (hfork : .berlin ≤ fork)
+    (hsize' : message.data.size < 2 ^ 256)
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    (hsel : selector message.data ≠ 0x095ea7b3 ∧ selector message.data ≠ 0x23b872dd)
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsAllow runChild message.currentTarget (upAddr state message))
+    (start : At CODE message 0 [] .empty gas state substate evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hok : s.error = none) : AllowKept message.currentTarget state s.state :=
+  (effect_all hfork hsize' h7 h8 start within hrun hok).allowKept K A hsel hkeeps
+
+/-- The predicate of `allowKept_seq_all` on each call: neither approve nor transferFrom, and slots
+7 and 8 of `StrForm` at its start state. -/
+def NoAllowFnS {fork : Fork} (message : Message fork) (S : State.TransactionState) : Prop :=
+  selector message.data ≠ 0x095ea7b3 ∧ selector message.data ≠ 0x23b872dd ∧ Strs message S
+
+/-- **Allowances over a sequence, deprecated or not.** Along a finite sequence of successful calls
+to `C` that are neither approve nor transferFrom (with slots 7 and 8 of `StrForm` at each call's
+start state), whose runner meets `KeepsAllow` when `C` is deprecated at that state, and of
+`Untouched` steps: under `KeccakSep` and `AllowSep`, every slot of `allowed` keeps its word.
+Callers may be the owner. -/
+theorem allowKept_seq_all (K : KeccakSep) (A : AllowSep) {C : Address}
+    {S S' : State.TransactionState} (h : SeqR C (AllowKept C) NoAllowFnS S S') :
+    AllowKept C S S' := by
+  refine seqR_lift (I := fun _ => True) (R := AllowKept C) (fun _ _ _ => rfl)
+    (fun h1 h2 y z => (h2 y z).trans (h1 y z)) (fun hu _ => ⟨fun _ _ => hu _, trivial⟩) ?_ h
+    trivial
+  intro S S' fork message hr hq _
+  obtain ⟨ha, hf, h7, h8⟩ := hq
+  have hC : message.currentTarget = C := by obtain ⟨_, _, _, _, _, _, _, hC, -⟩ := hr; exact hC
+  subst hC
+  obtain ⟨-, bound, runChild, he, hk⟩ := hr.effect h7 h8
+  exact ⟨he.allowKept K A ⟨ha, hf⟩ hk, trivial⟩
 
 end UsdtVerify.Security

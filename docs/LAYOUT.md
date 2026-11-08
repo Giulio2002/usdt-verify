@@ -21,6 +21,7 @@ No file there imports a file outside `Evm/`.
 - `Calldata.lean`: the selector and the argument words of the call data.
 - `Steps.lean`: `repc`, `restate`, `slotCost` and the tactics `gas_ok`, `stk_ok`, `step`, `at_pc`.
 - `Frame.lean`: which slots a change of state may write (`Writes`), and a slot that does not decrease (`NoDec`).
+- `Keeps.lean`: a call from one account to another that a message runner ends with no error (`Forwarded`), and a relation the runner keeps over such calls (`Keeps`, the form of the runner assumptions of the security properties when deprecated).
 - `MemRev.lean`: a read across two adjacent memory writes made in reverse order.
 - `Exact.lean`, `Split.lean`: from a specification over `StepG` to every successful run of the interpreter loop.
 - `Route.lean`, `Call.lean`: the route of a CALL (EIP-7702 delegation included), and the EXTCODESIZE, GAS, SUB and CALL steps for any gas and any runner.
@@ -40,6 +41,7 @@ No file there imports a file outside `Evm/`.
 - `Invariant/`: `Supply.lean` (the invariant and its effects), `Calls.lean` (every successful call, not deprecated), `DeprecatedDestroy.lean`, `All.lean` (deprecated or not), `Static.lean` (static frames), `Seq.lean` (a finite sequence of calls).
 
 - `Security/`: `Effect.lean` (what every successful call, not deprecated, does to the storage: `Effect`, `effect_call`; the slot classes; `AllowSep`; sequences `Seq` and `seq_lift`), `Access.lean` (access control), `Pause.lean` (no balance moves while paused), `Blacklist.lean` (a blacklisted address cannot lower its balance), `Allowance.lean` (transferFrom within the allowance; only approve and transferFrom change allowances), `Supply.lean` (`_totalSupply` changes only through issue, redeem and destroyBlackFunds).
+  Since round 23 each file also has the forms deprecated or not (`*_call_all`, `*_seq_all`, with the runner assumptions `KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); `Effect.lean` has `effect_local`, `EffectD`, `effect_all`, `RunOkR`, `SeqR`, `seqR_lift`; `Access.lean` has `owner_only` and `nonOwner_local`; `Pause.lean` has `transfer_checks_all` and `transferFrom_checks_all`.
 
 `UsdtVerify/Test/`: `Hash.lean` (the build checks that `CODE` is the bytes of `data/usdt.runtime.hex` with the recorded keccak256) and `Axioms.lean` (`#print axioms` of the main theorems).
 

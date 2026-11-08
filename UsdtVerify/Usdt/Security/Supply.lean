@@ -18,6 +18,12 @@ bits:
 - `supply_seq`: along a finite sequence of successful calls that are none of issue, redeem and
   destroyBlackFunds (each not deprecated, with slots 7 and 8 of `StrForm`, at its start state),
   and of `Untouched` steps, slot 1 keeps its word.
+
+Deprecated or not (round 23): `supply_call_all` (`SupplyStepD`: `SupplyStep`, or the owner's
+deprecated destroyBlackFunds, slot 1 becomes `T - d` for some word `d`) and
+`supply_seq_all`, when deprecated with the runner assumption `KeepsSupply` (a call to the
+upgraded address keeps slot 1 of `C`). issue and redeem do not branch on the flag: when deprecated
+they are covered by `SupplyStep` with no runner assumption.
 -/
 
 namespace UsdtVerify.Security
@@ -26,6 +32,7 @@ open EthLib.Base (Fork U256 Address)
 open EthLib.Execution
 open EthLib.Execution.Evm
 open EthLib.Execution.Evm.Logic
+open Deprecated
 open Invariant Complete Owner Approve Issue IssueSpec DestroySpec
 
 variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
@@ -124,6 +131,85 @@ theorem supply_seq (K : KeccakSep) {C : Address} {S S' : State.TransactionState}
   · exact h1
   · exact absurd e hi
   · exact absurd e hr'
+  · exact absurd e hd
+
+/-! ## Deprecated or not -/
+
+/-- Slot 1 keeps its word from `S` to `S'`. -/
+def SupplyKept (C : Address) (S S' : State.TransactionState) : Prop :=
+  storageAt S' C 1 = storageAt S C 1
+
+/-- The runner assumption of the supply property when deprecated: every call from `C` to `ua`
+that the runner ends with no error keeps slot 1 of `C`. -/
+def KeepsSupply {fork : Fork} {bound : Nat} (runChild : MessageRunner fork Nat bound)
+    (C ua : Address) : Prop :=
+  Keeps runChild C ua (SupplyKept C)
+
+/-- `SupplyStep`, or the owner's destroyBlackFunds when deprecated: slot 1 becomes `T - d` (a
+256-bit subtraction), `T` slot 1 at the start and `d` some word (the answer of the forwarded
+`balanceOf(a)`). -/
+def SupplyStepD {fork : Fork} (message : Message fork) (S S' : State.TransactionState) : Prop :=
+  SupplyStep message S S' ∨
+  (selector message.data = 0xf3bdc228 ∧ callerWord message = ownerOf S message.currentTarget ∧
+    ∃ d : U256, storageAt S' message.currentTarget 1 = sub (storageAt S message.currentTarget 1) d)
+
+theorem EffectD.supply (K : KeccakSep) {S S' : State.TransactionState}
+    (h : EffectD runChild message S S')
+    (hk : byte20 (storageAt S message.currentTarget 10) ≠ 0 →
+      KeepsSupply runChild message.currentTarget (upAddr S message)) :
+    SupplyStepD message S S' := by
+  cases h with
+  | loc h => exact .inl (h.supply K)
+  | fwd hdep _ _ _ X hX hf => exact .inl (.inl (((hk hdep).fwd hf).trans (hX 1)))
+  | dfwd hdep hsel howner _ X Y d hX hf hacc hst =>
+    refine .inr ⟨hsel, howner, d, ?_⟩
+    rw [hst]
+    simp only [DeprecatedDestroy.tailState]
+    rw [storageAt_writeSlot_self (hasAccount_writeSlot hacc),
+      storageAt_writeSlot_of_ne hacc (Ne.symm (bal_ne_one K _)), (hk hdep).fwd hf, hX]
+
+/-- **Supply, one call, deprecated or not.** As `supply_call` without `hdep`: when deprecated, the
+runner meets `KeepsSupply` for the calls to the upgraded address (`hkeeps`). If the run ends with
+no error, `SupplyStepD` holds: slot 1 keeps its word, or the owner called issue, redeem or
+destroyBlackFunds as in `SupplyStep`, or (deprecated) the owner called destroyBlackFunds and
+slot 1 became `T - d` for some word `d`. -/
+theorem supply_call_all (K : KeccakSep) (hfork : .berlin ≤ fork)
+    (hsize' : message.data.size < 2 ^ 256)
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsSupply runChild message.currentTarget (upAddr state message))
+    (start : At CODE message 0 [] .empty gas state substate evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hok : s.error = none) : SupplyStepD message state s.state :=
+  (effect_all hfork hsize' h7 h8 start within hrun hok).supply K hkeeps
+
+/-- The predicate of `supply_seq_all` on each call: none of issue, redeem and destroyBlackFunds,
+and slots 7 and 8 of `StrForm` at its start state. -/
+def NoSupplyFnS {fork : Fork} (message : Message fork) (S : State.TransactionState) : Prop :=
+  selector message.data ≠ 0xcc872b66 ∧ selector message.data ≠ 0xdb006a75 ∧
+    selector message.data ≠ 0xf3bdc228 ∧ Strs message S
+
+/-- **Supply over a sequence, deprecated or not.** Along a finite sequence of successful calls to
+`C` that are none of issue, redeem and destroyBlackFunds (with slots 7 and 8 of `StrForm` at each
+call's start state), whose runner meets `KeepsSupply` when `C` is deprecated at that state, and
+of `Untouched` steps: under `KeccakSep`, slot 1 keeps its word. Callers may be the owner. -/
+theorem supply_seq_all (K : KeccakSep) {C : Address} {S S' : State.TransactionState}
+    (h : SeqR C (SupplyKept C) NoSupplyFnS S S') : storageAt S' C 1 = storageAt S C 1 := by
+  refine seqR_lift (I := fun _ => True) (R := fun X Y => storageAt Y C 1 = storageAt X C 1)
+    (fun _ => rfl) (fun h1 h2 => h2.trans h1) (fun hu _ => ⟨hu 1, trivial⟩) ?_ h trivial
+  intro S S' fork message hr hq _
+  obtain ⟨hi, hr', hd, h7, h8⟩ := hq
+  have hC : message.currentTarget = C := by obtain ⟨_, _, _, _, _, _, _, hC, -⟩ := hr; exact hC
+  subst hC
+  obtain ⟨-, bound, runChild, he, hk⟩ := hr.effect h7 h8
+  refine ⟨?_, trivial⟩
+  rcases he.supply K hk with (h1 | ⟨e, -⟩ | ⟨e, -⟩ | ⟨e, -⟩) | ⟨e, -⟩
+  · exact h1
+  · exact absurd e hi
+  · exact absurd e hr'
+  · exact absurd e hd
   · exact absurd e hd
 
 end UsdtVerify.Security

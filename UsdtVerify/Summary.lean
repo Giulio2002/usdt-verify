@@ -387,6 +387,21 @@ Over sequences (`Security.Seq`, with `Untouched` steps): `nonOwner_seq`, `paused
 `StrForm`), `allowKept_seq`, `supply_seq` (calls of the other functions, each not deprecated with
 `StrForm` at its start). See docs/RESULTS.md for the exact statements.
 
+## Security properties deprecated or not (round 23)
+`Security.effect_all` (no `hdep`, no runner assumption; `StrForm` of slots 7 and 8): `EffectD`, an `Effect`, or one of the six
+forwards (end state = the child's end state of one call to the upgraded address from a state with
+the start storage of the contract), or the owner's deprecated destroyBlackFunds (that call, then
+`balances[a] := 0`, slot 1 `:=` (slot 1 of the child's end state) `- d`, for some word `d`). `Security.effect_local`: the 25 functions outside
+`FlagFn` have their `Effect` deprecated or not. With a runner assumption `Keeps…` taken only when
+deprecated (`hkeeps`): `Security.nonOwner_call_all` (`KeepsSlots`; the `Protected` slots keep
+their words), `Security.paused_call_all` (`KeepsBal`), `Security.listed_call_all`
+(`KeepsListed`), `Security.allowKept_call_all` (`KeepsAllow`), `Security.supply_call_all`
+(`KeepsSupply`; `SupplyStepD`), and the `_seq_all` forms over `SeqR`. With no runner assumption:
+`Security.owner_only` (the ten `onlyOwner` functions succeed only for the owner),
+`Security.nonOwner_local` (non-owner calls of functions outside the six forwards),
+`Security.transfer_checks_all`, `Security.transferFrom_checks_all` (not paused, sender or
+`_from` not blacklisted). See docs/RESULTS.md, "Security properties, deprecated or not".
+
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas
 bound and any message runner: if the loop of the interpreter ends with no error, then the call

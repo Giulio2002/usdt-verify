@@ -18,6 +18,10 @@ tests it. The balance of `a` is the slot `keccak(a ++ 2)`.
   `Untouched` steps, from a state where `a` is blacklisted, not deprecated, slots 7 and 8 of
   `StrForm`: under `KeccakSep` and `AllowSep`, `balances[a]` never ends lower than it started (and
   `a` stays blacklisted, by `nonOwner_seq`).
+
+Deprecated or not (round 23): `listed_call_all` (when deprecated the runner meets `KeepsListed`:
+a call to the upgraded address lowers the balance of no address blacklisted in its caller state)
+and `listed_seq_all` (with `KeepsSlots` and `KeepsListed`).
 -/
 
 namespace UsdtVerify.Security
@@ -26,6 +30,7 @@ open EthLib.Base (Fork U256 Address)
 open EthLib.Execution
 open EthLib.Execution.Evm
 open EthLib.Execution.Evm.Logic
+open Deprecated
 open Invariant Complete Owner Approve Transfer TransferOk TransferFee TransferFrom Issue IssueSpec
 
 /-- `isBlackListed[a]`: the low byte of the slot `keccak(a ++ 6)` is not 0. -/
@@ -146,6 +151,83 @@ theorem listed_seq (K : KeccakSep) (A : AllowSep) {C : Address} {S S' : State.Tr
   refine ⟨he.listed K ha hl (.inr hq), plain_of_writes K A hw ⟨hdep, h7, h8⟩, ?_⟩
   unfold Listed
   rw [hw _ (protected_not_ba K A (.inr (.inr (.inr (.inr (.inr ⟨a, rfl⟩))))))]
+  exact hl
+
+/-! ## Deprecated or not -/
+
+/-- From `S` to `S'`: every address word `a < 2^160` blacklisted in `S` has a balance in `S'` not
+lower than in `S`. -/
+def ListedNoDec (C : Address) (S S' : State.TransactionState) : Prop :=
+  ∀ a : U256, a.toNat < 2 ^ 160 → Listed C S a → NoDec C (mapSlot a 2) S S'
+
+/-- The runner assumption of the blacklist property when deprecated: every call from `C` to `ua`
+that the runner ends with no error lowers the balance of no address blacklisted in the caller
+state. -/
+def KeepsListed {fork : Fork} {bound : Nat} (runChild : MessageRunner fork Nat bound)
+    (C ua : Address) : Prop :=
+  Keeps runChild C ua (ListedNoDec C)
+
+theorem EffectD.listed (K : KeccakSep) {S S' : State.TransactionState}
+    (h : EffectD runChild message S S')
+    {a : U256} (ha : a.toNat < 2 ^ 160) (hl : Listed message.currentTarget S a)
+    (hsel : (selector message.data ≠ 0xdb006a75 ∧ selector message.data ≠ 0xf3bdc228) ∨
+      callerWord message ≠ ownerOf S message.currentTarget)
+    (hk : byte20 (storageAt S message.currentTarget 10) ≠ 0 →
+      KeepsListed runChild message.currentTarget (upAddr S message)) :
+    NoDec message.currentTarget (mapSlot a 2) S S' := by
+  cases h with
+  | loc h => exact h.listed K ha hl hsel
+  | fwd hdep _ _ _ X hX hf =>
+    exact NoDec.congr_left hX ((hk hdep).fwd hf a ha (by unfold Listed; rw [hX]; exact hl))
+  | dfwd _ hs howner =>
+    rcases hsel with ⟨-, hd⟩ | hno
+    · exact absurd hs hd
+    · exact absurd howner hno
+
+/-- **Blacklist, one call, deprecated or not.** As `listed_call` without `hdep`: when deprecated,
+the runner meets `KeepsListed` for the calls to the upgraded address (`hkeeps`). For an address
+word `a < 2^160` blacklisted at the start, if the run ends with no error and it is not the owner's
+redeem or destroyBlackFunds, `balances[a]` is not lower at the end. (transfer from a blacklisted
+caller, and transferFrom with a blacklisted `_from`, have no successful run, deprecated or not:
+`transfer_checks_all`, `transferFrom_checks_all`.) -/
+theorem listed_call_all (K : KeccakSep) (hfork : .berlin ≤ fork)
+    (hsize' : message.data.size < 2 ^ 256)
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    {a : U256} (ha : a.toNat < 2 ^ 160) (hl : Listed message.currentTarget state a)
+    (hsel : (selector message.data ≠ 0xdb006a75 ∧ selector message.data ≠ 0xf3bdc228) ∨
+      callerWord message ≠ ownerOf state message.currentTarget)
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsListed runChild message.currentTarget (upAddr state message))
+    (start : At CODE message 0 [] .empty gas state substate evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hok : s.error = none) : NoDec message.currentTarget (mapSlot a 2) state s.state :=
+  (effect_all hfork hsize' h7 h8 start within hrun hok).listed K ha hl hsel hkeeps
+
+/-- **Blacklist over a sequence, deprecated or not.** Along a finite sequence of successful calls
+to `C` by callers other than the owner (of each call's start state, with slots 7 and 8 of
+`StrForm` there), whose runner, when `C` is deprecated at that state, meets `Keeps` for both
+`ProtKept C` and `ListedNoDec C` (that is, `KeepsSlots` and `KeepsListed`), and of `Untouched`
+steps, from a state where the address word `a < 2^160` is blacklisted: under `KeccakSep` and
+`AllowSep`, `balances[a]` is not lower at the end. -/
+theorem listed_seq_all (K : KeccakSep) (A : AllowSep) {C : Address}
+    {S S' : State.TransactionState}
+    (h : SeqR C (fun X Y => ProtKept C X Y ∧ ListedNoDec C X Y) NotOwnerS S S')
+    {a : U256} (ha : a.toNat < 2 ^ 160) (hl : Listed C S a) : NoDec C (mapSlot a 2) S S' := by
+  refine seqR_lift (I := fun X => Listed C X a) (R := NoDec C (mapSlot a 2))
+    (fun _ => NoDec.refl _ _ _) (fun h1 h2 => h1.trans h2)
+    (fun hu hI => ⟨NoDec.of_writes (W := fun _ => False) (.of_same hu) id,
+      by unfold Listed; rw [hu]; exact hI⟩) ?_ h hl
+  intro S S' fork message hr hq hl
+  obtain ⟨hno, h7, h8⟩ := hq
+  have hC : message.currentTarget = C := by obtain ⟨_, _, _, _, _, _, _, hC, -⟩ := hr; exact hC
+  subst hC
+  obtain ⟨-, bound, runChild, he, hk⟩ := hr.effect h7 h8
+  have hprot := he.protKept K A hno (fun hd => (hk hd).mono fun _ _ h => h.1)
+  refine ⟨he.listed K ha hl (.inr hno) (fun hd => (hk hd).mono fun _ _ h => h.2), ?_⟩
+  unfold Listed
+  rw [hprot _ (.inr (.inr (.inr (.inr (.inr ⟨a, rfl⟩)))))]
   exact hl
 
 end UsdtVerify.Security

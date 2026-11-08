@@ -2,6 +2,7 @@ import UsdtVerify.Evm.Call
 import UsdtVerify.Evm.Calldata
 import UsdtVerify.Evm.Exact
 import UsdtVerify.Evm.Frame
+import UsdtVerify.Evm.Keeps
 import UsdtVerify.Evm.Gas
 import UsdtVerify.Evm.GasRules
 import UsdtVerify.Evm.Local.Extcodesize

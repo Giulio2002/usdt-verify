@@ -496,8 +496,10 @@ call. destroyBlackFunds ends in `tailState S C a d` over the child's end state `
 `UsdtVerify/Usdt/Security/`. Each theorem is about one run of the deployed code from Berlin on
 (Glamsterdam included): a fresh frame of the code at pc 0, any call data below 2^256 bytes, any
 value, any gas, any gas bound and any message runner, static or not, that ends with no error.
-Each takes "not deprecated" (`hdep`: byte 20 of slot 10 is 0) and, except `transferFrom_bound`,
-slots 7 and 8 of `StrForm` (`h7`, `h8`; the completeness proofs of name() and symbol() use them).
+Each single-call theorem and `nonOwner_seq`, `paused_seq`, `listed_seq` take "not deprecated"
+(`hdep`: byte 20 of slot 10 is 0) and, except `transferFrom_bound`, slots 7 and 8 of `StrForm`
+(`h7`, `h8`; the completeness proofs of name() and symbol() use them); `allowKept_seq` and
+`supply_seq` take both in each call's predicate instead; the `Effect.*` lemmas take neither.
 The keccak hypotheses are `KeccakSep` (as for the invariant) and, where named, `AllowSep` (new,
 not proved: a slot of `allowed` is none of the slots 0..10 and no slot of `isBlackListed`).
 The owner is the low 160 bits of slot 0; the caller is compared with it masked to 160 bits, as
@@ -548,9 +550,116 @@ transitive relation with an invariant to it.
   call's start state; any caller): slot 1 keeps its word. Under `KeccakSep`.
 
 Not covered by these theorems: deprecated calls (the forwarding functions end in the state the
-upgraded contract's call left, which is the runner's), and runs that are not a fresh frame of
-the code (a call through another contract is covered only as a run of the code, not as part of
-the outer transaction).
+upgraded contract's call left, which is the runner's; round 23 below), and runs that are not a
+fresh frame of the code (a call through another contract is covered only as a run of the code,
+not as part of the outer transaction).
+
+## Security properties, deprecated or not (round 23)
+
+Same runs as in round 22 (from Berlin, Glamsterdam included; a fresh frame of the code at pc 0;
+any call data below 2^256 bytes, any value, any gas, any gas bound and any message runner;
+static or not; ending with no error; slots 7 and 8 of `StrForm` where taken), with no `hdep`.
+
+Which functions read the flag. Seven functions branch on the `deprecated` flag: approve,
+totalSupply, transferFrom, balanceOf, transfer, allowance (`FwdFn`: when deprecated they call the
+upgraded contract; what they return is in their forward specifications, Spec/Deprecated/, not in
+the theorems of this section) and destroyBlackFunds (`FlagFn` adds it: when
+deprecated it asks the upgraded contract for `balanceOf(a)` and then writes locally). The other
+25 entries of the table (the nine owner functions other than destroyBlackFunds, 14 getters,
+name and symbol) have completeness theorems `ok_X` that take no hypothesis on the flag, so
+those theorems hold when deprecated too. Cross-check by a script over the bytecode (not a proof):
+it has six CALL opcodes and no CALLCODE, DELEGATECALL or STATICCALL; destroyBlackFunds reaches
+the CALL of balanceOf (at 4891) through an internal jump (Spec/Deprecated/Destroy.lean).
+
+The effect of a run (Effect.lean):
+- `effect_local`: `effect_call` with `hdep` replaced by "not deprecated, or the selector is not
+  one of the seven of `FlagFn`". So when deprecated, those 25 functions have the same `Effect`
+  as when not deprecated, with no assumption on the runner.
+- `effect_all`: every run ends in a state described by one case of `EffectD`, with no
+  assumption on the runner: `loc` (an `Effect`); `fwd` (deprecated, one of the six of `FwdFn`:
+  the runner ended with no error one call whose caller is `C` and whose current target is the
+  upgraded address `upAddr` (the low 160 bits of slot 10), sent from a caller state whose storage
+  at `C` is the start storage at `C`, and the end state is that call's child end state; for
+  transfer, not paused and the caller not blacklisted at the start; for transferFrom, not paused
+  and `_from` not blacklisted at the start); `dfwd` (deprecated destroyBlackFunds: the caller is
+  the owner, `a` is blacklisted at the start, the same kind of call from a state with the start
+  storage at `C` to a child end state `Y` in which `C` has an account, and the end state is
+  `tailState Y C a d`: `balances[a] := 0`, then slot 1 `:=` (slot 1 in that state) `- d`, for some
+  word `d`; the proof uses the word the call returned, the statement does not record it).
+
+The runner assumptions (Evm/Keeps.lean, and one definition per property). `Keeps runChild C ua R`:
+every message whose caller is `C` and whose current target is `ua` that the runner ends with no
+error goes from its caller state `X` to its child's end state `Y` with `R X Y`. As for `KeepsInv`,
+it is about every such call of that runner, and it covers whatever the callee does (reentrant
+calls into `C` included). Each single-call theorem below takes it as `hkeeps : byte20 (slot 10) ≠ 0 →
+Keeps… runChild C (upAddr state message)`, so it is used only when deprecated; the sequence forms carry it in each
+`RunOkR` step. None is proved for any concrete upgraded contract.
+- `KeepsSlots`: every `Protected` slot of `C` keeps its word (`ProtKept`: slots 0, 1, 3, 4, 10
+  and every slot of `isBlackListed`).
+- `KeepsBal`: every slot of `balances` of `C` (address word below 2^160) keeps its word.
+- `KeepsListed`: for every address word `a < 2^160` blacklisted in `X`, `balances[a]` in `Y` is
+  not lower than in `X`.
+- `KeepsAllow`: every slot of `allowed` of `C` keeps its word.
+- `KeepsSupply`: slot 1 of `C` keeps its word.
+
+One call, deprecated or not:
+- `nonOwner_call_all` (`KeccakSep`, `AllowSep`, `KeepsSlots`): if the caller is not the owner,
+  every `Protected` slot keeps its word. (When not deprecated, `nonOwner_call` also gives that
+  only slots of `balances` and `allowed` change; this form does not state it.)
+- `paused_call_all` (`KeccakSep`, `KeepsBal`): from a paused state, every balance keeps its word,
+  or the caller is the owner and the function is issue, redeem or destroyBlackFunds.
+- `listed_call_all` (`KeccakSep`, `KeepsListed`): for `a < 2^160` blacklisted at the start,
+  `balances[a]` is not lower at the end unless it is the owner's redeem or destroyBlackFunds.
+- `allowKept_call_all` (`KeccakSep`, `AllowSep`, `KeepsAllow`): when the selector is neither
+  approve nor transferFrom, every slot of `allowed` keeps its word.
+- `supply_call_all` (`KeccakSep`, `KeepsSupply`): `SupplyStepD`, that is `SupplyStep` (slot 1
+  kept, or the owner's issue `+ v`, redeem `- v`, destroyBlackFunds `- balances[a]`), or the
+  owner's destroyBlackFunds with slot 1 at the end equal to slot 1 at the start minus some word
+  `d` (256-bit subtraction). Neither this statement nor `EffectD.dfwd` says what `d` is; only the
+  proof of `effect_all` takes it to be the word the call returned.
+
+What the code alone guarantees when deprecated (no runner assumption):
+- `owner_only` (Access.lean): every successful run of one of the ten `onlyOwner` functions
+  (`OwnerFn`: deprecate, addBlackList, unpause, pause, setParams, issue, redeem, removeBlackList,
+  transferOwnership, destroyBlackFunds) is a call by the owner of the start state, deprecated or
+  not. No `StrForm` hypothesis.
+- `nonOwner_local` (`KeccakSep`, `AllowSep`): for a caller other than the owner and any function
+  outside the six of `FwdFn`, deprecated or not, only slots of `balances` and `allowed` change
+  and every `Protected` slot keeps its word.
+- `transfer_checks_all`, `transferFrom_checks_all` (Pause.lean): every successful transfer
+  starts from a state that is not paused, with the caller not blacklisted; every successful
+  transferFrom from a state that is not paused, with `_from` not blacklisted; deprecated or not.
+  No `StrForm` hypothesis.
+- With `effect_local`: pause, unpause, addBlackList, removeBlackList, setParams, deprecate,
+  transferOwnership, issue and redeem do not branch on the flag (their `ok_X` take no hypothesis
+  on it). So when deprecated their effect on
+  the storage is the same `Effect`, with no runner assumption.
+- Where the proofs use the runner assumptions (the statements take each one whenever
+  deprecated): in `EffectD.paused` the forwarded transfer and transferFrom are ruled out by their
+  pause check, so `KeepsBal` is used only for the forwarded approve, totalSupply, balanceOf and
+  allowance. Deprecated destroyBlackFunds is ruled out by "not the owner" in
+  `nonOwner_call_all` and by `hsel` in `listed_call_all`. `allowKept_call_all` and
+  `supply_call_all` use their assumption for its call too.
+- `transferFrom_bound` has no deprecated form: deprecated transferFrom forwards, so the
+  allowance it reads and writes is the upgraded contract's.
+
+Over sequences: `SeqR C R Q` is `Seq` with steps `RunOkR C R` (a `RunOk` step whose runner meets
+`Keeps runChild C (upAddr S message) R` when `C` is deprecated at its start state `S`), and
+`seqR_lift` lifts as `seq_lift` does. `Strs` is "slots 7 and 8 of `StrForm` at the call's start
+state"; it is part of each call's predicate `Q` here (in round 22 it was kept from the start for
+`nonOwner_seq`, `paused_seq`, `listed_seq`, and was already per call for `allowKept_seq`,
+`supply_seq`). The keccak hypotheses: `KeccakSep` and `AllowSep` for the first four below,
+`KeccakSep` for `supply_seq_all`.
+- `nonOwner_seq_all` (`R = ProtKept C`, `Q = NotOwnerS`: not the owner, `Strs`): every `Protected`
+  slot keeps its word.
+- `paused_seq_all` (`R`: `ProtKept C` and `BalKept C`, `Q = NotOwnerS`), from a paused state:
+  every balance keeps its word.
+- `listed_seq_all` (`R`: `ProtKept C` and `ListedNoDec C`, `Q = NotOwnerS`), with `a < 2^160`
+  blacklisted at the start: `balances[a]` is not lower at the end.
+- `allowKept_seq_all` (`R = AllowKept C`, `Q`: neither approve nor transferFrom, `Strs`): every
+  slot of `allowed` keeps its word.
+- `supply_seq_all` (`R = SupplyKept C`, `Q`: none of issue, redeem, destroyBlackFunds, `Strs`):
+  slot 1 keeps its word.
 
 ## What is trusted
 
@@ -577,7 +686,9 @@ the outer transaction).
   shown to meet them.
 - `KeccakSep` (a hypothesis of the invariant theorems, about keccak) and `AllowSep` (a hypothesis
   of some security theorems, about keccak).
-- The security theorems of round 22 for deprecated calls.
+- The security properties for deprecated calls of the six forwarding functions (and, for the
+  allowance and supply properties, of destroyBlackFunds) without the runner assumptions `KeepsSlots`, `KeepsBal`, `KeepsListed`,
+  `KeepsAllow`, `KeepsSupply` (round 23). No concrete upgraded contract is shown to meet them.
 - A theorem that neither `KeepsInv` nor `KeepsInvAcc` implies the other (it holds by the
   definitions; it is not stated).
 - Runs that run out of gas below the stated bounds, except at the dispatcher (see above).

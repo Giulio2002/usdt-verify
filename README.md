@@ -148,7 +148,13 @@ The six other forwarding functions write nothing locally after the forwarded cal
 - **Allowances** (`Allowance.lean`). `transferFrom` moves at most the allowance, unless the allowance is `2^256 - 1`. Only `approve` and `transferFrom` change an allowance.
 - **Supply** (`Supply.lean`). The total supply changes only through `issue` (+v), `redeem` (-v) and `destroyBlackFunds` (minus the destroyed balance).
 
-Besides `KeccakSep`, some of these use a second hypothesis about keccak, `AllowSep`: an allowance slot is never one of the fixed slots or a blacklist slot. The deprecated case is not covered.
+Besides `KeccakSep`, some of these use a second hypothesis about keccak, `AllowSep`: an allowance slot is never one of the fixed slots or a blacklist slot.
+
+When the contract is deprecated, the six forwarding functions hand the call to the upgraded contract, and `destroyBlackFunds` asks it for a balance. Each property then has a `*_call_all` and a `*_seq_all` version that covers deprecated calls under a named assumption about the upgraded contract, such as `KeepsSlots` (it leaves the protected slots alone). Some guarantees need no such assumption, deprecated or not:
+
+- the owner functions, `destroyBlackFunds` included, succeed only for the owner (`owner_only`),
+- a caller who is not the owner, calling any function other than the six forwards, changes only balances and allowances (`nonOwner_local`),
+- a successful `transfer` or `transferFrom` always starts not paused, with the sender not blacklisted (`transfer_checks_all`, `transferFrom_checks_all`).
 
 ## What you have to trust
 
@@ -181,7 +187,7 @@ lake exe cache get
 lake build
 ```
 
-EthLib is fetched as a dependency at the commit pinned in `lakefile.lean`. Building EthLib from source takes a long time and several GB of memory. Once EthLib is built, this project builds from clean in about 115 seconds with two threads and needs about 1.8 GB.
+EthLib is fetched as a dependency at the commit pinned in `lakefile.lean`. Building EthLib from source takes a long time and several GB of memory. Once EthLib is built, this project builds from clean in about 120 seconds with two threads and needs about 1.8 GB.
 
 ## Credits
 

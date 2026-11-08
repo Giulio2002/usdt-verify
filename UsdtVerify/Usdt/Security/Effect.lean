@@ -1,5 +1,5 @@
 import UsdtVerify.Usdt.Invariant.Seq
-import UsdtVerify.Evm.Frame
+import UsdtVerify.Evm.Keeps
 
 /-!
 # What a successful call does to the storage of the contract
@@ -10,7 +10,7 @@ runner, when the contract is not deprecated (`hdep`) and slots 7 and 8 are of `S
 `h8`, used by name() and symbol() only): every run that ends with no error ends in a state
 described by one constructor of `Effect` (built from the completeness theorems `ok_X`):
 
-- `same`: no slot of the contract changed (the 20 getters, name, symbol, and
+- `same`: no slot of the contract changed (the 17 getters, name, symbol, and
   transferOwnership(0));
 - `transferOk`, `transferFee`, `fromOk`, `fromFee`: the end state of transfer or transferFrom (fee
   0 or not), with the checks the run passed (not paused, the sender, or `_from`, not
@@ -23,13 +23,27 @@ described by one constructor of `Effect` (built from the completeness theorems `
 
 The slot classes: `BalSlot` (a slot of `balances`, `keccak(x ++ 2)` with `x < 2^160`),
 `AllowSlot` (a slot of `allowed`), `ListSlot` (a slot of `isBlackListed`). `AllowSep` is the
-keccak hypothesis (not proved) that the security theorems take beyond `KeccakSep`: a slot of
+keccak hypothesis (not proved) that some security theorems take beyond `KeccakSep`: a slot of
 `allowed` is none of the slots 0..10 and no slot of `isBlackListed`.
+
+Deprecated or not (round 23): `effect_local` is `effect_call` with `hdep` replaced by "not
+deprecated, or a function other than the seven of `FlagFn`" (the six that forward when deprecated,
+`FwdFn`, and destroyBlackFunds). `effect_all` (no `hdep`, no runner assumption): every successful
+run ends in a state described by one constructor of `EffectD`: `loc` (an `Effect`), `fwd` (one of
+the six forwarding functions, deprecated: the end state is the end state of the child of one call
+from `C` to the upgraded address, sent from a state with the start storage of `C`; for transfer
+and transferFrom, with the pause and blacklist checks the code makes before the call) or `dfwd`
+(deprecated destroyBlackFunds by the owner, `a` blacklisted: the same call, then the two writes
+`tailState` over the child's end state, with some word `d`). `effect_all` takes `StrForm` of
+slots 7 and 8 (`h7`, `h8`). `Forwarded` and `Keeps` (a runner assumption on those
+calls) are in `Evm/Keeps.lean`.
 
 `Seq C Q S S'`: a finite sequence of successful calls to `C` (each with a fresh frame of `CODE`,
 as `effect_call` takes it, and meeting the predicate `Q` on its message and start state) and of
 `Untouched` steps (any change that keeps every storage word of `C`). `seq_lift` lifts a reflexive
-and transitive relation, with an invariant, from one step to the sequence.
+and transitive relation, with an invariant, from one step to the sequence. `SeqR C R Q` and
+`seqR_lift`: the same with steps `RunOkR C R`, deprecated or not, whose runner meets `Keeps … R`
+when `C` is deprecated at the step's start state.
 -/
 
 namespace UsdtVerify.Security
@@ -41,7 +55,7 @@ open EthLib.Execution.Evm.Logic
 open UsdtVerify.Gas
 open Invariant Complete
 open Transfer TransferOk TransferFee TransferFrom Owner Issue IssueSpec BlackList BlackListSpec
-open SetParamsSpec AddrWriteSpec DestroySpec Pause AddrWrite Approve StringsGen
+open SetParamsSpec AddrWriteSpec DestroySpec Pause AddrWrite Approve StringsGen Deprecated
 
 /-! ## Slot classes and the extra keccak hypothesis -/
 
@@ -322,12 +336,27 @@ theorem same_reads {S' : State.TransactionState}
     (h : ∀ n, storageAt S' message.currentTarget n = storageAt state message.currentTarget n) :
     Effect message state S' := .same h
 
-/-- **The effect of every successful call** (not deprecated): from Berlin (Glamsterdam included),
-a fresh frame of `CODE` at pc 0, static or not, any call data below 2^256 bytes, any value, any
-gas, any gas bound and any message runner, slots 7 and 8 of `StrForm`. -/
-theorem effect_call (hfork : .berlin ≤ fork)
+/-- The six functions that forward the call when deprecated: approve, totalSupply,
+transferFrom, balanceOf, transfer, allowance. -/
+def FwdFn (x : Nat) : Prop :=
+  x = 0x095ea7b3 ∨ x = 0x18160ddd ∨ x = 0x23b872dd ∨ x = 0x70a08231 ∨ x = 0xa9059cbb ∨
+    x = 0xdd62ed3e
+
+/-- The seven functions whose code branches on the `deprecated` flag (byte 20 of slot 10): the
+six of `FwdFn` and destroyBlackFunds (it asks the upgraded contract for the balance). -/
+def FlagFn (x : Nat) : Prop := FwdFn x ∨ x = 0xf3bdc228
+
+theorem flag_of {x : Nat} {b : U256} (h : byte20 b = 0 ∨ ¬ FlagFn x) (hx : FlagFn x) :
+    byte20 b = 0 := h.resolve_right (fun hn => hn hx)
+
+/-- **The effect of every successful call that runs locally**: as `effect_call`, with `hdep`
+replaced by "not deprecated, or a function other than the seven of `FlagFn`". The other 25
+functions of the table do not branch on the flag (their completeness theorems `ok_X` take no
+`hdep`). -/
+theorem effect_local (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
-    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0 ∨
+      ¬ FlagFn (selector message.data))
     (h7 : StrForm (storageAt state message.currentTarget 7))
     (h8 : StrForm (storageAt state message.currentTarget 8))
     (start : At CODE message 0 [] .empty gas state substate evm)
@@ -353,7 +382,8 @@ theorem effect_call (hfork : .berlin ≤ fork)
     · wchain
     · wchain
   | ⟨2, _⟩, hi =>
-    obtain ⟨-, hacc, -, -, h⟩ := ok_approve hfork hsize' (hi.trans rfl) hdep rfl rfl start within
+    obtain ⟨-, hacc, -, -, h⟩ := ok_approve hfork hsize' (hi.trans rfl)
+      (flag_of hdep (.inl (.inl (hi.trans rfl)))) rfl rfl start within
       hrun hok
     refine .approve (hi.trans rfl) ?_
     rcases h with ⟨-, -, hst, -⟩ | ⟨-, -, -, hst, -⟩ <;> rw [hst]
@@ -372,11 +402,12 @@ theorem effect_call (hfork : .berlin ≤ fork)
     exact Writes.wr (Writes.read _ _) (hasAccount_readSlot hacc)
       (.inr (.inr (.inr (.inr (list_mk _))))) _
   | ⟨5, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_totalSupply hfork hsize' (hi.trans rfl) hdep start within hrun hok
+    obtain ⟨-, -, hst, -⟩ := ok_totalSupply hfork hsize' (hi.trans rfl)
+      (flag_of hdep (.inl (.inr (.inl (hi.trans rfl))))) start within hrun hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨6, _⟩, hi =>
     obtain ⟨-, hacc, -, hpause, hblack, -, hallow, hfv, hbal, hto, -, h⟩ := ok_transferFrom hfork
-      hsize' (hi.trans rfl) hdep rfl rfl rfl rfl rfl rfl rfl rfl rfl start within hrun hok
+      hsize' (hi.trans rfl) (flag_of hdep (.inl (.inr (.inr (.inl (hi.trans rfl)))))) rfl rfl rfl rfl rfl rfl rfl rfl rfl start within hrun hok
     rcases h with ⟨hfee, -, hst, -⟩ | ⟨-, hown, -, hst, -⟩
     · rw [sendOf_zero hfee] at hto
       exact .fromOk (hi.trans rfl) hacc hpause hblack hallow hbal hto hst
@@ -411,7 +442,8 @@ theorem effect_call (hfork : .berlin ≤ fork)
     obtain ⟨-, -, hst, -⟩ := ok_paused hfork hsize' (hi.trans rfl) start within hrun hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨16, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_balanceOf hfork hsize' (hi.trans rfl) hdep start within hrun hok
+    obtain ⟨-, -, hst, -⟩ := ok_balanceOf hfork hsize' (hi.trans rfl)
+      (flag_of hdep (.inl (.inr (.inr (.inr (.inl (hi.trans rfl))))))) start within hrun hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨17, _⟩, hi =>
     obtain ⟨-, hacc, howner, -, -, -, hst, -⟩ := ok_pause hfork hsize' (hi.trans rfl) rfl start
@@ -430,7 +462,7 @@ theorem effect_call (hfork : .berlin ≤ fork)
     exact rd hst (fun n => by simp only [storageAt_readSlot, storageAt_rdSt])
   | ⟨21, _⟩, hi =>
     obtain ⟨-, hacc, -, hpause, hblack, -, hfv, hbal, hto, -, h⟩ := ok_transfer hfork hsize'
-      (hi.trans rfl) hdep rfl rfl rfl rfl rfl rfl rfl rfl start within hrun hok
+      (hi.trans rfl) (flag_of hdep (.inl (.inr (.inr (.inr (.inr (.inl (hi.trans rfl)))))))) rfl rfl rfl rfl rfl rfl rfl rfl start within hrun hok
     rcases h with ⟨hfee, -, hst, -⟩ | ⟨-, hown, -, hst, -⟩
     · rw [sendOf_zero hfee] at hto
       exact .transferOk (hi.trans rfl) hacc hpause hblack hbal hto hst
@@ -453,7 +485,8 @@ theorem effect_call (hfork : .berlin ≤ fork)
       rfl rfl start within hrun hok
     exact .redeem (hi.trans rfl) howner hacc hT hB hst
   | ⟨25, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_allowance hfork hsize' (hi.trans rfl) hdep start within hrun hok
+    obtain ⟨-, -, hst, -⟩ := ok_allowance hfork hsize' (hi.trans rfl)
+      (flag_of hdep (.inl (.inr (.inr (.inr (.inr (.inr (hi.trans rfl)))))))) start within hrun hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨26, _⟩, hi =>
     obtain ⟨-, -, hst, -⟩ := ok_basisPointsRate hfork hsize' (hi.trans rfl) start within hrun hok
@@ -480,9 +513,127 @@ theorem effect_call (hfork : .berlin ≤ fork)
       exact .ownerW howner (Writes.write hacc (.inl rfl) _)
   | ⟨31, _⟩, hi =>
     obtain ⟨-, hacc, howner, hlisted, -, -, hst, -⟩ := ok_destroyBlackFunds hfork hsize'
-      (hi.trans rfl) hdep rfl rfl rfl rfl rfl start within hrun hok
+      (hi.trans rfl) (flag_of hdep (.inr (hi.trans rfl))) rfl rfl rfl rfl rfl start within hrun hok
     exact .destroy (hi.trans rfl) howner hacc hlisted hst
   | ⟨n + 32, h⟩, _ => exact absurd h (by omega)
+
+/-- **The effect of every successful call** (not deprecated): from Berlin (Glamsterdam included),
+a fresh frame of `CODE` at pc 0, static or not, any call data below 2^256 bytes, any value, any
+gas, any gas bound and any message runner, slots 7 and 8 of `StrForm`. -/
+theorem effect_call (hfork : .berlin ≤ fork)
+    (hsize' : message.data.size < 2 ^ 256)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    (start : At CODE message 0 [] .empty gas state substate evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hok : s.error = none) : Effect message state s.state :=
+  effect_local hfork hsize' (.inl hdep) h7 h8 start within hrun hok
+
+/-! ## Deprecated or not -/
+
+/-- What a successful call does to the storage of `C = message.currentTarget`, deprecated or
+not, from the start state `S` to the end state `S'`, for the runner `runChild`:
+
+- `loc`: an `Effect` (every call when not deprecated, and the 25 functions outside `FlagFn`
+  when deprecated);
+- `fwd`: deprecated, one of the six forwarding functions (`FwdFn`): one call from `C` to the
+  upgraded address, sent from a state `X` whose storage at `C` is that of `S`; the end state is
+  the child's end state. transfer and transferFrom check, before the call, that `C` is not paused
+  and that the sender (transfer) or `_from` (transferFrom) is not blacklisted (`hT`, `hF`);
+- `dfwd`: deprecated destroyBlackFunds, by the owner, with `a` blacklisted: the same call (the
+  forwarded `balanceOf(a)`), from `X` to `Y`, then `balances[a] := 0` and slot 1 `:= T - d`
+  over `Y` (`tailState`), `d` some word (in the proof of `effect_all`, the word the call
+  returned; this case does not record it). -/
+inductive EffectD {fork : Fork} {bound : Nat} (runChild : MessageRunner fork Nat bound)
+    (message : Message fork) (S S' : State.TransactionState) : Prop
+  | loc (h : Effect message S S')
+  | fwd (hdep : byte20 (storageAt S message.currentTarget 10) ≠ 0)
+      (hsel : FwdFn (selector message.data))
+      (hT : selector message.data = 0xa9059cbb →
+        byte20 (storageAt S message.currentTarget 0) = 0 ∧
+        (storageAt S message.currentTarget (blackSlot message)).toNat % 256 = 0)
+      (hF : selector message.data = 0x23b872dd →
+        byte20 (storageAt S message.currentTarget 0) = 0 ∧
+        (storageAt S message.currentTarget (blackFrom (fromArg message))).toNat % 256 = 0)
+      (X : State.TransactionState)
+      (hX : ∀ n, storageAt X message.currentTarget n = storageAt S message.currentTarget n)
+      (hf : Forwarded runChild message.currentTarget (upAddr S message) X S')
+  | dfwd (hdep : byte20 (storageAt S message.currentTarget 10) ≠ 0)
+      (hsel : selector message.data = 0xf3bdc228)
+      (howner : callerWord message = ownerOf S message.currentTarget)
+      (hlisted : (storageAt S message.currentTarget (listSlot (addrArg message.data 0))).toNat %
+        256 ≠ 0)
+      (X Y : State.TransactionState) (d : U256)
+      (hX : ∀ n, storageAt X message.currentTarget n = storageAt S message.currentTarget n)
+      (hf : Forwarded runChild message.currentTarget (upAddr S message) X Y)
+      (hacc : hasAccount Y message.currentTarget)
+      (hst : S' = DeprecatedDestroy.tailState Y message.currentTarget (addrArg message.data 0) d)
+
+theorem fwd_of_local (h : LocalForward runChild message state s) :
+    ∃ X, (∀ n, storageAt X message.currentTarget n = storageAt state message.currentTarget n) ∧
+      Forwarded runChild message.currentTarget (upAddr state message) X s.state := by
+  obtain ⟨caller, msg, lt, child, hch, he, hmc, hmt, hsto, -, hst⟩ := h
+  exact ⟨caller.state, hsto, caller, msg, lt, child, hch, he, hmc, hmt, rfl, hst.symm⟩
+
+/-- **The effect of every successful call, deprecated or not.** From Berlin (Glamsterdam
+included), a fresh frame of `CODE` at pc 0, static or not, any call data below 2^256 bytes, any
+value, any gas, any gas bound and any message runner, slots 7 and 8 of `StrForm`: every run that
+ends with no error ends in a state described by `EffectD`. No assumption on the runner. -/
+theorem effect_all (hfork : .berlin ≤ fork)
+    (hsize' : message.data.size < 2 ^ 256)
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    (start : At CODE message 0 [] .empty gas state substate evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hok : s.error = none) : EffectD runChild message state s.state := by
+  by_cases hdep : byte20 (storageAt state message.currentTarget 10) = 0
+  · exact .loc (effect_local hfork hsize' (.inl hdep) h7 h8 start within hrun hok)
+  by_cases hf : FlagFn (selector message.data)
+  case neg => exact .loc (effect_local hfork hsize' (.inr hf) h7 h8 start within hrun hok)
+  have ne : ∀ {a b : Nat}, selector message.data = a → a ≠ b → selector message.data ≠ b :=
+    fun h hab e => hab (h.symm.trans e)
+  rcases hf with (h | h | h | h | h | h) | h
+  · obtain ⟨X, hX, hF⟩ := fwd_of_local (dep_approve_local hfork hsize' h hdep start within hrun hok)
+    exact .fwd hdep (.inl h) (fun e => absurd e (ne h (by decide)))
+      (fun e => absurd e (ne h (by decide))) X hX hF
+  · obtain ⟨X, hX, hF⟩ := fwd_of_local
+      (dep_totalSupply_local hfork hsize' h hdep start within hrun hok)
+    exact .fwd hdep (.inr (.inl h)) (fun e => absurd e (ne h (by decide)))
+      (fun e => absurd e (ne h (by decide))) X hX hF
+  · obtain ⟨X, hX, hF⟩ := fwd_of_local
+      (dep_transferFrom_local hfork hsize' h hdep start within hrun hok)
+    obtain ⟨_, _, -, -, hpause, hblack, -⟩ :=
+      dep_transferFrom_complete hfork hsize' h hdep rfl rfl rfl rfl start within hrun hok
+    exact .fwd hdep (.inr (.inr (.inl h))) (fun e => absurd e (ne h (by decide)))
+      (fun _ => ⟨hpause, hblack⟩) X hX hF
+  · obtain ⟨X, hX, hF⟩ := fwd_of_local
+      (dep_balanceOf_local hfork hsize' h hdep start within hrun hok)
+    exact .fwd hdep (.inr (.inr (.inr (.inl h)))) (fun e => absurd e (ne h (by decide)))
+      (fun e => absurd e (ne h (by decide))) X hX hF
+  · obtain ⟨X, hX, hF⟩ := fwd_of_local
+      (dep_transfer_local hfork hsize' h hdep start within hrun hok)
+    obtain ⟨_, _, -, -, hpause, hblack, -⟩ :=
+      dep_transfer_complete hfork hsize' h hdep rfl rfl rfl rfl start within hrun hok
+    exact .fwd hdep (.inr (.inr (.inr (.inr (.inl h))))) (fun _ => ⟨hpause, hblack⟩)
+      (fun e => absurd e (ne h (by decide))) X hX hF
+  · obtain ⟨X, hX, hF⟩ := fwd_of_local
+      (dep_allowance_local hfork hsize' h hdep start within hrun hok)
+    exact .fwd hdep (.inr (.inr (.inr (.inr (.inr h))))) (fun e => absurd e (ne h (by decide)))
+      (fun e => absurd e (ne h (by decide))) X hX hF
+  · obtain ⟨_, _, -, -, howner, hlisted, -, -, -, caller, msg, lt, child, hch, he, -, hacc', hfwd,
+        -, hcs, -, -, -, -, -, hst, -⟩ :=
+      dep_destroy_complete hfork hsize' h hdep rfl rfl rfl rfl start within hrun hok
+    refine .dfwd hdep h howner hlisted caller.state child.1.state
+      (resWord (DeprecatedBalance.outMemOf (DeprecatedDestroy.memD message) child.1.output))
+      (fun n => ?_)
+      ⟨caller, msg, lt, child, hch, he, hfwd.1, hfwd.2.1, rfl, rfl⟩ hacc' ?_
+    · rw [hcs]
+      simp only [DeprecatedDestroy.callStateD, DestroySpec.preState, storageAt_rec,
+        storageAt_route, storageAt_readSlot]
+    · rw [hst, state_incorporateChild]
 
 /-! ## Sequences of calls -/
 
@@ -534,5 +685,65 @@ theorem seq_lift {C : Address} {Q : ∀ {fork : Fork}, Message fork → State.Tr
   | other hu _ ih =>
     obtain ⟨hR, hI'⟩ := hother hu hI
     exact htrans hR (ih hI')
+
+/-! ## Sequences of calls, deprecated or not -/
+
+/-- One successful run of `CODE` for a message to `C`, from `S` to `S'`, as `RunOk`, whose runner
+meets `Keeps … R` for the calls from `C` to the upgraded address when `C` is deprecated at `S`. -/
+def RunOkR (C : Address) (R : State.TransactionState → State.TransactionState → Prop)
+    (S S' : State.TransactionState) {fork : Fork} (message : Message fork) : Prop :=
+  ∃ (substate : Substate) (gas bound : Nat) (runChild : MessageRunner fork Nat bound)
+    (evm s : Evm fork Nat) (within : GasMeter.gasHeld evm.gas ≤ bound),
+    message.currentTarget = C ∧ .berlin ≤ fork ∧ message.data.size < 2 ^ 256 ∧
+    (byte20 (storageAt S C 10) ≠ 0 → Keeps runChild C (upAddr S message) R) ∧
+    At CODE message 0 [] .empty gas S substate evm ∧
+    Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s ∧
+    s.error = none ∧ S' = s.state
+
+/-- `effect_all` for a `RunOkR` step, with the runner assumption. -/
+theorem RunOkR.effect {C : Address} {R : State.TransactionState → State.TransactionState → Prop}
+    {S S' : State.TransactionState} (h : RunOkR C R S S' message)
+    (h7 : StrForm (storageAt S C 7)) (h8 : StrForm (storageAt S C 8)) :
+    message.currentTarget = C ∧ ∃ (bound : Nat) (runChild : MessageRunner fork Nat bound),
+      EffectD runChild message S S' ∧
+      (byte20 (storageAt S C 10) ≠ 0 → Keeps runChild C (upAddr S message) R) := by
+  obtain ⟨substate, gas, bound, runChild, evm, s, within, hC, hfork, hsize, hk, start, hrun, hok,
+    rfl⟩ := h
+  subst hC
+  exact ⟨rfl, bound, runChild, effect_all hfork hsize h7 h8 start within hrun hok, hk⟩
+
+/-- A finite sequence of `RunOkR` calls to `C`, each meeting `Q` on its message and its start
+state, and of changes that keep every storage word of `C`. -/
+inductive SeqR (C : Address) (R : State.TransactionState → State.TransactionState → Prop)
+    (Q : ∀ {fork : Fork}, Message fork → State.TransactionState → Prop) :
+    State.TransactionState → State.TransactionState → Prop
+  | nil (S : State.TransactionState) : SeqR C R Q S S
+  | call {S S' S'' : State.TransactionState} {fork : Fork} {message : Message fork} :
+      RunOkR C R S S' message → Q message S → SeqR C R Q S' S'' → SeqR C R Q S S''
+  | other {S S' S'' : State.TransactionState} : Untouched C S S' → SeqR C R Q S' S'' →
+      SeqR C R Q S S''
+
+/-- `seq_lift` for `SeqR`. -/
+theorem seqR_lift {C : Address} {R0 : State.TransactionState → State.TransactionState → Prop}
+    {Q : ∀ {fork : Fork}, Message fork → State.TransactionState → Prop}
+    {I : State.TransactionState → Prop} {R : State.TransactionState → State.TransactionState → Prop}
+    (hrefl : ∀ S, R S S) (htrans : ∀ {S S' S''}, R S S' → R S' S'' → R S S'')
+    (hother : ∀ {S S'}, Untouched C S S' → I S → R S S' ∧ I S')
+    (hcall : ∀ {S S'} {fork : Fork} {message : Message fork}, RunOkR C R0 S S' message →
+      Q message S → I S → R S S' ∧ I S')
+    {S S' : State.TransactionState} (h : SeqR C R0 Q S S') (hI : I S) : R S S' := by
+  induction h with
+  | nil S => exact hrefl S
+  | call hr hq _ ih =>
+    obtain ⟨hR, hI'⟩ := hcall hr hq hI
+    exact htrans hR (ih hI')
+  | other hu _ ih =>
+    obtain ⟨hR, hI'⟩ := hother hu hI
+    exact htrans hR (ih hI')
+
+/-- The predicate on each call of the sequences deprecated or not: slots 7 and 8 of `StrForm` at
+its start state (they are read by name() and symbol() only). -/
+def Strs {fork : Fork} (message : Message fork) (S : State.TransactionState) : Prop :=
+  StrForm (storageAt S message.currentTarget 7) ∧ StrForm (storageAt S message.currentTarget 8)
 
 end UsdtVerify.Security

@@ -1129,10 +1129,52 @@ entry; `DESTS` = the 32 destinations).
   Quot.sound], 5 [propext], 1 with none. grep of the new files for sorry, admit, axiom,
   native_decide, bv_decide, decide +native, maxHeartbeats: none. No clean rebuild in this round.
 
+### Round 23: security properties deprecated or not (Usdt/Security/, Evm/Keeps.lean; docs/RESULTS.md "Security properties, deprecated or not")
+- `Evm/Keeps.lean` (generic): `Forwarded runChild C ua X Y` (the runner ended with no error a
+  message from `C` to `ua`, from caller state `X` to child end state `Y`) and `Keeps runChild C ua
+  R` (every such message goes from `X` to `Y` with `R X Y`); `Keeps.fwd`, `Keeps.mono`,
+  `Writes.congr_left`, `NoDec.congr_left`.
+- `Security/Effect.lean`: `FwdFn` (the six forwarding selectors), `FlagFn` (and destroyBlackFunds);
+  `effect_local` (`effect_call` with `hdep` weakened to "not deprecated or not `FlagFn`";
+  `effect_call` is now its corollary, statement unchanged); `EffectD` (`loc`, `fwd`, `dfwd`) and
+  `effect_all` (no `hdep`, no runner assumption; `h7`, `h8`); `RunOkR`, `SeqR`, `seqR_lift`, `Strs`.
+- Runner assumptions, each `Keeps … R` for one relation: `KeepsSlots` (`ProtKept`), `KeepsBal`
+  (`BalKept`), `KeepsListed` (`ListedNoDec`), `KeepsAllow` (`AllowKept`), `KeepsSupply`
+  (`SupplyKept`). Each single-call theorem takes `byte20 (slot 10) ≠ 0 → Keeps…`.
+- One call, no `hdep`: `nonOwner_call_all`, `paused_call_all`, `listed_call_all`,
+  `allowKept_call_all`, `supply_call_all` (`SupplyStepD`: deprecated destroyBlackFunds sets slot
+  1 to `T - d` for some word `d`, under `KeepsSupply`). Sequences: `nonOwner_seq_all`, `paused_seq_all`,
+  `listed_seq_all`, `allowKept_seq_all`, `supply_seq_all` (`StrForm` of slots 7, 8 now in each
+  call's predicate).
+- With no runner assumption, deprecated or not: `owner_only` (the ten `onlyOwner` functions
+  succeed only for the owner), `nonOwner_local` (non-owner, any function outside `FwdFn`: only
+  `balances` and `allowed` slots change, `Protected` slots kept), `transfer_checks_all`,
+  `transferFrom_checks_all` (not paused; sender / `_from` not blacklisted), and `effect_local`
+  for the 25 functions outside `FlagFn`.
+- Which functions run locally when deprecated: the 25 outside `FlagFn` (their `ok_X` take no
+  flag hypothesis). Script cross-check of the bytecode (not a proof): six CALL opcodes, no
+  CALLCODE/DELEGATECALL/STATICCALL; destroyBlackFunds uses balanceOf's CALL at 4891.
+- An independent read-only check of the round-22 and round-23 docs against the statements found
+  seven inaccuracies, now fixed: `d` in `dfwd` and `SupplyStepD` is some word (the statement does
+  not tie it to the call's output); "do not read the flag" (deprecated(), upgradedAddress() and
+  deprecate read slot 10) is now "do not branch on the flag"; `same` covers 17 getters, not 20;
+  `Strs` was already per call in round-22 `allowKept_seq`, `supply_seq`; the `FwdFn`/`FlagFn`
+  docstrings were swapped; `hkeeps` is a hypothesis of the single-call theorems only (the
+  sequences carry it in `RunOkR`); `T` in Summary is slot 1 of the child's end state. Also added:
+  the keccak hypotheses of the `_seq_all` theorems, `h7`/`h8` of `effect_all`, and that the
+  round-22 `Effect.*` lemmas take neither `hdep` nor `StrForm`.
+- Not done: a deprecated form of `transferFrom_bound` (deprecated transferFrom forwards); any
+  proof of the runner assumptions for a concrete upgraded contract.
+- `lake build UsdtVerify` (incremental, after each of the two code commits): exit 0, 0 "error:"
+  lines, 1375 jobs; `#print axioms`: 25 new lines, each [propext, Classical.choice, Quot.sound];
+  in all 441 [propext, Classical.choice, Quot.sound], 4 [propext, Quot.sound], 5 [propext], 1
+  with none. grep of the changed files for sorry, admit, axiom, native_decide, bv_decide,
+  decide +native, maxHeartbeats, maxRecDepth: none.
+
 ## Open (not proved)
-- Security properties when deprecated: the round-22 theorems take `hdep` (not deprecated). When
-  deprecated, the forwarding functions end in the state the runner's child left; a statement
-  would need a runner assumption, as `KeepsInv` for the invariant.
+- Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
+  `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
+  contract. `transferFrom_bound` has no deprecated form.
 - `AllowSep`, like `KeccakSep`, is a hypothesis about keccak, not proved.
 - A theorem that neither `KeepsInv` nor `KeepsInvAcc` implies the other (by the definitions only).
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
@@ -1260,6 +1302,12 @@ entry; `DESTS` = the 32 destinations).
    a fork-generic `callWith`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+- Round 23 (tree of commit c5d8090 plus the round-23 docs, rm -rf .lake/build, EthLib oleans
+  prebuilt): 118.52 s wall, 303.37 s user, 1798701056 bytes max RSS (`/usr/bin/time -l`), exit 0,
+  0 "error:" lines, 1375 jobs; `#print axioms`: 441 [propext, Classical.choice, Quot.sound],
+  4 [propext, Quot.sound], 5 [propext], 1 with no axioms (451). Hash check: 11075 bytes,
+  keccak256 b44fb4e9...ea55. grep of UsdtVerify/ for sorry, admit, native_decide, bv_decide,
+  decide +native, axiom declarations: none.
 - Round 21 (after commit c4094b2, rm -rf .lake/build, EthLib oleans prebuilt): 112.38 s wall,
   298.17 s user, 1755627520 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines, 1367
   jobs (fewer modules after the merges); `#print axioms`: 398 [propext, Classical.choice,
