@@ -548,7 +548,8 @@ reservoir, refills allowed: `Security.nonOwner_call_any`, `paused_call_any`, `li
 `allowKept_call_any`, `transferFrom_bound_any`, `supply_call_any`, `owner_only_any`, and over
 sequences of calls over `Nat` or `StateGasMeter` (`SeqS`): `nonOwner_seqS`, `paused_seqS`,
 `listed_seqS`, `allowKept_seqS`, `supply_seqS`. `Security.process_stepSec`: the steps from
-`processMessage` over `StateGasMeter`.
+`processMessage` over `StateGasMeter`. `Complete.callStep_child_rS`, `Complete.resumeCall_sgm`
+(Evm/CallMeter.lean): the CALL step and the resume after the child over `StateGasMeter`.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

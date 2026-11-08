@@ -580,8 +580,14 @@ Not resolved for the deprecated paths.
   (Usdt/Security/Meter.lean): from Paris, every top-level message with code `CODE` (no
   precompile) that `processMessage` ends over `StateGasMeter` is a `RunOkS` step or an
   `Untouched` step.
+- CALL over `StateGasMeter` (Evm/CallMeter.lean): `callStep_child_rS` and `resumeCall_sgm` give
+  the CALL step and the resume after the child over `StateGasMeter`, in terms of the same steps
+  over `Nat`: the CALL passes on the whole reservoir in the message, and the caller gets back the
+  child's execution gas left and reservoir.
 - Still open: the deprecated paths over `StateGasMeter`, including the security properties when
-  deprecated.
+  deprecated. EXTCODESIZE and GAS, which the deprecated paths also run, are `Lifts` of their
+  instructions over `Nat` (`lifts_gasStep`, `lifts_extcodesizeStep`), but `step_sim` does not
+  include them yet.
 
 ## T2. The runner hypotheses range over every block and transaction environment (Medium)
 

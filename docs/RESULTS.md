@@ -313,6 +313,11 @@ from Berlin, with the hypotheses of the Nat form:
 - Route: `ends_any` gives, from such a run with no error, a loop of the meter `Nat` from a fresh
   frame of `CODE` with more gas that ends (`Gas.Ends`) in the same state (`Shadow.shadow_ends`).
   The properties depend only on the state.
+- CALL over `StateGasMeter` (Evm/CallMeter.lean): `callStep_child_rS` (the message of a CALL
+  with no value carries the reservoir of the frame, the caller keeps 0, and pays the execution
+  gas of the CALL over `Nat`) and `resumeCall_sgm` (after the child, the caller has the fields of
+  the resume over `Nat` but the gas, and its execution gas left and reservoir add up to those of
+  the caller and the child).
 - Not covered: the deprecated paths over `StateGasMeter`.
 
 ## Completeness of the dispatcher, for every gas

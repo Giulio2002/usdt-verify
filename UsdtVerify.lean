@@ -10,6 +10,7 @@ import UsdtVerify.Evm.Meter
 import UsdtVerify.Evm.Refill
 import UsdtVerify.Evm.Shadow
 import UsdtVerify.Evm.ProcessMeter
+import UsdtVerify.Evm.CallMeter
 import UsdtVerify.Evm.Local.Extcodesize
 import UsdtVerify.Evm.Local.Parent
 import UsdtVerify.Evm.Local.Rules

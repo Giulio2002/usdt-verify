@@ -1736,8 +1736,22 @@ T1 (third audit), continued.
   proved from them. Usdt/Security/Meter.lean: `runOkS_process`, `process_stepSec` (from Paris, a
   top-level message with code `CODE` that `processMessage` ends over `StateGasMeter` is a `RunOkS`
   step or an `Untouched` step).
+- Evm/CallMeter.lean (CALL over `StateGasMeter`): `callStep_child_rS` (`callStep_child_r` for a
+  frame over `StateGasMeter`: the same execution gas paid, the message carries the reservoir of
+  the frame, the caller keeps a reservoir of 0 and the other fields of its meter); `resumeCall_sgm`
+  (the caller resumed from a child over `StateGasMeter` has the fields of the resume over `Nat`
+  from the `toNat` frames but the gas; over `Nat` the gas left is the caller's plus the child's,
+  over `StateGasMeter` the execution gas left and the reservoir add up to those of the caller and
+  the child); `lifts_gasStep`, `lifts_extcodesizeStep` (GAS and EXTCODESIZE are `Lifts` of their
+  instruction over `Nat`).
 - Not done: the deprecated paths over `StateGasMeter` (and so the `_all` security theorems over
-  it); the split of the gas at the end; the gas of a run with a refill.
+  it). The route from here: the deprecated paths also run EXTCODESIZE and GAS, which are not
+  `simulated` (their instructions are `Lifts`, but `step_sim` and `SimAt` do not include them). GAS pushes the execution gas left, so the shadow run of `shadow_ends` (more gas)
+  does not carry them. At reservoir 0 with no refill (`step_sim`), EXTCODESIZE and GAS charge only
+  execution gas, and the CALL sends the message of the meter `Nat` with reservoir 0
+  (`callStep_child_rS`). The runner assumptions would then be stated of the runner over
+  `StateGasMeter` (a `KeepsAt` form for it). The split of the gas at the end, and the gas of a run
+  with a refill, are not done either.
 
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
@@ -1906,6 +1920,10 @@ T1 (third audit), continued.
    a fork-generic `callWith`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+Round 37: clean project build (`rm -rf .lake/build`, safe.sh 9G, LEAN_NUM_THREADS not set) 110.27 s
+wall, 1793163264 bytes max RSS (/usr/bin/time -l), exit 0, 0 "error:" lines, 1416 jobs, 995
+`#print axioms` lines: 955 [propext, Classical.choice, Quot.sound], 23 [propext, Quot.sound],
+10 [propext], 7 none.
 Round 36: clean project build (`rm -rf .lake/build`, safe.sh 9G, LEAN_NUM_THREADS not set) 110.28 s
 wall, 1812168704 bytes max RSS (/usr/bin/time -l), exit 0, 0 "error:" lines, 1414 jobs, 966
 `#print axioms` lines: 926 [propext, Classical.choice, Quot.sound], 23 [propext, Quot.sound],
