@@ -9,6 +9,7 @@ import UsdtVerify.Usdt.Exact.Owner
 import UsdtVerify.Usdt.Sanity.TransferFrom
 import UsdtVerify.Usdt.Sanity.Calls
 import UsdtVerify.Usdt.Sanity.Runner
+import UsdtVerify.Usdt.Sanity.Process
 import UsdtVerify.Usdt.Security.Supply
 import UsdtVerify.Usdt.Security.Allowance
 import UsdtVerify.Usdt.Security.Blacklist
@@ -809,3 +810,21 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Security.Effect.nonOwnerK
 #print axioms UsdtVerify.Security.SecSep.allowYZ
 #print axioms UsdtVerify.Security.not_balOrOne
+-- round 29: the runner assumptions about the calls the code makes (docs/AUDIT.md, finding 2)
+#print axioms UsdtVerify.SameView.refl
+#print axioms UsdtVerify.sameView_recordAccountRead
+#print axioms UsdtVerify.sameView_readSlot
+#print axioms UsdtVerify.sameView_route
+#print axioms UsdtVerify.sendsVia_data
+#print axioms UsdtVerify.KeepsAt.fwd
+#print axioms UsdtVerify.KeepsAt.mono
+#print axioms UsdtVerify.Keeps.at
+#print axioms UsdtVerify.Complete.keepsInv_at
+#print axioms UsdtVerify.Complete.honest_at
+#print axioms UsdtVerify.Sanity.keepsAll_of_same
+#print axioms UsdtVerify.Sanity.stop_keeps_all
+#print axioms UsdtVerify.Sanity.delegatedAddress_stop
+#print axioms UsdtVerify.Sanity.process_stop
+#print axioms UsdtVerify.Sanity.processRunner_stop_keepsAt
+#print axioms UsdtVerify.Sanity.processRunner_stop_keepsAll
+#print axioms UsdtVerify.Sanity.keepsInvAt_process_stop

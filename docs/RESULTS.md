@@ -431,16 +431,32 @@ deployed code at pc 0, with any call data below 2^256 bytes, any value, any gas,
 and any message runner. Assume `SepOn (callKeys message state)`, `StrForm` of slots 7
 and 8, and `Inv` at the start (through round 18 also a frame that is not static). When the
 contract is deprecated, also assume (through round 19 also an account for the contract `C`):
-- `KeepsInv` (`hkeeps`): whenever the runner ends a message from `C` to `ua` with no error, and
-  `Inv` held in the caller's state, then `Inv` holds in the child's end state. It asks nothing
-  about the account of `C` (round 20). The callee may call back into `C`; this assumption is
-  about the end state only, so it covers that;
-- for destroyBlackFunds, `HonestBalance` (`hhonest`): the word that the forwarded `balanceOf(a)`
-  writes at 0x60 is `balances[a]` in the child's end state.
+- `KeepsInvAt` (`hkeeps`; round 29, see below): whenever the runner ends with no error a call
+  that the code of `C` makes from `state` to `ua` (`SentVia`), and `Inv` held in the caller's
+  state, then `Inv` holds in the child's end state. It asks nothing about the account of `C`
+  (round 20). The callee may call back into `C`; this assumption is about the end state only, so
+  it covers that;
+- for destroyBlackFunds, `HonestBalanceAt` (`hhonest`): for such a call with the data
+  `balanceOf(a)`, the word written at 0x60 is `balances[a]` in the child's end state.
+
+How these changed (round 29, docs/AUDIT.md finding 2). Through round 28 they were `KeepsInv` and
+`HonestBalance`, which quantify over every caller frame and every message from `C` to `ua`,
+including the message's code; EthLib's runner `processRunner` runs that code, so it met them for
+no `ua`. `SentVia message state ua caller msg` (Evm/Keeps.lean) now restricts them to the calls
+the code actually makes: the caller state has the storage and the code of `state` at every
+address (`SameView`; the code only records reads before its CALL), and `msg` is the message of
+`SendsVia`: from `C` to `ua`, with the code that `ua` holds in `state` (along its EIP-7702 route),
+no value, the depth and static flag of the call to `C`; its data and gas are any. The completeness
+theorems give these facts for every forwarding CALL (`dep_*_local`). The old forms imply the new
+ones (`keepsInv_at`, `honest_at`, `Keeps.at`). EthLib's `processRunner` meets `KeepsInvAt` (and
+the five `Keeps*` of the security theorems) from Paris when `ua` holds the one byte STOP and is no
+precompile (`Sanity.processRunner_stop_keepsAll`, `Sanity.keepsInvAt_process_stop`).
+`HonestBalanceAt` is not shown for `processRunner` with any real code.
 If the interpreter loop ends with no error, `Inv` holds in the end state.
 Nothing is assumed of the code of `ua` (round 16: the hypothesis `hdel` is gone). When that code
-is an EIP-7702 delegation, the message still has `ua` as its current target, so `KeepsInv` and
-`HonestBalance` apply to it as stated.
+is an EIP-7702 delegation, the message still has `ua` as its current target and runs the
+delegate's code (`SendsVia` along the route), so `KeepsInvAt` and `HonestBalanceAt` apply to it as
+stated.
 
 ## Static frames, and the invariant over every successful call (round 17)
 
@@ -630,13 +646,15 @@ The effect of a run (Effect.lean):
   `tailState Y C a d`: `balances[a] := 0`, then slot 1 `:=` (slot 1 in that state) `- d`, for some
   word `d`; the proof uses the word the call returned, the statement does not record it).
 
-The runner assumptions (Evm/Keeps.lean, and one definition per property). `Keeps runChild C ua R`:
-every message whose caller is `C` and whose current target is `ua` that the runner ends with no
-error goes from its caller state `X` to its child's end state `Y` with `R X Y`. As for `KeepsInv`,
-it is about every such call of that runner, and it covers whatever the callee does (reentrant
+The runner assumptions (Evm/Keeps.lean, and one definition per property). Since round 29
+`KeepsAt runChild message S ua R`: every call that the code of `C` makes from `S` to `ua`
+(`SentVia`, as for `KeepsInvAt` above) that the runner ends with no error goes from its caller
+state `X` to its child's end state `Y` with `R X Y`. It covers whatever the callee does (reentrant
 calls into `C` included). Each single-call theorem below takes it as `hkeeps : byte20 (slot 10) ≠ 0 →
-Keeps… runChild C (upAddr state message)`, so it is used only when deprecated; the sequence forms carry it in each
-`RunOkR` step. None is proved for any concrete upgraded contract.
+Keeps… runChild message state`, so it is used only when deprecated; the sequence forms carry it
+in each `RunOkR` step. Through round 28 they were `Keeps runChild C ua R`, over every message from
+`C` to `ua` (finding 2, below). EthLib's `processRunner` meets all five from Paris when the
+upgraded address holds STOP and is no precompile (`Sanity.processRunner_stop_keepsAll`).
 - `KeepsSlots`: every `Protected` slot of `C` keeps its word (`ProtKept`: slots 0, 1, 3, 4, 10
   and every slot of `isBlackListed`).
 - `KeepsBal`: every slot of `balances` of `C` (address word below 2^160) keeps its word.
@@ -645,13 +663,11 @@ Keeps… runChild C (upAddr state message)`, so it is used only when deprecated;
 - `KeepsAllow`: every slot of `allowed` of `C` keeps its word.
 - `KeepsSupply`: slot 1 of `C` keeps its word.
 
-Caveat (audit, docs/AUDIT.md finding 2): these assumptions, like `KeepsInv` and `HonestBalance`,
-quantify over every caller frame and every message from `C` to `ua`, the message's code
-included. They are false for EthLib's own runner `processRunner`, whatever the upgraded
-contract is: a message whose code writes `C`'s slot 1, directly when `ua = C` or through a CALL
-into `C`, breaks each of them. The `ua = C` case of `KeepsInv` was machine-checked during the
-audit. So with the real runner, the deprecated case of these theorems, and of
-`goodCall_process` / `process_step`, has a premise that cannot hold.
+Audit finding 2 (docs/AUDIT.md), resolved in round 29: through round 28 these assumptions, like
+`KeepsInv` and `HonestBalance`, quantified over every caller frame and every message from `C` to
+`ua`, the message's code included, and were false for EthLib's own runner `processRunner`,
+whatever the upgraded contract (a message whose code writes `C`'s slot 1 broke each of them).
+The `At` forms quantify only over the calls the code makes, whose code is the code `ua` holds.
 
 One call, deprecated or not:
 - `nonOwner_call_all` (`SecSep` of the call's keys, `KeepsSlots`): if the caller is not the owner,
@@ -721,29 +737,37 @@ for the first three below, `SecSep` of the call's keys and `y`, `z` for `allowKe
 hold at once, for some runner, state, message and gas. They do not prove the keccak hypotheses
 `SepOn` / `SecSep` of the witness calls' keys (finitely many separation facts, each expected to
 hold, see the invariant above; through round 28 they assumed the global `KeccakSep` and
-`AllowSep`, almost certainly false, docs/AUDIT.md finding 1). Their runners are not `processRunner`, which meets none of the
-`Keeps*` assumptions.
+`AllowSep`, almost certainly false, docs/AUDIT.md finding 1). Most runners here are not
+`processRunner`; `Sanity/Process.lean` (round 29) shows that `processRunner` meets the `At` forms
+of the runner assumptions when the upgraded address holds STOP.
 
 Runner assumptions (`Sanity/Runner.lean`, `Evm/Runners.lean`):
 - `keepsAll_of_same`: if every message from `C` to `ua` that the runner ends with no error
   leaves the storage of `C` as it was in the caller state, then the runner meets `KeepsSlots`,
-  `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply` and `KeepsInv`.
-- `stop_keeps_all`: `stopRunner fork bound ua` meets all six, for every `C`, at every fork.
+  `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply` and `KeepsInvAt`.
+- `stop_keeps_all`: `stopRunner fork bound (upAddr S message)` meets all six, for every message
+  and state, at every fork.
   On a message to `ua` whose code is the one byte STOP and that has a target, no value and no
   precompile, `stopRunner` is EthLib's `processRunner`, and on a message to another address it is
   `processRunner` too. It fails every other message to `ua`.
   `stop_staticKeeps`: from Paris it meets `StaticKeeps`.
-  `Keeps` asks its relation of every message to `ua`, whatever the message's code. So nothing is
-  claimed of `processRunner` itself.
+  `stopRunner` is not `processRunner`; for `processRunner` itself see `Sanity/Process.lean` below.
 - `balRunner` ends every message at once with no error and keeps the state. Its answer is the 32
   bytes of the word at slot `keccak(x ++ 2)` of the message's caller, where `x` is the word at
   byte 4 of the message's data. `runner_assumptions_hold`: it meets all six, `StaticKeeps` at
-  every fork, and `HonestBalance` for every message and state.
+  every fork, and `HonestBalanceAt` for every message and state.
   `honestBalance_of_answers`: `HonestBalance` holds whenever each forwarded `balanceOf(a)` that
   ends with no error answers at least 32 bytes whose first word is `balances[a]` of the contract
   in the child's end state.
-- No real upgraded contract is shown to meet these assumptions. `balRunner` is not the run of
-  any code.
+- `balRunner` is not the run of any code.
+- `Sanity/Process.lean` (round 29): `processRunner_stop_keepsAt`: from Paris, when the upgraded
+  address of `message` in `S` holds `STOP_CODE` (the one byte STOP) and is no precompile, EthLib's
+  `processRunner` at any bound meets `KeepsAt … R` for every reflexive `R` (each call the code
+  makes ends with no error in its caller state, `process_stop`). So it meets all six `At` forms
+  (`processRunner_stop_keepsAll`), and `KeepsInvAt (processRunner fork message.gas) message S`,
+  the deprecated-case hypothesis of `goodCall_process` and `process_step`
+  (`keepsInvAt_process_stop`). STOP is a real contract, though not a useful one;
+  `HonestBalanceAt` is not shown for `processRunner` with any code.
 
 Spec preconditions (`Sanity/Transfer.lean`, `Calls.lean`, `TransferFrom.lean`). Each `*_sat` holds
 at every fork from Berlin and for every block, transaction, contract address `C` and substate.
@@ -955,15 +979,16 @@ ends with no error and the contract has an account in its end state".
 ## What is not covered
 
 - name/symbol on slot words outside `StrForm`.
-- The invariant over deprecated calls without the runner assumptions `KeepsInv` and
-  `HonestBalance` (destroyBlackFunds can break it, see above). No real upgraded contract is
-  shown to meet them. Concrete runners that meet them are given in round 24 (`Sanity/Runner.lean`).
+- The invariant over deprecated calls without the runner assumptions `KeepsInvAt` and
+  `HonestBalanceAt` (destroyBlackFunds can break it, see above). `KeepsInvAt` is shown for
+  `processRunner` with the upgraded code STOP (round 29); `HonestBalanceAt` for no real upgraded
+  code.
 - The keccak hypotheses `SepOn` and `SecSep` of a call's keys (finitely many separation facts about
   given slots; not proved, and not shown for any particular call).
 - The security properties for deprecated calls of the six forwarding functions (and, for the
   allowance and supply properties, of destroyBlackFunds) without the runner assumptions `KeepsSlots`, `KeepsBal`, `KeepsListed`,
-  `KeepsAllow`, `KeepsSupply` (round 23). No real upgraded contract is shown to meet them.
-  Concrete runners that meet them are given in round 24.
+  `KeepsAllow`, `KeepsSupply` (round 23). `processRunner` with the upgraded code STOP meets them
+  (round 29); no other real upgraded contract is shown to.
 - A deprecated run in the non-vacuity witnesses of round 24: no witness run is deprecated.
 - A theorem that neither `KeepsInv` nor `KeepsInvAcc` implies the other (it holds by the
   definitions; it is not stated).

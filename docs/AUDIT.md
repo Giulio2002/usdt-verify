@@ -145,6 +145,16 @@ minimum, constrain `msg` by `SendsVia`, which fixes the code.
 **Doc fix (done).** `docs/RESULTS.md` now says that these assumptions are false for
 `processRunner` itself.
 
+**Resolution (round 29).** Restated over the calls the code makes. `KeepsInvAt`, `HonestBalanceAt`
+and the security `Keeps*` (now `KeepsAt … (upAddr S message) R`) quantify only over caller frames
+whose state has the storage and code of the start state (`SameView`) and messages that run the
+code the upgraded address holds there (`SentVia`, built on `SendsVia`); gas and data stay free.
+Every theorem, `goodCall_process` and `process_step` included, takes these forms; the old forms
+imply them. `Sanity.processRunner_stop_keepsAll` proves that `processRunner`, from Paris, meets
+all six when the upgraded address holds STOP and is no precompile, so the deprecated branch of
+`process_step` is no longer vacuous for the real runner. Not done: `HonestBalanceAt` for
+`processRunner` with a real code.
+
 ## 3. Deprecated exact theorems: `NoFail` and `hans` vs `processRunner` (High)
 
 - `NoFail runChild := ∀ caller msg lt e, runChild caller msg lt ≠ .error e`

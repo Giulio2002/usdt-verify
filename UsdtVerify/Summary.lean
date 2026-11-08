@@ -356,8 +356,9 @@ destroyBlackFunds keeps `Inv`: under `Inv`, `d ≤ _totalSupply`, so its uncheck
 not wrap (`destroy_inv`).
 Every successful call, not deprecated, static or not, with or without an account:
 `Complete.inv_call`. Deprecated or not: `Complete.inv_call_ns` (Usdt/Invariant/All.lean, from
-Berlin, Glamsterdam included; when deprecated, under the named assumptions `KeepsInv` on the
-runner and `HonestBalance` for destroyBlackFunds, and since round 20 with no account of the
+Berlin, Glamsterdam included; when deprecated, under the named assumptions `KeepsInvAt` on the
+runner and `HonestBalanceAt` for destroyBlackFunds (round 29: about the calls the code makes from
+the start state, `SentVia`; through round 28 `KeepsInv`, `HonestBalance`, over every message), and since round 20 with no account of the
 contract assumed; the upgraded code may be an EIP-7702 delegation). Static or not:
 `Complete.inv_call_all` (Usdt/Invariant/Static.lean; "not static" replaced by `hstat`: when static,
 `message.code = CODE`, `StaticCode` and `StaticKeeps`; a static frame keeps the state, EthLib's `staticStep_runFrame`, under the named runner
@@ -415,9 +416,11 @@ their words), `Security.paused_call_all` (`KeepsBal`), `Security.listed_call_all
 ## Non-vacuity (round 24; Usdt/Sanity/, which imports this file)
 Concrete runners meet the runner assumptions. `stopRunner` is EthLib's `processRunner` on the
 messages to `ua` that run the one byte STOP, and it fails every other message to `ua`. It meets
-`KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply` and `KeepsInv`, and from Paris
+`KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply` and `KeepsInvAt`, and from Paris
 `StaticKeeps`. `balRunner` keeps the state and answers the word of `balances[x]`. It meets all six,
-`StaticKeeps` and `HonestBalance` (`Sanity.runner_assumptions_hold`).
+`StaticKeeps` and `HonestBalanceAt` (`Sanity.runner_assumptions_hold`). Round 29: EthLib's own
+`processRunner`, when the upgraded address holds STOP and is no precompile, meets all six from
+Paris (`Sanity.processRunner_stop_keepsAll`, `Sanity.keepsInvAt_process_stop`).
 For every fork from Berlin, block, transaction, contract address and substate, each of these
 gives a call, a start state and a gas where every hypothesis of a spec theorem holds, with a run
 under `processRunner` that ends with no error: `Sanity.transfer_ok_sat`,

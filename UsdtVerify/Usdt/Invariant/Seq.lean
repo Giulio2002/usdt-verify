@@ -10,7 +10,7 @@ between states, each of which is:
 - `GoodCall C S S'`: a successful run of a fresh frame of `CODE` for a message to `C`, from the
   state `S`, that ends in `S'`, with the hypotheses of `inv_call_all` for that run (its own fork
   from Berlin, Glamsterdam included), message, gas, gas bound, runner, and the named assumptions
-  `SepOn (callKeys message S)`, `StrForm`, `hstat`, `KeepsInv`, `HonestBalance`, each at the
+  `SepOn (callKeys message S)`, `StrForm`, `hstat`, `KeepsInvAt`, `HonestBalanceAt`, each at the
   state `S` of that call; since
   round 20 no `hacc`; in a static call `hstat` still implies an account of `C`);
 - or `Untouched C S S'`: any change that keeps every storage word of `C`. This is where the
@@ -57,9 +57,9 @@ def GoodCall (C : Address) (S S' : State.TransactionState) : Prop :=
       message.code = CODE ∧ StaticCode S message ∧ StaticKeeps runChild) ∧
     message.data.size < 2 ^ 256 ∧ SepOn (callKeys message S) ∧
     StrForm (storageAt S C 7) ∧ StrForm (storageAt S C 8) ∧
-    (byte20 (storageAt S C 10) ≠ 0 → KeepsInv runChild C (upAddr S message)) ∧
+    (byte20 (storageAt S C 10) ≠ 0 → KeepsInvAt runChild message S) ∧
     (byte20 (storageAt S C 10) ≠ 0 → selector message.data = 0xf3bdc228 →
-      HonestBalance runChild message S) ∧
+      HonestBalanceAt runChild message S) ∧
     At CODE message 0 [] .empty gas S substate evm ∧
     Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s ∧
     s.error = none ∧ S' = s.state
@@ -107,10 +107,10 @@ theorem goodCall_process {fork : Fork} (hparis : .paris ≤ fork)
     (h7 : StrForm (storageAt state message.currentTarget 7))
     (h8 : StrForm (storageAt state message.currentTarget 8))
     (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsInv (processRunner fork message.gas) message.currentTarget (upAddr state message))
+      KeepsInvAt (processRunner fork message.gas) message state)
     (hhonest : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
       selector message.data = 0xf3bdc228 →
-        HonestBalance (processRunner fork message.gas) message state)
+        HonestBalanceAt (processRunner fork message.gas) message state)
     {ended : { evm : Evm fork Nat // GasMeter.gasHeld evm.gas ≤ message.gas }}
     (hproc : processMessage fork message state substate = .ok ended)
     (hok : ended.val.error = none) :
@@ -211,10 +211,10 @@ theorem process_step {fork : Fork} (hparis : .paris ≤ fork)
     (h7 : StrForm (storageAt state message.currentTarget 7))
     (h8 : StrForm (storageAt state message.currentTarget 8))
     (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsInv (processRunner fork message.gas) message.currentTarget (upAddr state message))
+      KeepsInvAt (processRunner fork message.gas) message state)
     (hhonest : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
       selector message.data = 0xf3bdc228 →
-        HonestBalance (processRunner fork message.gas) message state)
+        HonestBalanceAt (processRunner fork message.gas) message state)
     {ended : { evm : Evm fork Nat // GasMeter.gasHeld evm.gas ≤ message.gas }}
     (hproc : processMessage fork message state substate = .ok ended) :
     GoodCall message.currentTarget state ended.val.state ∨

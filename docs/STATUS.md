@@ -1401,6 +1401,28 @@ Finding 1 (critical): the keccak hypotheses are now local.
   `bal_not_ownW`, `allow_not_ownW`, `allow_ne_one`, `fixed_not_ba`, `protected_not_ba`,
   `list_mk`, `KeccakSep` → `SepOn` corollary moved to `sepOn_of_global`.
 
+Finding 2 (high): the runner assumptions are about the calls the code makes.
+- Old: `KeepsInv runChild C ua`, `HonestBalance`, and `Keeps runChild C ua R` (the security
+  `Keeps*`) quantified over every caller frame and message from `C` to `ua`, the code included;
+  false for `processRunner` with any upgraded contract (audit, machine-checked for `ua = C`).
+- New (Evm/Keeps.lean): `SameView X S` (same storage and code at every address), `SentVia message S
+  ua caller msg` (the caller state has the view of `S`, and `msg` is a `SendsVia` message with the
+  code `ua` holds in `S` along its route; any data, any gas), `KeepsAt`, `FwdAt`. All.lean:
+  `KeepsInvAt runChild message state`, `HonestBalanceAt runChild message state`. The security
+  `KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply` now take
+  `(runChild) (message) (S)` and are `KeepsAt … (upAddr S message) R`. `EffectD.fwd`/`dfwd` carry
+  `FwdAt`; `LocalForward` carries `SentVia`; `RunOkR` takes `KeepsAt`. `inv_call_ns`,
+  `inv_call_all`, `GoodCall`, `goodCall_process`, `process_step`, `inv_dep_destroy(_iff)`,
+  `dep_destroy_local` and every `*_call_all` / `*_seq_all` take the `At` forms. The old forms imply
+  the new (`keepsInv_at`, `honest_at`, `Keeps.at`), so Sanity/Runner's runners still apply
+  (`keeps*_of_same` now from `SameFor`, `KeepsAll runChild message S`).
+- New, Sanity/Process.lean: `process_stop`, `processRunner_stop_keepsAt`,
+  `processRunner_stop_keepsAll`, `keepsInvAt_process_stop`: from Paris, with `STOP_CODE` at the
+  upgraded address (no precompile), `processRunner` meets all six `At` assumptions, in particular
+  the `hkeeps` of `goodCall_process` / `process_step`. Not done: `HonestBalanceAt` for
+  `processRunner` with a real code (a contract that answers the local balance would have to read
+  it from `C`, e.g. through the getter `balances(address)`; not attempted).
+
 ## Open (not proved)
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
@@ -1431,8 +1453,9 @@ Finding 1 (critical): the keccak hypotheses are now local.
   when deprecated and not static, `hacc`; `inv_call_ns` took `hstatic` through round 18). Without `HonestBalance`, deprecated
   destroyBlackFunds keeps `Inv` exactly when the answer is the local balance
   (`inv_dep_destroy_iff`); `exists_breaks` gives a state where a different answer breaks it.
-  `KeepsInv` is not proved for any real upgraded contract. Round 24 shows that `stopRunner` and
-  `balRunner` meet it, and that `balRunner` meets `HonestBalance`.
+  Round 29: the assumptions are `KeepsInvAt` / `HonestBalanceAt` (the calls the code makes);
+  `processRunner` meets `KeepsInvAt` when the upgraded code is STOP (`keepsInvAt_process_stop`);
+  `HonestBalanceAt` is not proved for any real upgraded contract (`balRunner` meets it).
 - Non-vacuity (round 24): no witness run is deprecated; the keccak hypotheses of the witness calls
   (`SepOn` / `SecSep` of their keys, since round 29) are not discharged.
 - Exact success conditions (round 25): done for the 32 functions not deprecated and the seven

@@ -151,17 +151,17 @@ theorem transferFrom_checks_all (hfork : .berlin ≤ fork) (hsize' : message.dat
       dep_transferFrom_complete hfork hsize' hsel hdep rfl rfl rfl rfl start within hrun hok
     exact ⟨hpause, hblack⟩
 
-/-- The runner assumption of the pause property when deprecated: every call from `C` to `ua`
+/-- The runner assumption of the pause property when deprecated: every call from `C` to the upgraded address that the code of `C` makes from `S` (`SentVia`, round 29: the caller state has the view of `S`, the message runs the code the upgraded address holds in `S`; through round 28 every message from `C` to `ua`), and
 that the runner ends with no error keeps every balance of `C`. -/
 def KeepsBal {fork : Fork} {bound : Nat} (runChild : MessageRunner fork Nat bound)
-    (C ua : Address) : Prop :=
-  Keeps runChild C ua (BalKept C)
+    (message : Message fork) (S : State.TransactionState) : Prop :=
+  KeepsAt runChild message S (upAddr S message) (BalKept message.currentTarget)
 
 theorem EffectD.paused {S S' : State.TransactionState} (K : SepOn (callKeys message S))
     (h : EffectD runChild message S S')
     (hp : byte20 (storageAt S message.currentTarget 0) ≠ 0)
     (hk : byte20 (storageAt S message.currentTarget 10) ≠ 0 →
-      KeepsBal runChild message.currentTarget (upAddr S message)) :
+      KeepsBal runChild message S) :
     BalKept message.currentTarget S S' ∨
       (callerWord message = ownerOf S message.currentTarget ∧
         (selector message.data = 0xcc872b66 ∨ selector message.data = 0xdb006a75 ∨
@@ -188,7 +188,7 @@ theorem paused_call_all (K : SepOn (callKeys message state)) (hfork : .berlin �
     (h7 : StrForm (storageAt state message.currentTarget 7))
     (h8 : StrForm (storageAt state message.currentTarget 8))
     (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsBal runChild message.currentTarget (upAddr state message))
+      KeepsBal runChild message state)
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)

@@ -40,8 +40,8 @@ from `C` to the upgraded address, sent from a state with the start storage of `C
 and transferFrom, with the pause and blacklist checks the code makes before the call) or `dfwd`
 (deprecated destroyBlackFunds by the owner, `a` blacklisted: the same call, then the two writes
 `tailState` over the child's end state, with some word `d`). `effect_all` takes `StrForm` of
-slots 7 and 8 (`h7`, `h8`). `Forwarded` and `Keeps` (a runner assumption on those
-calls) are in `Evm/Keeps.lean`.
+slots 7 and 8 (`h7`, `h8`). `FwdAt` and `KeepsAt` (a runner assumption on the calls the code
+actually makes, round 29) are in `Evm/Keeps.lean`.
 
 `Seq C Q S S'`: a finite sequence of successful calls to `C` (each with a fresh frame of `CODE`,
 as `effect_call` takes it, and meeting the predicate `Q` on its message and start state) and of
@@ -667,7 +667,7 @@ inductive EffectD {fork : Fork} {bound : Nat} (runChild : MessageRunner fork Nat
         (storageAt S message.currentTarget (blackFrom (fromArg message))).toNat % 256 = 0)
       (X : State.TransactionState)
       (hX : ∀ n, storageAt X message.currentTarget n = storageAt S message.currentTarget n)
-      (hf : Forwarded runChild message.currentTarget (upAddr S message) X S')
+      (hf : FwdAt runChild message S (upAddr S message) X S')
   | dfwd (hdep : byte20 (storageAt S message.currentTarget 10) ≠ 0)
       (hsel : selector message.data = 0xf3bdc228)
       (howner : callerWord message = ownerOf S message.currentTarget)
@@ -675,15 +675,16 @@ inductive EffectD {fork : Fork} {bound : Nat} (runChild : MessageRunner fork Nat
         256 ≠ 0)
       (X Y : State.TransactionState) (d : U256)
       (hX : ∀ n, storageAt X message.currentTarget n = storageAt S message.currentTarget n)
-      (hf : Forwarded runChild message.currentTarget (upAddr S message) X Y)
+      (hf : FwdAt runChild message S (upAddr S message) X Y)
       (hacc : hasAccount Y message.currentTarget)
       (hst : S' = DeprecatedDestroy.tailState Y message.currentTarget (addrArg message.data 0) d)
 
 theorem fwd_of_local (h : LocalForward runChild message state s) :
     ∃ X, (∀ n, storageAt X message.currentTarget n = storageAt state message.currentTarget n) ∧
-      Forwarded runChild message.currentTarget (upAddr state message) X s.state := by
-  obtain ⟨caller, msg, lt, child, hch, he, hmc, hmt, hsto, -, hst⟩ := h
-  exact ⟨caller.state, hsto, caller, msg, lt, child, hch, he, hmc, hmt, rfl, hst.symm⟩
+      FwdAt runChild message state (upAddr state message) X s.state := by
+  obtain ⟨caller, msg, lt, child, hsv, hch, he, -, hst⟩ := h
+  exact ⟨caller.state, fun n => hsv.choose_spec.choose_spec.2.2.2.1 _ n, caller, msg, lt, child,
+    hsv, hch, he, rfl, hst.symm⟩
 
 /-- **The effect of every successful call, deprecated or not.** From Berlin (Glamsterdam
 included), a fresh frame of `CODE` at pc 0, static or not, any call data below 2^256 bytes, any
@@ -731,13 +732,19 @@ theorem effect_all (hfork : .berlin ≤ fork)
       (dep_allowance_local hfork hsize' h hdep start within hrun hok)
     exact .fwd hdep (.inr (.inr (.inr (.inr (.inr h))))) (fun e => absurd e (ne h (by decide)))
       (fun e => absurd e (ne h (by decide))) X hX hF
-  · obtain ⟨_, _, -, -, howner, hlisted, -, -, -, caller, msg, lt, child, hch, he, -, hacc', hfwd,
-        -, hcs, -, -, -, -, -, hst, -⟩ :=
+  · obtain ⟨c, r, hcode, hroute, howner, hlisted, -, -, -, caller, msg, lt, child, hch, he, -, hacc',
+        hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
       dep_destroy_complete hfork hsize' h hdep rfl rfl rfl rfl start within hrun hok
+    have hv : SameView caller.state state := by
+      rw [hcs]
+      exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
+        ⟨fun a n => by simp only [DeprecatedDestroy.callStateD, DestroySpec.preState,
+          storageAt_readSlot], fun a => rfl⟩ _) r) _
     refine .dfwd hdep h howner hlisted caller.state child.1.state
       (resWord (DeprecatedBalance.outMemOf (DeprecatedDestroy.memD message) child.1.output))
       (fun n => ?_)
-      ⟨caller, msg, lt, child, hch, he, hfwd.1, hfwd.2.1, rfl, rfl⟩ hacc' ?_
+      ⟨caller, msg, lt, child, ⟨c, r, hcode, hroute, sendsVia_data hfwd, hv⟩, hch, he, rfl, rfl⟩
+      hacc' ?_
     · rw [hcs]
       simp only [DeprecatedDestroy.callStateD, DestroySpec.preState, storageAt_rec,
         storageAt_route, storageAt_readSlot]
@@ -797,13 +804,14 @@ theorem seq_lift {C : Address} {Q : ∀ {fork : Fork}, Message fork → State.Tr
 /-! ## Sequences of calls, deprecated or not -/
 
 /-- One successful run of `CODE` for a message to `C`, from `S` to `S'`, as `RunOk`, whose runner
-meets `Keeps … R` for the calls from `C` to the upgraded address when `C` is deprecated at `S`. -/
+meets `KeepsAt … R` for the calls the code makes from `S` to the upgraded address when `C` is
+deprecated at `S` (round 29; `Keeps … R`, over every message, before). -/
 def RunOkR (C : Address) (R : State.TransactionState → State.TransactionState → Prop)
     (S S' : State.TransactionState) {fork : Fork} (message : Message fork) : Prop :=
   ∃ (substate : Substate) (gas bound : Nat) (runChild : MessageRunner fork Nat bound)
     (evm s : Evm fork Nat) (within : GasMeter.gasHeld evm.gas ≤ bound),
     message.currentTarget = C ∧ .berlin ≤ fork ∧ message.data.size < 2 ^ 256 ∧
-    (byte20 (storageAt S C 10) ≠ 0 → Keeps runChild C (upAddr S message) R) ∧
+    (byte20 (storageAt S C 10) ≠ 0 → KeepsAt runChild message S (upAddr S message) R) ∧
     At CODE message 0 [] .empty gas S substate evm ∧
     Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s ∧
     s.error = none ∧ S' = s.state
@@ -814,7 +822,7 @@ theorem RunOkR.effect {C : Address} {R : State.TransactionState → State.Transa
     (h7 : StrForm (storageAt S C 7)) (h8 : StrForm (storageAt S C 8)) :
     message.currentTarget = C ∧ ∃ (bound : Nat) (runChild : MessageRunner fork Nat bound),
       EffectD runChild message S S' ∧
-      (byte20 (storageAt S C 10) ≠ 0 → Keeps runChild C (upAddr S message) R) := by
+      (byte20 (storageAt S C 10) ≠ 0 → KeepsAt runChild message S (upAddr S message) R) := by
   obtain ⟨substate, gas, bound, runChild, evm, s, within, hC, hfork, hsize, hk, start, hrun, hok,
     rfl⟩ := h
   subst hC

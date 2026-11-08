@@ -22,7 +22,7 @@ static child message with a state that differs from its caller's only by reads.
 - `inv_call_all`: the invariant over every successful call, static or not. In a static frame it
   is `inv_static`, with the hypotheses `message.code = CODE`, `StaticCode` and `StaticKeeps`; in
   a frame that is not static it is `inv_call_ns` (Usdt/Invariant/All.lean), with the
-  deprecated-path assumptions `KeepsInv` and `HonestBalance`, and (since round 20) no account of
+  deprecated-path assumptions `KeepsInvAt` and `HonestBalanceAt` (round 29; `KeepsInv`, `HonestBalance` before), and (since round 20) no account of
   the contract. The hypothesis "not static" of `inv_call_all` is gone; since round 19
   `inv_call_ns` takes it neither.
 -/
@@ -102,8 +102,8 @@ call's keys (`callKeys`), with
 string slots 7 and 8 of `StrForm`, and:
 - when the frame is static (`hstat`): the code of the message is `CODE`, it runs at an account
   that holds code (`StaticCode`), and the runner meets `StaticKeeps`;
-- when deprecated (byte 20 of slot 10 not 0): the runner meets `KeepsInv` (`hkeeps`), and for
-  destroyBlackFunds `HonestBalance` (`hhonest`).
+- when deprecated (byte 20 of slot 10 not 0): the runner meets `KeepsInvAt` (`hkeeps`), and for
+  destroyBlackFunds `HonestBalanceAt` (`hhonest`).
 No `hacc` (since round 20): when the frame is not static, no account of the contract is assumed;
 when it is static, `StaticCode` for the nonempty code `CODE` implies one.
 If `Inv C state` holds and the interpreter loop ends with no error, then `Inv C s.state` holds. -/
@@ -114,9 +114,9 @@ theorem inv_call_all (K : SepOn (callKeys message state)) (hfork : .berlin ≤ f
     (h7 : StrForm (storageAt state message.currentTarget 7))
     (h8 : StrForm (storageAt state message.currentTarget 8))
     (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsInv runChild message.currentTarget (upAddr state message))
+      KeepsInvAt runChild message state)
     (hhonest : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      selector message.data = 0xf3bdc228 → HonestBalance runChild message state)
+      selector message.data = 0xf3bdc228 → HonestBalanceAt runChild message state)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)

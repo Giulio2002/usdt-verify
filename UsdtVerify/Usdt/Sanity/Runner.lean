@@ -10,9 +10,10 @@ The theorems deprecated or not take named assumptions on the message runner when
 `KeepsAllow`, `KeepsSupply` (the security theorems `*_call_all`, `*_seq_all`).
 This file shows that each of them holds for some runner, so none of them is false for every runner.
 
-- `keeps*_of_same`: a runner whose messages from `C` to `ua` keep the storage of `C`
-  (`Keeps … (SameStore C)`) meets `KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`,
-  `KeepsSupply` and `KeepsInv`.
+- `keeps*_of_same`: a runner whose messages from `C` to the upgraded address keep the storage of
+  `C` (`SameFor`, a `Keeps … (SameStore C)` over every message) meets `KeepsSlots`, `KeepsBal`,
+  `KeepsListed`, `KeepsAllow`, `KeepsSupply` and `KeepsInvAt` (round 29: the assumptions are
+  about the calls the code makes, `KeepsAt`; `Keeps.at` gives them from the old form).
 - `stop_keeps_all`: `stopRunner fork bound ua` (Evm/Runners.lean: EthLib's `processRunner` on the
   messages to `ua` whose code is the one byte STOP, with a target, no value and no precompile; any
   other message to `ua` fails) meets all six, for every `C`, at every fork.
@@ -26,8 +27,9 @@ This file shows that each of them holds for some runner, so none of them is fals
   the runner ends with no error answers at least 32 bytes whose first word is `balances[a]` of the
   contract in the child's end state.
 
-No real upgraded contract is shown to meet these assumptions: `stopRunner` is the run of STOP at
-`ua` (its messages to `ua` with other code fail), and `balRunner` is not the run of any code.
+`stopRunner` is not EthLib's runner (its messages to `ua` with other code fail), and `balRunner`
+is not the run of any code. EthLib's own `processRunner`, with a real upgraded code (STOP), meets
+the `At` forms: Sanity/Process.lean (round 29).
 -/
 
 namespace UsdtVerify.Sanity
@@ -42,42 +44,55 @@ variable {fork : Fork} {bound : Nat} {runChild : MessageRunner fork Nat bound} {
 
 /-! ## Keeping the storage of `C` gives every runner assumption -/
 
-theorem keepsSlots_of_same (h : Keeps runChild C ua (SameStore C)) : KeepsSlots runChild C ua :=
-  h.mono fun _ _ hs n _ => hs n
+section Same
 
-theorem keepsBal_of_same (h : Keeps runChild C ua (SameStore C)) : KeepsBal runChild C ua :=
-  h.mono fun _ _ hs _ _ => hs _
+variable {message : Message fork} {S : State.TransactionState}
 
-theorem keepsListed_of_same (h : Keeps runChild C ua (SameStore C)) :
-    KeepsListed runChild C ua :=
-  h.mono fun _ _ hs a _ _ => by unfold NoDec; rw [hs]; exact Nat.le_refl _
+/-- A runner whose messages from `C` to the upgraded address keep the storage of `C`. -/
+abbrev SameFor (runChild : MessageRunner fork Nat bound) (message : Message fork)
+    (S : State.TransactionState) : Prop :=
+  Keeps runChild message.currentTarget (upAddr S message) (SameStore message.currentTarget)
 
-theorem keepsAllow_of_same (h : Keeps runChild C ua (SameStore C)) : KeepsAllow runChild C ua :=
-  h.mono fun _ _ hs _ _ => hs _
+theorem keepsSlots_of_same (h : SameFor runChild message S) : KeepsSlots runChild message S :=
+  h.at.mono fun _ _ hs n _ => hs n
 
-theorem keepsSupply_of_same (h : Keeps runChild C ua (SameStore C)) :
-    KeepsSupply runChild C ua :=
-  h.mono fun _ _ hs => hs 1
+theorem keepsBal_of_same (h : SameFor runChild message S) : KeepsBal runChild message S :=
+  h.at.mono fun _ _ hs _ _ => hs _
 
-theorem keepsInv_of_same (h : Keeps runChild C ua (SameStore C)) : KeepsInv runChild C ua :=
-  fun caller msg lt child hch hmc hmt he hI =>
-    (DepInv.inv_congr (h caller msg lt child hch hmc hmt he)).2 hI
+theorem keepsListed_of_same (h : SameFor runChild message S) : KeepsListed runChild message S :=
+  h.at.mono fun _ _ hs a _ _ => by unfold NoDec; rw [hs]; exact Nat.le_refl _
 
-/-- The six runner assumptions of the theorems deprecated or not, together. -/
-def KeepsAll (runChild : MessageRunner fork Nat bound) (C ua : Address) : Prop :=
-  KeepsSlots runChild C ua ∧ KeepsBal runChild C ua ∧ KeepsListed runChild C ua ∧
-    KeepsAllow runChild C ua ∧ KeepsSupply runChild C ua ∧ KeepsInv runChild C ua
+theorem keepsAllow_of_same (h : SameFor runChild message S) : KeepsAllow runChild message S :=
+  h.at.mono fun _ _ hs _ _ => hs _
 
-theorem keepsAll_of_same (h : Keeps runChild C ua (SameStore C)) : KeepsAll runChild C ua :=
+theorem keepsSupply_of_same (h : SameFor runChild message S) : KeepsSupply runChild message S :=
+  h.at.mono fun _ _ hs => hs 1
+
+theorem keepsInv_of_same (h : SameFor runChild message S) : KeepsInvAt runChild message S :=
+  h.at.mono fun _ _ hs hI => (DepInv.inv_congr hs).2 hI
+
+end Same
+
+/-- The six runner assumptions of the theorems deprecated or not, together (round 29: in their
+`At` forms, about the calls the code makes from `S`). -/
+def KeepsAll (runChild : MessageRunner fork Nat bound) (message : Message fork)
+    (S : State.TransactionState) : Prop :=
+  KeepsSlots runChild message S ∧ KeepsBal runChild message S ∧ KeepsListed runChild message S ∧
+    KeepsAllow runChild message S ∧ KeepsSupply runChild message S ∧ KeepsInvAt runChild message S
+
+theorem keepsAll_of_same {message : Message fork} {S : State.TransactionState}
+    (h : SameFor runChild message S) : KeepsAll runChild message S :=
   ⟨keepsSlots_of_same h, keepsBal_of_same h, keepsListed_of_same h, keepsAllow_of_same h,
     keepsSupply_of_same h, keepsInv_of_same h⟩
 
 /-! ## The STOP runner -/
 
-/-- `stopRunner` meets `KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply` and
-`KeepsInv`, for every contract `C`, at every fork and bound. -/
-theorem stop_keeps_all (C ua : Address) : KeepsAll (stopRunner fork bound ua) C ua :=
-  keepsAll_of_same (stopRunner_keeps ua C)
+/-- `stopRunner` at the upgraded address meets `KeepsSlots`, `KeepsBal`, `KeepsListed`,
+`KeepsAllow`, `KeepsSupply` and `KeepsInvAt`, for every message and state, at every fork and
+bound. -/
+theorem stop_keeps_all (message : Message fork) (S : State.TransactionState) :
+    KeepsAll (stopRunner fork bound (upAddr S message)) message S :=
+  keepsAll_of_same (stopRunner_keeps _ _)
 
 /-- From Paris, `stopRunner` meets `StaticKeeps`. -/
 theorem stop_staticKeeps (hfork : .paris ≤ fork) (ua : Address) :
@@ -99,8 +114,9 @@ def balAnswer (caller : Evm fork Nat) (msg : Message fork) : ByteArray :=
 def balRunner (fork : Fork) (bound : Nat) : MessageRunner fork Nat bound :=
   answerRunner balAnswer
 
-theorem bal_keeps_all (C ua : Address) : KeepsAll (balRunner fork bound) C ua :=
-  keepsAll_of_same (answerRunner_keeps _ ua C)
+theorem bal_keeps_all (message : Message fork) (S : State.TransactionState) :
+    KeepsAll (balRunner fork bound) message S :=
+  keepsAll_of_same (answerRunner_keeps _ _ _)
 
 /-- `balRunner` meets `StaticKeeps` at every fork: it keeps the state. -/
 theorem bal_staticKeeps : StaticKeeps (balRunner fork bound) := by
@@ -145,11 +161,11 @@ theorem bal_honest (message : Message fork) (state : State.TransactionState) :
   exact ⟨by rw [size_wordBytes]; exact Nat.le_refl _, h0⟩
 
 /-- One runner meets every runner assumption of the theorems deprecated or not at once:
-`KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`, `KeepsInv` (for every `C`
-and `ua`), `StaticKeeps`, and `HonestBalance` (for every message and state). -/
+`KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`, `KeepsInvAt` (for every
+message and state), `StaticKeeps`, and `HonestBalanceAt` (for every message and state). -/
 theorem runner_assumptions_hold :
-    ∃ runChild : MessageRunner fork Nat bound, (∀ C ua, KeepsAll runChild C ua) ∧
-      StaticKeeps runChild ∧ ∀ message state, HonestBalance runChild message state :=
-  ⟨balRunner fork bound, bal_keeps_all, bal_staticKeeps, bal_honest⟩
+    ∃ runChild : MessageRunner fork Nat bound, (∀ message S, KeepsAll runChild message S) ∧
+      StaticKeeps runChild ∧ ∀ message state, HonestBalanceAt runChild message state :=
+  ⟨balRunner fork bound, bal_keeps_all, bal_staticKeeps, fun m st => honest_at (bal_honest m st)⟩
 
 end UsdtVerify.Sanity

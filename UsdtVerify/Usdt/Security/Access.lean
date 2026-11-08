@@ -178,17 +178,17 @@ theorem nonOwner_seq {C : Address} {S S' : State.TransactionState}
 def ProtKept (C : Address) (S S' : State.TransactionState) : Prop :=
   ∀ n, Protected n → storageAt S' C n = storageAt S C n
 
-/-- The runner assumption of access control when deprecated: every call from `C` to `ua` that the
+/-- The runner assumption of access control when deprecated: every call from `C` to the upgraded address that the code of `C` makes from `S` (`SentVia`, round 29: the caller state has the view of `S`, the message runs the code the upgraded address holds in `S`; through round 28 every message from `C` to `ua`), and that the
 runner ends with no error leaves every `Protected` slot of `C` as it was in the caller state. -/
 def KeepsSlots {fork : Fork} {bound : Nat} (runChild : MessageRunner fork Nat bound)
-    (C ua : Address) : Prop :=
-  Keeps runChild C ua (ProtKept C)
+    (message : Message fork) (S : State.TransactionState) : Prop :=
+  KeepsAt runChild message S (upAddr S message) (ProtKept message.currentTarget)
 
 theorem EffectD.protKept {S S' : State.TransactionState} (K : SecSep (callKeys message S))
     (h : EffectD runChild message S S')
     (hno : callerWord message ≠ ownerOf S message.currentTarget)
     (hk : byte20 (storageAt S message.currentTarget 10) ≠ 0 →
-      KeepsSlots runChild message.currentTarget (upAddr S message)) :
+      KeepsSlots runChild message S) :
     ProtKept message.currentTarget S S' := by
   cases h with
   | loc h => exact fun n hn => h.nonOwnerK K.toSepOn hno n (protected_not_kba K hn)
@@ -205,7 +205,7 @@ theorem nonOwner_call_all (K : SecSep (callKeys message state)) (hfork : .berlin
     (h8 : StrForm (storageAt state message.currentTarget 8))
     (hno : callerWord message ≠ ownerOf state message.currentTarget)
     (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsSlots runChild message.currentTarget (upAddr state message))
+      KeepsSlots runChild message state)
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)

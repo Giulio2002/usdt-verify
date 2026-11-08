@@ -142,11 +142,11 @@ theorem supply_seq {C : Address} {S S' : State.TransactionState}
 def SupplyKept (C : Address) (S S' : State.TransactionState) : Prop :=
   storageAt S' C 1 = storageAt S C 1
 
-/-- The runner assumption of the supply property when deprecated: every call from `C` to `ua`
+/-- The runner assumption of the supply property when deprecated: every call from `C` to the upgraded address that the code of `C` makes from `S` (`SentVia`, round 29: the caller state has the view of `S`, the message runs the code the upgraded address holds in `S`; through round 28 every message from `C` to `ua`), and
 that the runner ends with no error keeps slot 1 of `C`. -/
 def KeepsSupply {fork : Fork} {bound : Nat} (runChild : MessageRunner fork Nat bound)
-    (C ua : Address) : Prop :=
-  Keeps runChild C ua (SupplyKept C)
+    (message : Message fork) (S : State.TransactionState) : Prop :=
+  KeepsAt runChild message S (upAddr S message) (SupplyKept message.currentTarget)
 
 /-- `SupplyStep`, or the owner's destroyBlackFunds when deprecated: slot 1 becomes `T - d` (a
 256-bit subtraction), `T` slot 1 at the start and `d` some word (the answer of the forwarded
@@ -159,7 +159,7 @@ def SupplyStepD {fork : Fork} (message : Message fork) (S S' : State.Transaction
 theorem EffectD.supply {S S' : State.TransactionState} (K : SepOn (callKeys message S))
     (h : EffectD runChild message S S')
     (hk : byte20 (storageAt S message.currentTarget 10) ≠ 0 →
-      KeepsSupply runChild message.currentTarget (upAddr S message)) :
+      KeepsSupply runChild message S) :
     SupplyStepD message S S' := by
   cases h with
   | loc h => exact .inl (h.supply K)
@@ -182,7 +182,7 @@ theorem supply_call_all (K : SepOn (callKeys message state)) (hfork : .berlin �
     (h7 : StrForm (storageAt state message.currentTarget 7))
     (h8 : StrForm (storageAt state message.currentTarget 8))
     (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsSupply runChild message.currentTarget (upAddr state message))
+      KeepsSupply runChild message state)
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)

@@ -235,16 +235,16 @@ theorem writes_tail {C : Address} {Y : State.TransactionState} (hacc : hasAccoun
     (.inr rfl) _
 
 /-- The runner assumption of the allowance property when deprecated: every call from `C` to
-`ua` that the runner ends with no error keeps every slot of `allowed` of `C`. -/
+the upgraded address that the code of `C` makes from `S` (`SentVia`, round 29: the caller state has the view of `S`, the message runs the code the upgraded address holds in `S`; through round 28 every message from `C` to `ua`), and that the runner ends with no error keeps every slot of `allowed` of `C`. -/
 def KeepsAllow {fork : Fork} {bound : Nat} (runChild : MessageRunner fork Nat bound)
-    (C ua : Address) : Prop :=
-  Keeps runChild C ua (AllowKept C)
+    (message : Message fork) (S : State.TransactionState) : Prop :=
+  KeepsAt runChild message S (upAddr S message) (AllowKept message.currentTarget)
 
 theorem EffectD.allowKept {y z : U256} {S S' : State.TransactionState}
     (K : SecSep (y :: z :: callKeys message S)) (h : EffectD runChild message S S')
     (hsel : selector message.data ≠ 0x095ea7b3 ∧ selector message.data ≠ 0x23b872dd)
     (hk : byte20 (storageAt S message.currentTarget 10) ≠ 0 →
-      KeepsAllow runChild message.currentTarget (upAddr S message)) :
+      KeepsAllow runChild message S) :
     AllowKeptAt y z message.currentTarget S S' := by
   cases h with
   | loc h => exact h.allowKept K hsel
@@ -265,7 +265,7 @@ theorem allowKept_call_all {y z : U256} (K : SecSep (y :: z :: callKeys message 
     (h8 : StrForm (storageAt state message.currentTarget 8))
     (hsel : selector message.data ≠ 0x095ea7b3 ∧ selector message.data ≠ 0x23b872dd)
     (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsAllow runChild message.currentTarget (upAddr state message))
+      KeepsAllow runChild message state)
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
