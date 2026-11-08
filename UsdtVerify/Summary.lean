@@ -41,7 +41,9 @@ import UsdtVerify.Usdt.Exact.Deprecated
 
 All theorems are about the 11075-byte runtime code `CODE` (data/usdt.runtime.hex), run by
 EthLib's EVM semantics from pc 0 in a fresh frame (`At CODE message 0 [] .empty gas state
-substate`), for every fork from Berlin on. The paths that write storage hold from Berlin on,
+substate`), for every fork from Berlin on, with EthLib's one-counter gas meter `Nat` (EthLib runs
+transactions with it up to BPO5; from Glamsterdam it runs them with the EIP-8037 `StateGasMeter`,
+which no theorem here covers). The paths that write storage hold from Berlin on,
 Glamsterdam included, since round 17: each SSTORE costs `Gas.writeCost` (`sstoreCost` plus the
 state gas of a new slot, `sstoreStateGas`, 0 before Glamsterdam), by the local rule
 `Gas.sstoreWG`. The deprecated paths hold at the same forks since round 19: EXTCODESIZE costs
@@ -518,6 +520,9 @@ Round 33: `Sanity.process_step_dep_hyps2` and `Sanity.destroy_mirror_runs`
 `HonestBalanceAt`, and (Paris to before Glamsterdam, 1000000 gas) the destroyBlackFunds call
 ends with no error through the CALL.
 Round 33: `keepsInvAt_of_acc`: `KeepsInvAcc` and `KeepsInvNoAcc` together give `KeepsInvAt`.
+Round 33 (third audit, T1): every theorem is about EthLib's one-counter meter `Nat`. EthLib
+runs Glamsterdam transactions with the EIP-8037 meter `StateGasMeter`, which no theorem here
+covers (docs/STATUS.md).
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

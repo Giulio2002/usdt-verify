@@ -12,7 +12,10 @@ the folders are described in `docs/LAYOUT.md`.
   compares `CODE` with the hex file and its keccak256 with `b44fb4e9…ea55`. The interpreter runs
   this check; it is a test, not a kernel-checked theorem.
 - The semantics is EthLib's EVM model (pinned commit fd3457dbf), with its program logic and the
-  one-counter gas meter. Forks: Berlin onwards, Glamsterdam included. Since round 17 the paths
+  one-counter gas meter (`Nat`). EthLib itself runs transactions with that meter up to BPO5. From
+  Glamsterdam it runs them with the EIP-8037 meter `StateGasMeter`, which no theorem here covers
+  (docs/AUDIT.md, third audit, T1). So the Glamsterdam instances below are about the one-counter
+  meter at that fork's prices. Forks: Berlin onwards, Glamsterdam included. Since round 17 the paths
   that write storage hold at Glamsterdam (each SSTORE costs `writeCost`, EthLib's `sstoreCost`
   plus its state gas of a new slot). Since round 19 the paths that make a call (deprecated) hold
   there too: EXTCODESIZE costs `extCost fork` (EthLib's `externalBaseCost`: 2600 cold / 100 warm
@@ -1096,3 +1099,6 @@ ends with no error and the contract has an account in its end state".
   `X_dep_ok_iff_fails`), under the runner hypotheses `hans` and `NoFailOn` or `hfail`.
 - Forks before Berlin. Glamsterdam rests on EthLib's model of that fork at the pin (its prices
   and the order of its checks).
+- Runs under EthLib's EIP-8037 meter `StateGasMeter`, which EthLib's `processTransaction` uses
+  from Glamsterdam. With it, state gas comes from a reservoir first and refills go back to
+  execution gas, so the gas thresholds and the gas left differ. See docs/STATUS.md (round 33, T1).

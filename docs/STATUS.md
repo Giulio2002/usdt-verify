@@ -28,7 +28,9 @@ No `sorry`, `admit`, axiom, `native_decide`, `bv_decide` or `decide +native` any
 
 ## Proved
 
-All specs: fork with `Fork.berlin ≤ fork`, the one-counter (`Nat`) gas meter of EthLib's logic,
+All specs: fork with `Fork.berlin ≤ fork`, the one-counter (`Nat`) gas meter of EthLib's logic
+(EthLib runs transactions with that meter up to BPO5, and with the EIP-8037 `StateGasMeter` from
+Glamsterdam, which no theorem here covers; see Open),
 start frame `At CODE message 0 [] .empty gas state substate` (fresh call frame), and the real
 interpreter loop `runFrame` for every gas bound and every message runner (`Spec.runFrame`).
 
@@ -1530,7 +1532,7 @@ Finding 3: `X_dep_ok_or_fails` on the gas-aware `hans` (Evm/Iff.lean, Usdt/Exact
   `X_dep_ok_iff_fails` are derived from them. The old forms (with `htail`, the old `hans`, `hab`)
   follow from the new ones; they are not kept as theorems.
 
-### Round 33: third audit T2–T5 (Evm/Route.lean, Evm/Call.lean)
+### Round 33: third audit T1–T5 (Evm/Route.lean, Evm/Call.lean, Usdt/Sanity/MirrorState.lean, Usdt/Invariant/All.lean, Usdt/Complete/)
 
 T2 (third audit): the forwarded message carries the environments of the message of the path.
 - Evm/Route.lean: `SendsVia` adds `msg.blockEnv = message.blockEnv`, `msg.txEnv = message.txEnv`
@@ -1577,7 +1579,48 @@ T5 (third audit): the gas of the completeness theorems not deprecated, with its 
   first component of `ok_exact` / `ok_exact2` / `ok_exact3`, which the proofs used to drop.
   The deprecated `dep_*_complete` already concluded their gas bound.
 
+T1 (third audit): the EIP-8037 meter. Investigated, not done. Every statement stays about EthLib's
+one-counter meter `Nat`.
+- What EthLib runs. `processTransaction` (Transactions/Process.lean:435) runs
+  `runTransaction StateGasMeter` from Glamsterdam and `runTransaction Nat` before. The
+  `GasMeter Nat` instance (Evm/Machine/Frame.lean:129) takes state gas from the one counter,
+  ignores refills (`refill gas _ := gas`), and has no reservoir. `StateGasMeter`
+  (Evm/Gas/StateGas.lean) takes state gas from the reservoir first and the rest from execution
+  gas, which it records as spill. A refill credits execution gas up to the spill and the rest to
+  the reservoir. A revert or halt restores the spill and the baseline reservoir. A CALL passes on
+  the whole reservoir.
+- Why the statements do not carry over. (1) EthLib's symbolic logic is fixed to `Nat`. `At`
+  (Proofs/Evm/Logic/Symbolic.lean:108) takes `evm : Evm fork Nat`, and its opcode rules (`stop`,
+  `sstore`, `gas_rule`, `extcodesize`, the NatCode automation) are stated over it. Only the
+  `Triple`/`Hoare`/`Spec` layer and the `instruction_*` lemmas are generic in the meter.
+  (2) This repository is built on that logic. 68 files mention `Evm fork Nat`. That includes the
+  gas framework of Evm/Gas.lean and Evm/GasRules.lean (`StepG`, `HoareG`, `SpecG`, on which
+  `X_low`, `X_mid` and `X_iff_gas` rest) and the path specifications (about 20,000 lines in
+  Usdt/Spec and Usdt/Proofs). (3) The statements change form. SSTORE's state gas for a new slot
+  (`STORAGE_SET_STATE_GAS`, 64 × 1530) comes from the reservoir first. The 2300 check of
+  EIP-2200 reads only the execution gas. A write that puts a new slot back to 0 refills, which
+  the `Nat` meter ignores. So `X_iff_gas` for a writing function becomes a condition on two
+  quantities (execution gas and reservoir), and the gas left differs when a refill happens.
+  `Gas.writeMax` and the 2300 bound of `sstore_low_stuck` would be restated per pool.
+- A route, not taken. `allocateGas` (Transactions/Settlement.lean:145) gives the top frame a
+  reservoir of 0 when the transaction's gas limit is at most `TX_MAX_GAS_LIMIT` (2^24). In a frame
+  with reservoir 0 that makes no CALL, `StateGasMeter` charges execution and state gas exactly as
+  the `Nat` meter does on its execution gas. The two differ only on refills, and on reverts and
+  halts, which are failures. A simulation lemma between `step` over `Evm fork StateGasMeter`
+  (reservoir 0, no refill) and `step` over `Evm fork Nat` would carry `ok_X` and the
+  non-deprecated part of `inv_call` over to such runs. EthLib has no parametricity theorem for
+  its meter-generic `step`, so that lemma needs a case analysis of every opcode the code reaches.
+  A linear disassembly of `CODE` shows 60 distinct bytes, counting each PUSH, DUP and SWAP width
+  and the metadata at the end. The case analysis must also exclude the refill paths, where a slot set earlier
+  in the transaction goes back to 0. The converse direction of `X_iff_gas` (enough gas gives
+  success) and the deprecated paths (their CALL passes on the reservoir, and GAS pushes only the
+  execution gas) need more. This is more than one round of work, so no part of it is in the
+  repository.
+
 ## Open (not proved)
+- The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
+  Glamsterdam (third audit, T1; round 33 entry above). Every theorem is about the one-counter
+  meter `Nat`. At Glamsterdam the results describe that meter, not the transactions EthLib runs.
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
   contract (round 24: concrete runners meet them, `Sanity/Runner.lean`). `transferFrom_bound` has
@@ -1739,6 +1782,13 @@ T5 (third audit): the gas of the completeness theorems not deprecated, with its 
   341.04 s user, 1798881280 bytes max RSS, exit 0, 0 "error:" lines, 1400 jobs. Hash check: 11075
   bytes, keccak256 b44fb4e9...ea55. `#print axioms`: 827 with axioms, 6 with none; no sorryAx,
   ofReduceBool or trustCompiler.
+- Round 33 (tree of commit 3f3250a, rm -rf .lake/build, EthLib oleans prebuilt,
+  LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms` under `safe.sh -m 9G`):
+  135.78 s wall, 341.82 s user, 1763753984 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:"
+  lines, 1400 jobs. Hash check: 11075 bytes, keccak256 b44fb4e9...ea55. `#print axioms`: 841
+  reports, 7 with no axioms, none outside [propext, Classical.choice, Quot.sound], no `sorryAx`.
+  grep of UsdtVerify/ for sorry, admit, axiom declarations, native_decide, bv_decide,
+  decide +native: none.
 - Round 31 (tree of commit 725dd5b, rm -rf .lake/build, EthLib oleans prebuilt,
   LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`): 135.77 s wall, 340.22 s
   user, 1796440064 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines, 1399 jobs. Hash

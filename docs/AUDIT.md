@@ -489,6 +489,17 @@ effects) over `[LawfulGasMeter Meter]` and prove the gas-exact ones for `StateGa
 The README sentence "All of this holds from the Berlin fork onwards, Glamsterdam included" should
 name the meter (replacement sent).
 
+**Resolution (round 33): investigated, not resolved; the claims are restricted.** No
+statement was generalised. EthLib's symbolic logic (`At`, the opcode rules, NatCode) is fixed to
+`Evm fork Nat`, and so is every file of this repository that proves a path. A restatement for
+`StateGasMeter` needs either a second copy of the gas framework and of the path specifications,
+or a simulation lemma between the two meters' `step`, proved opcode by opcode. That lemma would
+cover a top frame with reservoir 0 (a transaction gas limit of at most 2^24), no CALL and no
+refill. docs/STATUS.md (round 33, T1) gives the details and the route. RESULTS.md and
+STATUS.md now say that every theorem, at Glamsterdam included, is about the one-counter meter,
+and that EthLib runs Glamsterdam transactions with `StateGasMeter`. The README keeps its claims
+to the one-counter meter.
+
 ## T2. The runner hypotheses range over every block and transaction environment (Medium)
 
 **Evidence.** `SendsVia` (Evm/Route.lean:134) fixes `caller`, `currentTarget`, `target`,
@@ -620,6 +631,9 @@ caller builds unchanged.
   not tied to the upgraded contract's answer in this statement (the specification of the path ties
   it). The README says "the upgraded contract's answer".
 - "Logic/NatCode.lean" is `EthLib/Execution/Proofs/Evm/Logic/NatCode.lean` (Info).
+
+**Resolution (round 33).** The main session corrected the README before this round. No Lean
+statement was involved.
 
 ## T7. Checked and found sound (Info)
 
