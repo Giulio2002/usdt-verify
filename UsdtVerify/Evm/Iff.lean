@@ -36,6 +36,11 @@ import UsdtVerify.Evm.Stuck
 - `fwd_ok_iffQ` (round 26): `fwd_ok_iff` with a condition `Q` on the ended forwarded frame in
   place of "no error" (for the deprecated paths: no error and enough gas left for the code after
   the CALL).
+- `fwd_ok_iff_fails` (round 26): `fwd_ok_iffQ` for a runner that may fail with any error, from a
+  specification that ends only at a failure of the runner on a forwarded message
+  (`Sends.SpecOn`): `RunsOk` holds exactly when `G` and `A` hold, if the runner ends each
+  forwarded message in a frame meeting `Q` (a condition on the caller's frame and the ended frame)
+  exactly when `A` holds, and a failure of the runner on a forwarded message excludes `A`.
 - `routes_unique`: a code has at most one route in a state.
 -/
 
@@ -265,6 +270,39 @@ theorem fwd_ok_iffQ {G A : Prop} {Q P : Evm fork Nat → Prop} {M : Message fork
       ⟨fun caller msg lt child hch hfwd => (hans caller msg lt child hch hfwd).2 hA,
         fun caller msg lt e h => absurd h (hnf caller msg lt e)⟩
       hnf (fun _ h => h) hp within
+
+/-- A path that forwards one message, under a runner that may fail with any error: `RunsOk` holds
+exactly when `G` and `A` hold, if `G` gives a specification to frames with no error that holds
+under every runner whose frames for messages of `S` meet `Q` (`Q` of the caller's frame and the
+ended frame) and that ends otherwise only at a failure of the runner on a message of `S`
+(`Sends.SpecOn`); every run that ends with no error meets `G` and had a message of `S` end in a
+frame meeting `Q`; the runner ends each message of `S` in a frame meeting `Q` exactly when `A`
+holds (`hans`); and a failure of the runner on a message of `S` excludes `A` (`hfail`). -/
+theorem fwd_ok_iff_fails {G A : Prop} {Q : Evm fork Nat → Evm fork Nat → Prop}
+    {S : Message fork → Prop} {P : Evm fork Nat → Prop}
+    (hspec : G → Sends.SpecOn fork (fun caller msg child => S msg → Q caller child) S P
+      (fun e => e.error = none))
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =
+      .ok s → s.error = none → G ∧ ∃ caller msg lt child, runChild caller msg lt = .ok child ∧
+        Q caller child.1 ∧ S msg)
+    (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child → S msg →
+      (Q caller child.1 ↔ A))
+    (hfail : ∀ caller msg lt e, runChild caller msg lt = .error e → S msg → ¬ A)
+    (hp : P evm) :
+    RunsOk fork bound runChild evm within ↔ G ∧ A := by
+  constructor
+  · rintro ⟨s, hs, hok⟩
+    obtain ⟨hG, caller, msg, lt, child, hch, hq, hS⟩ := hcomp s hs hok
+    exact ⟨hG, (hans caller msg lt child hch hS).1 hq⟩
+  · rintro ⟨hG, hA⟩
+    obtain ⟨after, hreach, ⟨halted, hq⟩ | ⟨-, caller, msg, -, -, hS, lt, e, failed⟩⟩ :=
+      hspec hG bound runChild (fun caller msg lt child hch hS => (hans caller msg lt child hch hS).2 hA)
+        evm hp within
+    · refine ⟨after, ?_, hq⟩
+      rw [runFrame_eq_of_reaches StepBy.gasHeld_le StepBy.runFrame_eq hreach within,
+        runFrame_of_running_eq_false halted]
+    · exact absurd hA (hfail caller msg lt e failed hS)
 
 /-- A code has at most one route in a state. -/
 theorem routes_unique {st : State.TransactionState} {c : ByteArray} {r r' : Route}

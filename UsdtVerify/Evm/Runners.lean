@@ -19,6 +19,7 @@ when `R` holds between two states with the same storage at `C` (`SameStore C`).
   and the caller's state (`answerRunner_ok`). `answerRunner_keeps`.
 - `answerRunnerAt S f` (round 26): the same, but every message ends in the given state `S`
   (`answerRunnerAt_ok`); it does not keep storage in general.
+- `failRunner e` (round 26): fails on every message with the error `e`.
 
 `Keeps` asks its relation of every message to `ua` that the runner ends with no error, whatever
 the code of the message; `stopRunner` meets it by failing the messages to `ua` that do not run
@@ -122,6 +123,9 @@ theorem answerRunner_keeps (f : Evm fork Nat → Message fork → ByteArray) (ua
     Keeps (answerRunner (bound := bound) f) C ua (SameStore C) := by
   intro caller msg lt child h _ _ _ n
   rw [(answerRunner_ok h).2.1]
+
+/-- The runner that fails on every message with the error `e` (round 26). -/
+def failRunner (e : EvmError) : MessageRunner fork Nat bound := fun _ _ _ => .error e
 
 /-- The runner that ends every message at once with no error, gas 0, the output `f caller msg`
 and the state `S` (round 26: a runner whose ended frames all have the state `S`). -/

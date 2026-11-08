@@ -515,7 +515,10 @@ structure HypT (fork : Fork) (message : Message fork) (state : State.Transaction
 
 /-- `spec_depT` with the bound `htail` (at least 51 gas left after the price of the CALL) replaced by
 `hcg`: every ended forwarded message that meets `callee` leaves at least 51 gas for the code after
-the CALL, the gas the CALL keeps plus the gas left in the ended frame. -/
+the CALL, the gas the CALL keeps plus the gas left in the ended frame.
+Stated as a `Sends.SpecOn` (round 26): the frames that end the runner's messages meet
+`callee`, the runner may fail with any error, and the run ends as stated or at a failure of the
+runner on a forwarded message (`SendsVia`); `.toUnder` gives EthLib's `SpecUnder`. -/
 theorem spec_depT_g {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
     (h : HypT fork message state substate c r c0 cB c10 cU) {gas : Nat}
     (hg : preCostT fork c0 cB c10 cU + 100 + callRT substate state message r ≤ gas)
@@ -523,7 +526,8 @@ theorem spec_depT_g {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
     (hcg : ∀ caller msg child, callee caller msg child →
       SendsVia message (upAddr state message) c r (dataT message) msg →
       51 ≤ gas - preCostT fork c0 cB c10 cU - (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).cost + child.gas) :
-    SpecUnder fork callee (At CODE message 0 [] .empty gas state substate)
+    Sends.SpecOn fork callee (SendsVia message (upAddr state message) c r (dataT message))
+      (At CODE message 0 [] .empty gas state substate)
       fun evm => ∃ caller msg child, callee caller msg child ∧
         SendsVia message (upAddr state message) c r (dataT message) msg ∧
         msg.gas = (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).subCall ∧
@@ -548,7 +552,7 @@ theorem spec_depT_g {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
   have hR : routeCost fork ((callSubT substate state message).accessedAddresses.insert
       (toAddressMasked (upWord (storageAt state message.currentTarget 10)))) r =
       callRT substate state message r := routeCost_insert_insert _ _ _
-  have hcall := callWithR (fork := fork) (code := CODE) (message := message) (pc := 5756)
+  have hcall := Complete.callWithRS (fork := fork) (code := CODE) (message := message) (pc := 5756)
     (memory := memT message) (gas := gas - preCostT fork c0 cB c10 cU)
     (state := callStateT state message)
     (substate := callSubT substate state message) (callee := callee)
@@ -561,9 +565,12 @@ theorem spec_depT_g {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
     (by simp [upAddr]) (by rw [hext, hR]; simp only [accCost_false]; omega)
   rw [hext, hR] at hcall
   simp only [accCost_false] at hcall
-  refine SpecUnder.seq (HoareUnder.of_hoare (preCallT h.berlin h.size h.size' h.sel h.value
+  have hcall := hcall.mono_S (S' := SendsVia message (upAddr state message) c r (dataT message)) fun _ h => by
+    obtain ⟨a1, a2, a3, a4, a5, a6, a7, a8, a9, a10⟩ := h
+    exact ⟨a1, a2, a3, a4, a5, a6, by rw [a7]; exact data_memT message, a8, a9, a10⟩
+  refine Sends.SpecOn.seq (Sends.HoareOn.of_hoare (preCallT h.berlin h.size h.size' h.sel h.value
     h.notPaused h.notBlack h.deprecated h.code h.codeSize h.codeSize' h.cold0 h.coldB h.cold10
-    h.coldU (by omega))) (HoareUnder.seq hcall (HoareUnder.of_hoare ?_))
+    h.coldU (by omega))) (Sends.HoareOn.seq hcall (Sends.HoareOn.of_hoare ?_))
   rintro evm ⟨caller, msg, child, hcal, -, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd, hmv,
     hmdep, hmst, hat⟩
   have hfwd : SendsVia message (upAddr state message) c r (dataT message) msg := by
@@ -638,6 +645,7 @@ theorem spec_depT {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
             (gas - preCostT fork c0 cB c10 cU - (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).cost + child.gas - 25)
             (incorporateChild fork caller child).state
             (incorporateChild fork caller child).substate evm) := by
+  apply Sends.SpecOn.toUnder
   apply spec_depT_g
   all_goals first | assumption | (intro _ _ _ _ _; omega)
 
@@ -921,7 +929,10 @@ theorem preExtA (hfork : .berlin ≤ fork) (hlong : 68 ≤ message.data.size)
 
 /-- `spec_depA` with the bound `htail` (at least 53 gas left after the price of the CALL) replaced by
 `hcg`: every ended forwarded message that meets `callee` leaves at least 53 gas for the code after
-the CALL, the gas the CALL keeps plus the gas left in the ended frame. -/
+the CALL, the gas the CALL keeps plus the gas left in the ended frame.
+Stated as a `Sends.SpecOn` (round 26): the frames that end the runner's messages meet
+`callee`, the runner may fail with any error, and the run ends as stated or at a failure of the
+runner on a forwarded message (`SendsVia`); `.toUnder` gives EthLib's `SpecUnder`. -/
 theorem spec_depA_g {c : ByteArray} {r : Route} {c10 cU : Bool}
     (h : HypA fork message state substate c r c10 cU) {gas : Nat}
     (hg : preCostA fork c10 cU + 100 + callR substate state message r ≤ gas)
@@ -929,7 +940,8 @@ theorem spec_depA_g {c : ByteArray} {r : Route} {c10 cU : Bool}
     (hcg : ∀ caller msg child, callee caller msg child →
       SendsVia message (upAddr state message) c r (dataA message) msg →
       53 ≤ gas - preCostA fork c10 cU - (callGasA fork gas c10 cU (callR substate state message r)).cost + child.gas) :
-    SpecUnder fork callee (At CODE message 0 [] .empty gas state substate)
+    Sends.SpecOn fork callee (SendsVia message (upAddr state message) c r (dataA message))
+      (At CODE message 0 [] .empty gas state substate)
       fun evm => ∃ caller msg child, callee caller msg child ∧
         SendsVia message (upAddr state message) c r (dataA message) msg ∧
         msg.gas = (callGasA fork gas c10 cU (callR substate state message r)).subCall ∧
@@ -978,7 +990,7 @@ theorem spec_depA_g {c : ByteArray} {r : Route} {c10 cU : Bool}
   have hR : routeCost fork ((callSub substate state message).accessedAddresses.insert
       (toAddressMasked (upWord (storageAt state message.currentTarget 10)))) r =
       callR substate state message r := routeCost_insert_insert _ _ _
-  have hcall := callWithR (fork := fork) (code := CODE) (message := message) (pc := 3230)
+  have hcall := Complete.callWithRS (fork := fork) (code := CODE) (message := message) (pc := 3230)
     (memory := memA message) (gas := gas - preCostA fork c10 cU)
     (state := callState state message)
     (substate := callSub substate state message) (callee := callee)
@@ -991,7 +1003,10 @@ theorem spec_depA_g {c : ByteArray} {r : Route} {c10 cU : Bool}
     (by simp [upAddr]) (by rw [hext, hR]; simp only [accCost_false]; omega)
   rw [hext, hR] at hcall
   simp only [accCost_false] at hcall
-  refine SpecUnder.seq (HoareUnder.of_hoare hpre) (HoareUnder.seq hcall (HoareUnder.of_hoare ?_))
+  have hcall := hcall.mono_S (S' := SendsVia message (upAddr state message) c r (dataA message)) fun _ h => by
+    obtain ⟨a1, a2, a3, a4, a5, a6, a7, a8, a9, a10⟩ := h
+    exact ⟨a1, a2, a3, a4, a5, a6, by rw [a7]; exact data_memA message, a8, a9, a10⟩
+  refine Sends.SpecOn.seq (Sends.HoareOn.of_hoare hpre) (Sends.HoareOn.seq hcall (Sends.HoareOn.of_hoare ?_))
   rintro evm ⟨caller, msg, child, hcal, -, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd, hmv,
     hmdep, hmst, hat⟩
   have hfwd : SendsVia message (upAddr state message) c r (dataA message) msg := by
@@ -1056,6 +1071,7 @@ theorem spec_depA {c : ByteArray} {r : Route} {c10 cU : Bool}
             (gas - preCostA fork c10 cU - (callGasA fork gas c10 cU (callR substate state message r)).cost + child.gas - 25)
             (incorporateChild fork caller child).state
             (incorporateChild fork caller child).substate evm) := by
+  apply Sends.SpecOn.toUnder
   apply spec_depA_g
   all_goals first | assumption | (intro _ _ _ _ _; omega)
 

@@ -28,6 +28,9 @@ exactly when a condition `A` holds.
   `destroyBlackFunds_dep_ok_iff_gas`, when `S` has an account of `C`: the ended frame has no
   error, an account of `C` and gas 0, so the condition reduces to the bound `T ≤ R`. Stated per
   frame: `T` (the tail's cost and stipend bound) depends on the caller's frame.
+- `failRunner_hans`, `failRunner_hfail` (round 26): `failRunner e` (Evm/Runners.lean), which fails
+  on every message with any error `e`, meets the runner hypotheses `hans` and `hfail` of the
+  `*_dep_ok_iff_fails` theorems with `A = False`, for every set of messages and condition `Q`.
 -/
 
 namespace UsdtVerify.Sanity
@@ -104,5 +107,15 @@ theorem answerRunnerAt_ans_gasD {S : State.TransactionState} {C : Address} (hS :
   obtain ⟨he, hs, -, hg⟩ := answerRunnerAt_ok h
   rw [hg, Nat.add_zero, hs]
   exact ⟨fun h => h.2.2, fun h => ⟨he, hS, h⟩⟩
+
+theorem failRunner_hans {e : EvmError} (S : Message fork → Prop)
+    (Q : Evm fork Nat → Evm fork Nat → Prop) :
+    ∀ caller msg lt child, failRunner (bound := bound) e caller msg lt = .ok child → S msg →
+      (Q caller child.1 ↔ False) :=
+  fun _ _ _ _ h _ => by cases h
+
+theorem failRunner_hfail {e : EvmError} (S : Message fork → Prop) :
+    ∀ caller msg lt e', failRunner (bound := bound) e caller msg lt = .error e' → S msg → ¬ False :=
+  fun _ _ _ _ _ _ h => h
 
 end UsdtVerify.Sanity

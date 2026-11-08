@@ -1,6 +1,7 @@
 import EthLib.Execution.Proofs.Evm.Logic.Call
 import EthLib.Execution.Proofs.Evm.Logic.Callee
 import UsdtVerify.Evm.Local.Extcodesize
+import UsdtVerify.Evm.Sends
 
 /-!
 # The route of a CALL to the upgraded address
@@ -10,7 +11,8 @@ delegation indicator to an address `d`, the code of `d` (EthLib's `accessDelegat
 names the two cases (`Route`, `Routes`), what the delegated case adds (`routeCost`, `routeState`,
 `routeSub`, `routeAddr`, `routeCode`), the step of a CALL along a route (`callStep_child_r`) and
 the CALL rule under a callee assumption along a route (`callWithR`, EthLib's `callWith` without
-its hypothesis of no delegation). The forward specifications of the deprecated paths
+its hypothesis of no delegation; round 26: `callWithRS`, the same as a `Sends.HoareOn` whose
+runner may fail only on the message it sends, from which `callWithR` follows). The forward specifications of the deprecated paths
 (Usdt/Spec/Deprecated/) and their completeness (Usdt/Complete/Deprecated/) use it.
 -/
 
@@ -274,6 +276,89 @@ theorem callStep_child_r (hfork : .berlin ≤ fork)
         rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 
+/-- CALL with no value along the route `r`, under a callee assumption, for a runner that may fail
+only on the message it sends (`SendsVia` with the data read from memory): EthLib's `callWith`, for
+the code of the address itself or, from Pectra, the code of its delegate. The price adds the
+access to the delegate (`routeCost`); the message runs the code of the route at the address of
+the route, with the precompiles disabled when delegated, and keeps `to` as its current target;
+the caller's state and substate record the read and the access of the delegate. -/
+theorem callWithRS (hfork : .berlin ≤ fork)
+    {code : ByteArray} {message : Message fork} {pc : Nat} {memory : ByteArray} {gas : Nat}
+    {state : State.TransactionState} {substate : Substate}
+    {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop}
+    {asked to i isz o osz : U256} {rest : List U256}
+    {cold : Bool} {calleeCode : ByteArray} {r : Route} (hlt : pc < code.size)
+    (hbyte : code[pc] = 0xf1)
+    (hcode : state.getCode (state.getAccount (toAddressMasked to)).codeHash = .ok calleeCode)
+    (hroute : Routes fork state calleeCode r)
+    (hdepth : message.depth + 1 ≤ STACK_DEPTH_LIMIT)
+    (hcold : decide (toAddressMasked to ∉ substate.accessedAddresses) = cold)
+    (hgas : accCost fork cold +
+      routeCost fork (substate.accessedAddresses.insert (toAddressMasked to)) r +
+      (extendMemory memory.size [(i, isz), (o, osz)]).cost ≤ gas) :
+    Sends.HoareOn fork callee
+      (SendsVia message (toAddressMasked to) calleeCode r (memoryReadBytes (memoryExtend memory
+        (extendMemory memory.size [(i, isz), (o, osz)]).expandBy) i.toNat isz.toNat))
+      (At code message pc (asked :: to :: 0 :: i :: isz :: o :: osz :: rest) memory gas state
+        substate)
+      fun after => ∃ caller msg child, callee caller msg child ∧
+        child.gas ≤ msg.gas ∧
+        caller.state = (routeState (state.recordAccountRead (toAddressMasked to)) r).recordAccountRead
+          message.currentTarget ∧
+        caller.substate = routeSub { substate with
+          accessedAddresses := substate.accessedAddresses.insert (toAddressMasked to) } r ∧
+        msg.gas = (messageCallGas fork 0 asked.toNat gas
+          (extendMemory memory.size [(i, isz), (o, osz)]).cost
+          (accCost fork cold +
+            routeCost fork (substate.accessedAddresses.insert (toAddressMasked to)) r)).subCall ∧
+        msg.caller = message.currentTarget ∧ msg.currentTarget = toAddressMasked to ∧
+        msg.target = some (toAddressMasked to) ∧
+        msg.codeAddress = some (routeAddr (toAddressMasked to) r) ∧
+        msg.code = routeCode calleeCode r ∧ msg.disablePrecompiles = r.isSome ∧
+        msg.data = memoryReadBytes (memoryExtend memory
+          (extendMemory memory.size [(i, isz), (o, osz)]).expandBy) i.toNat isz.toNat ∧
+        msg.value = 0 ∧ msg.depth = message.depth + 1 ∧ msg.isStatic = message.isStatic ∧
+        At code message (pc + 1) ((if child.error.isNone then 1 else 0) :: rest)
+          (memoryWrite (memoryExtend memory
+            (extendMemory memory.size [(i, isz), (o, osz)]).expandBy)
+            o.toNat (child.output.extract 0 (min osz.toNat child.output.size)))
+          (gas - ((messageCallGas fork 0 asked.toNat gas
+            (extendMemory memory.size [(i, isz), (o, osz)]).cost
+            (accCost fork cold +
+              routeCost fork (substate.accessedAddresses.insert (toAddressMasked to)) r)).cost +
+            (extendMemory memory.size [(i, isz), (o, osz)]).cost) + child.gas)
+          (incorporateChild fork caller child).state (incorporateChild fork caller child).substate
+          after := by
+  apply Sends.HoareOn.of_child
+  rintro evm ⟨hc, hj, hm, hpc, hst, hmem, hg, hrun', herr, hout, hs, hss⟩
+  have hcost := callBaseCost_eq hfork cold
+  subst hm hg hs hss hcold hmem
+  obtain ⟨caller, msg, hstep, c1, c2, c3, c4, c5, c6, c7, c8, c9, co, c10, c11, m1, m2, m3, mt,
+      mca, m4, mdp, md, m5, m6, m7⟩ :=
+    callStep_child_r hfork hst hcode hroute hdepth (by rw [hcost]; omega)
+  refine ⟨hrun', caller, msg, resumeCall fork caller 0 o osz, ?_,
+    ⟨m2, m3, mt, mca, m4, mdp, md, m5, m6, m7⟩, ?_⟩
+  · rw [step_of_messageInstruction (by rw [hc, hpc]; exact hlt)
+      (by simp only [hc, hpc, hbyte]; exact ofByte_of_decode (op := .call) rfl (Fork.frontier_le _))
+      instruction_call messageInstruction_call]
+    exact hstep
+  · intro child hchild hcallee
+    have hlen : caller.stack.val.length < STACK_LIMIT := by
+      have := evm.stack.property
+      rw [hst] at this
+      rw [c5]
+      simp at this
+      omega
+    obtain ⟨after, hres, a1, a2, a3, a4, a5, a6, a7, a8, a9, ao, a10, a11⟩ :=
+      resumeCall_eq (child := child) (o := o) (osz := osz) hlen
+    refine .inl ⟨after, hres, caller, msg, child, hcallee, hchild, c10, c11, ?_, m2, m3, mt, mca,
+      m4, mdp, md, m5, m6, m7, ?_⟩
+    · rw [m1, hcost]
+    · refine ⟨by rw [a1, c1, hc], by rw [a2, c2, hj], by rw [a3, c3], by rw [a4, c4, hpc],
+        by rw [a5, c5], by rw [a6, c6], ?_, by rw [a8, c8, hrun'], by rw [a9, c9, herr],
+        by rw [ao, co, hout], a10, a11⟩
+      rw [a7, c7, hcost]
+
 /-- CALL with no value along the route `r`, under a callee assumption: EthLib's `callWith`, for
 the code of the address itself or, from Pectra, the code of its delegate. The price adds the
 access to the delegate (`routeCost`); the message runs the code of the route at the address of
@@ -323,34 +408,7 @@ theorem callWithR (hfork : .berlin ≤ fork)
               routeCost fork (substate.accessedAddresses.insert (toAddressMasked to)) r)).cost +
             (extendMemory memory.size [(i, isz), (o, osz)]).cost) + child.gas)
           (incorporateChild fork caller child).state (incorporateChild fork caller child).substate
-          after := by
-  apply HoareUnder.of_child
-  rintro evm ⟨hc, hj, hm, hpc, hst, hmem, hg, hrun', herr, hout, hs, hss⟩
-  have hcost := callBaseCost_eq hfork cold
-  subst hm hg hs hss hcold hmem
-  obtain ⟨caller, msg, hstep, c1, c2, c3, c4, c5, c6, c7, c8, c9, co, c10, c11, m1, m2, m3, mt,
-      mca, m4, mdp, md, m5, m6, m7⟩ :=
-    callStep_child_r hfork hst hcode hroute hdepth (by rw [hcost]; omega)
-  refine ⟨hrun', caller, msg, resumeCall fork caller 0 o osz, ?_, ?_⟩
-  · rw [step_of_messageInstruction (by rw [hc, hpc]; exact hlt)
-      (by simp only [hc, hpc, hbyte]; exact ofByte_of_decode (op := .call) rfl (Fork.frontier_le _))
-      instruction_call messageInstruction_call]
-    exact hstep
-  · intro child hchild hcallee
-    have hlen : caller.stack.val.length < STACK_LIMIT := by
-      have := evm.stack.property
-      rw [hst] at this
-      rw [c5]
-      simp at this
-      omega
-    obtain ⟨after, hres, a1, a2, a3, a4, a5, a6, a7, a8, a9, ao, a10, a11⟩ :=
-      resumeCall_eq (child := child) (o := o) (osz := osz) hlen
-    refine .inl ⟨after, hres, caller, msg, child, hcallee, hchild, c10, c11, ?_, m2, m3, mt, mca,
-      m4, mdp, md, m5, m6, m7, ?_⟩
-    · rw [m1, hcost]
-    · refine ⟨by rw [a1, c1, hc], by rw [a2, c2, hj], by rw [a3, c3], by rw [a4, c4, hpc],
-        by rw [a5, c5], by rw [a6, c6], ?_, by rw [a8, c8, hrun'], by rw [a9, c9, herr],
-        by rw [ao, co, hout], a10, a11⟩
-      rw [a7, c7, hcost]
+          after :=
+  (callWithRS hfork hlt hbyte hcode hroute hdepth hcold hgas).toUnder
 
 end UsdtVerify.Complete

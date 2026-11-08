@@ -507,7 +507,7 @@ gas of the path to the CALL and of the CALL, with the access to the delegate (`h
 ended forwarded message that meets `callee` leaves at least 121 gas for the code after the CALL:
 the gas the CALL keeps plus the gas left in the ended frame (`hcg`).
 
-Then under every runner whose ended messages meet `callee`, the run ends (or the runner aborts)
+Then under every runner whose ended messages meet `callee`, the run ends (or the runner fails on the forwarded message)
 in a stopped frame for which there are a caller frame, a message `msg` and an ended frame `child`
 with `callee caller msg child`, such that `msg` is the forward of the call to `ua` along the route
 (`SendsVia`: data = the 4 selector bytes, no value, the code and code address of the route) with
@@ -515,7 +515,10 @@ the gas of EIP-150 (`callGas`), and:
 - if `child` ended with no error, the frame returns the 32 bytes of the word at 0x60 after CALL
   wrote the first `min 32 (size of the output)` bytes of `child`'s output there (`resWord`);
 - otherwise it reverts with no output.
-Gas left, state and substate are given exactly. -/
+Gas left, state and substate are given exactly.
+Stated as a `Sends.SpecOn` (round 26): the frames that end the runner's messages meet
+`callee`, the runner may fail with any error, and the run ends as stated or at a failure of the
+runner on a forwarded message (`SendsVia`); `.toUnder` gives EthLib's `SpecUnder`. -/
 theorem spec_dep_g (hfork : .berlin ≤ fork)
     (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x18160ddd) (hv : message.value = 0)
@@ -532,7 +535,8 @@ theorem spec_dep_g (hfork : .berlin ≤ fork)
       SendsVia message (upAddr state message) c r SEL_TS msg →
       121 ≤ gas - preCost fork c10 cU -
         (callGas fork gas c10 cU (callR substate state message r)).cost + child.gas) :
-    SpecUnder fork callee (At CODE message 0 [] .empty gas state substate)
+    Sends.SpecOn fork callee (SendsVia message (upAddr state message) c r SEL_TS)
+      (At CODE message 0 [] .empty gas state substate)
       fun evm => ∃ caller msg child, callee caller msg child ∧
         SendsVia message (upAddr state message) c r SEL_TS msg ∧
         msg.gas = (callGas fork gas c10 cU (callR substate state message r)).subCall ∧
@@ -557,7 +561,7 @@ theorem spec_dep_g (hfork : .berlin ≤ fork)
   have hR : routeCost fork ((callSub substate state message).accessedAddresses.insert
       (toAddressMasked (upWord (storageAt state message.currentTarget 10)))) r =
       callR substate state message r := routeCost_insert_insert _ _ _
-  have hcall := callWithR (fork := fork) (code := CODE) (message := message) (pc := 3736)
+  have hcall := Complete.callWithRS (fork := fork) (code := CODE) (message := message) (pc := 3736)
     (memory := M2) (gas := gas - preCost fork c10 cU) (state := callState state message)
     (substate := callSub substate state message) (callee := callee)
     (asked := askedOf fork gas c10 cU) (to := upWord (storageAt state message.currentTarget 10))
@@ -569,8 +573,11 @@ theorem spec_dep_g (hfork : .berlin ≤ fork)
     (by rw [hext, hR]; simp only [accCost_false]; omega)
   rw [hext, hR] at hcall
   simp only [accCost_false] at hcall
-  refine SpecUnder.seq (HoareUnder.of_hoare (preCall hfork hsize hsize' hsel hv hdep hcode hsz
-    hszl hc10 hcU (by omega))) (HoareUnder.seq hcall (HoareUnder.of_hoare ?_))
+  have hcall := hcall.mono_S (S' := SendsVia message (upAddr state message) c r SEL_TS) fun _ h => by
+    obtain ⟨a1, a2, a3, a4, a5, a6, a7, a8, a9, a10⟩ := h
+    exact ⟨a1, a2, a3, a4, a5, a6, by rw [a7]; exact data_M2, a8, a9, a10⟩
+  refine Sends.SpecOn.seq (Sends.HoareOn.of_hoare (preCall hfork hsize hsize' hsel hv hdep hcode hsz
+    hszl hc10 hcU (by omega))) (Sends.HoareOn.seq hcall (Sends.HoareOn.of_hoare ?_))
   rintro evm ⟨caller, msg, child, hcal, -, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd,
     hmv, hmdep, hmst, hat⟩
   have hfwd : SendsVia message (upAddr state message) c r SEL_TS msg := by
@@ -642,8 +649,8 @@ theorem spec_dep (hfork : .berlin ≤ fork)
             (gas - preCost fork c10 cU - (callGas fork gas c10 cU (callR substate state message r)).cost + child.gas - 25)
             (incorporateChild fork caller child).state
             (incorporateChild fork caller child).substate evm) :=
-  spec_dep_g hfork hsize hsize' hsel hv hdep hcode hsz hszl hroute hdepth hc10 hcU hg
-    fun _ _ _ _ _ => by omega
+  (spec_dep_g hfork hsize hsize' hsel hv hdep hcode hsz hszl hroute hdepth hc10 hcU hg
+    fun _ _ _ _ _ => by omega).toUnder
 
 /-- With an output of at least 32 bytes, the word read back is the first word of the output. -/
 theorem resWord_outMem {o : ByteArray} (ho : 32 ≤ o.size) : resWord (outMem o) = loadWord o 0 32 := by
