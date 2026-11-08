@@ -547,18 +547,10 @@ theorem preCallAl (hfork : .berlin ≤ fork)
   congr 1
   unfold extCost; omega
 
-/-- The specification of `allowance(owner, spender)` when deprecated, for every callee.
-
-Hypotheses as `DeprecatedBalance.spec_depB` with selector 0xdd62ed3e and the gas of this path
-(`preCostAl`, `callGasAl`, 128 gas after the price of the CALL). Then under every runner whose
-ended messages meet `callee`, the run ends (or the runner aborts) in a stopped frame for which
-there are a caller frame, a message `msg` and an ended frame `child` with
-`callee caller msg child`, `msg` sent to `ua` along the route `r` (`SendsVia`) with data
-`0xdd62ed3e ++ owner ++ spender`
-(`dataAl`; argument words 0 and 1 masked to 160 bits) and no value, and: if `child` ended with no
-error, the frame returns the 32 bytes of the word at 0x60 after CALL wrote the first
-`min 32 (output size)` bytes of `child`'s output there; otherwise it reverts with no output. -/
-theorem spec_depAl (hfork : .berlin ≤ fork)
+/-- `spec_depAl` with the bound `htail` (at least 128 gas left after the price of the CALL) replaced by
+`hcg`: every ended forwarded message that meets `callee` leaves at least 128 gas for the code after
+the CALL, the gas the CALL keeps plus the gas left in the ended frame. -/
+theorem spec_depAl_g (hfork : .berlin ≤ fork)
     (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xdd62ed3e) (hv : message.value = 0)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0) {c : ByteArray}
@@ -569,8 +561,10 @@ theorem spec_depAl (hfork : .berlin ≤ fork)
     (hc10 : coldIn substate message.currentTarget 10 = c10)
     (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
     {gas : Nat} (hg : preCostAl fork c10 cU + 100 + callR substate state message r ≤ gas)
-    (htail : 128 ≤ gas - preCostAl fork c10 cU - (callGasAl fork gas c10 cU (callR substate state message r)).cost)
-    {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop} :
+    {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop}
+    (hcg : ∀ caller msg child, callee caller msg child →
+      SendsVia message (upAddr state message) c r (dataAl message) msg →
+      128 ≤ gas - preCostAl fork c10 cU - (callGasAl fork gas c10 cU (callR substate state message r)).cost + child.gas) :
     SpecUnder fork callee (At CODE message 0 [] .empty gas state substate)
       fun evm => ∃ caller msg child, callee caller msg child ∧
         SendsVia message (upAddr state message) c r (dataAl message) msg ∧
@@ -617,6 +611,7 @@ theorem spec_depAl (hfork : .berlin ≤ fork)
   have hfwd : SendsVia message (upAddr state message) c r (dataAl message) msg := by
     refine ⟨hmc, hmt, hmtg, hmca, hmcode, hmdp, ?_, hmv, hmdep, hmst⟩
     rw [hmd, memoryExtend_zero]; exact data_M3A _ _
+  have hT := hcg caller msg child hcal hfwd
   have hB := size_M3A (addrArg message.data 0) (addrArg message.data 1)
   by_cases he : child.error = none
   · simp only [he, Option.isNone_none, ↓reduceIte] at hat
@@ -651,6 +646,52 @@ theorem spec_depAl (hfork : .berlin ≤ fork)
       fun h => absurd h he, fun _ => ?_⟩
     obtain ⟨h1, h2, h3, h4, h5, h6⟩ := hq
     exact ⟨h1, h2, h3, by rw [h4]; omega, h5, h6⟩
+
+/-- The specification of `allowance(owner, spender)` when deprecated, for every callee.
+
+Hypotheses as `DeprecatedBalance.spec_depB` with selector 0xdd62ed3e and the gas of this path
+(`preCostAl`, `callGasAl`, 128 gas after the price of the CALL). Then under every runner whose
+ended messages meet `callee`, the run ends (or the runner aborts) in a stopped frame for which
+there are a caller frame, a message `msg` and an ended frame `child` with
+`callee caller msg child`, `msg` sent to `ua` along the route `r` (`SendsVia`) with data
+`0xdd62ed3e ++ owner ++ spender`
+(`dataAl`; argument words 0 and 1 masked to 160 bits) and no value, and: if `child` ended with no
+error, the frame returns the 32 bytes of the word at 0x60 after CALL wrote the first
+`min 32 (output size)` bytes of `child`'s output there; otherwise it reverts with no output. -/
+theorem spec_depAl (hfork : .berlin ≤ fork)
+    (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
+    (hsel : selector message.data = 0xdd62ed3e) (hv : message.value = 0)
+    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0) {c : ByteArray}
+    (hcode : state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c)
+    (hsz : 0 < c.size) (hszl : c.size < 2 ^ 256)
+    {r : Route} (hroute : Routes fork state c r)
+    (hdepth : message.depth + 1 ≤ STACK_DEPTH_LIMIT) {c10 cU : Bool}
+    (hc10 : coldIn substate message.currentTarget 10 = c10)
+    (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
+    {gas : Nat} (hg : preCostAl fork c10 cU + 100 + callR substate state message r ≤ gas)
+    (htail : 128 ≤ gas - preCostAl fork c10 cU - (callGasAl fork gas c10 cU (callR substate state message r)).cost)
+    {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop} :
+    SpecUnder fork callee (At CODE message 0 [] .empty gas state substate)
+      fun evm => ∃ caller msg child, callee caller msg child ∧
+        SendsVia message (upAddr state message) c r (dataAl message) msg ∧
+        msg.gas = (callGasAl fork gas c10 cU (callR substate state message r)).subCall ∧
+        caller.state = (routeState ((callState state message).recordAccountRead
+          (upAddr state message)) r).recordAccountRead message.currentTarget ∧
+        caller.substate = routeSub { callSub substate state message with
+          accessedAddresses :=
+            (callSub substate state message).accessedAddresses.insert (upAddr state message) } r ∧
+        (child.error = none →
+          Halted false (wordBytes (resWord (outMemOf (memAl message) child.output)))
+            (gas - preCostAl fork c10 cU - (callGasAl fork gas c10 cU (callR substate state message r)).cost + child.gas - 128)
+            (incorporateChild fork caller child).state
+            (incorporateChild fork caller child).substate evm) ∧
+        (child.error ≠ none →
+          Halted true .empty
+            (gas - preCostAl fork c10 cU - (callGasAl fork gas c10 cU (callR substate state message r)).cost + child.gas - 25)
+            (incorporateChild fork caller child).state
+            (incorporateChild fork caller child).substate evm) := by
+  apply spec_depAl_g
+  all_goals first | assumption | (intro _ _ _ _ _; omega)
 
 /-- `allowance(owner, spender)` when deprecated, for a callee that answers `o` (at least 32
 bytes) to the forwarded call: the run returns the first word of `o`, with no error. -/

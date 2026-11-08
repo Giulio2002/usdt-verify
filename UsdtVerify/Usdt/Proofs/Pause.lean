@@ -323,8 +323,8 @@ theorem unpauseWrite (hfork : .berlin ≤ fork) {rest : List U256}
   step pushR 2 (0x0100 : U256)
   flag_write
 
-/-- At 5055 (pause), in a static frame or with no account for `C`: the run reaches the `SSTORE`
-of slot 0, which is `Stuck`. -/
+/-- At 5055 (pause), when the `SSTORE` cannot complete (`NoWrite`: a static frame, no account for
+`C`, or at most 2300 gas left there): the run reaches the `SSTORE` of slot 0 (`Stuck`). -/
 theorem pauseWriteBad (hfork : .berlin ≤ fork) {rest : List U256}
     (hrest : rest.length ≤ 16)
     (hc0 : coldIn substate message.currentTarget 0 = false) {M : ByteArray} {gas : Nat}
@@ -341,8 +341,8 @@ theorem pauseWriteBad (hfork : .berlin ≤ fork) {rest : List U256}
   flag_pre
   exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
 
-/-- At 4451 (unpause), in a static frame or with no account for `C`: the run reaches the
-`SSTORE` of slot 0, which is `Stuck`. -/
+/-- At 4451 (unpause), when the `SSTORE` cannot complete (`NoWrite`: a static frame, no account for
+`C`, or at most 2300 gas left there): the run reaches the `SSTORE` of slot 0 (`Stuck`). -/
 theorem unpauseWriteBad (hfork : .berlin ≤ fork) {rest : List U256}
     (hrest : rest.length ≤ 16)
     (hc0 : coldIn substate message.currentTarget 0 = false) {M : ByteArray} {gas : Nat}

@@ -193,8 +193,8 @@ theorem depFlag (hfork : .berlin ≤ fork) {a : U256}
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
 
-/-- At 2770 / 7755, in a static frame or with no account for `C`: the run reaches the `SSTORE`
-of slot `k`, which is `Stuck`. -/
+/-- At 2770 / 7755, when the `SSTORE` cannot complete (`NoWrite`: a static frame, no account for
+`C`, or at most 2300 gas left there): the run reaches the `SSTORE` of slot `k` (`Stuck`). -/
 theorem addrTailBad (hfork : .berlin ≤ fork) {p : Nat}
     (hp : p = 2770 ∨ p = 7755) {k a : U256} {rest : List U256} (hrest : rest.length ≤ 16)
     (hk : coldIn substate message.currentTarget k = false) {M : ByteArray} {gas : Nat}
@@ -208,8 +208,8 @@ theorem addrTailBad (hfork : .berlin ≤ fork) {p : Nat}
     addr_pre
     exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
 
-/-- At 2737 (deprecate), in a static frame or with no account for `C`: the run reaches the
-`SSTORE` of slot 10, which is `Stuck`. -/
+/-- At 2737 (deprecate), when the `SSTORE` cannot complete (`NoWrite`: a static frame, no account
+for `C`, or at most 2300 gas left there): the run reaches the `SSTORE` of slot 10 (`Stuck`). -/
 theorem depFlagBad (hfork : .berlin ≤ fork) {a : U256}
     {rest : List U256} (hrest : rest.length ≤ 16)
     {c10 : Bool}

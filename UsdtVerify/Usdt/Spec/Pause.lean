@@ -222,8 +222,9 @@ theorem spec_unpause (hfork : .berlin ≤ fork)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
-/-- `pause()` by the owner, when not paused, in a static frame or with no account for `C`: the
-run reaches the `SSTORE` of slot 0, which is `Stuck`. -/
+/-- `pause()` by the owner, when not paused, when the `SSTORE` cannot complete (`NoWrite`: a static
+frame, no account for `C`, or at most 2300 gas left there): the run reaches the `SSTORE` of slot 0
+(`Stuck`). -/
 theorem bad_pause (hfork : .berlin ≤ fork)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x8456cb59)
@@ -245,8 +246,9 @@ theorem bad_pause (hfork : .berlin ≤ fork)
   · gas_ok
   · gas_ok
 
-/-- `unpause()` by the owner, when paused, in a static frame or with no account for `C`: the
-run reaches the `SSTORE` of slot 0, which is `Stuck`. -/
+/-- `unpause()` by the owner, when paused, when the `SSTORE` cannot complete (`NoWrite`: a static
+frame, no account for `C`, or at most 2300 gas left there): the run reaches the `SSTORE` of slot 0
+(`Stuck`). -/
 theorem bad_unpause (hfork : .berlin ≤ fork)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x3f4ba83a)

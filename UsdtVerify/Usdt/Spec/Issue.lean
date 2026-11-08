@@ -392,8 +392,9 @@ theorem spec_issue (hfork : .berlin ≤ fork)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
-/-- `issue(a)` by the owner, with both `require`s passing, in a static frame or with no account
-for `C`: the run reaches the `SSTORE` of `balances[owner]`, which is `Stuck`. -/
+/-- `issue(a)` by the owner, with both `require`s passing, when the `SSTORE` cannot complete
+(`NoWrite`: a static frame, no account for `C`, or at most 2300 gas left there): the run reaches the
+`SSTORE` of `balances[owner]` (`Stuck`). -/
 theorem bad_issue (hfork : .berlin ≤ fork)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xcc872b66)
@@ -649,8 +650,9 @@ theorem spec_redeem (hfork : .berlin ≤ fork)
 
 /-! ## The end states in plain terms -/
 
-/-- `redeem(a)` by the owner, with both `require`s passing, in a static frame or with no
-account for `C`: the run reaches the `SSTORE` of `_totalSupply`, which is `Stuck`. -/
+/-- `redeem(a)` by the owner, with both `require`s passing, when the `SSTORE` cannot complete
+(`NoWrite`: a static frame, no account for `C`, or at most 2300 gas left there): the run reaches the
+`SSTORE` of `_totalSupply` (`Stuck`). -/
 theorem bad_redeem (hfork : .berlin ≤ fork)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xdb006a75)

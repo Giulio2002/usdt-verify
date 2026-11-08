@@ -434,7 +434,13 @@ bound and any message runner:
 - `Exact.X_ok_iff`: with the gas of the success path (its cost, and where the specification asks
   for it more than 2300 gas left at an SSTORE), `RunsOk` holds if and only if the condition holds.
 - `Exact.X_low`: with less gas than the cost of the success path, `RunsOk` does not hold.
-  A gas between the cost and a stipend bound is not covered.
+- `Exact.X_mid` (round 26, the 13 writing functions): with at least the cost but less than the
+  stipend bound, `RunsOk` does not hold: an SSTORE is reached with at most 2300 gas left, and
+  from Istanbul such an SSTORE fails (EIP-2200; `Gas.sstore_low_stuck`, `Gas.NoWrite`).
+- `Exact.X_iff_gas` (round 26, the same 13): for every gas, `RunsOk` holds if and only if the
+  condition holds and the gas is at least the larger of the cost and the stipend bound
+  (`Exact.iff_max`; stipend bounds `Exact.approveStip`, `Exact.ownershipStip`,
+  `Exact.transferStip`, `Exact.transferFromStip`, and the constants in the statements).
 The conditions: `CallOk` (at least 4 bytes, no value) for the 19 functions that only read (name
 and symbol under `StrForm`, gas `Exact.strCost`; totalSupply, balanceOf, allowance under `hdep`);
 `PauseGuard`, `UnpauseGuard`, `OwnerWriteGuard` (addBlackList, removeBlackList, deprecate),
@@ -454,6 +460,16 @@ hold (`ForwardOk`, `TransferDepGuard`, `ApproveDepGuard`, `TransferFromDepGuard`
 `DestroyDepGuard`) and `A` holds. `Exact.X_dep_low`: below the gas of `hg`, `RunsOk` does not
 hold, whatever the runner. `Sanity.answerRunner_noFail`: the runners `answerRunner` never fail; `Sanity.answerRunner_ans`:
 they meet `hans` with `A = True` (used for the six forwards other than destroyBlackFunds).
+Round 26, the six forwards other than destroyBlackFunds: `Exact.X_dep_ok_iff_gas` drops `htail`;
+its `hans` makes `A` equivalent to the forwarded message ending with no error and leaving enough
+gas for the code after the CALL (the gas the CALL keeps plus the gas left in the ended frame), so
+with `Exact.X_dep_low` every gas is covered. `Exact.X_dep_ok_or_fails`: for a runner that may fail
+with errors that abort the run, success gives the checks and `A`, and the checks and `A` give
+success or a failure of the runner on some message. `Sanity.answerRunnerAt_hans`: the runner
+`answerRunnerAt (sState C kvs) f` meets the `hans` of deprecated destroyBlackFunds with
+`A = True`; `Sanity.answerRunnerAt_ans_gas`: it meets the `hans` of `X_dep_ok_iff_gas` with `A`
+the bound on the gas the CALL keeps. Deprecated destroyBlackFunds between `hg` and `htail`, or
+under a runner that may fail, is not covered.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

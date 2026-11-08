@@ -175,8 +175,8 @@ theorem write3 (hfork : .berlin ≤ fork) {b m : U256}
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
-/-- At 5911, in a static frame or with no account for `C`: the run reaches the `SSTORE` of
-slot 3, which is `Stuck`. -/
+/-- At 5911, when the `SSTORE` of slot 3 cannot complete (`NoWrite`: a static frame, no account
+for `C`, or at most 2300 gas left there): the run reaches it, and it is `Stuck`. -/
 theorem write3Bad {b m : U256} {rest : List U256} (hrest : rest.length ≤ 16)
     {M : ByteArray}
     {gas : Nat} (hbad : Gas.NoWrite message state (gas - 13))

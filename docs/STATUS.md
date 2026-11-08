@@ -1249,6 +1249,36 @@ entry; `DESTS` = the 32 destinations).
   meets `hans` with `A = True` for the six forwards other than destroyBlackFunds), the proof route
   of deprecated destroyBlackFunds, `hszl` only in `*_dep_ok_iff`, the Iff.lean header).
 
+### Round 26: exact gas thresholds (Evm/Stuck.lean, Evm/Iff.lean, Usdt/Exact/, Usdt/Sanity/Exact.lean; docs/RESULTS.md "Exact success conditions")
+- `Evm/Stuck.lean` (generic): `sstoreStep_low`, `sstore_low_stuck` (from Istanbul, an SSTORE with
+  at most 2300 gas left is `Stuck`), `NoWrite` (static, no account, or at most 2300 gas left from
+  Istanbul) with `of_bad`, `of_low`, `le`, `sstoreNoWrite`; `no_ok_stuck_at` (a `Stuck` frame
+  reached with the frame's own gas).
+- `Evm/Iff.lean` (generic): `not_runsOk_stuck`, `of_runsOk`, `iff_max`, `fwd_ok_iffQ`,
+  `fwd_ok_or_fails`.
+- The `bad_*` lemmas of the writing functions other than transferFrom (and their blocks `*Bad`)
+  now take `hbad : NoWrite` at the gas left at their first SSTORE and the exact gas to it (was:
+  static or no account, and a looser gas bound); the completeness callers pass `.of_bad`. The
+  `bad_*` lemmas of transferFrom are unchanged (its cost covers the stipends of the SSTOREs before
+  the last one). New chains to a second SSTORE
+  reached with at most 2300 gas left: `low_issue2`, `low_redeem2`, `low_setParams2`,
+  `low_deprecate2`, `DestroySpec.low2`, `low_transfer2`, `low_transferFrom2` (blocks
+  `issueTotalBad`, `redeemOwnerBad`, `write4Bad`, `subTotalBad`, `creditStoreBad`, `bodyLow2`,
+  `creditStoreBadF`, `bodyLow2F`).
+- `Usdt/Exact/`: `X_mid` and `X_iff_gas` for the 13 writing functions (not deprecated where they
+  read the flag): `RunsOk ↔ guard ∧ max cost stip ≤ gas`, for every gas. New stipend names:
+  `ownershipStip`, `transferStip`, `transferFromStip`.
+- Deprecated, the six forwards other than destroyBlackFunds: `spec_dep*_g` (the bound `hcg` on the
+  callee in place of `htail`; the old specs are derived), `X_dep_ok_iff_gas` (no `htail`; `hans`
+  covers no error and enough gas after the CALL), `X_dep_ok_or_fails` (a runner that may fail with
+  aborting errors; one-sided).
+- `Evm/Runners.lean`: `answerRunnerAt`. `Usdt/Sanity/Exact.lean`: `answerRunnerAt_noFail`,
+  `answerRunnerAt_ans_acc`, `answerRunnerAt_hans` (meets the `hans` of deprecated destroyBlackFunds
+  with `A = True`), `answerRunnerAt_ans_gas`.
+- Not covered: deprecated destroyBlackFunds between the bounds of `hg` and `htail` and under a
+  runner that may fail; for the six forwards under a runner that may fail, only the one-sided form.
+- `lake build UsdtVerify` (incremental, after each code commit): exit 0.
+
 ## Open (not proved)
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
@@ -1283,9 +1313,11 @@ entry; `DESTS` = the 32 destinations).
 - Non-vacuity (round 24): no witness run is deprecated; `KeccakSep` and `AllowSep` are not
   discharged.
 - Exact success conditions (round 25): done for the 32 functions not deprecated and the seven
-  deprecated forwarding paths (under `NoFail` and a runner hypothesis giving the answer `A`); a gas
-  between the cost of a success path and a stipend bound (deprecated: between `hg` and `htail`) is
-  not covered.
+  deprecated forwarding paths (under `NoFail` and a runner hypothesis giving the answer `A`).
+  Round 26: every gas for the 13 writing functions not deprecated (`X_iff_gas`) and for the six
+  deprecated forwards (`X_dep_ok_iff_gas` with `X_dep_low`). Open: deprecated destroyBlackFunds
+  between the bounds of `hg` and `htail`; under a runner that may fail, an iff (only the one-sided
+  `X_dep_ok_or_fails` for the six forwards, nothing for deprecated destroyBlackFunds).
 
 ## Generic gaps found (for the EthLib program-logic agent)
 1. Missing opcode rules at the pin (kept as LOCAL lemmas, UsdtVerify/Evm/Local/Rules.lean):

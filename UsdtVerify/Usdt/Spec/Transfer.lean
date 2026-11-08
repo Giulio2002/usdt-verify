@@ -1122,8 +1122,9 @@ theorem bodyToOv (hfork : .berlin ≤ fork)
     (size_mapMem (size_mapMem hM _ _) _ _)
   exact addFault (by simp) hto (by gas_ok)
 
-/-- From 9883, for any fee `≤ v` and `v ≤ balances[caller]`, in a static frame or with no account
-for `C`: the run reaches the `SSTORE` of the sender's balance, which is `Stuck`. -/
+/-- From 9883, for any fee `≤ v` and `v ≤ balances[caller]`, when the `SSTORE` cannot complete
+(`NoWrite`: a static frame, no account for `C`, or at most 2300 gas left there): the run reaches the
+`SSTORE` of the sender's balance (`Stuck`). -/
 theorem bodyBad (hfork : .berlin ≤ fork)
     (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     {v a sel : U256} {M : ByteArray} (hM : M.size = 96)
@@ -1361,9 +1362,10 @@ theorem spec_toOv (hfork : .berlin ≤ fork)
       (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hstip))
       (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hg)))
 
-/-- `transfer(to, v)`, not deprecated, with the checks passing, `v * rate < 2^256`,
-`fee ≤ v` and `v ≤ balances[caller]`, in a static frame or with no account for `C`: the run
-reaches the `SSTORE` of the sender's balance, which is `Stuck`. -/
+/-- `transfer(to, v)`, not deprecated, with the checks passing, `v * rate < 2^256`, `fee ≤ v` and `v
+≤ balances[caller]`, when the `SSTORE` cannot complete (`NoWrite`: a static frame, no account for
+`C`, or at most 2300 gas left there): the run reaches the `SSTORE` of the sender's balance
+(`Stuck`). -/
 theorem bad_transfer (hfork : .berlin ≤ fork)
     (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xa9059cbb) (hv : message.value = 0)

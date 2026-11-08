@@ -119,8 +119,9 @@ theorem spec_transferOwnership (hfork : .berlin ≤ fork)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
-/-- `transferOwnership(a)` by the owner with `a ≠ 0`, in a static frame or with no account for
-`C`: the run reaches the `SSTORE` of slot 0, which is `Stuck`. -/
+/-- `transferOwnership(a)` by the owner with `a ≠ 0`, when the `SSTORE` cannot complete (`NoWrite`:
+a static frame, no account for `C`, or at most 2300 gas left there): the run reaches the `SSTORE` of
+slot 0 (`Stuck`). -/
 theorem bad_transferOwnership (hfork : .berlin ≤ fork)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf2fde38b)
@@ -237,8 +238,9 @@ theorem spec_deprecate (hfork : .berlin ≤ fork)
   refine ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, ?_⟩
   rw [hss, mkey_addrArg0]
 
-/-- `deprecate(a)` by the owner, in a static frame or with no account for `C`: the run reaches
-the `SSTORE` of slot 10, which is `Stuck`. -/
+/-- `deprecate(a)` by the owner, when the `SSTORE` cannot complete (`NoWrite`: a static frame, no
+account for `C`, or at most 2300 gas left there): the run reaches the `SSTORE` of slot 10 (`Stuck`).
+-/
 theorem bad_deprecate (hfork : .berlin ≤ fork)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x0753c30c)

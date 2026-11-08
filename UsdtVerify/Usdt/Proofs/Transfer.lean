@@ -718,8 +718,9 @@ theorem debitStore (hfork : .berlin ≤ fork) {nb send fee v a : U256}
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
-/-- At 10072, in a static frame or with no account for `C`: the run reaches the `SSTORE` of
-`balances[msg.sender]`, which is `Stuck`. -/
+/-- At 10072, when the `SSTORE` of `balances[msg.sender]` cannot complete (`NoWrite`: a static
+frame, no account for `C`, or at most 2300 gas left there): the run reaches it, and it is
+`Stuck`. -/
 theorem debitStoreBad {nb send fee v a : U256} {rest : List U256} (hrest : rest.length ≤ 800)
     {gas : Nat}
     (hbad : Gas.NoWrite message state (gas - 99))

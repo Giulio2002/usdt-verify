@@ -194,8 +194,9 @@ theorem spec_remove (hfork : .berlin ≤ fork)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; omega, hs, hss⟩
 
-/-- The two writing paths from the owner check on, in a static frame or with no account for `C`:
-the run reaches the `SSTORE` of `isBlackListed[a]`, which is `Stuck`. -/
+/-- The two writing paths from the owner check on, when the `SSTORE` cannot complete (`NoWrite`: a
+static frame, no account for `C`, or at most 2300 gas left there): the run reaches the `SSTORE` of
+`isBlackListed[a]` (`Stuck`). -/
 theorem listTailBad (hfork : .berlin ≤ fork) {s p : Nat} {v : U256} {r : Nat}
     (hp : (s = 3288 ∧ p = 3375 ∧ v = 1 ∧ r = 0x0308) ∨ (s = 7292 ∧ p = 7379 ∧ v = 0 ∧ r = 0x091b))
     (hown : callerWord message = ownerOf state message.currentTarget) {x : U256}
@@ -220,8 +221,9 @@ theorem listTailBad (hfork : .berlin ≤ fork) {s p : Nat} {v : U256} {r : Nat}
   · gas_ok
   · gas_ok
 
-/-- `addBlackList(a)` by the owner, in a static frame or with no account for `C`: the run
-reaches the `SSTORE` of `isBlackListed[a]`, which is `Stuck`. -/
+/-- `addBlackList(a)` by the owner, when the `SSTORE` cannot complete (`NoWrite`: a static frame, no
+account for `C`, or at most 2300 gas left there): the run reaches the `SSTORE` of `isBlackListed[a]`
+(`Stuck`). -/
 theorem bad_add (hfork : .berlin ≤ fork)
     (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x0ecb93c0) (hv : message.value = 0)
@@ -237,8 +239,9 @@ theorem bad_add (hfork : .berlin ≤ fork)
   exact listTailBad hfork (Or.inl ⟨rfl, rfl, rfl, rfl⟩) hown hc0 hcB (hbad.le (by omega))
     (by omega)
 
-/-- `removeBlackList(a)` by the owner, in a static frame or with no account for `C`: the run
-reaches the `SSTORE` of `isBlackListed[a]`, which is `Stuck`. -/
+/-- `removeBlackList(a)` by the owner, when the `SSTORE` cannot complete (`NoWrite`: a static frame,
+no account for `C`, or at most 2300 gas left there): the run reaches the `SSTORE` of
+`isBlackListed[a]` (`Stuck`). -/
 theorem bad_remove (hfork : .berlin ≤ fork)
     (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xe4997dc5) (hv : message.value = 0)

@@ -11,7 +11,13 @@ selector of the function, any gas bound and any message runner.
   left at each SSTORE that the specification takes), the run ends with no error if and only if
   the condition of `Usdt/Spec/Guards.lean` holds.
 - `*_low`: with less gas than the cost of the success path, no run ends with no error.
-  A gas between the cost and a stipend bound is not covered.
+- `*_mid` (round 26): with at least the cost but less than the stipend bound, no run ends with no
+  error: an SSTORE is reached with at most 2300 gas left (EIP-2200, `Gas.NoWrite`). With two
+  SSTOREs the proof splits on which one is reached so (`low_*2`, `DestroySpec.low2`).
+- `*_iff_gas` (round 26): for every gas, the run ends with no error if and only if the condition
+  holds and the gas is at least the larger of the cost and the stipend bound (for
+  destroyBlackFunds, the larger of the cost and its two stipend bounds; for transferOwnership,
+  `ownershipStip`, none when `a = 0`).
 
 The functions: pause, unpause, addBlackList, removeBlackList, issue, redeem, setParams,
 deprecate, transferOwnership, and destroyBlackFunds when not deprecated (`hdep`).

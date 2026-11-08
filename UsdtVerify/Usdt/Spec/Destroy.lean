@@ -308,8 +308,8 @@ theorem zeroBal (hfork : .berlin ≤ fork) {a b : U256}
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
-/-- At 8008, in a static frame or with no account for `C`: the run reaches the `SSTORE` of
-`balances[a]`, which is `Stuck`. -/
+/-- At 8008, when the `SSTORE` of `balances[a]` cannot complete (`NoWrite`: a static frame, no
+account for `C`, or at most 2300 gas left there): the run reaches it, and it is `Stuck`. -/
 theorem zeroBalBad {a b : U256} {rest : List U256} (hrest : rest.length ≤ 800)
     {M : ByteArray}
     (hM : M.size = 96) {gas : Nat} (hbad : Gas.NoWrite message state (gas - 108))
@@ -607,8 +607,9 @@ theorem spec (hfork : .berlin ≤ fork)
   refine ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, ?_⟩
   rw [hss, hk]
 
-/-- `destroyBlackFunds(a)` by the owner, `a` blacklisted, not deprecated, in a static frame or
-with no account for `C`: the run reaches the `SSTORE` of `balances[a]`, which is `Stuck`. -/
+/-- `destroyBlackFunds(a)` by the owner, `a` blacklisted, not deprecated, when the `SSTORE`
+of `balances[a]` cannot complete (`NoWrite`: a static frame, no account for `C`, or at most 2300
+gas left there): the run reaches it (`Stuck`). -/
 theorem bad (hfork : .berlin ≤ fork)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)

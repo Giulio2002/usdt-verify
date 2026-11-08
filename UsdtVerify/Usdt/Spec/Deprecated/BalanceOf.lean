@@ -342,18 +342,10 @@ theorem preCallB (hfork : .berlin ≤ fork)
   congr 1
   unfold extCost; omega
 
-/-- The specification of `balanceOf(who)` when deprecated, for every callee.
-
-Hypotheses as `Deprecated.spec_dep` with selector 0x70a08231 and the gas of this path
-(`preCostB`, `callGasB`, 126 gas after the price of the CALL). Then under every runner whose
-ended messages meet `callee`, the run ends (or the runner aborts) in a stopped frame for which
-there are a caller frame, a message `msg` and an ended frame `child` with
-`callee caller msg child`, `msg` sent to `ua` along the route `r` (`SendsVia`) with data
-`0x70a08231 ++ who` (`dataB`; `who` =
-argument word 0 masked to 160 bits) and no value, and: if `child` ended with no error, the frame
-returns the 32 bytes of the word at 0x60 after CALL wrote the first `min 32 (output size)` bytes
-of `child`'s output there; otherwise it reverts with no output. -/
-theorem spec_depB (hfork : .berlin ≤ fork)
+/-- `spec_depB` with the bound `htail` (at least 126 gas left after the price of the CALL) replaced by
+`hcg`: every ended forwarded message that meets `callee` leaves at least 126 gas for the code after
+the CALL, the gas the CALL keeps plus the gas left in the ended frame. -/
+theorem spec_depB_g (hfork : .berlin ≤ fork)
     (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x70a08231) (hv : message.value = 0)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0) {c : ByteArray}
@@ -364,8 +356,10 @@ theorem spec_depB (hfork : .berlin ≤ fork)
     (hc10 : coldIn substate message.currentTarget 10 = c10)
     (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
     {gas : Nat} (hg : preCostB fork c10 cU + 100 + callR substate state message r ≤ gas)
-    (htail : 126 ≤ gas - preCostB fork c10 cU - (callGasB fork gas c10 cU (callR substate state message r)).cost)
-    {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop} :
+    {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop}
+    (hcg : ∀ caller msg child, callee caller msg child →
+      SendsVia message (upAddr state message) c r (dataB message) msg →
+      126 ≤ gas - preCostB fork c10 cU - (callGasB fork gas c10 cU (callR substate state message r)).cost + child.gas) :
     SpecUnder fork callee (At CODE message 0 [] .empty gas state substate)
       fun evm => ∃ caller msg child, callee caller msg child ∧
         SendsVia message (upAddr state message) c r (dataB message) msg ∧
@@ -411,6 +405,7 @@ theorem spec_depB (hfork : .berlin ≤ fork)
   have hfwd : SendsVia message (upAddr state message) c r (dataB message) msg := by
     refine ⟨hmc, hmt, hmtg, hmca, hmcode, hmdp, ?_, hmv, hmdep, hmst⟩
     rw [hmd]; exact data_M2B _
+  have hT := hcg caller msg child hcal hfwd
   have hB := size_M2B (addrArg message.data 0)
   by_cases he : child.error = none
   · simp only [he, Option.isNone_none, ↓reduceIte] at hat
@@ -444,6 +439,52 @@ theorem spec_depB (hfork : .berlin ≤ fork)
       fun h => absurd h he, fun _ => ?_⟩
     obtain ⟨h1, h2, h3, h4, h5, h6⟩ := hq
     exact ⟨h1, h2, h3, by rw [h4]; omega, h5, h6⟩
+
+/-- The specification of `balanceOf(who)` when deprecated, for every callee.
+
+Hypotheses as `Deprecated.spec_dep` with selector 0x70a08231 and the gas of this path
+(`preCostB`, `callGasB`, 126 gas after the price of the CALL). Then under every runner whose
+ended messages meet `callee`, the run ends (or the runner aborts) in a stopped frame for which
+there are a caller frame, a message `msg` and an ended frame `child` with
+`callee caller msg child`, `msg` sent to `ua` along the route `r` (`SendsVia`) with data
+`0x70a08231 ++ who` (`dataB`; `who` =
+argument word 0 masked to 160 bits) and no value, and: if `child` ended with no error, the frame
+returns the 32 bytes of the word at 0x60 after CALL wrote the first `min 32 (output size)` bytes
+of `child`'s output there; otherwise it reverts with no output. -/
+theorem spec_depB (hfork : .berlin ≤ fork)
+    (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
+    (hsel : selector message.data = 0x70a08231) (hv : message.value = 0)
+    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0) {c : ByteArray}
+    (hcode : state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c)
+    (hsz : 0 < c.size) (hszl : c.size < 2 ^ 256)
+    {r : Route} (hroute : Routes fork state c r)
+    (hdepth : message.depth + 1 ≤ STACK_DEPTH_LIMIT) {c10 cU : Bool}
+    (hc10 : coldIn substate message.currentTarget 10 = c10)
+    (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
+    {gas : Nat} (hg : preCostB fork c10 cU + 100 + callR substate state message r ≤ gas)
+    (htail : 126 ≤ gas - preCostB fork c10 cU - (callGasB fork gas c10 cU (callR substate state message r)).cost)
+    {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop} :
+    SpecUnder fork callee (At CODE message 0 [] .empty gas state substate)
+      fun evm => ∃ caller msg child, callee caller msg child ∧
+        SendsVia message (upAddr state message) c r (dataB message) msg ∧
+        msg.gas = (callGasB fork gas c10 cU (callR substate state message r)).subCall ∧
+        caller.state = (routeState ((callState state message).recordAccountRead
+          (upAddr state message)) r).recordAccountRead message.currentTarget ∧
+        caller.substate = routeSub { callSub substate state message with
+          accessedAddresses :=
+            (callSub substate state message).accessedAddresses.insert (upAddr state message) } r ∧
+        (child.error = none →
+          Halted false (wordBytes (resWord (outMemOf (M2B (addrArg message.data 0)) child.output)))
+            (gas - preCostB fork c10 cU - (callGasB fork gas c10 cU (callR substate state message r)).cost + child.gas - 126)
+            (incorporateChild fork caller child).state
+            (incorporateChild fork caller child).substate evm) ∧
+        (child.error ≠ none →
+          Halted true .empty
+            (gas - preCostB fork c10 cU - (callGasB fork gas c10 cU (callR substate state message r)).cost + child.gas - 25)
+            (incorporateChild fork caller child).state
+            (incorporateChild fork caller child).substate evm) := by
+  apply spec_depB_g
+  all_goals first | assumption | (intro _ _ _ _ _; omega)
 
 /-- A callee assumption that pins the answer: every message sent to `ua` (code `c`) along the
 route `r` with data `d` ends with no error and the output `o`. -/

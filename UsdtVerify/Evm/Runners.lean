@@ -121,6 +121,28 @@ theorem answerRunner_keeps (f : Evm fork Nat → Message fork → ByteArray) (ua
   intro caller msg lt child h _ _ _ n
   rw [(answerRunner_ok h).2.1]
 
+/-- The runner that ends every message at once with no error, gas 0, the output `f caller msg`
+and the state `S` (round 26: a runner whose ended frames all have the state `S`). -/
+def answerRunnerAt (S : State.TransactionState) (f : Evm fork Nat → Message fork → ByteArray) :
+    MessageRunner fork Nat bound :=
+  fun caller msg _ =>
+    .ok ⟨{ caller with
+      gas := (0 : Nat)
+      output := f caller msg
+      error := none
+      running := false
+      state := S }, Nat.zero_le _⟩
+
+theorem answerRunnerAt_ok {S : State.TransactionState}
+    {f : Evm fork Nat → Message fork → ByteArray} {caller : Evm fork Nat}
+    {msg : Message fork} {lt : msg.gas < bound}
+    {child : { c : Evm fork Nat // GasMeter.gasHeld c.gas ≤ msg.gas }}
+    (h : answerRunnerAt S f caller msg lt = .ok child) :
+    child.1.error = none ∧ child.1.state = S ∧ child.1.output = f caller msg ∧ child.1.gas = 0 := by
+  simp only [answerRunnerAt, Except.ok.injEq] at h
+  subst h
+  exact ⟨rfl, rfl, rfl, rfl⟩
+
 /-- The word at `A.size` of `A ++ wordBytes w` is `w`. -/
 theorem loadWord_append_wordBytes (A : ByteArray) (w : U256) :
     loadWord (A ++ wordBytes w) A.size 32 = w := by

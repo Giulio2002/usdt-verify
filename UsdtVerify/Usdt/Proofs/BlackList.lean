@@ -105,8 +105,9 @@ theorem listWrite (hfork : .berlin ≤ fork) {p : Nat} {v : U256}
     step popR
     exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
-/-- At 3375 / 7379, in a static frame or with no account for `C`: the run reaches the `SSTORE`
-of `isBlackListed[a]`, which is `Stuck`. -/
+/-- At 3375 / 7379, when the `SSTORE` cannot complete (`NoWrite`: a static frame, no account for
+`C`, or at most 2300 gas left there): the run reaches the `SSTORE` of `isBlackListed[a]` (`Stuck`).
+-/
 theorem listWriteBad (hfork : .berlin ≤ fork) {p : Nat} {v : U256}
     (hp : (p = 3375 ∧ v = 1) ∨ (p = 7379 ∧ v = 0)) {a : U256} {rest : List U256}
     (hrest : rest.length ≤ 16)

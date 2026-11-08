@@ -239,8 +239,9 @@ theorem spec_setParams (hfork : .berlin ≤ fork)
   refine ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, ?_⟩
   rw [hss, hR3, hR4]
 
-/-- `setParams(b, m)` by the owner, with `b < 20` and `m < 50`, in a static frame or with no
-account for `C`: the run reaches the `SSTORE` of slot 3, which is `Stuck`. -/
+/-- `setParams(b, m)` by the owner, with `b < 20` and `m < 50`, when the `SSTORE` cannot complete
+(`NoWrite`: a static frame, no account for `C`, or at most 2300 gas left there): the run reaches the
+`SSTORE` of slot 3 (`Stuck`). -/
 theorem bad_setParams (hfork : .berlin ≤ fork)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xc0324c77)

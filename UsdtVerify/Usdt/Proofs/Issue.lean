@@ -502,8 +502,9 @@ theorem redeemOwner (hfork : .berlin ≤ fork) {a : U256}
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
-/-- At 6338 (issue), in a static frame or with no account for `C`: the run reaches the `SSTORE`
-of `balances[owner]`, which is `Stuck`. -/
+/-- At 6338 (issue), when the `SSTORE` cannot complete (`NoWrite`: a static frame, no account for
+`C`, or at most 2300 gas left there): the run reaches the `SSTORE` of `balances[owner]` (`Stuck`).
+-/
 theorem issueOwnerBad (hfork : .berlin ≤ fork) {a : U256}
     {rest : List U256} (hrest : rest.length ≤ 800)
     (hc0 : coldIn substate message.currentTarget 0 = false)
@@ -519,8 +520,8 @@ theorem issueOwnerBad (hfork : .berlin ≤ fork) {a : U256}
   owner_pre 0x01 instruction_add
   exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
 
-/-- At 6741 (redeem), in a static frame or with no account for `C`: the run reaches the `SSTORE`
-of `_totalSupply`, which is `Stuck`. -/
+/-- At 6741 (redeem), when the `SSTORE` cannot complete (`NoWrite`: a static frame, no account for
+`C`, or at most 2300 gas left there): the run reaches the `SSTORE` of `_totalSupply` (`Stuck`). -/
 theorem redeemTotalBad (hfork : .berlin ≤ fork) {a : U256}
     {rest : List U256} (hrest : rest.length ≤ 800)
     (hc1 : coldIn substate message.currentTarget 1 = false) {M : ByteArray} {gas : Nat}

@@ -729,7 +729,7 @@ needed. Their satisfiability is shown separately, above.
 `strings_applies`: under `KeccakSep`, `inv_call_all` and `supply_call` apply to `approve(s, 0)`
 from that state.
 
-## Exact success conditions (round 25)
+## Exact success conditions (rounds 25, 26)
 
 `UsdtVerify/Usdt/Exact/`, with the conditions in `UsdtVerify/Usdt/Spec/Guards.lean` and the generic
 lemmas in `UsdtVerify/Evm/Iff.lean`.
@@ -748,7 +748,24 @@ any message runner:
 - `X_low`: if the gas is below the cost of the success path, `RunsOk` does not hold, whatever the
   condition.
 
-A gas at or above the cost but below a stipend bound is not covered by either theorem.
+Round 26 closes the gap between the two, for the 13 functions that write:
+- `X_mid`: if the gas is at least the cost but below the stipend bound, `RunsOk` does not hold,
+  whatever the condition. When the condition holds, the run reaches an SSTORE with at most 2300
+  gas left. From Istanbul such an SSTORE fails (EIP-2200), with that gas and with any less
+  (`Gas.sstore_low_stuck`, `Gas.NoWrite`, `Gas.no_ok_stuck_at`, `Exact.not_runsOk_stuck`). On a
+  path with two SSTOREs the proof splits on which one is reached with at most 2300 gas left
+  (`low_issue2`, `low_redeem2`, `low_setParams2`, `low_deprecate2`, `DestroySpec.low2`,
+  `low_transfer2`). On transferFrom only the last SSTORE can be reached so, since the cost covers
+  the stipends of the earlier ones (`low_transferFrom2`).
+- `X_iff_gas`: for every gas, `RunsOk` holds if and only if the condition holds and the gas is at
+  least `max cost stip` (`iff_max`). The stipend bound `stip`: pause `3297 + price(slot 0)`,
+  unpause `3184 + price(slot 0)`, addBlackList `2779 + ...`, removeBlackList `3307 + ...`, issue,
+  redeem, setParams, deprecate: the bound of their second SSTORE, as in `X_ok_iff`;
+  destroyBlackFunds: the larger of its two bounds; transferOwnership: `ownershipStip` (none when
+  `a = 0`); approve: `approveStip`; transfer: `transferStip` (`transferStip2` with a fee of 0,
+  none with a fee); transferFrom: `transferFromStip` (`stipCostF` with a fee of 0, none with a
+  fee). With a fee the logs after each SSTORE cost more than 2300, so the cost covers the
+  stipends.
 
 The conditions, in plain terms (each is a `def` in `Guards.lean`):
 - `CallOk`: at least 4 bytes of call data and no value.
@@ -802,11 +819,27 @@ ends with no error and the contract has an account in its end state".
   blacklisted); `ApproveDepGuard` (also at least 68 bytes); `TransferFromDepGuard` (also not
   paused, `f` not blacklisted); `DestroyDepGuard` (also `IsOwner`, `a` blacklisted, not static).
 - `X_dep_low`: if the gas is below the bound of `hg`, `RunsOk` does not hold, for every runner.
-  A gas between that bound and the bound of `htail` is not covered.
+- `X_dep_ok_iff_gas` (round 26, the six forwards other than destroyBlackFunds): the hypotheses of
+  `X_dep_ok_iff` without `htail`, and `hans` with "ends with no error" replaced by "ends with no
+  error, and the gas the CALL keeps plus the gas left in the ended frame is at least the gas of
+  the code after the CALL" (121 for totalSupply, 126 balanceOf, 128 allowance, 51 transfer, 53
+  approve, 53 transferFrom). Then `RunsOk` holds if and only if the checks and `A` hold. With
+  `X_dep_low`, every gas is covered for these six. The specifications behind it
+  (`spec_dep_g`, `spec_depB_g`, `spec_depAl_g`, `spec_depT_g`, `spec_depA_g`, `spec_depF_g`) take
+  that bound on the callee (`hcg`) in place of `htail`; the old specifications follow from them.
+- `X_dep_ok_or_fails` (round 26, the same six): for a runner that may fail, with errors that abort
+  the run (as `Meets` asks), in place of `NoFail`: a run that ends with no error gives the checks
+  and `A`; the checks and `A` give a run that ends with no error, or a failure of the runner on
+  some message (not shown to be the forward). This is not an iff.
 - `NoFail` excludes a runner that fails, which makes the run abort (EthLib's `Meets` allows such
   errors). `Sanity/Exact.lean`: every `answerRunner` never fails and ends every message with no
-  error, so it meets `hans` with `A = True` for the six forwards other than destroyBlackFunds
-  (for destroyBlackFunds no `A` is derived for it).
+  error, so it meets `hans` with `A = True` for the six forwards other than destroyBlackFunds.
+  Round 26: `answerRunnerAt S f` (each message ends at once with no error, gas 0, in the state
+  `S`) never fails; with `S = sState C kvs` it meets the `hans` of deprecated destroyBlackFunds
+  with `A = True` (`answerRunnerAt_hans`), and it meets the `hans` of `X_dep_ok_iff_gas` with `A`
+  the bound on the gas the CALL keeps (`answerRunnerAt_ans_gas`).
+- Deprecated destroyBlackFunds: a gas between the bounds of `hg` and `htail`, and a runner that
+  may fail, are not covered (the code after its CALL writes two slots).
 
 ## What is trusted
 
@@ -840,10 +873,11 @@ ends with no error and the contract has an account in its end state".
 - A deprecated run in the non-vacuity witnesses of round 24: no witness run is deprecated.
 - A theorem that neither `KeepsInv` nor `KeepsInvAcc` implies the other (it holds by the
   definitions; it is not stated).
-- Runs that run out of gas below the stated bounds, except at the dispatcher (see above) and below
-  the cost of a success path (round 25, `X_low`; when deprecated, below the gas to the CALL,
-  `X_dep_low`). A gas at or above that cost but below a stipend bound, or (deprecated) below the
-  bound of `htail`, is not covered.
-- The deprecated exact conditions for a runner that may fail (`NoFail` is a hypothesis).
+- Runs that run out of gas below the stated bounds, except at the dispatcher (see above), every
+  gas for the exact conditions not deprecated (rounds 25 and 26, `X_low`, `X_mid`, `X_iff_gas`),
+  and every gas for the six deprecated forwards (`X_dep_low`, `X_dep_ok_iff_gas`). Deprecated
+  destroyBlackFunds between the bounds of `hg` and `htail` is not covered.
+- The deprecated exact conditions for a runner that may fail: only the one-sided
+  `X_dep_ok_or_fails` for the six forwards; nothing for deprecated destroyBlackFunds.
 - Forks before Berlin. Glamsterdam rests on EthLib's model of that fork at the pin (its prices
   and the order of its checks).
