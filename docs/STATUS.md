@@ -1874,12 +1874,28 @@ T1 (third audit), the two items left open in round 41, and the refill cases.
 - Item 2 of round 41 (is a reservoir other than 0 impossible to state because of GAS before the
   CALL?): no. No step before the CALL charges state gas, so the execution gas left follows the gas
   of the meter `Nat` exactly at any reservoir, and GAS pushes the same word on both.
-- Not done: the exact threshold and the exact gas left of a writing function when a write refills
-  (`X_iff_gas_sgm`, `X_gas_any` keep `hnr`, `hnrD`, `hnrA` and the owner forms); the split of the gas
-  at the end between execution gas and reservoir; equality of the gas for deprecated
-  destroyBlackFunds over `StateGasMeter`; the invariant and the security properties over
-  `StateGasMeter` from a reservoir other than 0 when deprecated (they still ask reservoir 0); a
-  concrete deprecated state over `StateGasMeter` with a run of USDT that ends with no error.
+- The exact gas and success condition with refills, approve (Evm/SgmSplit.lean, Evm/SstoreS.lean,
+  Evm/OneWrite.lean, Usdt/Refill/ApproveS.lean). Over `StateGasMeter` an SSTORE is the SSTORE of
+  the meter `Nat` from the same frame with `sstoreBump g A S` more gas: the refill `A` credits the
+  execution gas up to the spill and the reservoir with the rest, and the state gas `S` comes from
+  the reservoir first (`sstoreS_of_cond`, `cond_of_sstoreS`). `one_write_sgm`: for a path with one
+  write between two cheap stretches (`P` before, `T` after), from any meter, the run ends with no
+  error if and only if `P + 2301 ≤ gas` and `P + writeCost + T ≤ gas + sstoreBump m.gas A S`, and
+  every run that ends with no error has `gasLeft + P + writeCost + T = gas + bump` and the meter
+  `sstoreMeter m.gas A c S` for the reservoir and the spill (`one_write_end`). `approve_zero_sgm`
+  and `approve_set_sgm` apply it to approve, with no refill hypothesis and at any reservoir: `A` is
+  97,920 when approve writes 0 over an allowance that was 0 at the start of the transaction and is
+  not 0 now, and `S` is 97,920 when it writes a word other than 0 into such a slot.
+- Still not covered with refills: the exact condition and gas of transfer, transferFrom and the ten
+  owner functions. For the six owner functions with one write the path has the shape of
+  `one_write_sgm`, but the instances are not written. transfer, transferFrom, issue, redeem,
+  setParams and destroyBlackFunds write two or three slots, and a refill of one write can pay the
+  state gas of a later one, which needs `one_write_sgm` extended to a chain of writes.
+- Not done: the exact threshold and gas with refills for the writing functions other than
+  approve (`X_iff_gas_sgm`, `X_gas_any` keep `hnrD`, `hnrA` and the owner forms); the invariant and
+  the security properties over `StateGasMeter` from a reservoir other than 0 when deprecated; equality
+  of the gas for deprecated destroyBlackFunds over `StateGasMeter`; the split of the gas after the
+  CALL; a concrete deprecated state over `StateGasMeter` with a run of USDT that ends with no error.
 
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
@@ -1907,9 +1923,10 @@ T1 (third audit), the two items left open in round 41, and the refill cases.
   Round 42: the completeness of the deprecated paths from any reservoir, with the execution gas
   left plus the reservoir at the end exact for six paths and bounded below for destroyBlackFunds
   (`dep_X_completeR`), and success of the 13 writing functions at any reservoir with refills
-  allowed from the one-counter threshold (`X_ok_dom`). Still open: the exact threshold and gas
-  when a write refills, the split of the gas between execution gas and reservoir, and the
-  invariant and security properties from a reservoir other than 0 when deprecated.
+  allowed from the one-counter threshold (`X_ok_dom`), and the exact condition and gas of approve
+  with refills at any reservoir (`approve_zero_sgm`, `approve_set_sgm`). Still open: the exact
+  threshold and gas with refills for the other writing functions, the split of the gas after the
+  CALL, and the invariant and security properties from a reservoir other than 0 when deprecated.
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
   contract (round 24: concrete runners meet them, `Sanity/Runner.lean`). `transferFrom_bound` has

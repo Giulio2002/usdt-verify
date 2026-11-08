@@ -2,6 +2,10 @@ import UsdtVerify.Evm.CallMeter
 import UsdtVerify.Evm.StepSimR
 import UsdtVerify.Evm.RunCR
 import UsdtVerify.Evm.Dom
+import UsdtVerify.Evm.SgmSplit
+import UsdtVerify.Evm.SstoreS
+import UsdtVerify.Evm.OneWrite
+import UsdtVerify.Usdt.Refill.ApproveS
 import UsdtVerify.Evm.StepSim
 import UsdtVerify.Usdt.Complete.Deprecated.Meter
 import UsdtVerify.Usdt.Complete.Deprecated.MeterR
@@ -1111,6 +1115,19 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Shadow.dom_step
 #print axioms UsdtVerify.Shadow.dom_run
 #print axioms UsdtVerify.Shadow.runsOkS_of_specG
+#print axioms UsdtVerify.Complete.low_to_runningS
+#print axioms UsdtVerify.Complete.ok_splitS
+#print axioms UsdtVerify.Complete.fwd_reachesJ
+#print axioms UsdtVerify.Complete.sgm_sstore_charges
+#print axioms UsdtVerify.Complete.sgm_sstore_charges_inv
+#print axioms UsdtVerify.Complete.sstoreS_of_cond
+#print axioms UsdtVerify.Complete.cond_of_sstoreS
+#print axioms UsdtVerify.Complete.ok_exactS
+#print axioms UsdtVerify.Complete.one_write_end
+#print axioms UsdtVerify.Complete.one_write_run
+#print axioms UsdtVerify.Complete.one_write_sgm
+#print axioms UsdtVerify.Approve.approve_zero_sgm
+#print axioms UsdtVerify.Approve.approve_set_sgm
 #print axioms UsdtVerify.Exact.approve_ok_dom
 #print axioms UsdtVerify.Exact.transfer_ok_dom
 #print axioms UsdtVerify.Exact.transferFrom_ok_dom

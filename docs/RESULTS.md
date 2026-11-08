@@ -428,13 +428,23 @@ of `CODE`, deprecated, for any gas bound and message runner over `StateGasMeter`
   runner, ends with no error. Through `Shadow.dom_run`: at every step the execution gas left over
   `StateGasMeter` is at least the gas over `Nat`, since a refill only adds and the state gas comes
   from the reservoir first.
-- Not covered: when a write refills, the exact threshold below which the run fails and the exact
-  gas left. A refill credits the execution gas only up to the spill of the frame and the reservoir
-  with the rest, and a later write that pays state gas takes it from that reservoir. So in that
-  case the run can succeed with less gas than the one-counter threshold, and the gas left depends
-  on the spill and on the order of the writes. `X_iff_gas_sgm` and `X_gas_any` still take their
-  refill hypotheses (`hnr`, `hnrD`, `hnrA` and the owner forms), and `Shadow.gas_ge_any` gives a
-  lower bound on the gas left with no such hypothesis.
+- The exact gas and success condition with refills, approve (Evm/SgmSplit.lean, Evm/SstoreS.lean,
+  Evm/OneWrite.lean, Usdt/Refill/ApproveS.lean). Over `StateGasMeter` an SSTORE is the SSTORE of
+  the meter `Nat` from the same frame with `sstoreBump g A S` more gas: the refill `A` credits the
+  execution gas up to the spill and the reservoir with the rest, and the state gas `S` comes from
+  the reservoir first (`sstoreS_of_cond`, `cond_of_sstoreS`). `one_write_sgm`: for a path with one
+  write between two cheap stretches (`P` before, `T` after), from any meter, the run ends with no
+  error if and only if `P + 2301 ≤ gas` and `P + writeCost + T ≤ gas + sstoreBump m.gas A S`, and
+  every run that ends with no error has `gasLeft + P + writeCost + T = gas + bump` and the meter
+  `sstoreMeter m.gas A c S` for the reservoir and the spill (`one_write_end`). `approve_zero_sgm`
+  and `approve_set_sgm` apply it to approve, with no refill hypothesis and at any reservoir: `A` is
+  97,920 when approve writes 0 over an allowance that was 0 at the start of the transaction and is
+  not 0 now, and `S` is 97,920 when it writes a word other than 0 into such a slot.
+- Still not covered with refills: the exact condition and gas of transfer, transferFrom and the ten
+  owner functions. For the six owner functions with one write the path has the shape of
+  `one_write_sgm`, but the instances are not written. transfer, transferFrom, issue, redeem,
+  setParams and destroyBlackFunds write two or three slots, and a refill of one write can pay the
+  state gas of a later one, which needs `one_write_sgm` extended to a chain of writes.
 
 ## Completeness of the dispatcher, for every gas
 

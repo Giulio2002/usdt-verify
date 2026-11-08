@@ -635,9 +635,15 @@ threshold.
   proved: a refill can pay for a later write's state gas from the reservoir, so the run can
   succeed below the one-counter threshold. `X_iff_gas_sgm` and `X_gas_any` keep their refill
   hypotheses.
-- Still open: the exact threshold and gas with a refill, the split of the gas at the end, the
-  invariant and the security properties from a reservoir other than 0 when deprecated, and a
-  concrete deprecated state over `StateGasMeter` with a successful run.
+- Exact with refills, approve: `approve_zero_sgm`, `approve_set_sgm` (Usdt/Refill/ApproveS.lean,
+  through `one_write_sgm`, Evm/OneWrite.lean): the exact success condition and the exact gas over
+  `StateGasMeter` at any reservoir, with no refill hypothesis. The threshold is
+  `cost ≤ gas + sstoreBump`, a function of the start state (the refill and state gas of the write)
+  and of the meter (reservoir and spill).
+- Still open: the exact threshold and gas with refills for transfer, transferFrom and the owner
+  functions, the split of the gas after the CALL, the invariant and the security properties from a
+  reservoir other than 0 when deprecated, and a concrete deprecated state over `StateGasMeter` with
+  a successful run.
 
 ## T2. The runner hypotheses range over every block and transaction environment (Medium)
 

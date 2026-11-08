@@ -589,7 +589,12 @@ child, and for destroyBlackFunds that sum is a lower bound. Round 42 (Usdt/Exact
 `Exact.X_ok_dom` for the 13 writing functions: under the guard and the threshold of `X_ok_iff`, met
 by the execution gas left of the first frame alone (the reservoir not counted), a run over `StateGasMeter` at any reservoir ends with no error,
 with no refill hypothesis (`Shadow.dom_run`). Not covered: the exact threshold and gas when a write
-refills, and the split of the gas between execution gas and reservoir.
+refills, except for approve (below), and the split of the gas after the CALL.
+Round 42 (Usdt/Refill/ApproveS.lean): `Approve.approve_zero_sgm`, `Approve.approve_set_sgm`: approve
+over `StateGasMeter` from any meter succeeds exactly when the gas passes the 2300 check at the write
+and `cost ≤ gas + sstoreBump`, where the bump is the refill credited to execution gas plus the state
+gas the reservoir pays, and every successful run ends with that exact gas
+(`Complete.one_write_sgm`). The same for the other writing functions is not proved.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas
