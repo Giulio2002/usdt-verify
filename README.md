@@ -70,7 +70,7 @@ When USDT is deprecated, it forwards each call to an upgraded contract. Those pa
 
 ## What is proved
 
-All of this holds from the Berlin fork onwards, for EthLib's one-counter gas meter, which EthLib uses up to BPO5. At Glamsterdam, EthLib runs transactions with the meter of EIP-8037, which keeps state gas in a separate reservoir, and no theorem here is stated for that meter. The theorems still apply Glamsterdam's prices with the one-counter meter: a storage write also pays the new state gas from the same counter, EXTCODESIZE costs the account access plus 100 (EIP-8038), and CALL checks its gas before charging. The prices in the theorems take the fork, and before Glamsterdam they reduce to the earlier ones. Every theorem has explicit hypotheses, such as enough gas and a call value of 0. The index of all theorems is `UsdtVerify/Summary.lean`, and `docs/RESULTS.md` gives the full statements in prose.
+All of this holds from the Berlin fork onwards, for EthLib's one-counter gas meter, which EthLib uses up to BPO5. At Glamsterdam, EthLib runs transactions with the meter of EIP-8037, which keeps state gas in a separate reservoir. `UsdtVerify/Usdt/Meter.lean` carries the completeness theorems outside the deprecated mode and the supply invariant `inv_call` over to that meter, through a proof that the two meters step alike. This holds for a frame whose state-gas reservoir is empty, which EthLib gives the first frame of every transaction of at most 2^24 gas, and for runs where no storage write refills state gas. That second condition is a hypothesis, not proved. The exact success conditions and the deprecated paths are not carried over. The theorems still apply Glamsterdam's prices with the one-counter meter: a storage write also pays the new state gas from the same counter, EXTCODESIZE costs the account access plus 100 (EIP-8038), and CALL checks its gas before charging. The prices in the theorems take the fork, and before Glamsterdam they reduce to the earlier ones. Every theorem has explicit hypotheses, such as enough gas and a call value of 0. The index of all theorems is `UsdtVerify/Summary.lean`, and `docs/RESULTS.md` gives the full statements in prose.
 
 - **totalSupply and balanceOf.** They return slot 1, or `balances[who]` at slot `keccak(who ++ 2)`.
 - **transfer(to, v).**
@@ -199,7 +199,7 @@ lake exe cache get
 lake build
 ```
 
-EthLib is fetched as a dependency at the git commit pinned in `lakefile.lean` (`fd3457dbf`). Building EthLib from source takes a long time and several GB of memory. Once EthLib is built, this project builds from clean in about 140 seconds with two threads and needs about 1.8 GB.
+EthLib is fetched as a dependency at the git commit pinned in `lakefile.lean` (`fd3457dbf`). Building EthLib from source takes a long time and several GB of memory. Once EthLib is built, this project builds from clean in about 110 to 140 seconds with two threads and needs about 1.8 GB.
 
 ## Credits
 

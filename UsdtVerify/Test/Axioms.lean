@@ -1,3 +1,4 @@
+import UsdtVerify.Usdt.Meter
 import UsdtVerify.Usdt.Sanity.Strings
 import UsdtVerify.Usdt.Exact.Getters
 import UsdtVerify.Usdt.Sanity.Exact
@@ -916,3 +917,17 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Sanity.process_step_dep_hyps2
 #print axioms UsdtVerify.Sanity.destroy_gas_1M
 #print axioms UsdtVerify.Sanity.destroy_mirror_runs
+-- Round 34: the EIP-8037 meter (T1 of the third audit)
+#print axioms UsdtVerify.Gas.Ends.run
+#print axioms UsdtVerify.Gas.low_of_reachesE
+#print axioms UsdtVerify.Gas.not_ok_of_reachesE
+#print axioms UsdtVerify.Complete.ends_ok_dispatch
+#print axioms UsdtVerify.Meter.sim_sstoreStep
+#print axioms UsdtVerify.Meter.sim_of_simulated
+#print axioms UsdtVerify.Meter.step_sim
+#print axioms UsdtVerify.Meter.ends_of_sgm
+#print axioms UsdtVerify.Meter.allocateGas_reservoir
+#print axioms UsdtVerify.Complete.inv_call_sgm
+#print axioms UsdtVerify.Complete.ok_transfer_sgm
+#print axioms UsdtVerify.Complete.ok_approve_sgm
+#print axioms UsdtVerify.Complete.ok_transferFrom_sgm

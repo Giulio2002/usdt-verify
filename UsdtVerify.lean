@@ -43,6 +43,7 @@ import UsdtVerify.Usdt.Exact.Approve
 import UsdtVerify.Usdt.Exact.Owner
 import UsdtVerify.Usdt.Invariant.All
 import UsdtVerify.Usdt.Invariant.Calls
+import UsdtVerify.Usdt.Meter
 import UsdtVerify.Usdt.Invariant.DeprecatedDestroy
 import UsdtVerify.Usdt.Invariant.Seq
 import UsdtVerify.Usdt.Invariant.Static

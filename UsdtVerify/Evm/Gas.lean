@@ -12,6 +12,11 @@ A run with less gas follows the run with more gas, or it fails.
   instruction on `sh k a` gives `sh k b`.
 - `GasMono x`: the same, for the step of the interpreter from every frame with `k` less gas
   than `x`.
+- `simulated`, `SimAt x`: the opcodes that Evm/Meter.lean relates between the two meters, and a
+  frame at one of them (or at a byte that is no opcode). `GasMono x` includes `SimAt x`.
+- `Ends fork l s` (round 34): `s` is a stopped frame that `l` reaches along `Step`, or the steps
+  reach a running frame that is not `SimAt`. `Ends.run`: every end of `runFrame` meets it. The
+  `E` forms (`low_of_reachesE`, `SpecG.lowE`, ...) take it in place of a `runFrame` equation.
 - `StepG`: a step of EthLib's relation `Step` from a frame that is `GasMono`. `HoareG` and
   `SpecG` are triples over `StepG`; they imply EthLib's `Hoare` and `Spec`.
 - `At.ruleG`: the rule of one opcode, as EthLib's `At.rule`, for an instruction that is `RunMono`.

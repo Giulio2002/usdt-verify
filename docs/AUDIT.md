@@ -500,6 +500,27 @@ STATUS.md now say that every theorem, at Glamsterdam included, is about the one-
 and that EthLib runs Glamsterdam transactions with `StateGasMeter`. The README keeps its claims
 to the one-counter meter.
 
+**Progress (round 34): part of route (b), through a simulation lemma.** Not resolved for every
+result.
+- Generic (UsdtVerify/Evm/Meter.lean): `step_sim` relates one step over `StateGasMeter` to one
+  step over `Nat` from `toNat` of the frame (the same fields, the execution gas left as gas), for a
+  frame with reservoir 0, at an opcode of the list `simulated` (the opcodes of the rules of
+  Evm/GasRules.lean, CALL not included) or at a byte that is no opcode, and where an SSTORE
+  refills no state gas. `ends_of_sgm` lifts it to a run of `runFrame` over `StateGasMeter`, for
+  any gas bound and message runner: it gives `Gas.Ends` between the `toNat` frames.
+- `Gas.Ends` (Evm/Gas.lean) is the hypothesis that the completeness theorems not deprecated,
+  `inv_X` and `inv_call` now take in place of a `runFrame` equation. `Ends.run` gives it from every
+  `runFrame` end. A CALL needs no hypothesis: `GasMono` and `Stuck` now name a `simulated` opcode
+  (`SimAt`), so a run that `Ends` with a CALL in it contradicts every `StepG` chain.
+- USDT (UsdtVerify/Usdt/Meter.lean): `inv_call_sgm`, `ok_transfer_sgm`, `ok_approve_sgm`,
+  `ok_transferFrom_sgm`, with the hypotheses `hres` (reservoir 0) and `hnr` (no SSTORE that the
+  steps reach refills). `allocateGas_reservoir`: a transaction gas limit of at most 2^24 gives the
+  first frame reservoir 0. Every other `ok_X` applies the same way.
+- Still open: `hnr` is a hypothesis about the run, not derived from the call; the deprecated
+  paths; a reservoir other than 0; the direction "enough gas gives success" of `X_ok_iff`,
+  `X_iff_gas` under `StateGasMeter`; `process_step` / `goodCall_process` at Glamsterdam (their
+  `processMessage` still runs over `Nat`).
+
 ## T2. The runner hypotheses range over every block and transaction environment (Medium)
 
 **Evidence.** `SendsVia` (Evm/Route.lean:134) fixes `caller`, `currentTarget`, `target`,

@@ -13,9 +13,9 @@ the folders are described in `docs/LAYOUT.md`.
   this check; it is a test, not a kernel-checked theorem.
 - The semantics is EthLib's EVM model (pinned commit fd3457dbf), with its program logic and the
   one-counter gas meter (`Nat`). EthLib itself runs transactions with that meter up to BPO5. From
-  Glamsterdam it runs them with the EIP-8037 meter `StateGasMeter`, which no theorem here covers
-  (docs/AUDIT.md, third audit, T1). So the Glamsterdam instances below are about the one-counter
-  meter at that fork's prices. Forks: Berlin onwards, Glamsterdam included. Since round 17 the paths
+  Glamsterdam it runs them with the EIP-8037 meter `StateGasMeter` (docs/AUDIT.md, third audit,
+  T1). So the Glamsterdam instances below are about the one-counter meter at that fork's prices,
+  except the round-34 results of "The EIP-8037 meter" below. Forks: Berlin onwards, Glamsterdam included. Since round 17 the paths
   that write storage hold at Glamsterdam (each SSTORE costs `writeCost`, EthLib's `sstoreCost`
   plus its state gas of a new slot). Since round 19 the paths that make a call (deprecated) hold
   there too: EXTCODESIZE costs `extCost fork` (EthLib's `externalBaseCost`: 2600 cold / 100 warm
@@ -1100,5 +1100,36 @@ ends with no error and the contract has an account in its end state".
 - Forks before Berlin. Glamsterdam rests on EthLib's model of that fork at the pin (its prices
   and the order of its checks).
 - Runs under EthLib's EIP-8037 meter `StateGasMeter`, which EthLib's `processTransaction` uses
-  from Glamsterdam. With it, state gas comes from a reservoir first and refills go back to
-  execution gas, so the gas thresholds and the gas left differ. See docs/STATUS.md (round 33, T1).
+  from Glamsterdam, beyond the round-34 results below: frames with a reservoir other than 0, runs
+  where an SSTORE refills state gas, the deprecated paths (their CALL), and the direction "enough
+  gas gives success" (`X_ok_iff`, `X_iff_gas`, `RunsOk`). See docs/STATUS.md (rounds 33 and 34).
+
+## The EIP-8037 meter (round 34; UsdtVerify/Evm/Meter.lean, UsdtVerify/Usdt/Meter.lean)
+
+- `Gas.Ends fork l s`: `s` is a stopped frame that `l` reaches along EthLib's `Step`, or the steps
+  from `l` reach a running frame that is not `SimAt` (an opcode outside the list `simulated`, which
+  holds the opcodes of the rules here; CALL is not in it). `Ends.run`: every end of `runFrame`, for
+  any gas bound and message runner, meets it. Since round 34 the completeness theorems not
+  deprecated (`ok_X`, `ends_ok_dispatch`), the per-function `inv_X` and `inv_call` take
+  `hrun : Ends fork evm s` in place of a `runFrame` equation. A `runFrame` end gives it through
+  `Ends.run`, and `runFrame_ok_dispatch` keeps its `runFrame` form.
+- `Meter.step_sim`: from a frame of `StateGasMeter` with reservoir 0, `SimAt`, and where an SSTORE
+  refills no state gas (`NoRefillAt`), one step gives the same error as the step of the meter
+  `Nat` from its `toNat` (the same fields, the execution gas left as gas), or the next frame and
+  its `toNat`, with reservoir 0 or stopped.
+- `Meter.ends_of_sgm`: a run of `runFrame` over `StateGasMeter`, for any gas bound and message
+  runner, from a frame with reservoir 0 where no SSTORE that the steps reach refills, gives
+  `Ends` from `toNat` of its start to `toNat` of its end.
+- `Meter.allocateGas_reservoir`: a transaction with a gas limit of at most 2^24 gives its first
+  frame a reservoir of 0 (EthLib's `allocateGas`), at every fork.
+- `Complete.inv_call_sgm`: `inv_call` for such a run over `StateGasMeter`. `ok_transfer_sgm`,
+  `ok_approve_sgm`, `ok_transferFrom_sgm`: the conclusions of `ok_transfer`, `ok_approve`,
+  `ok_transferFrom` for such a run, with the execution gas left `s.gas.gasLeft` in place of the
+  gas. Every other `ok_X` applies the same way, through `ends_of_sgm`, to `toNat s`.
+- Hypotheses of these, beyond those of the `Nat` theorem: the reservoir of the start frame is 0
+  (`hres`), and no SSTORE that the steps reach refills state gas (`hnr`, over every frame that the
+  start reaches along `Step`). Neither is derived from the call: `hnr` is not proved for any
+  path, and `hres` holds for the first frame of a transaction of at most 2^24 gas.
+- Not covered: the deprecated paths, a reservoir other than 0, runs with a refill, and the
+  direction of `X_ok_iff` and `X_iff_gas` that says enough gas gives success.
+

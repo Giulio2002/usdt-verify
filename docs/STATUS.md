@@ -1617,10 +1617,46 @@ one-counter meter `Nat`.
   execution gas) need more. This is more than one round of work, so no part of it is in the
   repository.
 
+### Round 34: the EIP-8037 meter through a simulation lemma (Evm/Gas.lean, Evm/Meter.lean, Usdt/Meter.lean, Usdt/Complete/)
+
+T1 (third audit), the route of round 33, in part.
+- `simulated : Op → Bool`: STOP, ADD, MUL, SUB, DIV, EXP, LT, GT, EQ, ISZERO, AND, OR, NOT,
+  KECCAK256, CALLER, CALLVALUE, CALLDATALOAD, CALLDATASIZE, POP, MLOAD, MSTORE, SLOAD, SSTORE, JUMP,
+  JUMPI, JUMPDEST, PUSHn, DUPn, SWAPn, LOGn, RETURN, REVERT: the opcodes that have a rule over
+  `StepG`. The other bytes of `CODE` are CALL, EXTCODESIZE, GAS (deprecated paths only), INVALID
+  (0xfe, no opcode) and 0x47 in the metadata. `SimAt x`: the opcode at `x`, if any, is
+  `simulated` with an instruction. `GasMono` and `Stuck` include `SimAt`. `gasMono_of_run`,
+  `At.ruleG`, `At.ruleGA`, `binaryG`, `unaryG`, `push_of_readFrameG` take `hsim` with a default
+  (`decide` or `rfl`), so no rule call changed.
+- `Ends fork l s` (Evm/Gas.lean) with `Ends.run`, `Ends.stopped`, `Ends.next`, `Ends.error`,
+  `SimAt.not_child`. The `E` forms `low_of_reachesE`, `SpecG.lowE`, `SpecG.haltedE`,
+  `SpecG.not_okE`, `not_ok_of_reachesE`, `no_ok_stuckE`, `no_ok_stuck_atE`, `ok_exactE`,
+  `ok_exact2E`, `ok_exact3E`, `no_okE`, `no_ok2E`. The `runFrame` forms stay, proved from them.
+- Usdt/Complete/Read, Getters, Owner, Approve, Transfer, TransferFrom and Usdt/Invariant/Calls:
+  every `ok_X`, `inv_X` and `inv_call` takes `(hrun : Ends fork evm s)` in place of `within` and
+  the `runFrame` equation. Conclusions unchanged. `ends_ok_dispatch` is the `Ends` form, and
+  `runFrame_ok_dispatch` is proved from it. Callers (Exact/, Security/, Invariant/All, Seq,
+  Sanity/Strings) pass `Ends.run hrun`.
+- Evm/Meter.lean: `toNat`, `lift`; `Lifts` and `lifts_*` for the instructions of `simulated` other
+  than SSTORE (they charge only execution gas, so the meter `g` passes through); `Corr`,
+  `NoRefill`, `chargeStateGas_lift` (reservoir 0: the state gas comes from the execution gas and
+  goes to the spill), `sim_sstoreStep`; `sim_of_simulated`; `NoRefillAt`, `CorrS`, `step_sim`;
+  `ends_of_sgm`; `allocateGas_reservoir`.
+- Usdt/Meter.lean: `inv_call_sgm`, `ok_transfer_sgm`, `ok_approve_sgm`, `ok_transferFrom_sgm`.
+  Their gas conclusion is about `s.gas.gasLeft`, the execution gas left.
+- Not done: a proof of `hnr` for any path (each needs the writes of the path: a slot whose
+  original value is 0 and which is not 0 when the SSTORE writes 0); the deprecated paths; the
+  converse direction of `X_iff_gas` under `StateGasMeter` (it needs the step of the meter `Nat`
+  carried to `StateGasMeter`, which `step_sim` gives, and a runner-free run, not written);
+  `process_step` and `goodCall_process` over `processMessage` at `StateGasMeter`.
+
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
-  Glamsterdam (third audit, T1; round 33 entry above). Every theorem is about the one-counter
-  meter `Nat`. At Glamsterdam the results describe that meter, not the transactions EthLib runs.
+  Glamsterdam (third audit, T1; rounds 33 and 34 above). Round 34 covers the completeness
+  theorems not deprecated and `inv_call`, for a frame with reservoir 0 and runs where no SSTORE
+  refills (`hnr`, not proved for any path). Not covered: the deprecated paths, a reservoir other
+  than 0, the "enough gas" direction of `X_ok_iff` / `X_iff_gas`, and `process_step` /
+  `goodCall_process` over `StateGasMeter`.
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
   contract (round 24: concrete runners meet them, `Sanity/Runner.lean`). `transferFrom_bound` has
@@ -1777,6 +1813,13 @@ one-counter meter `Nat`.
    a fork-generic `callWith`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+- Round 34 (tree of commit 5224fdd, rm -rf .lake/build, EthLib oleans prebuilt,
+  `lake build UsdtVerify UsdtVerify.Test.Axioms` under `safe.sh -m 9G`): 109.30 s wall, 362.78 s
+  user, 1773879296 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines, 1402 jobs. Hash
+  check: 11075 bytes, keccak256 b44fb4e9...ea55. `#print axioms`: 847 reports with axioms
+  (817 [propext, Classical.choice, Quot.sound], 20 [propext, Quot.sound], 10 [propext]), 7 with
+  none; no `sorryAx`, `ofReduceBool` or `trustCompiler`. grep of UsdtVerify/ for sorry, admit,
+  axiom declarations, native_decide, bv_decide: none.
 - Round 31, after M1 and MirrorState (tree of commit 161d97e, rm -rf .lake/build, EthLib oleans
   prebuilt, LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`): 137.82 s wall,
   341.04 s user, 1798881280 bytes max RSS, exit 0, 0 "error:" lines, 1400 jobs. Hash check: 11075

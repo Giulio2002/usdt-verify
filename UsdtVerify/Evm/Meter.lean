@@ -1,4 +1,5 @@
 import UsdtVerify.Evm.GasRules
+import EthLib.Execution.Transactions.Settlement
 
 /-!
 # The EIP-8037 meter and the one-counter meter
@@ -689,5 +690,18 @@ theorem ends_of_sgm {bound : Nat} {runChild : MessageRunner fork StateGasMeter b
     cases h
     exact .inl ⟨.refl _, hl⟩
 termination_by measure m
+
+/-! ## The reservoir of a transaction -/
+
+/-- A transaction whose gas limit is at most `TX_MAX_GAS_LIMIT` (2^24) gives its first frame a
+reservoir of 0, at every fork, by EthLib's `allocateGas`. -/
+theorem allocateGas_reservoir (fork : Fork) (tx : EthLib.Execution.Transactions.Transaction)
+    (intrinsic : Nat) (h : tx.gas.toNat ≤ TX_MAX_GAS_LIMIT) :
+    (EthLib.Execution.Transactions.allocateGas fork tx intrinsic).reservoir = 0 := by
+  simp only [EthLib.Execution.Transactions.allocateGas]
+  split
+  · simp only
+    omega
+  · rfl
 
 end UsdtVerify.Meter

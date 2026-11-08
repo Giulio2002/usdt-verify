@@ -43,7 +43,7 @@ All theorems are about the 11075-byte runtime code `CODE` (data/usdt.runtime.hex
 EthLib's EVM semantics from pc 0 in a fresh frame (`At CODE message 0 [] .empty gas state
 substate`), for every fork from Berlin on, with EthLib's one-counter gas meter `Nat` (EthLib runs
 transactions with it up to BPO5; from Glamsterdam it runs them with the EIP-8037 `StateGasMeter`,
-which no theorem here covers). The paths that write storage hold from Berlin on,
+which only the round-34 theorems of Usdt/Meter.lean cover). The paths that write storage hold from Berlin on,
 Glamsterdam included, since round 17: each SSTORE costs `Gas.writeCost` (`sstoreCost` plus the
 state gas of a new slot, `sstoreStateGas`, 0 before Glamsterdam), by the local rule
 `Gas.sstoreWG`. The deprecated paths hold at the same forks since round 19: EXTCODESIZE costs
@@ -521,8 +521,12 @@ Round 33: `Sanity.process_step_dep_hyps2` and `Sanity.destroy_mirror_runs`
 ends with no error through the CALL.
 Round 33: `keepsInvAt_of_acc`: `KeepsInvAcc` and `KeepsInvNoAcc` together give `KeepsInvAt`.
 Round 33 (third audit, T1): every theorem is about EthLib's one-counter meter `Nat`. EthLib
-runs Glamsterdam transactions with the EIP-8037 meter `StateGasMeter`, which no theorem here
-covers (docs/STATUS.md).
+runs Glamsterdam transactions with the EIP-8037 meter `StateGasMeter` (docs/STATUS.md).
+Round 34: the completeness theorems not deprecated and `Complete.inv_call` take
+`hrun : Gas.Ends fork evm s`, which every `runFrame` end meets (`Gas.Ends.run`) and which a run
+over `StateGasMeter` meets from a reservoir of 0 with no SSTORE refill (`Meter.ends_of_sgm`).
+`Complete.inv_call_sgm`, `Complete.ok_transfer_sgm`, `Complete.ok_approve_sgm`,
+`Complete.ok_transferFrom_sgm` state them for such a run (Usdt/Meter.lean).
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas
