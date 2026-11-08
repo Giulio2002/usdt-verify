@@ -16,7 +16,9 @@ two changes:
   equals the gas before the CALL less the price of the CALL, plus the execution gas left and the
   reservoir that the child gave back. For destroyBlackFunds the same sum is a lower bound.
 
-The split of that sum between execution gas and reservoir is not stated.
+The split of that sum between execution gas and reservoir is not stated here. For
+destroyBlackFunds, Usdt/Complete/Deprecated/DestroyS.lean (round 44, `dep_destroy_exactR`) states
+the meter after the CALL and the exact end, refills included.
 -/
 
 namespace UsdtVerify.Complete

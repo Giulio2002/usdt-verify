@@ -488,6 +488,53 @@ unchanged.
   axioms` on each theorem gives [propext, Classical.choice, Quot.sound] (UsdtVerify/Test/Axioms.lean);
   independent read-only review PASS WITH FIXES, fixes in 7f29631.
 
+## The EIP-8037 meter, round 44: the deprecated paths from any reservoir (READY)
+
+Status: READY for the scope stated in this section, after the clean rebuild and the independent
+review recorded in docs/AUDIT.md (T1, round 44). The trust assumptions of "What is trusted" apply
+unchanged.
+
+- The invariant when deprecated, from any reservoir (Usdt/Invariant/DepMeterR.lean). The CALL of
+  a deprecated path from a frame with reservoir `r` sends a message with reservoir `r` from a
+  caller with reservoir 0. `KeepsInvAtSR … r` and `HonestBalanceAtSR … r` are the round 41 runner
+  assumptions for those calls, and at `r = 0` they are the round 41 ones. `inv_call_depR`: from
+  Berlin, from a frame `m` with any reservoir whose `toNat` is the fresh frame of `CODE`,
+  deprecated, under `KeepsInvAtSR` and, for destroyBlackFunds, `HonestBalanceAtSR` at the
+  reservoir of `m`, every run that ends with no error keeps `Inv`. `inv_call_anyDR` (deprecated or
+  not), `CallsDR` / `inv_callsDR` (sequences), `process_stepDR` and `process_stepSDR` (from Paris,
+  top-level messages run by `processMessage` from any starting meter) have no hypothesis on the
+  reservoir.
+- The security properties when deprecated, from any reservoir (Usdt/Security/DepMeterR.lean):
+  `effect_allSR`, the five `_call_allSR`, the five `_seq_allSR` over `SeqRSR`, `process_stepSecDR`,
+  with the runner assumption `KeepsAtSR` at the reservoir of the first frame. `owner_only_allSR`:
+  the owner functions are called by the owner, over `StateGasMeter`, deprecated or not, with no
+  hypothesis on the reservoir and no runner assumption.
+- These assumptions hold for EthLib's runner (Usdt/Sanity/ProcessMeterR.lean): from Paris,
+  `processRunnerM` meets `KeepsInvAtSR` and `KeepsAtSR … R` (`R` reflexive) at every reservoir
+  when the upgraded address holds STOP, and `HonestBalanceAtSR` at every reservoir when it holds
+  `MIRROR` whose queried slot holds USDT's `balances[a]`.
+- Deprecated destroyBlackFunds, the exact gas after the CALL (`dep_destroy_exactR`,
+  Usdt/Complete/Deprecated/DestroyS.lean). From Berlin, from a frame with any reservoir, any gas
+  bound and runner over `StateGasMeter`: every run that ends with no error went through a caller
+  whose meter is the meter of the first frame with reservoir 0 and the gas before the CALL less
+  its price, and a child with no error. The meter after the CALL is `GasMeter.absorb` of the two
+  meters for a child that succeeded, whose execution gas left plus reservoir is the caller's plus
+  the child's. From that meter both writes of the tail meet `wOk`, 1364 gas is left after the
+  second, and the run ends in `tailState` and `tailSub` with the meter after the second write less
+  1364 execution gas. The run is followed over `StateGasMeter` itself (Evm/FwdS.lean,
+  `fromExtS`, `tailD_sgm`).
+- A concrete deprecated run over `StateGasMeter` (`destroy_mirror_runsS`,
+  Usdt/Sanity/MirrorStateS.lean). From Paris, Glamsterdam included, in the state `S2 C H a` of
+  round 33 (`MIRROR` at the upgraded address), `destroyBlackFunds(a)` from the owner `CALLER_A`,
+  from a frame of `StateGasMeter` with any reservoir and at least 1000000 (below 2^255) execution
+  gas, any substate and gas bound: the run under `processRunnerM` ends with no error.
+- Not covered: the split of the gas after the CALL for the six other deprecated paths
+  (`dep_X_completeR` states the sum), `Inv` in `S2`, a top-level `processMessage` form of the
+  concrete run, and the preparation of the first frame (`prepareFirstFrame`).
+- Evidence: clean rebuild of cb60c64 from an empty build directory, exit 0, 1448
+  jobs; `#print axioms` on each new theorem gives [propext, Classical.choice, Quot.sound]
+  (UsdtVerify/Test/Axioms.lean); independent read-only review PASS WITH FIXES, fixes applied in 5d949a9 (docstrings).
+
 ## Completeness of the dispatcher, for every gas
 
 - `runFrame_ok_dispatch` (`UsdtVerify/Usdt/Complete/Dispatch.lean`, alias `Summary.dispatch_complete`):
@@ -1299,6 +1346,9 @@ ends with no error and the contract has an account in its end state".
   CALL); the split of the gas between the execution gas left and the reservoir at a reservoir
   other than 0; the gas of a run with a refill (only a lower bound, `Shadow.gas_ge_any`); the
   security properties. See docs/STATUS.md (rounds 33 to 36).
+  Rounds 37 to 44 (sections above) cover most of these. Still not covered after round 44: the
+  split of the gas after the CALL for the six deprecated paths other than destroyBlackFunds, and
+  the preparation of the first frame (`prepareFirstFrame`).
 
 ## The EIP-8037 meter (round 34; UsdtVerify/Evm/Meter.lean, UsdtVerify/Usdt/Meter.lean)
 

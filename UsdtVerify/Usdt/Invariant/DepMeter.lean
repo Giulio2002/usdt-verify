@@ -20,6 +20,8 @@ relation `Run` of the child, then for a run over `StateGasMeter` from reservoir 
   error keeps `Inv`, under `KeepsInvAtS` and, for destroyBlackFunds, `HonestBalanceAtS`.
 - `inv_call_anyD`: `inv_call_any` (any reservoir when not deprecated) together with the deprecated
   case (reservoir 0).
+
+Usdt/Invariant/DepMeterR.lean (round 44) has the same results from any reservoir when deprecated.
 -/
 
 namespace UsdtVerify.Complete

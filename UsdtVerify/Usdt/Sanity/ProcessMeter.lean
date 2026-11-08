@@ -28,6 +28,8 @@ precompile, and the runner is EthLib's `processRunner` over `StateGasMeter` (`pr
   `processRunnerM` over `StateGasMeter`, at any bound, meets `HonestBalanceAtS`.
 
 The STOP proofs are those of the reviewer of the fourth audit.
+
+Usdt/Sanity/ProcessMeterR.lean (round 44) has the same instances at every reservoir.
 -/
 
 namespace UsdtVerify.Sanity

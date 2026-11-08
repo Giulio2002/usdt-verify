@@ -97,8 +97,10 @@ theorem honestBalanceAtC_of_SR {g0 : StateGasMeter} {E : Nat}
 
 /-- **Every successful deprecated call over the EIP-8037 meter keeps the invariant, any
 reservoir.** From Berlin, from a frame `m` of `StateGasMeter` with any reservoir whose `toNat` is
-the fresh frame of `CODE`, deprecated (byte 20 of slot 10 not 0), with the runner assumptions
-`KeepsInvAtSR` and, for destroyBlackFunds, `HonestBalanceAtSR` at the reservoir of `m`: if
+the fresh frame of `CODE`, call data below 2^256 bytes, the keccak hypothesis `SepOn` of the keys
+of the call, slots 7 and 8 of `StrForm`, deprecated (byte 20 of slot 10 not 0), with the runner
+assumptions `KeepsInvAtSR` and, for destroyBlackFunds, `HonestBalanceAtSR` at the reservoir of
+`m`: if
 `Inv C state` holds and the loop of the interpreter, for any gas bound and that runner, ends with
 no error, then `Inv C s.state` holds. -/
 theorem inv_call_depR {m s : Evm fork StateGasMeter}
@@ -237,8 +239,9 @@ theorem CallsDS.toR {C : Address} {S S' : State.TransactionState} (h : CallsDS C
   | callDS hg _ ih => exact .callDR hg.toR ih
 
 /-- **Deprecated top-level messages over the EIP-8037 meter, any reservoir.** From Paris, a
-top-level message to `C` (code `CODE`, no precompile, call data below 2^256 bytes, deprecated), run
-by EthLib's `processMessage` over `StateGasMeter` to the end from any starting meter, under
+top-level message to `C` (code `CODE`, no precompile, call data below 2^256 bytes, deprecated), with
+`SepOn` of the keys of the call and slots 7 and 8 of `StrForm`, run by EthLib's `processMessage`
+over `StateGasMeter` to the end from any starting meter, under
 `KeepsInvAtSR` and, for destroyBlackFunds, `HonestBalanceAtSR` of `processRunnerM` at the
 reservoir of that meter, is a `GoodCallDR` when it ends with no error and an `Untouched` step when
 it ends with an error. -/
@@ -292,8 +295,9 @@ theorem process_stepDR {fork : Fork} (hparis : .paris ≤ fork)
   · exact .inr (fun _ => Local.processMessage_failed_getStorage hproc herr _ _)
 
 /-- **Every top-level message over the EIP-8037 meter, deprecated or not, any reservoir.** From
-Paris, a top-level message to `C` (code `CODE`, no precompile, call data below 2^256 bytes) run by
-`processMessage` over `StateGasMeter` from any starting meter is a `GoodCallS` (not deprecated), a
+Paris, a top-level message to `C` (code `CODE`, no precompile, call data below 2^256 bytes), with
+`SepOn` of the keys of the call and slots 7 and 8 of `StrForm`, run by `processMessage` over
+`StateGasMeter` from any starting meter is a `GoodCallS` (not deprecated), a
 `GoodCallDR` (deprecated, under its hypotheses at the reservoir of the starting meter) or an
 `Untouched` step. No hypothesis on the reservoir. -/
 theorem process_stepSDR {fork : Fork} (hparis : .paris ≤ fork)

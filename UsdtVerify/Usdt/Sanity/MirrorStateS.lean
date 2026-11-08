@@ -53,7 +53,7 @@ theorem absorb_gasLeft_ge (c ch : StateGasMeter) :
   omega
 
 /-- With `G` execution gas at the CALL of a forward (the word `asked (G + 3)` on the stack, no
-route), from at least 900000: the message gets at least 2187 gas and at most `G - 100`, and the
+route), from at least 900000 and with `G + 3` below 2^256: the message gets at least 2187 gas and at most `G - 100`, and the
 CALL costs 100 more than it passes on. -/
 theorem callGas_bounds (hfork : .berlin ≤ fork) {G : Nat} (h1 : 900000 ≤ G) (h2 : G + 3 < 2 ^ 256) :
     2187 ≤ (depCallGas fork (asked (G + 3)) G 0).subCall ∧

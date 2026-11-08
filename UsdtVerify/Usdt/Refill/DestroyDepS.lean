@@ -13,8 +13,9 @@ answer `d` back to the body at 8008, writes `balances[a] := 0` (SSTORE at 8078),
   the second SSTORE to the STOP (1364 gas).
 - `tailDM1`, `tailDM2`: the meters after the two writes, from the meter `g` at 4892 (`wMeter`).
 - `tailD_sgm`: from a frame of `StateGasMeter` with any meter whose `toNat` is the frame at 4892
-  (the answer 1 on the stack, the memory `M` of 160 bytes with the free memory pointer, a frame
-  that is not static and an account of the contract), for any gas bound and message runner: the
+  (the answer 1 on the stack, an argument `a` that is an address word, `mkey a = a`, the memory
+  `M` of 160 bytes with the free memory pointer, a frame that is not static and an account of the
+  contract), for any gas bound and message runner: the
   run ends with no error if and only if `wOk` of the first write, `wOk` of the second write from
   the meter after the first, and 1364 gas left after the second. Every run that ends with no
   error stops in `tailState` and `tailSub` with the word `d = resWord M`, and its meter is the

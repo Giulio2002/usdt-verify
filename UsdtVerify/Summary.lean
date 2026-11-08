@@ -609,6 +609,21 @@ any meter, for any gas bound and message runner, under the guard of the Nat spec
 no refill hypothesis, the run ends with no error if and only if the chain condition holds, and every
 successful run ends as the Nat specification says with `gasLeft + cost = gas` plus the bumps of the
 writes and the meter after the last write.
+Round 44 (READY for this scope; Usdt/Invariant/DepMeterR.lean, Usdt/Security/DepMeterR.lean,
+Usdt/Sanity/ProcessMeterR.lean, Evm/FwdS.lean, Usdt/Complete/Deprecated/CallS.lean, DestroyS.lean,
+Usdt/Refill/DestroyDepS.lean, Usdt/Sanity/MirrorStateS.lean): when deprecated, from any reservoir,
+the invariant (`Complete.inv_call_depR`, `Complete.inv_call_anyDR`, `Complete.inv_callsDR`,
+`Complete.process_stepDR`, `Complete.process_stepSDR`) and the security properties
+(`Security.effect_allSR`, the `_call_allSR` and `_seq_allSR` forms, `Security.process_stepSecDR`)
+hold under the runner assumptions stated at the reservoir the CALL forwards (`KeepsInvAtSR`,
+`HonestBalanceAtSR`, `KeepsAtSR`), which `processRunnerM` meets with STOP or `MIRROR` at the
+upgraded address (`Sanity.keepsInvAtSR_process_stop`, `Sanity.keepsAtSR_process_stop`,
+`Sanity.honestBalanceAtSR_process_mirror`). `Security.owner_only_allSR` needs no reservoir
+hypothesis. `Complete.dep_destroy_exactR`: deprecated destroyBlackFunds, the meter after the CALL
+(`GasMeter.absorb` of the caller's and the child's meters) and the exact end through the two
+writes of the tail, refills included. `Sanity.destroy_mirror_runsS`: from Paris, a deprecated
+destroyBlackFunds call in the state `S2` with `MIRROR` ends with no error over `StateGasMeter` under
+`processRunnerM`, from any reservoir and at least 1000000 execution gas.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

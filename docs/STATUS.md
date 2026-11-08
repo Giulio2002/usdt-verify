@@ -1932,6 +1932,58 @@ the writing functions other than approve.
   deprecated state over `StateGasMeter` with a successful run; the preparation of the first frame
   (`prepareFirstFrame`).
 
+### Round 44: the deprecated paths over the EIP-8037 meter from any reservoir: the invariant, the security properties, the exact gas of destroyBlackFunds, a successful concrete run (Usdt/Invariant/DepMeterR.lean, Usdt/Security/DepMeterR.lean, Usdt/Sanity/ProcessMeterR.lean, Evm/FwdS.lean, Usdt/Complete/Deprecated/CallS.lean, DestroyS.lean, Usdt/Refill/DestroyDepS.lean, Usdt/Sanity/MirrorStateS.lean) (READY)
+
+READY for the scope stated in this entry: clean rebuild of cb60c64 from an empty build directory,
+exit 0, 1448 jobs, 3:42 wall; independent read-only review (round 44): PASS WITH FIXES, fixes applied in 5d949a9 (docstrings). The trust
+assumptions of "What is trusted" in docs/RESULTS.md are unchanged.
+
+T1 (third audit), three of the items left open in round 43.
+- The invariant when deprecated from any reservoir (Usdt/Invariant/DepMeterR.lean).
+  `KeepsInvAtSR runChild message state r` and `HonestBalanceAtSR … r` are `KeepsInvAtS` and
+  `HonestBalanceAtS` for the calls from a caller of reservoir 0 with a message of reservoir `r`,
+  as the CALL from a frame of reservoir `r` sends them (`RunSR`). At `r = 0` they are the round 41
+  assumptions (`keepsInvAtSR_zero`, `honestBalanceAtSR_zero`). `inv_call_depR`: from Berlin, from a
+  frame with any reservoir, deprecated, under these assumptions at the reservoir of the first
+  frame, every successful call keeps `Inv`. `inv_call_anyDR` (deprecated or not, no hypothesis on
+  the reservoir), `GoodCallDR`, `CallsDR`, `inv_callsDR`, `GoodCallDS.toR`, `CallsDS.toR`,
+  `process_stepDR`, `process_stepSDR` (from Paris, `processMessage` from any starting meter, the
+  assumptions of `processRunnerM` at the reservoir of that meter).
+- The security properties when deprecated from any reservoir (Usdt/Security/DepMeterR.lean).
+  `FwdAtSR`, `KeepsAtSR` (`keepsAtSR_zero`), `effect_allSR` (no assumption on the runner),
+  `paused_call_allSR`, `nonOwner_call_allSR`, `listed_call_allSR`, `allowKept_call_allSR`,
+  `supply_call_allSR` (`KeepsAtSR` at the reservoir of the first frame), `owner_only_allSR` (no
+  hypothesis on the reservoir), `RunOkRSR`, `SeqRSR`, `SeqRS.toRSR`, `seqRSR_lift`, the five
+  `_seq_allSR`, `runOkRSR_process`, `process_stepSecDR`.
+- The runner assumptions hold for EthLib's runner (Usdt/Sanity/ProcessMeterR.lean):
+  `keepsInvAtSR_process_stop`, `keepsAtSR_process_stop` (STOP at the upgraded address, every `r`,
+  every reflexive relation), `honestBalanceAtSR_process_mirror` (`MIRROR`, every `r`).
+- Deprecated destroyBlackFunds, the exact gas after the CALL (Evm/FwdS.lean,
+  Usdt/Complete/Deprecated/CallS.lean, Usdt/Refill/DestroyDepS.lean,
+  Usdt/Complete/Deprecated/DestroyS.lean). Forward over `StateGasMeter`: `fwd_splitS` (a cheap
+  `StepG` stretch), `fwd_stepS` (one step other than SSTORE), `step_callS`, `resumeCall_okS` (the
+  meter after a CALL whose child succeeded is `GasMeter.absorb` of the two, `absorb_sum`),
+  `runFrame_childS`, `runFrame_child_fwdS`, `fromExtS` (EXTCODESIZE at 4874 to the CALL at 4891).
+  `tailD_sgm`: the tail after the CALL with its two writes, exact through `Complete.exactS_write`.
+  `dep_destroy_exactR`: from Berlin, from a frame with any reservoir, every successful run went
+  through a caller with the meter of the first frame, reservoir 0 and the gas before the CALL less
+  its price, and a child with no error; the meter after the CALL is
+  `GasMeter.absorb caller.gas child.gas true` (execution gas plus reservoir is the caller's plus
+  the child's); from it both writes meet `wOk`, 1364 gas is left after the second, and the end is
+  `tailState`, `tailSub` and the meter after the second write less 1364 execution gas.
+- A concrete deprecated state over `StateGasMeter` with a successful run
+  (Usdt/Sanity/MirrorStateS.lean). `process_mirrorS_ok`: `MIRROR` succeeds under `processRunnerM`
+  with its gas, any reservoir. `destroy_mirror_runsS`: from Paris (Glamsterdam included), in
+  `S2 C H a` with `MIRROR` at `UA`, `destroyBlackFunds(a)` from `CALLER_A`, from a frame with any
+  meter whose execution gas left is at least 1000000 and below 2^255, any substate and gas bound:
+  the run under `processRunnerM` ends with no error. Helpers `extCost_le`, `absorb_gasLeft_ge`,
+  `callGas_bounds`.
+- Docs: the pin lines of this page name full commit hashes in place of local worktree paths.
+- Not covered here: the split of the gas after the CALL for the six deprecated paths other than
+  destroyBlackFunds (`dep_X_completeR` states the sum); the preparation of the first frame
+  (`prepareFirstFrame`); `Inv` in `S2`; a top-level `processMessage` form of
+  `destroy_mirror_runsS`.
+
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
   Glamsterdam (third audit, T1; rounds 33 to 36 above). Round 36 covers, not deprecated: the
@@ -1962,9 +2014,13 @@ the writing functions other than approve.
   with refills at any reservoir (`approve_zero_sgm`, `approve_set_sgm`).
   Round 43 (READY): the exact success condition and gas with refills at any reservoir for every
   writing function on its success path not deprecated (Evm/Chain.lean and the `X_sgm` theorems of
-  Usdt/Refill/), see the round 43 entry above. Still open: the split of the gas after the CALL when
-  deprecated, and the invariant and security properties from a reservoir other than 0 when
-  deprecated.
+  Usdt/Refill/), see the round 43 entry above.
+  Round 44 (READY): the invariant and the security properties from any reservoir when deprecated
+  (`inv_call_depR`, `process_stepDR`, `effect_allSR`, the `_call_allSR` and `_seq_allSR` forms,
+  `owner_only_allSR`), the exact gas after the CALL of deprecated destroyBlackFunds with refills
+  (`dep_destroy_exactR`), and a concrete deprecated run over `StateGasMeter` that ends with no
+  error (`destroy_mirror_runsS`), see the round 44 entry above. Still open: the split of the gas
+  after the CALL for the six deprecated paths other than destroyBlackFunds.
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
   contract (round 24: concrete runners meet them, `Sanity/Runner.lean`). `transferFrom_bound` has

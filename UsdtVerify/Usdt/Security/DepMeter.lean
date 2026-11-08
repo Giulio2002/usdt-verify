@@ -25,6 +25,8 @@ reservoir is 0 when `C` is deprecated (no hypothesis on the reservoir otherwise)
   `SupplyKept` of `C`).
 - `owner_only_allS` (round 41): `owner_only` over `StateGasMeter`, deprecated or not, reservoir 0
   for deprecated destroyBlackFunds.
+
+Usdt/Security/DepMeterR.lean (round 44) has the same results from any reservoir when deprecated.
 -/
 
 namespace UsdtVerify.Security

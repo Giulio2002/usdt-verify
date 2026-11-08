@@ -23,6 +23,9 @@ deprecated or not) for sequences whose calls run over the meter `Nat` or over `S
   from any starting meter, with reservoir 0 when `C` is deprecated, whose runner meets
   `KeepsAtS … R` when deprecated, is a `RunOkRS` step when it ends with no error and an
   `Untouched` step otherwise.
+
+Usdt/Security/DepMeterR.lean (round 44) has the sequence forms with calls from any reservoir
+(`SeqRSR`, `SeqRS.toRSR`).
 -/
 
 namespace UsdtVerify.Security

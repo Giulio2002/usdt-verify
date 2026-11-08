@@ -22,8 +22,8 @@ through the runner and the resume (`runFrame_childS`), and the tail exactly (`ta
   reservoir is the caller's execution gas left plus the child's execution gas left and reservoir.
   From that meter the two writes of the tail meet `wOk`, 1364 gas is left after the second, and
   the end is `tailState` and `tailSub` with the meter after the second write less 1364 execution
-  gas. So the gas at the end is exact, refills included, and the split between execution gas and
-  reservoir is stated.
+  gas. So the gas at the end is exact as a function of the meter the child ends with (which the
+  runner fixes), refills included, and the split between execution gas and reservoir is stated.
 -/
 
 namespace UsdtVerify.Complete

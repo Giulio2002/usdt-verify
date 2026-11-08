@@ -17,7 +17,7 @@ to follow a whole path that sends one message, from any reservoir:
 - `resumeCall_okS`: the resume over `StateGasMeter` from a child with no error. The frame pushes
   1, writes the start of the output, takes the state and substate of the child, and its meter is
   `GasMeter.absorb` of the caller's and the child's meters for a child that succeeded, which holds
-  their execution gas left and reservoirs (`absorb_sum`).
+  the sum of their execution gas left and reservoirs (`absorb_sum`).
 - `runFrame_childS`: a run that ends after a step that sends a message went through the runner
   and the resume, and goes on from the resumed frame. `runFrame_child_fwdS` is the converse.
 -/
@@ -106,8 +106,8 @@ theorem resumeCall_okS {caller child : Evm fork StateGasMeter} {o osz : U256}
   simp only [he, Option.isNone_none, ite_true]
   simp [pushWord, Stack.push, bind, Except.bind, pure, Except.pure, advance, hne]
 
-/-- The meter after a CALL whose child succeeded holds, as execution gas left and reservoir, the
-caller's and the child's. -/
+/-- The meter after a CALL whose child succeeded: its execution gas left plus its reservoir is the
+sum of the caller's and the child's. -/
 theorem absorb_sum (c ch : StateGasMeter) :
     (GasMeter.absorb c ch true).gasLeft + (GasMeter.absorb c ch true).reservoir =
       c.gasLeft + c.reservoir + ch.gasLeft + ch.reservoir := by

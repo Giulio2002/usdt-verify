@@ -186,6 +186,7 @@ A few general opcode rules are proved locally in `UsdtVerify/Evm/Local/` while t
 
 - When deprecated, over the EIP-8037 meter, the gas after the forwarded call of the six forwards other than `destroyBlackFunds` is stated only as a sum of execution gas and reservoir, never split.
 - The preparation of a transaction's first frame, including EIP-7702 authorizations, is not verified. The theorems start from its result.
+- The concrete deprecated run over the EIP-8037 meter is stated for the interpreter loop of the first frame, not for a whole `processMessage` call, and the supply invariant is not proved for its state.
 
 - Forks before Berlin.
 - `SepOn` and `SecSep` are hypotheses about keccak, not theorems. They are local to each call, so they are plausibly true for the real hash function, but nothing here proves them.

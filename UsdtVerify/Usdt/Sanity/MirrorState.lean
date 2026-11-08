@@ -37,6 +37,9 @@ Round 33 (third audit, T3): a state where deprecated destroyBlackFunds reaches t
 - `destroy_mirror_runs`: from Paris and before Glamsterdam, with 1000000 gas and any substate,
   that call ends with no error under `processRunner` (`RunsOk`).
 - Not proved: `Inv` in `S2`. It needs keccak separation facts about the balance slots.
+
+Usdt/Sanity/MirrorStateS.lean (round 44) runs the same call over the EIP-8037 meter under
+`processRunnerM` (`destroy_mirror_runsS`).
 -/
 
 namespace UsdtVerify.Sanity

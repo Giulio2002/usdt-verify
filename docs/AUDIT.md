@@ -670,6 +670,28 @@ not deprecated. Evidence:
   (local keccak hypotheses `SepOn` / `SecSep`, the runner assumptions, EthLib's model, the Lean
   kernel) are unchanged.
 
+**Resolution (round 44, READY): the deprecated paths from any reservoir.**
+Three of the four items left open in round 43 are resolved. Evidence:
+- The invariant and the security properties from a reservoir other than 0 when deprecated:
+  Usdt/Invariant/DepMeterR.lean (`inv_call_depR`, `inv_call_anyDR`, `inv_callsDR`,
+  `process_stepDR`, `process_stepSDR`) and Usdt/Security/DepMeterR.lean (`effect_allSR`, the five
+  `_call_allSR`, the five `_seq_allSR`, `owner_only_allSR`, `process_stepSecDR`). The runner
+  assumptions are stated for the calls from a caller of reservoir 0 with a message of the
+  reservoir of the first frame, as `RunSR` gives them, and at reservoir 0 they are those of round
+  41. Usdt/Sanity/ProcessMeterR.lean shows `processRunnerM` meets them at every reservoir with STOP
+  (`KeepsInvAtSR`, `KeepsAtSR`) and with `MIRROR` (`HonestBalanceAtSR`).
+- Equality of the gas for deprecated destroyBlackFunds: `dep_destroy_exactR` states the meter after
+  the CALL (`GasMeter.absorb` of the caller's and the child's meters), its split between execution
+  gas and reservoir, and the exact end through the two writes, refills included.
+- A concrete deprecated state over `StateGasMeter` with a successful run: `destroy_mirror_runsS`
+  (from Paris, Glamsterdam included, any reservoir, at least 1000000 execution gas, in `S2` with
+  `MIRROR`).
+- Clean rebuild of cb60c64 from an empty build directory: exit 0, 1448 jobs. `#print axioms` on each: [propext,
+  Classical.choice, Quot.sound]. Independent read-only review (round 44): PASS WITH FIXES, fixes applied in 5d949a9 (docstrings).
+- Still open under T1: the split of the gas after the CALL for the six deprecated paths other than
+  destroyBlackFunds (`dep_X_completeR` states the sum), and the preparation of the first frame
+  (`prepareFirstFrame`). The trust assumptions are unchanged.
+
 ## T2. The runner hypotheses range over every block and transaction environment (Medium)
 
 **Evidence.** `SendsVia` (Evm/Route.lean:134) fixes `caller`, `currentTarget`, `target`,
