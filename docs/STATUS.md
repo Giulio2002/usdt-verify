@@ -4,7 +4,7 @@ File paths in this page are those of the round-21 layout (docs/LAYOUT.md, which 
 paths to the new ones); the round entries keep the old file names only where a file no longer exists.
 
 Pinned EthLib: fd3457dbf (master after #1300; includes #1292, `At` names an empty output and STOP
-gives `Halted false .empty`, and #1299, DELEGATECALL/CALLCODE).
+gives `Halted false .empty`, and #1299, DELEGATECALL/CALLCODE; commit fd3457dbfbf2118fd5d05fab5b42ffaafa07f28d).
 Re-pinned in round 9: EthLib's `stop` (#1272/#1292), `gas_rule` and `extcodesize` (#1280) replace the
 local `Local.stop`/`Stopped` (Local/Halt.lean) and `Local.extcodesize`/`gasOp` (Local/Account.lean),
 both files deleted; `memoryReadBytes_memoryWrite_eq_append` (#1266 follow-up on master) replaces the
@@ -12,14 +12,14 @@ local `memoryReadBytes_write_after`; `recordStorageRead_recordStorageRead`,
 `insert_insert_getD_self`, `getAccountOptional_setStorage` (#1277) now prove the local
 `readSlot_readSlot`, `accessSlot_accessSlot`, `hasAccount_writeSlot`. Every STOP-ending spec now
 states the empty output (`Halted false .empty`).
-Previous pin: d4d422780 (merge of #1266, kept).
+Previous pin: d4d422780 (merge of #1266; commit d4d422780db5d668b06d3fc2782ae7bca21074e1).
 Re-pinned in round 6: EthLib's `callvalue`, `calldatasize`, `jumpi_of_eq_zero`,
 `memoryReadBytes_memoryWrite_of_disjoint` (no read bound) and `memoryReadBytes_memoryWrite_memoryWrite`
 replace the local `Local.read/callvalue/calldatasize/jumpi_zero'` and `Generic/Memory.lean` (deleted).
-Previous pin: c1fe45a71 (#1250, kept).
-Previous pin: 997edf8e4 (merge of #1238: NatCode, reshape, evm_step, kept).
+Previous pin: c1fe45a71 (#1250; commit c1fe45a711f2cecee729a7ef4f982535c7f5cba7).
+Previous pin: 997edf8e4 (merge of #1238: NatCode, reshape, evm_step; commit 997edf8e411be8e7b1c768eecaefa706fe10b7aa).
 The local NatCode copy and `reshape`/`Spec.reshape` were removed in favour of EthLib's.
-Earlier pin: 5f5ae55b5 (#1223, kept).
+Earlier pin: 5f5ae55b5 (#1223; commit 5f5ae55b5a4b8435c36c92b2220162394dccd405).
 Previously 189b419dd; re-pinned and rebuilt green (exit 0) with EthLib's stack rules replacing the local copies.
 Bytecode: data/usdt.runtime.hex, 11075 bytes, keccak256 b44fb4e9...ea55, block 26362952 (see data/SOURCE.md).
 No `sorry`, `admit`, axiom, `native_decide`, `bv_decide` or `decide +native` anywhere.

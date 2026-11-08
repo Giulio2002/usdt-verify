@@ -78,6 +78,7 @@ import UsdtVerify.Usdt.MeterOwner
 import UsdtVerify.Usdt.MeterGas
 import UsdtVerify.Usdt.Invariant.SeqMeter
 import UsdtVerify.Usdt.Invariant.DepMeter
+import UsdtVerify.Usdt.Invariant.DepMeterR
 import UsdtVerify.Usdt.Invariant.DeprecatedDestroy
 import UsdtVerify.Usdt.Invariant.Seq
 import UsdtVerify.Usdt.Invariant.Static
@@ -130,9 +131,11 @@ import UsdtVerify.Usdt.Security.Supply
 import UsdtVerify.Usdt.Security.Meter
 import UsdtVerify.Usdt.Security.DepMeter
 import UsdtVerify.Usdt.Security.SeqDepMeter
+import UsdtVerify.Usdt.Security.DepMeterR
 import UsdtVerify.Usdt.Sanity.Runner
 import UsdtVerify.Usdt.Sanity.Process
 import UsdtVerify.Usdt.Sanity.ProcessMeter
+import UsdtVerify.Usdt.Sanity.ProcessMeterR
 import UsdtVerify.Usdt.Sanity.ProcessExact
 import UsdtVerify.Usdt.Sanity.Mirror
 import UsdtVerify.Evm.Mirror

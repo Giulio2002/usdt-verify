@@ -19,6 +19,7 @@ import UsdtVerify.Usdt.Invariant.DepMeter
 import UsdtVerify.Usdt.Security.DepMeter
 import UsdtVerify.Usdt.Security.SeqDepMeter
 import UsdtVerify.Usdt.Sanity.ProcessMeter
+import UsdtVerify.Usdt.Sanity.ProcessMeterR
 import UsdtVerify.Usdt.Meter
 import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.MeterOwner
@@ -1333,3 +1334,42 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Sanity.keepsAtS_process_stop
 #print axioms UsdtVerify.Sanity.process_mirrorS
 #print axioms UsdtVerify.Sanity.honestBalanceAtS_process_mirror
+
+-- Round 44: the invariant and the security properties when deprecated from any reservoir
+#print axioms UsdtVerify.Complete.keepsInvAtSR_zero
+#print axioms UsdtVerify.Complete.honestBalanceAtSR_zero
+#print axioms UsdtVerify.Complete.sentVia_reservoir
+#print axioms UsdtVerify.Complete.keepsInvAtC_of_SR
+#print axioms UsdtVerify.Complete.honestBalanceAtC_of_SR
+#print axioms UsdtVerify.Complete.inv_call_depR
+#print axioms UsdtVerify.Complete.inv_call_anyDR
+#print axioms UsdtVerify.Complete.inv_goodCallDR
+#print axioms UsdtVerify.Complete.GoodCallDS.toR
+#print axioms UsdtVerify.Complete.inv_callsDR
+#print axioms UsdtVerify.Complete.CallsDS.toR
+#print axioms UsdtVerify.Complete.process_stepDR
+#print axioms UsdtVerify.Complete.process_stepSDR
+#print axioms UsdtVerify.Security.keepsAtSR_zero
+#print axioms UsdtVerify.Security.KeepsAtSR.fwd
+#print axioms UsdtVerify.Security.fwdSR_of
+#print axioms UsdtVerify.Security.effect_allSR
+#print axioms UsdtVerify.Security.paused_call_allSR
+#print axioms UsdtVerify.Security.nonOwner_call_allSR
+#print axioms UsdtVerify.Security.listed_call_allSR
+#print axioms UsdtVerify.Security.allowKept_call_allSR
+#print axioms UsdtVerify.Security.supply_call_allSR
+#print axioms UsdtVerify.Security.owner_only_allSR
+#print axioms UsdtVerify.Security.RunOkRSR.effect
+#print axioms UsdtVerify.Security.RunOkRS.toR
+#print axioms UsdtVerify.Security.SeqRS.toRSR
+#print axioms UsdtVerify.Security.seqRSR_lift
+#print axioms UsdtVerify.Security.nonOwner_seq_allSR
+#print axioms UsdtVerify.Security.paused_seq_allSR
+#print axioms UsdtVerify.Security.listed_seq_allSR
+#print axioms UsdtVerify.Security.allowKept_seq_allSR
+#print axioms UsdtVerify.Security.supply_seq_allSR
+#print axioms UsdtVerify.Security.runOkRSR_process
+#print axioms UsdtVerify.Security.process_stepSecDR
+#print axioms UsdtVerify.Sanity.keepsInvAtSR_process_stop
+#print axioms UsdtVerify.Sanity.keepsAtSR_process_stop
+#print axioms UsdtVerify.Sanity.honestBalanceAtSR_process_mirror
