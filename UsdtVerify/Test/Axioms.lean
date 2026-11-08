@@ -1415,3 +1415,7 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Sanity.sumTo_indicator
 #print axioms UsdtVerify.Sanity.inv_S2
 #print axioms UsdtVerify.Sanity.destroy_mirror_inv
+
+-- Round 45: the concrete deprecated run as a processMessage over StateGasMeter
+#print axioms UsdtVerify.Sanity.destroy_mirror_runsG
+#print axioms UsdtVerify.Sanity.destroy_mirror_processS
