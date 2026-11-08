@@ -948,9 +948,27 @@ ends with no error and the contract has an account in its end state".
   `X_dep_ok_iff_gas_process_stop` (with `hg` only: iff the checks hold and the gas left after the
   CALL plus the gas it gives is at least the gas of the code after the CALL; for destroyBlackFunds
   an account of `C` and `max tailCost tailStip`, over the state and accesses at the CALL and the
-  empty output). Not done: an instance with an upgraded code whose success depends on its gas
-  (e.g. `MIRROR`): it would need that `processRunner` returns a frame (not an error) for such a
-  code at every gas, and the failure below its cost.
+  empty output).
+  Round 31, `Sanity/MirrorExact.lean`: an instance with an upgraded code whose success depends on
+  its gas. From Paris, with the upgraded address holding `MIRROR` (Evm/Mirror.lean) and no
+  precompile, every `balanceOf(a)` message the path sends gives under `processRunner` a frame,
+  never an error, at any gas (`process_mirror_sends`, from `process_mirror_iff` and the generic
+  `Gas.no_error_ga` of Evm/NoAbort.lean). That frame ends with no error exactly when the message's
+  gas is at least `mirrorCost c = 87 + slotCost c`, `c` the coldness of the queried slot in the
+  caller's substate (below it the run halts with an error); then it keeps the rest of its gas.
+  So `processRunner` meets `NoFailOn` (`noFailOn_process_mirror`) and the gas-aware `hans`
+  (`hans_gas_process_mirror`, `hans_destroy_gas_process_mirror`).
+  `balanceOf_dep_ok_iff_gas_process_mirror` (with `hg` only, and `hcM`, the coldness `cM` of the
+  queried slot of the upgraded address after slot 10 is accessed): `RunsOk` iff `ForwardOk`, the
+  gas the CALL gives is at least `mirrorCost cM`, and the gas left after the CALL plus what is left
+  of that gas is at least 126. `destroyBlackFunds_dep_ok_iff_gas_process_mirror` (with `hg` only and
+  `hmirror`, the hypothesis of `honestBalanceAt_process_mirror`): `RunsOk` iff `DestroyDepGuard`,
+  the gas the CALL gives covers `mirrorCost` (coldness in the substate at the CALL), the state at
+  the CALL has an account of `C`, and the gas left after the CALL plus what is left of the gas it
+  gives covers `max tailCost tailStip`, over the state at the CALL with the slot recorded read,
+  USDT's `balances[a]` in the start state as the subtracted word, and the substate at the CALL with
+  the slot accessed. These are two of the seven paths; the other five forwards are not
+  instantiated with `MIRROR` (it answers only `balanceOf`).
 - `X_dep_ok_iff_gas` (round 26, the six forwards other than destroyBlackFunds): the hypotheses of
   `X_dep_ok_iff` without `htail`, and `hans` with "ends with no error" replaced by "ends with no
   error, and the gas the CALL keeps plus the gas left in the ended frame is at least the gas of

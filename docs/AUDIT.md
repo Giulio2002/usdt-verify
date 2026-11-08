@@ -206,6 +206,19 @@ gas-exact condition: the gas left after the CALL plus the gas it gives covers th
 Not done: an instance with an upgraded code whose success depends on its gas; the
 `X_dep_ok_or_fails` theorems keep the old `hans`.
 
+**Resolution (round 31), the instance.** Sanity/MirrorExact.lean, from Paris, with the upgraded
+address holding `MIRROR` (whose success depends on its gas) and no precompile:
+`process_mirror_sends` shows that `processRunner` returns a frame, never an error, for every
+`balanceOf(a)` message the path sends, at any gas (Evm/NoAbort.lean: `no_error_ga`, from
+`mirror_specA` over steps whose failures with less gas only halt the frame), and that the frame
+ends with no error exactly when the message's gas covers `87 + slotCost c`. So `processRunner`
+meets `NoFailOn` and the gas-aware `hans` for this code, and
+`balanceOf_dep_ok_iff_gas_process_mirror` and `destroyBlackFunds_dep_ok_iff_gas_process_mirror`
+(the latter under `hmirror`, the hypothesis of `honestBalanceAt_process_mirror`) are the
+instances: the run succeeds iff the checks hold, the gas the CALL gives covers `MIRROR`'s cost,
+and the gas left after the CALL plus what `MIRROR` returns covers the code after it. Only these
+two of the seven paths are instantiated with `MIRROR`.
+
 ## 4. `stopRunner` is not "a runner whose upgraded contract only runs STOP" (Medium)
 
 `stopRunner fork bound ua` (`Evm/Runners.lean:57`) is `processRunner` on messages to `ua` whose

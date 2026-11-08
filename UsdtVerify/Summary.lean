@@ -503,6 +503,11 @@ forwards, Usdt/Sanity/ProcessExact.lean): with EthLib's `processRunner` and the 
 STOP (from Paris, no precompile), the runner hypotheses hold and `RunsOk` holds iff the checks
 hold (and, in the gas-exact form, the gas left after the CALL plus the gas it gives covers the
 code after it; for destroyBlackFunds, with an account of `C` in the state at the CALL).
+Round 31: `Sanity.balanceOf_dep_ok_iff_gas_process_mirror` and
+`Sanity.destroyBlackFunds_dep_ok_iff_gas_process_mirror` (Usdt/Sanity/MirrorExact.lean): the same
+with the upgraded code `MIRROR`, whose success depends on its gas (the second under `hmirror`):
+`RunsOk` holds iff the checks hold, the gas the CALL gives covers `MIRROR`'s cost, and the gas left
+after the CALL plus what `MIRROR` returns covers the code after it.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

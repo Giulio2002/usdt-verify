@@ -1474,6 +1474,35 @@ Finding 2: `HonestBalanceAt` for `processRunner` with a real code.
   depends on its gas): it needs `NoFailOn` for `MIRROR` at every gas and its failure below its
   cost under `processRunner`; only successful runs are characterized (`ok_exact`).
 
+### Round 31: a gas-exact deprecated instance with `MIRROR` (Evm/NoAbort.lean, Evm/Mirror.lean, Usdt/Sanity/MirrorExact.lean)
+
+Finding 3: an instance with an upgraded code whose success depends on its gas.
+- Evm/NoAbort.lean (generic): `NoAbort r` (no error that aborts the run), with `bind`/`map` and the
+  facts for `popWord`, `pushWord`, `chargeGas`, `chargeGasAndMemory`, and the six instructions
+  PUSH (`pushN`), MSTORE, CALLDATALOAD, KECCAK256, SLOAD, RETURN (they fail only with stack and
+  gas errors). `StepGA x y`: `StepG` and, from every frame with less gas than `x`, the step is no
+  aborting error. `HoareGA`, `SpecGA` (`SpecGA.toG`), `At.ruleGA`, `pushGA`, `calldataloadGA`,
+  `mstoreGA`, `keccak256GA`, `sloadGA`, `returnGA`. `no_error_of_reaches`, `no_error_ga`: a `SpecGA`
+  from every gas from `B` on gives, at ANY gas, a loop run that returns a frame, never an error
+  (with less gas, a step either halts the frame with an error that does not abort, or follows the
+  run with more gas).
+- Evm/Mirror.lean: `mirror_specA` (the MIRROR spec over `StepGA`; `mirror_spec` now follows from
+  it). `process_mirror_iff`: from Paris, a message running `MIRROR` (no value, no precompile,
+  target `ua`) under `processRunner`, any gas, any caller frame: the runner returns a frame; it
+  ends with no error iff `87 + slotCost c ≤ msg.gas` (`c`: coldness of the slot in the caller's
+  substate); then its gas, output, state and substate are given. `process_mirror` is derived from
+  it. `hasAccount_readSlot_iff`.
+- Usdt/Sanity/MirrorExact.lean: `mirrorCost`, `route_mirror`, `process_mirror_sends` (the
+  `balanceOf(a)` messages of a deprecated path), `noFailOn_process_mirror`,
+  `hans_gas_process_mirror` (the `hans` of `balanceOf_dep_ok_iff_gas`, `A`: `mirrorCost ≤ g` and
+  `T ≤ K + (g - mirrorCost)`), `incorporate_state`, `hans_destroy_gas_process_mirror` (the `hans` of
+  `destroyBlackFunds_dep_ok_iff_gas`, `A` over the gas, state and substate at the CALL),
+  `balanceOf_dep_ok_iff_gas_process_mirror` (hypothesis `hcM` names the coldness of the queried
+  slot), `destroyBlackFunds_dep_ok_iff_gas_process_mirror` (hypothesis `hmirror`, as in
+  `honestBalanceAt_process_mirror`; the subtracted word is USDT's `balances[a]` in the start state).
+- Not done: `MIRROR` instances of the other five forwards (`MIRROR` answers `balanceOf` only), and
+  one upgraded state where a useful code meets `KeepsInvAt` and `HonestBalanceAt` together.
+
 ## Open (not proved)
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
@@ -1519,7 +1548,9 @@ Finding 2: `HonestBalanceAt` for `processRunner` with a real code.
   These take the runner hypotheses `hans` (and `NoFailOn` or `hfail`). Round 30: `hans` is asked
   only of the call the path makes, with its gas (`CallFrom`); discharged for `processRunner` with
   the upgraded code STOP for the seven forwards, `X_dep_ok_iff` and `X_dep_ok_iff_gas`
-  (Sanity/ProcessExact.lean). Not discharged for a code whose success depends on its gas.
+  (Sanity/ProcessExact.lean). Round 31: discharged for `processRunner` with the upgraded code
+  `MIRROR`, whose success depends on its gas, for `balanceOf_dep_ok_iff_gas` and
+  `destroyBlackFunds_dep_ok_iff_gas` (Sanity/MirrorExact.lean).
   `X_dep_ok_or_fails` keep the old `hans` over every gas.
 
 ## Generic gaps found (for the EthLib program-logic agent)

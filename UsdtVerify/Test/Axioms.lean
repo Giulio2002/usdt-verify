@@ -12,6 +12,7 @@ import UsdtVerify.Usdt.Sanity.Runner
 import UsdtVerify.Usdt.Sanity.Process
 import UsdtVerify.Usdt.Sanity.ProcessExact
 import UsdtVerify.Usdt.Sanity.Mirror
+import UsdtVerify.Usdt.Sanity.MirrorExact
 import UsdtVerify.Usdt.Security.Supply
 import UsdtVerify.Usdt.Security.Allowance
 import UsdtVerify.Usdt.Security.Blacklist
@@ -865,3 +866,36 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.process_mirror
 #print axioms UsdtVerify.Sanity.loadWord_wordBytes_zero
 #print axioms UsdtVerify.Sanity.honestBalanceAt_process_mirror
+-- round 31: gas-exact deprecated instances with MIRROR under processRunner (docs/AUDIT.md, finding 3)
+#print axioms UsdtVerify.Gas.NoAbort.bind
+#print axioms UsdtVerify.Gas.NoAbort.map
+#print axioms UsdtVerify.Gas.noAbort_popWord
+#print axioms UsdtVerify.Gas.noAbort_pushWord
+#print axioms UsdtVerify.Gas.noAbort_chargeGas
+#print axioms UsdtVerify.Gas.noAbort_pushN
+#print axioms UsdtVerify.Gas.noAbort_mstore
+#print axioms UsdtVerify.Gas.noAbort_calldataload
+#print axioms UsdtVerify.Gas.noAbort_keccak256
+#print axioms UsdtVerify.Gas.noAbort_sload
+#print axioms UsdtVerify.Gas.noAbort_return
+#print axioms UsdtVerify.Gas.SpecGA.toG
+#print axioms UsdtVerify.Gas.At.ruleGA
+#print axioms UsdtVerify.Gas.no_error_of_reaches
+#print axioms UsdtVerify.Gas.no_error_ga
+#print axioms UsdtVerify.Gas.pushGA
+#print axioms UsdtVerify.Gas.calldataloadGA
+#print axioms UsdtVerify.Gas.mstoreGA
+#print axioms UsdtVerify.Gas.keccak256GA
+#print axioms UsdtVerify.Gas.sloadGA
+#print axioms UsdtVerify.Gas.returnGA
+#print axioms UsdtVerify.mirror_specA
+#print axioms UsdtVerify.process_mirror_iff
+#print axioms UsdtVerify.hasAccount_readSlot_iff
+#print axioms UsdtVerify.Sanity.route_mirror
+#print axioms UsdtVerify.Sanity.process_mirror_sends
+#print axioms UsdtVerify.Sanity.noFailOn_process_mirror
+#print axioms UsdtVerify.Sanity.hans_gas_process_mirror
+#print axioms UsdtVerify.Sanity.incorporate_state
+#print axioms UsdtVerify.Sanity.hans_destroy_gas_process_mirror
+#print axioms UsdtVerify.Sanity.balanceOf_dep_ok_iff_gas_process_mirror
+#print axioms UsdtVerify.Sanity.destroyBlackFunds_dep_ok_iff_gas_process_mirror
