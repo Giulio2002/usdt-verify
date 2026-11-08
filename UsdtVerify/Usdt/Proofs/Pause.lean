@@ -327,9 +327,9 @@ theorem unpauseWrite (hfork : .berlin ≤ fork) {rest : List U256}
 of slot 0, which is `Stuck`. -/
 theorem pauseWriteBad (hfork : .berlin ≤ fork) {rest : List U256}
     (hrest : rest.length ≤ 16)
-    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
     (hc0 : coldIn substate message.currentTarget 0 = false) {M : ByteArray} {gas : Nat}
-    (hg : 218 ≤ gas) :
+    (hbad : Gas.NoWrite message state (gas - 216))
+    (hg : 216 ≤ gas) :
     Gas.HoareG fork (At CODE message 5055 rest M gas state substate) Gas.Stuck := by
   have hexp : exponentBytes (0x14 : U256) = 1 := by decide
   have hb : isZero (isZero (1 : U256)) = 1 := by decide
@@ -339,15 +339,15 @@ theorem pauseWriteBad (hfork : .berlin ≤ fork) {rest : List U256}
   step pushR 1 (0x14 : U256)
   step pushR 2 (0x0100 : U256)
   flag_pre
-  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
+  exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
 
 /-- At 4451 (unpause), in a static frame or with no account for `C`: the run reaches the
 `SSTORE` of slot 0, which is `Stuck`. -/
 theorem unpauseWriteBad (hfork : .berlin ≤ fork) {rest : List U256}
     (hrest : rest.length ≤ 16)
-    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
     (hc0 : coldIn substate message.currentTarget 0 = false) {M : ByteArray} {gas : Nat}
-    (hg : 218 ≤ gas) :
+    (hbad : Gas.NoWrite message state (gas - 216))
+    (hg : 216 ≤ gas) :
     Gas.HoareG fork (At CODE message 4451 rest M gas state substate) Gas.Stuck := by
   have hexp : exponentBytes (0x14 : U256) = 1 := by decide
   have hb : isZero (isZero (0 : U256)) = 0 := by decide
@@ -357,7 +357,7 @@ theorem unpauseWriteBad (hfork : .berlin ≤ fork) {rest : List U256}
   step pushR 1 (0x14 : U256)
   step pushR 2 (0x0100 : U256)
   flag_pre
-  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
+  exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
 
 /-! ## The word written to slot 0 -/
 

@@ -10,7 +10,10 @@ From Berlin, a fresh frame of `CODE` at pc 0 with call data below `2^256` bytes,
 - `approve_ok_iff`: with the gas of the success path (`approveCost`, and `approveStip`, more than
   2300 gas left at the SSTORE), the run ends with no error if and only if `ApproveGuard` holds.
 - `approve_low`: with less gas than `approveCost`, no run ends with no error.
-  A gas between `approveCost` and `approveStip` is not covered.
+- `approve_mid` (round 26): with at least `approveCost` but less than `approveStip` gas, no run
+  ends with no error: the SSTORE of the allowance is reached with at most 2300 gas left (EIP-2200).
+- `approve_iff_gas` (round 26): for every gas, the run ends with no error if and only if
+  `ApproveGuard` holds and the gas is at least the larger of `approveCost` and `approveStip`.
 -/
 
 namespace UsdtVerify.Exact
@@ -91,6 +94,36 @@ theorem approve_low (hg : gas < approveCost fork state message c10 cA) :
     exact not_runsOk_low2 hg (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hl, ha⟩ _ =>
         spec_set hfork hst hacc hl hsize' hsel hv hdep hz (ha hz) hc10 hcA)
       start within (approve_comp hfork hsize' start within hsel hdep hc10 hcA)
+
+theorem approve_mid (hg : approveCost fork state message c10 cA ≤ gas)
+    (hlt : gas < approveStip message c10 cA) :
+    ¬ RunsOk fork bound runChild evm within := by
+  refine not_runsOk_stuck (fun ⟨⟨h4, hv⟩, _, hl, ha⟩ => ?_) start within
+    (approve_comp hfork hsize' start within hsel hdep hc10 hcA)
+  by_cases hz : wordArg message.data 1 = 0
+  · simp only [approveCost, approveStip, hz, ↓reduceIte] at hg hlt
+    exact bad_zero hfork hl hsize' hsel hv hdep hz hc10 (.of_low hfork (by omega)) (by omega)
+  · simp only [approveCost, approveStip, hz, ↓reduceIte] at hg hlt
+    exact bad_set hfork hl hsize' hsel hv hdep hz (ha hz) hc10 hcA (.of_low hfork (by omega))
+      (by omega)
+
+/-- `approve(s, v)`, not deprecated, succeeds exactly when `ApproveGuard` holds and the gas is at
+least the larger of `approveCost` and `approveStip`. -/
+theorem approve_iff_gas :
+    RunsOk fork bound runChild evm within ↔ ApproveGuard state message ∧
+      max (approveCost fork state message c10 cA) (approveStip message c10 cA) ≤ gas := by
+  constructor
+  · intro h
+    refine ⟨of_runsOk h (approve_comp hfork hsize' start within hsel hdep hc10 hcA),
+      Nat.max_le.mpr ⟨?_, ?_⟩⟩
+    · exact Nat.le_of_not_lt fun hlt =>
+        approve_low hfork hsize' start within hsel hdep hc10 hcA hlt h
+    · refine Nat.le_of_not_lt fun hlt => approve_mid hfork hsize' start within hsel hdep hc10 hcA
+        (Nat.le_of_not_lt fun hlo => approve_low hfork hsize' start within hsel hdep hc10 hcA hlo h)
+        hlt h
+  · rintro ⟨hG, hm⟩
+    exact (approve_ok_iff hfork hsize' start within hsel hdep hc10 hcA (Nat.max_le.mp hm).2
+      (Nat.max_le.mp hm).1).2 hG
 
 end
 

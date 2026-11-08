@@ -80,8 +80,8 @@ theorem ok_pause (hfork : .berlin ≤ fork)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hp : byte20 (storageAt state message.currentTarget 0) = 0 := by omega
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_pause hfork (Gas.bad_of_not hgood) h4 hsize' hsel hv
-      hown hp hc0 hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuck (fun g hg => bad_pause hfork h4 hsize' hsel hv
+      hown hp hc0 (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
     (fun g h1 h2 => spec_pause hfork hstatic hacc h4 hsize' hsel hv hown hp hc0 h1 h2)
@@ -118,8 +118,8 @@ theorem ok_unpause (hfork : .berlin ≤ fork)
   · exact (no_ok (fun g hg => spec_unpause_notPaused hfork h4 hsize' hsel hv hown hp hc0 hg)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_unpause hfork (Gas.bad_of_not hgood) h4 hsize' hsel
-      hv hown hp hc0 hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuck (fun g hg => bad_unpause hfork h4 hsize' hsel
+      hv hown hp hc0 (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
     (fun g h1 h2 => spec_unpause hfork hstatic hacc h4 hsize' hsel hv hown hp hc0 h1 h2)
@@ -150,8 +150,8 @@ theorem ok_addBlackList (hfork : .berlin ≤ fork)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hown := not_ne hown
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_add hfork (Gas.bad_of_not hgood) h4 hsize' hsel hv
-      hown hc0 hcB hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuck (fun g hg => bad_add hfork h4 hsize' hsel hv
+      hown hc0 hcB (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
     (fun g h1 h2 => spec_add hfork hstatic hacc h4 hsize' hsel hv hown hc0 hcB h1 h2)
@@ -182,8 +182,8 @@ theorem ok_removeBlackList (hfork : .berlin ≤ fork)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hown := not_ne hown
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_remove hfork (Gas.bad_of_not hgood) h4 hsize' hsel hv
-      hown hc0 hcB hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuck (fun g hg => bad_remove hfork h4 hsize' hsel hv
+      hown hc0 hcB (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
     (fun g h1 h2 => spec_remove hfork hstatic hacc h4 hsize' hsel hv hown hc0 hcB h1 h2)
@@ -232,8 +232,8 @@ theorem ok_issue (hfork : .berlin ≤ fork)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hB := Classical.not_not.mp hB
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_issue hfork (Gas.bad_of_not hgood) h4 hsize' hsel hv
-      hown hT hB.2 hc0 hc1 hcO hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuck (fun g hg => bad_issue hfork h4 hsize' hsel hv
+      hown hT hB.2 hc0 hc1 hcO (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
     (fun g h1 h2 => spec_issue hfork hstatic hacc h4 hsize' hsel hv hown hT hB.2 hc0 hc1 hcO
@@ -280,8 +280,8 @@ theorem ok_redeem (hfork : .berlin ≤ fork)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hB := Nat.le_of_not_lt hB
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_redeem hfork (Gas.bad_of_not hgood) h4 hsize' hsel hv
-      hown hT hB hc0 hc1 hcO hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuck (fun g hg => bad_redeem hfork h4 hsize' hsel hv
+      hown hT hB hc0 hc1 hcO (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
     (fun g h1 h2 => spec_redeem hfork hstatic hacc h4 hsize' hsel hv hown hT hB hc0 hc1 hcO
@@ -328,8 +328,8 @@ theorem ok_setParams (hfork : .berlin ≤ fork)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hm := Nat.lt_of_not_le hm
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_setParams hfork (Gas.bad_of_not hgood) h4 hsize' hsel
-      hv hown hb hm hc0 hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuck (fun g hg => bad_setParams hfork h4 hsize' hsel
+      hv hown hb hm hc0 (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   by_cases hov : 2 ^ 256 ≤ (wordArg message.data 1).toNat *
       (exp (0x0a : U256) (storageAt state message.currentTarget 9)).toNat
@@ -364,8 +364,8 @@ theorem ok_deprecate (hfork : .berlin ≤ fork)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   have hown := not_ne hown
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_deprecate hfork (Gas.bad_of_not hgood) h4 hsize' hsel
-      hv hown hc0 hc10 hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuck (fun g hg => bad_deprecate hfork h4 hsize' hsel
+      hv hown hc0 hc10 (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
     (fun g h1 h2 => spec_deprecate hfork hstatic hacc h4 hsize' hsel hv hown hc0 hc10 h1 h2)
@@ -406,8 +406,8 @@ theorem ok_transferOwnership (hfork : .berlin ≤ fork)
       start within hrun hok
     exact ⟨hown, ho, .inl ⟨hz, hg, hst, hss⟩⟩
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_transferOwnership hfork (Gas.bad_of_not hgood) h4
-      hsize' hsel hv hown hz hc0 hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuck (fun g hg => bad_transferOwnership hfork h4
+      hsize' hsel hv hown hz hc0 (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
     (fun g h1 h2 => spec_transferOwnership hfork hstatic hacc h4 hsize' hsel hv hown hz hc0
@@ -451,8 +451,8 @@ theorem ok_destroyBlackFunds (hfork : .berlin ≤ fork)
   · exact (no_ok (fun g hg => Destroy.spec_notListed hfork h4 hsize' hsel hv hown hl hc0 hcL hg)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => DestroySpec.bad hfork (Gas.bad_of_not hgood) h4 hsize'
-      hsel hv hown hl hdep hc0 hcL hc10 hcB hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuck (fun g hg => DestroySpec.bad hfork h4 hsize'
+      hsel hv hown hl hdep hc0 hcL hc10 hcB (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact3
     (fun g h1 h2 h3 => DestroySpec.spec hfork hstatic hacc h4 hsize' hsel hv hown hl hdep hc0

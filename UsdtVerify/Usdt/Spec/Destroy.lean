@@ -311,12 +311,37 @@ theorem zeroBal (hfork : .berlin ≤ fork) {a b : U256}
 /-- At 8008, in a static frame or with no account for `C`: the run reaches the `SSTORE` of
 `balances[a]`, which is `Stuck`. -/
 theorem zeroBalBad {a b : U256} {rest : List U256} (hrest : rest.length ≤ 800)
-    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget) {M : ByteArray}
-    (hM : M.size = 96) {gas : Nat} (hg : 110 ≤ gas) :
+    {M : ByteArray}
+    (hM : M.size = 96) {gas : Nat} (hbad : Gas.NoWrite message state (gas - 108))
+    (hg : 108 ≤ gas) :
     Gas.HoareG fork (At CODE message 8008 (b :: 0 :: a :: rest) M gas state substate)
       Gas.Stuck := by
   zero_pre
-  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
+  exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
+
+/-- At 8080, when the `SSTORE` of `_totalSupply` cannot complete (`NoWrite`): the run reaches it,
+and it is `Stuck`. -/
+theorem subTotalBad (hfork : .berlin ≤ fork) {a b : U256}
+    {rest : List U256} (hrest : rest.length ≤ 800) {c1 : Bool}
+    (hc1 : coldIn substate message.currentTarget 1 = c1) {M : ByteArray} {gas : Nat}
+    (hbad : Gas.NoWrite message state (gas - (31 + slotCost c1))) (hg : 31 + slotCost c1 ≤ gas) :
+    Gas.HoareG fork (At CODE message 8080 (b :: a :: rest) M gas state substate) Gas.Stuck := by
+  step dupR 0
+  step pushR 1 (0x01 : U256)
+  step pushR 1 (0 : U256)
+  step dupR 2
+  step dupR 2
+  step Gas.sloadG hfork (cold := c1) (by code_fact) (by code_fact) hc1 (by gas_ok)
+  rw [getStorage_eq]
+  step binR 0x03 Local.instruction_sub
+  step swapR 2
+  norm
+  step popR
+  step popR
+  step dupR 1
+  step swapR 0
+  norm
+  exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
 
 /-- At 8080: `_totalSupply -= b` (unchecked), reading slot 1 first. -/
 theorem subTotal (hfork : .berlin ≤ fork) {a b : U256}
@@ -585,7 +610,6 @@ theorem spec (hfork : .berlin ≤ fork)
 /-- `destroyBlackFunds(a)` by the owner, `a` blacklisted, not deprecated, in a static frame or
 with no account for `C`: the run reaches the `SSTORE` of `balances[a]`, which is `Stuck`. -/
 theorem bad (hfork : .berlin ≤ fork)
-    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
     (hv : message.value = 0) (hown : callerWord message = ownerOf state message.currentTarget)
@@ -597,7 +621,8 @@ theorem bad (hfork : .berlin ≤ fork)
     (hc10 : coldIn (preSub substate message) message.currentTarget 10 = c10)
     (hcB : coldIn (accessSlot (preSub substate message) message.currentTarget 10)
       message.currentTarget (balSlot message) = cB)
-    {gas : Nat} (hg : 5000 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB ≤ gas) :
+    {gas : Nat} (hbad : Gas.NoWrite message state (gas - (1462 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB)))
+    (hg : 1462 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB ≤ gas) :
     Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
   have hkey : BalanceOf.key (addrArg message.data 0) = addrArg message.data 0 :=
     mkey_addrArg0 message.data
@@ -609,8 +634,58 @@ theorem bad (hfork : .berlin ≤ fork)
   step BalanceOf.lookup hfork (by simp) hM1 (cB := cB) (by rw [hkey]; exact hcB) (by gas_ok)
   rw [hkey]
   step BalanceOf.back (Or.inr rfl) (by gas_ok)
-  refine zeroBalBad (state := readState state message) ?_ hbad (BalanceOf.size_lookMem hM1 _) ?_
+  refine zeroBalBad (state := readState state message) ?_ (BalanceOf.size_lookMem hM1 _)
+    (hbad.le ?_) ?_
   · simp
+  · gas_ok
+  · gas_ok
+
+/-- `destroyBlackFunds(a)` by the owner, `a` blacklisted, not deprecated, a frame that may write
+and an account for `C`, with more than 2300 gas left at the `SSTORE` of `balances[a]` but at most
+2300 at the `SSTORE` of `_totalSupply` (`hlow`): the run reaches the second one, which is
+`Stuck`. -/
+theorem low2 (hfork : .berlin ≤ fork)
+    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
+    (hsize : 4 ≤ message.data.size)
+    (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
+    (hv : message.value = 0) (hown : callerWord message = ownerOf state message.currentTarget)
+    (hl : (storageAt state message.currentTarget (listSlot (addrArg message.data 0))).toNat % 256 ≠ 0)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    {c0 cL c10 cB c1 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
+    (hcL : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
+      (listSlot (addrArg message.data 0)) = cL)
+    (hc10 : coldIn (preSub substate message) message.currentTarget 10 = c10)
+    (hcB : coldIn (accessSlot (preSub substate message) message.currentTarget 10)
+      message.currentTarget (balSlot message) = cB)
+    (hc1 : coldIn (readSub substate message) message.currentTarget 1 = c1)
+    {gas : Nat}
+    (hstip1 : 3763 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB ≤ gas)
+    (hg : 1495 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB +
+      costB fork state message + slotCost c1 ≤ gas)
+    (hlow : gas < 3796 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB +
+      costB fork state message + slotCost c1) :
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
+  simp only [costB, dirty, balSlot, state1] at hg hlow
+  have hkey : BalanceOf.key (addrArg message.data 0) = addrArg message.data 0 :=
+    mkey_addrArg0 message.data
+  have hk := mkey_addrArg0 message.data
+  have hacc1 : hasAccount (readState state message) message.currentTarget :=
+    hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
+  have hM1 : (MEMB message).size = 96 := size_mapMem size_MEM0 _ _
+  refine Triple.seq (toGetter hfork hsize hsize' hsel hv hown hl hc0 hcL (by omega)) ?_
+  step depCheck hfork (Or.inr (Or.inl ⟨rfl, rfl⟩)) (by simp)
+    (by simp only [preState, storageAt_readSlot]; exact hdep) hc10 (by gas_ok)
+  step BalanceOf.toLookup (by simp) (by gas_ok)
+  step BalanceOf.lookup hfork (by simp) hM1 (cB := cB) (by rw [hkey]; exact hcB) (by gas_ok)
+  rw [hkey, storageAt_readSlot, storageAt_readSlot, storageAt_readSlot]
+  step BalanceOf.back (Or.inr rfl) (by gas_ok)
+  step zeroBal hfork (by simp) hstatic hacc1 (by rw [hk]; exact coldIn_accessSlot_self _ _ _)
+    (BalanceOf.size_lookMem hM1 _) (by gas_ok)
+    (by simp only [hk, originalAt_readSlot, storageAt_readSlot]; gas_ok)
+  simp only [hk, originalAt_readSlot, storageAt_readSlot]
+  refine subTotalBad hfork (by simp) (c1 := c1)
+    (by rw [TransferFee.coldIn_storeSub', accessSlot_accessSlot]; exact hc1) (.of_low hfork ?_) ?_
+  · gas_ok
   · gas_ok
 
 /-- After `destroyBlackFunds(a)`, when `balances[a]` is not slot 1: `balances[a]` is 0,

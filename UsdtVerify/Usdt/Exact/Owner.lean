@@ -65,6 +65,23 @@ theorem pause_low (hg : gas < PAUSE_COST + slotCost c0 + flagCost fork state mes
       spec_pause hfork hst hacc h4 hsize' hsel hv hown hp hc0)
     start within (pause_comp hfork hsize' start within hsel hc0)
 
+theorem pause_mid (hg : PAUSE_COST + slotCost c0 + flagCost fork state message 1 ≤ gas)
+    (hlt : gas < 3297 + slotCost c0) : ¬ RunsOk fork bound runChild evm within :=
+  not_runsOk_stuck (fun ⟨⟨h4, hv⟩, _, hown, hp⟩ =>
+      bad_pause hfork h4 hsize' hsel hv hown hp hc0 (.of_low hfork (by omega))
+        (by simp only [PAUSE_COST] at hg; omega))
+    start within (pause_comp hfork hsize' start within hsel hc0)
+
+/-- `pause()` succeeds exactly when `PauseGuard` holds and the gas is at least the larger of the
+cost of its success path and `3297 + price(slot 0)`. -/
+theorem pause_iff_gas :
+    RunsOk fork bound runChild evm within ↔ PauseGuard state message ∧
+      max (PAUSE_COST + slotCost c0 + flagCost fork state message 1) (3297 + slotCost c0) ≤
+        gas :=
+  iff_max (fun hg hs => pause_ok_iff hfork hsize' start within hsel hc0 hs hg)
+    (pause_low hfork hsize' start within hsel hc0) (pause_mid hfork hsize' start within hsel hc0)
+    (fun h => of_runsOk h (pause_comp hfork hsize' start within hsel hc0))
+
 end
 
 section
@@ -91,6 +108,24 @@ theorem unpause_low (hg : gas < UNPAUSE_COST + slotCost c0 + flagCost fork state
   not_runsOk_low2 hg (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hp⟩ _ =>
       spec_unpause hfork hst hacc h4 hsize' hsel hv hown hp hc0)
     start within (unpause_comp hfork hsize' start within hsel hc0)
+
+theorem unpause_mid (hg : UNPAUSE_COST + slotCost c0 + flagCost fork state message 0 ≤ gas)
+    (hlt : gas < 3184 + slotCost c0) : ¬ RunsOk fork bound runChild evm within :=
+  not_runsOk_stuck (fun ⟨⟨h4, hv⟩, _, hown, hp⟩ =>
+      bad_unpause hfork h4 hsize' hsel hv hown hp hc0 (.of_low hfork (by omega))
+        (by simp only [UNPAUSE_COST] at hg; omega))
+    start within (unpause_comp hfork hsize' start within hsel hc0)
+
+/-- `unpause()` succeeds exactly when `UnpauseGuard` holds and the gas is at least the larger of
+the cost of its success path and `3184 + price(slot 0)`. -/
+theorem unpause_iff_gas :
+    RunsOk fork bound runChild evm within ↔ UnpauseGuard state message ∧
+      max (UNPAUSE_COST + slotCost c0 + flagCost fork state message 0) (3184 + slotCost c0) ≤
+        gas :=
+  iff_max (fun hg hs => unpause_ok_iff hfork hsize' start within hsel hc0 hs hg)
+    (unpause_low hfork hsize' start within hsel hc0)
+    (unpause_mid hfork hsize' start within hsel hc0)
+    (fun h => of_runsOk h (unpause_comp hfork hsize' start within hsel hc0))
 
 end
 
@@ -125,6 +160,24 @@ theorem addBlackList_low (hsel : selector message.data = 0x0ecb93c0)
       spec_add hfork hst hacc h4 hsize' hsel hv hown hc0 hcB)
     start within (addBlackList_comp hfork hsize' start within hc0 hcB hsel)
 
+theorem addBlackList_mid (hsel : selector message.data = 0x0ecb93c0)
+    (hg : 1567 + slotCost c0 + slotCost cB + listCost fork state message 1 ≤ gas)
+    (hlt : gas < 2779 + slotCost c0 + slotCost cB) : ¬ RunsOk fork bound runChild evm within :=
+  not_runsOk_stuck (fun ⟨⟨h4, hv⟩, _, hown⟩ =>
+      bad_add hfork h4 hsize' hsel hv hown hc0 hcB (.of_low hfork (by omega)) (by omega))
+    start within (addBlackList_comp hfork hsize' start within hc0 hcB hsel)
+
+/-- `addBlackList(a)` succeeds exactly when `OwnerWriteGuard` holds and the gas is at least the
+larger of the cost of its success path and `2779 + price(slot 0) + price(isBlackListed[a])`. -/
+theorem addBlackList_iff_gas (hsel : selector message.data = 0x0ecb93c0) :
+    RunsOk fork bound runChild evm within ↔ OwnerWriteGuard state message ∧
+      max (1567 + slotCost c0 + slotCost cB + listCost fork state message 1)
+        (2779 + slotCost c0 + slotCost cB) ≤ gas :=
+  iff_max (fun hg hs => addBlackList_ok_iff hfork hsize' start within hc0 hcB hsel hs hg)
+    (addBlackList_low hfork hsize' start within hc0 hcB hsel)
+    (addBlackList_mid hfork hsize' start within hc0 hcB hsel)
+    (fun h => of_runsOk h (addBlackList_comp hfork hsize' start within hc0 hcB hsel))
+
 theorem removeBlackList_comp (hsel : selector message.data = 0xe4997dc5) (s : Evm fork Nat)
     (hs : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : OwnerWriteGuard state message :=
@@ -147,6 +200,24 @@ theorem removeBlackList_low (hsel : selector message.data = 0xe4997dc5)
   not_runsOk_low2 hg (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown⟩ _ =>
       spec_remove hfork hst hacc h4 hsize' hsel hv hown hc0 hcB)
     start within (removeBlackList_comp hfork hsize' start within hc0 hcB hsel)
+
+theorem removeBlackList_mid (hsel : selector message.data = 0xe4997dc5)
+    (hg : 2095 + slotCost c0 + slotCost cB + listCost fork state message 0 ≤ gas)
+    (hlt : gas < 3307 + slotCost c0 + slotCost cB) : ¬ RunsOk fork bound runChild evm within :=
+  not_runsOk_stuck (fun ⟨⟨h4, hv⟩, _, hown⟩ =>
+      bad_remove hfork h4 hsize' hsel hv hown hc0 hcB (.of_low hfork (by omega)) (by omega))
+    start within (removeBlackList_comp hfork hsize' start within hc0 hcB hsel)
+
+/-- `removeBlackList(a)` succeeds exactly when `OwnerWriteGuard` holds and the gas is at least the
+larger of the cost of its success path and `3307 + price(slot 0) + price(isBlackListed[a])`. -/
+theorem removeBlackList_iff_gas (hsel : selector message.data = 0xe4997dc5) :
+    RunsOk fork bound runChild evm within ↔ OwnerWriteGuard state message ∧
+      max (2095 + slotCost c0 + slotCost cB + listCost fork state message 0)
+        (3307 + slotCost c0 + slotCost cB) ≤ gas :=
+  iff_max (fun hg hs => removeBlackList_ok_iff hfork hsize' start within hc0 hcB hsel hs hg)
+    (removeBlackList_low hfork hsize' start within hc0 hcB hsel)
+    (removeBlackList_mid hfork hsize' start within hc0 hcB hsel)
+    (fun h => of_runsOk h (removeBlackList_comp hfork hsize' start within hc0 hcB hsel))
 
 end
 
@@ -184,6 +255,32 @@ theorem issue_low (hsel : selector message.data = 0xcc872b66)
       spec_issue hfork hst hacc h4 hsize' hsel hv hown ⟨h0, hT⟩ hB hc0 hc1 hcO)
     start within (issue_comp hfork hsize' start within hc0 hc1 hcO hsel)
 
+theorem issue_mid (hsel : selector message.data = 0xcc872b66)
+    (hg : 3024 + slotCost c0 + slotCost c1 + slotCost cO + issueCostO fork state message +
+      issueCostT fork state message ≤ gas)
+    (hlt : gas < 4248 + slotCost c0 + slotCost c1 + slotCost cO + issueCostO fork state message) :
+    ¬ RunsOk fork bound runChild evm within := by
+  refine not_runsOk_stuck (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, h0, hT, hB⟩ => ?_) start within
+    (issue_comp hfork hsize' start within hc0 hc1 hcO hsel)
+  by_cases h1 : gas < 4115 + slotCost c0 + slotCost c1 + slotCost cO
+  · exact bad_issue hfork h4 hsize' hsel hv hown ⟨h0, hT⟩ hB hc0 hc1 hcO
+      (.of_low hfork (by omega)) (by omega)
+  · exact low_issue2 hfork hst hacc h4 hsize' hsel hv hown ⟨h0, hT⟩ hB hc0 hc1 hcO (by omega)
+      (by omega) hlt
+
+/-- `issue(a)` succeeds exactly when `IssueGuard` holds and the gas is at least the larger of the
+cost of its success path and its stipend bound (more than 2300 gas left at the second SSTORE,
+hence at the first). -/
+theorem issue_iff_gas (hsel : selector message.data = 0xcc872b66) :
+    RunsOk fork bound runChild evm within ↔ IssueGuard state message ∧
+      max (3024 + slotCost c0 + slotCost c1 + slotCost cO + issueCostO fork state message +
+        issueCostT fork state message)
+        (4248 + slotCost c0 + slotCost c1 + slotCost cO + issueCostO fork state message) ≤ gas :=
+  iff_max (fun hg hs => issue_ok_iff hfork hsize' start within hc0 hc1 hcO hsel hs hg)
+    (issue_low hfork hsize' start within hc0 hc1 hcO hsel)
+    (issue_mid hfork hsize' start within hc0 hc1 hcO hsel)
+    (fun h => of_runsOk h (issue_comp hfork hsize' start within hc0 hc1 hcO hsel))
+
 theorem redeem_comp (hsel : selector message.data = 0xdb006a75) (s : Evm fork Nat)
     (hs : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : RedeemGuard state message :=
@@ -209,6 +306,32 @@ theorem redeem_low (hsel : selector message.data = 0xdb006a75)
   not_runsOk_low2 hg (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hT, hB⟩ _ =>
       spec_redeem hfork hst hacc h4 hsize' hsel hv hown hT hB hc0 hc1 hcO)
     start within (redeem_comp hfork hsize' start within hc0 hc1 hcO hsel)
+
+theorem redeem_mid (hsel : selector message.data = 0xdb006a75)
+    (hg : 2614 + slotCost c0 + slotCost c1 + slotCost cO + redeemCostT fork state message +
+      redeemCostO fork state message ≤ gas)
+    (hlt : gas < 3838 + slotCost c0 + slotCost c1 + slotCost cO + redeemCostT fork state message) :
+    ¬ RunsOk fork bound runChild evm within := by
+  refine not_runsOk_stuck (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hT, hB⟩ => ?_) start within
+    (redeem_comp hfork hsize' start within hc0 hc1 hcO hsel)
+  by_cases h1 : gas < 3479 + slotCost c0 + slotCost c1 + slotCost cO
+  · exact bad_redeem hfork h4 hsize' hsel hv hown hT hB hc0 hc1 hcO
+      (.of_low hfork (by omega)) (by omega)
+  · exact low_redeem2 hfork hst hacc h4 hsize' hsel hv hown hT hB hc0 hc1 hcO (by omega)
+      (by omega) hlt
+
+/-- `redeem(a)` succeeds exactly when `RedeemGuard` holds and the gas is at least the larger of the
+cost of its success path and its stipend bound (more than 2300 gas left at the second SSTORE,
+hence at the first). -/
+theorem redeem_iff_gas (hsel : selector message.data = 0xdb006a75) :
+    RunsOk fork bound runChild evm within ↔ RedeemGuard state message ∧
+      max (2614 + slotCost c0 + slotCost c1 + slotCost cO + redeemCostT fork state message +
+        redeemCostO fork state message)
+        (3838 + slotCost c0 + slotCost c1 + slotCost cO + redeemCostT fork state message) ≤ gas :=
+  iff_max (fun hg hs => redeem_ok_iff hfork hsize' start within hc0 hc1 hcO hsel hs hg)
+    (redeem_low hfork hsize' start within hc0 hc1 hcO hsel)
+    (redeem_mid hfork hsize' start within hc0 hc1 hcO hsel)
+    (fun h => of_runsOk h (redeem_comp hfork hsize' start within hc0 hc1 hcO hsel))
 
 end
 
@@ -251,6 +374,36 @@ theorem setParams_low (hg : gas < 2425 + paramsCost fork state message c0 c3 c9 
       spec_setParams hfork hst hacc h4 hsize' hsel hv hown hb hm hov hc0 hc3 hc9 hc4)
     start within (setParams_comp hfork hsize' start within hsel hc0 hc3 hc9 hc4)
 
+theorem setParams_mid (hg : 2425 + paramsCost fork state message c0 c3 c9 c4 ≤ gas)
+    (hlt : gas < 3168 + slotCost c0 + Gas.writeCost fork (originalAt state message.currentTarget 3)
+      (storageAt state message.currentTarget 3) (wordArg message.data 0) c3 + slotCost c9 +
+      50 * exponentBytes (storageAt state message.currentTarget 9) +
+      mulCost (wordArg message.data 1)) :
+    ¬ RunsOk fork bound runChild evm within := by
+  refine not_runsOk_stuck (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hb, hm, hov⟩ => ?_) start within
+    (setParams_comp hfork hsize' start within hsel hc0 hc3 hc9 hc4)
+  simp only [paramsCost] at hg
+  by_cases h1 : gas < 3108 + slotCost c0
+  · exact bad_setParams hfork h4 hsize' hsel hv hown hb hm hc0 (.of_low hfork (by omega))
+      (by omega)
+  · exact low_setParams2 hfork hst hacc h4 hsize' hsel hv hown hb hm hov hc0 hc3 hc9 (by omega)
+      (by omega) hlt
+
+/-- `setParams(b, m)` succeeds exactly when `SetParamsGuard` holds and the gas is at least the
+larger of the cost of its success path and its stipend bound (more than 2300 gas left at the
+second SSTORE, hence at the first). -/
+theorem setParams_iff_gas :
+    RunsOk fork bound runChild evm within ↔ SetParamsGuard state message ∧
+      max (2425 + paramsCost fork state message c0 c3 c9 c4)
+        (3168 + slotCost c0 + Gas.writeCost fork (originalAt state message.currentTarget 3)
+          (storageAt state message.currentTarget 3) (wordArg message.data 0) c3 + slotCost c9 +
+          50 * exponentBytes (storageAt state message.currentTarget 9) +
+          mulCost (wordArg message.data 1)) ≤ gas :=
+  iff_max (fun hg hs => setParams_ok_iff hfork hsize' start within hsel hc0 hc3 hc9 hc4 hs hg)
+    (setParams_low hfork hsize' start within hsel hc0 hc3 hc9 hc4)
+    (setParams_mid hfork hsize' start within hsel hc0 hc3 hc9 hc4)
+    (fun h => of_runsOk h (setParams_comp hfork hsize' start within hsel hc0 hc3 hc9 hc4))
+
 end
 
 /-! ## deprecate, transferOwnership -/
@@ -284,6 +437,33 @@ theorem deprecate_low (hg : gas < 1628 + slotCost c0 + slotCost c10 + depCost fo
   not_runsOk_low2 hg (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown⟩ _ =>
       spec_deprecate hfork hst hacc h4 hsize' hsel hv hown hc0 hc10)
     start within (deprecate_comp hfork hsize' start within hsel hc0 hc10)
+
+theorem deprecate_mid (hg : 1628 + slotCost c0 + slotCost c10 + depCost fork state message ≤ gas)
+    (hlt : gas < 2840 + slotCost c0 + slotCost c10 + Gas.writeCost fork
+      (originalAt state message.currentTarget 10) (storageAt state message.currentTarget 10)
+      (withPaused (storageAt state message.currentTarget 10) 1) false) :
+    ¬ RunsOk fork bound runChild evm within := by
+  refine not_runsOk_stuck (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown⟩ => ?_) start within
+    (deprecate_comp hfork hsize' start within hsel hc0 hc10)
+  simp only [depCost] at hg
+  by_cases h1 : gas < 2673 + slotCost c0 + slotCost c10
+  · exact bad_deprecate hfork h4 hsize' hsel hv hown hc0 hc10 (.of_low hfork (by omega))
+      (by omega)
+  · exact low_deprecate2 hfork hst hacc h4 hsize' hsel hv hown hc0 hc10 (by omega) (by omega) hlt
+
+/-- `deprecate(a)` succeeds exactly when `OwnerWriteGuard` holds and the gas is at least the larger
+of the cost of its success path and its stipend bound (more than 2300 gas left at the second
+SSTORE, hence at the first). -/
+theorem deprecate_iff_gas :
+    RunsOk fork bound runChild evm within ↔ OwnerWriteGuard state message ∧
+      max (1628 + slotCost c0 + slotCost c10 + depCost fork state message)
+        (2840 + slotCost c0 + slotCost c10 + Gas.writeCost fork
+          (originalAt state message.currentTarget 10) (storageAt state message.currentTarget 10)
+          (withPaused (storageAt state message.currentTarget 10) 1) false) ≤ gas :=
+  iff_max (fun hg hs => deprecate_ok_iff hfork hsize' start within hsel hc0 hc10 hs hg)
+    (deprecate_low hfork hsize' start within hsel hc0 hc10)
+    (deprecate_mid hfork hsize' start within hsel hc0 hc10)
+    (fun h => of_runsOk h (deprecate_comp hfork hsize' start within hsel hc0 hc10))
 
 end
 
@@ -336,6 +516,33 @@ theorem transferOwnership_low (hg : gas < ownershipCost fork state message c0) :
         spec_transferOwnership hfork (hw hz).1 (hw hz).2 h4 hsize' hsel hv hown hz hc0)
       start within (transferOwnership_comp hfork hsize' start within hsel hc0)
 
+/-- The gas that the success path of `transferOwnership(a)` needs so that more than 2300 is left
+at its SSTORE: none for `a = 0` (no SSTORE), `3401 + price(slot 0)` otherwise. -/
+abbrev ownershipStip (message : Message fork) (c0 : Bool) : Nat :=
+  if addrArg message.data 0 = 0 then 0 else 3401 + slotCost c0
+
+theorem transferOwnership_mid (hg : ownershipCost fork state message c0 ≤ gas)
+    (hlt : gas < ownershipStip message c0) : ¬ RunsOk fork bound runChild evm within := by
+  refine not_runsOk_stuck (fun ⟨⟨h4, hv⟩, hown, _⟩ => ?_) start within
+    (transferOwnership_comp hfork hsize' start within hsel hc0)
+  by_cases hz : addrArg message.data 0 = 0
+  · simp only [ownershipStip, hz, ↓reduceIte] at hlt
+    omega
+  · simp only [ownershipCost, ownershipStip, hz, ↓reduceIte] at hg hlt
+    exact bad_transferOwnership hfork h4 hsize' hsel hv hown hz hc0 (.of_low hfork (by omega))
+      (by omega)
+
+/-- `transferOwnership(a)` succeeds exactly when `TransferOwnershipGuard` holds and the gas is at
+least the larger of `ownershipCost` and `ownershipStip`. -/
+theorem transferOwnership_iff_gas :
+    RunsOk fork bound runChild evm within ↔ TransferOwnershipGuard state message ∧
+      max (ownershipCost fork state message c0) (ownershipStip message c0) ≤ gas :=
+  iff_max (fun hg hs => transferOwnership_ok_iff hfork hsize' start within hsel hc0
+      (fun hz => by simpa only [ownershipStip, hz, ↓reduceIte] using hs) hg)
+    (transferOwnership_low hfork hsize' start within hsel hc0)
+    (transferOwnership_mid hfork hsize' start within hsel hc0)
+    (fun h => of_runsOk h (transferOwnership_comp hfork hsize' start within hsel hc0))
+
 end
 
 /-! ## destroyBlackFunds, not deprecated -/
@@ -381,6 +588,38 @@ theorem destroyBlackFunds_low
   not_runsOk_low3 hg (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hl⟩ _ =>
       DestroySpec.spec hfork hst hacc h4 hsize' hsel hv hown hl hdep hc0 hcL hc10 hcB hc1)
     start within (destroyBlackFunds_comp hfork hsize' start within hsel hdep hc0 hcL hc10 hcB hc1)
+
+theorem destroyBlackFunds_mid
+    (hg : 2865 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB + slotCost c1 +
+      costB fork state message + costT fork state message ≤ gas)
+    (hlt : gas < max (3763 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB)
+      (3796 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB +
+        costB fork state message + slotCost c1)) :
+    ¬ RunsOk fork bound runChild evm within := by
+  refine not_runsOk_stuck (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hl⟩ => ?_) start within
+    (destroyBlackFunds_comp hfork hsize' start within hsel hdep hc0 hcL hc10 hcB hc1)
+  by_cases h1 : gas < 3763 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB
+  · exact DestroySpec.bad hfork h4 hsize' hsel hv hown hl hdep hc0 hcL hc10 hcB
+      (.of_low hfork (by omega)) (by omega)
+  · exact DestroySpec.low2 hfork hst hacc h4 hsize' hsel hv hown hl hdep hc0 hcL hc10 hcB hc1
+      (by omega) (by omega) (by omega)
+
+/-- `destroyBlackFunds(a)`, not deprecated, succeeds exactly when `DestroyBlackFundsGuard` holds
+and the gas is at least the largest of the cost of its success path and its two stipend
+bounds. -/
+theorem destroyBlackFunds_iff_gas :
+    RunsOk fork bound runChild evm within ↔ DestroyBlackFundsGuard state message ∧
+      max (2865 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB + slotCost c1 +
+        costB fork state message + costT fork state message)
+        (max (3763 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB)
+          (3796 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB +
+            costB fork state message + slotCost c1)) ≤ gas :=
+  iff_max (fun hg hs => destroyBlackFunds_ok_iff hfork hsize' start within hsel hdep hc0 hcL hc10
+      hcB hc1 (Nat.max_le.mp hs).1 (Nat.max_le.mp hs).2 hg)
+    (destroyBlackFunds_low hfork hsize' start within hsel hdep hc0 hcL hc10 hcB hc1)
+    (destroyBlackFunds_mid hfork hsize' start within hsel hdep hc0 hcL hc10 hcB hc1)
+    (fun h => of_runsOk h
+      (destroyBlackFunds_comp hfork hsize' start within hsel hdep hc0 hcL hc10 hcB hc1))
 
 end
 

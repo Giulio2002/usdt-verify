@@ -197,29 +197,30 @@ theorem depFlag (hfork : .berlin ≤ fork) {a : U256}
 of slot `k`, which is `Stuck`. -/
 theorem addrTailBad (hfork : .berlin ≤ fork) {p : Nat}
     (hp : p = 2770 ∨ p = 7755) {k a : U256} {rest : List U256} (hrest : rest.length ≤ 16)
-    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
     (hk : coldIn substate message.currentTarget k = false) {M : ByteArray} {gas : Nat}
-    (hg : 158 ≤ gas) :
+    (hbad : Gas.NoWrite message state (gas - 156))
+    (hg : 156 ≤ gas) :
     Gas.HoareG fork (At CODE message p (0 :: k :: a :: a :: rest) M gas state substate)
       Gas.Stuck := by
   have hexp : exponentBytes (0 : U256) = 0 := by decide
   rcases hp with rfl | rfl
   all_goals
     addr_pre
-    exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
+    exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
 
 /-- At 2737 (deprecate), in a static frame or with no account for `C`: the run reaches the
 `SSTORE` of slot 10, which is `Stuck`. -/
 theorem depFlagBad (hfork : .berlin ≤ fork) {a : U256}
     {rest : List U256} (hrest : rest.length ≤ 16)
-    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget) {c10 : Bool}
+    {c10 : Bool}
     (hc10 : coldIn substate message.currentTarget 10 = c10) {M : ByteArray} {gas : Nat}
-    (hg : 118 + slotCost c10 ≤ gas) :
+    (hbad : Gas.NoWrite message state (gas - (116 + slotCost c10)))
+    (hg : 116 + slotCost c10 ≤ gas) :
     Gas.HoareG fork (At CODE message 2737 (a :: rest) M gas state substate) Gas.Stuck := by
   have hexp : exponentBytes (0x14 : U256) = 1 := by decide
   have hb : isZero (isZero (1 : U256)) = 1 := by decide
   dep_pre
-  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
+  exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
 
 /-- At 2765 (deprecate): `DUP1 PUSH1 0a PUSH1 00` sets up the address write of slot 10. -/
 theorem depPrefix {a : U256} {rest : List U256} (hrest : rest.length ≤ 16) {M : ByteArray}

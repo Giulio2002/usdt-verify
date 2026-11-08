@@ -11,7 +11,11 @@ From Berlin, a fresh frame of `CODE` at pc 0 with call data below `2^256` bytes,
   two bounds `transferStip1`, `transferStip2` of more than 2300 gas left at the two SSTOREs), the
   run ends with no error if and only if `TransferGuard` holds.
 - `transfer_low`: with less gas than `transferCost`, no run ends with no error.
-  A gas between `transferCost` and a stipend bound is not covered.
+- `transfer_mid` (round 26): with at least `transferCost` but less than `transferStip` gas, no run
+  ends with no error: with a fee of 0, an SSTORE (of the sender's or the recipient's balance) is
+  reached with at most 2300 gas left (EIP-2200).
+- `transfer_iff_gas` (round 26): for every gas, the run ends with no error if and only if
+  `TransferGuard` holds and the gas is at least the larger of `transferCost` and `transferStip`.
 -/
 
 namespace UsdtVerify.Exact
@@ -53,6 +57,15 @@ abbrev transferStip2 (fork : Fork) (state : State.TransactionState) (message : M
     capCost (rawFee (shortState state message) message (wordArg message.data 1))
       (storageAt (shortState state message) message.currentTarget 4) +
     debitCost fork (shortState state message) message (wordArg message.data 1) + 2401)
+
+/-- The stipend bound of the success path of `transfer(a, v)`: `transferStip2` with a fee of 0
+(it is at least `transferStip1`), none otherwise (the logs after the SSTOREs of the fee path cost
+more than 2300). -/
+abbrev transferStip (fork : Fork) (state : State.TransactionState) (message : Message fork)
+    (c0 cB c10 c3 c4 cS cT : Bool) : Nat :=
+  if feeOf (shortState state message) message (wordArg message.data 1) = 0 then
+    transferStip2 fork state message c0 cB c10 c3 c4 cS cT
+  else 0
 
 section
 
@@ -128,6 +141,42 @@ theorem transfer_low (hg : gas < transferCost fork state message c0 cB c10 c3 c4
         spec_fee hfork hst hacc hl hsize' hsel hv hp hb hdep hov hfee hfv hbal hto (hown hfee)
           hc0 hcB hc10 hc3 hc4 hcS hcT hcO)
       start within hcomp
+
+theorem transfer_mid (hg : transferCost fork state message c0 cB c10 c3 c4 cS cT cO ≤ gas)
+    (hlt : gas < transferStip fork state message c0 cB c10 c3 c4 cS cT) :
+    ¬ RunsOk fork bound runChild evm within := by
+  refine not_runsOk_stuck
+    (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hl, hp, hb, hov, hfv, hbal, hto, hown⟩ => ?_) start within
+    (transfer_comp hfork hsize' start within hsel hdep hc0 hcB hc10 hc3 hc4 hcS hcT hcO)
+  by_cases hfee : feeOf (shortState state message) message (wordArg message.data 1) = 0
+  · simp only [transferCost, transferStip, transferStip2, okCost, readCost, hfee, ↓reduceIte]
+      at hg hlt
+    by_cases h1 : gas < transferStip1 state message c0 cB c10 c3 c4 cS
+    · simp only [transferStip1] at h1
+      exact bad_transfer hfork hl hsize' hsel hv hp hb hdep hov hfv hbal hc0 hcB hc10 hc3 hc4 hcS
+        (.of_low hfork (by omega)) (by omega)
+    · simp only [transferStip1] at h1
+      rw [sendOf_zero hfee] at hto
+      exact low_transfer2 hfork hst hacc hl hsize' hsel hv hp hb hdep hov hfee hbal hto hc0 hcB
+        hc10 hc3 hc4 hcS hcT (by omega) (by simp only [readCost]; omega)
+        (by simp only [readCost]; omega)
+  · simp only [transferStip, hfee, ↓reduceIte] at hlt
+    omega
+
+/-- `transfer(a, v)`, not deprecated, succeeds exactly when `TransferGuard` holds and the gas is
+at least the larger of `transferCost` and `transferStip`. -/
+theorem transfer_iff_gas :
+    RunsOk fork bound runChild evm within ↔ TransferGuard state message ∧
+      max (transferCost fork state message c0 cB c10 c3 c4 cS cT cO)
+        (transferStip fork state message c0 cB c10 c3 c4 cS cT) ≤ gas :=
+  iff_max (fun hg hs => transfer_ok_iff hfork hsize' start within hsel hdep hc0 hcB hc10 hc3 hc4
+      hcS hcT hcO (fun hfee => by
+        simp only [transferStip, transferStip1, transferStip2, readCost, hfee, ↓reduceIte] at hs ⊢
+        omega) hg)
+    (transfer_low hfork hsize' start within hsel hdep hc0 hcB hc10 hc3 hc4 hcS hcT hcO)
+    (transfer_mid hfork hsize' start within hsel hdep hc0 hcB hc10 hc3 hc4 hcS hcT hcO)
+    (fun h => of_runsOk h
+      (transfer_comp hfork hsize' start within hsel hdep hc0 hcB hc10 hc3 hc4 hcS hcT hcO))
 
 end
 

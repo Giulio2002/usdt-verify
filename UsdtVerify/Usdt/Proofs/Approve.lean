@@ -269,15 +269,15 @@ theorem store (hfork : .berlin ≤ fork) {v s : U256}
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
-/-- At 8384, in a static frame or with no account for `C`: the run reaches the `SSTORE` of the
-allowance, which is `Stuck`. -/
-theorem storeBad {v s : U256} {rest : List U256} (hrest : rest.length ≤ 800)
-    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget) {gas : Nat}
-    (hg : 194 ≤ gas) {M : ByteArray} (hM : M.size = 96) :
+/-- At 8384, when the `SSTORE` of the allowance cannot complete (`NoWrite`: a static frame, no
+account for `C`, or at most 2300 gas left there): the run reaches it, and it is `Stuck`. -/
+theorem storeBad {v s : U256} {rest : List U256} (hrest : rest.length ≤ 800) {gas : Nat}
+    (hbad : Gas.NoWrite message state (gas - 192))
+    (hg : 192 ≤ gas) {M : ByteArray} (hM : M.size = 96) :
     Gas.HoareG fork (At CODE message 8384 (0x40 :: v :: s :: rest) M gas state substate)
       Gas.Stuck := by
   store_pre
-  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
+  exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
 
 /-- The topic of the event `Approval(address,address,uint256)`. -/
 abbrev APPROVAL_TOPIC : U256 :=

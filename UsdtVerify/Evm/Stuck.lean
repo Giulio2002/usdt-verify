@@ -101,6 +101,17 @@ theorem no_ok_stuck {B : Nat}
   obtain ⟨z, hr, hz⟩ := h (gas + B) (by omega) _ (at_sh start B)
   exact not_ok_of_reaches hr hz B evm rfl within hrun hok
 
+/-- No successful run from a frame that, with its own gas, reaches a `Stuck` frame along
+`StepG`. -/
+theorem no_ok_stuck_at {gas : Nat}
+    (h : HoareG fork (At code message pc stack memory gas state substate) Stuck)
+    (start : At code message pc stack memory gas state substate evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hok : s.error = none) : False := by
+  obtain ⟨z, hr, hz⟩ := h evm start
+  exact not_ok_of_reaches hr hz 0 evm (by simp [sh]) within hrun hok
+
 end Loop
 
 /-- SSTORE in a static frame, or at an address with no account, never completes: its step fails
@@ -192,6 +203,83 @@ theorem sstoreStuckW {key new : U256} {rest : List U256} {gas : Nat}
     (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget) :
     HoareG fork (At code message pc (key :: new :: rest) memory gas state substate) Stuck :=
   sstore_stuck hlt hbyte hbad
+
+/-- SSTORE with at most 2300 gas left fails from Istanbul on (EIP-2200): its step is an error. -/
+theorem sstoreStep_low (hist : Fork.istanbul ≤ fork) {l : Evm fork Nat} (hlow : l.gas ≤ 2300) :
+    ∃ e, sstoreStep l = .error e := by
+  cases h : sstoreStep l with
+  | error e => exact ⟨e, rfl⟩
+  | ok b =>
+    exfalso
+    unfold sstoreStep at h
+    split at h
+    · simp [bind, Except.bind, throw, throwThe, MonadExceptOf.throw] at h
+    obtain ⟨⟨k, e1⟩, h1, h⟩ := Base.bind_ok_iff.mp h
+    obtain ⟨⟨n, e2⟩, h2, h⟩ := Base.bind_ok_iff.mp h
+    have g1 : e1.gas = l.gas := by
+      unfold popWord at h1
+      obtain ⟨⟨_, _⟩, -, h1⟩ := Base.bind_ok_iff.mp h1
+      cases h1; rfl
+    have g2 : e2.gas = e1.gas := by
+      unfold popWord at h2
+      obtain ⟨⟨_, _⟩, -, h2⟩ := Base.bind_ok_iff.mp h2
+      cases h2; rfl
+    simp only [] at h
+    split at h
+    · simp [throw, throwThe, MonadExceptOf.throw] at h
+    · rename_i hn
+      exact hn ⟨hist, by rw [g2, g1]; exact hlow⟩
+
+/-- SSTORE with at most 2300 gas left is `Stuck` from Istanbul on (EIP-2200): every frame with that
+gas or less fails at it. -/
+theorem sstore_low_stuck (hist : Fork.istanbul ≤ fork) {key new : U256} {rest : List U256}
+    {gas : Nat} (hlt : pc < code.size) (hbyte : code[pc] = 0x55) (hlow : gas ≤ 2300) :
+    HoareG fork (At code message pc (key :: new :: rest) memory gas state substate) Stuck := by
+  intro evm hat
+  obtain ⟨hcode, -, -, hpc, -, -, hg, hrun, -, -, -, -⟩ := hat
+  refine ⟨evm, .refl _, hrun, ?_⟩
+  rintro k l rfl
+  have hcode' : l.code = code := hcode
+  have hpc' : l.pc = pc := hpc
+  have hlt' : l.pc < l.code.size := by rw [hpc', hcode']; exact hlt
+  have hdec : Op.ofByte fork l.code[l.pc] = some .sstore := by
+    have : l.code[l.pc] = (0x55 : UInt8) := by simp only [hcode', hpc', hbyte]
+    rw [this]
+    exact ofByte_of_decode (op := .sstore) rfl (Fork.frontier_le _)
+  rw [step_of_instruction hlt' hdec instruction_sstore]
+  have hl : l.gas ≤ 2300 := by
+    have : l.gas + k = gas := hg
+    omega
+  obtain ⟨e, he⟩ := sstoreStep_low hist hl
+  exact .inl ⟨e, by simp [he, Functor.map, Except.map]⟩
+
+/-- The SSTORE of a frame of `message` in `state` with `g` gas cannot complete: the frame is
+static, the current target has no account, or (from Istanbul) at most 2300 gas is left. -/
+def NoWrite (message : Message fork) (state : State.TransactionState) (g : Nat) : Prop :=
+  message.isStatic = true ∨ ¬hasAccount state message.currentTarget ∨
+    (Fork.istanbul ≤ fork ∧ g ≤ 2300)
+
+theorem NoWrite.of_bad {message : Message fork} {state : State.TransactionState} {g : Nat}
+    (h : message.isStatic = true ∨ ¬hasAccount state message.currentTarget) :
+    NoWrite message state g :=
+  h.elim .inl fun h => .inr (.inl h)
+
+theorem NoWrite.of_low (hfork : .berlin ≤ fork) {message : Message fork}
+    {state : State.TransactionState} {g : Nat} (h : g ≤ 2300) : NoWrite message state g :=
+  .inr (.inr ⟨Nat.le_trans (by decide) hfork, h⟩)
+
+theorem NoWrite.le {message : Message fork} {state : State.TransactionState} {g g' : Nat}
+    (h : NoWrite message state g) (hle : g' ≤ g) : NoWrite message state g' :=
+  h.elim .inl fun h => h.elim (fun h => .inr (.inl h)) fun h => .inr (.inr ⟨h.1, by omega⟩)
+
+/-- An SSTORE that cannot complete (`NoWrite`) is `Stuck`. -/
+theorem sstoreNoWrite {key new : U256} {rest : List U256} {gas : Nat}
+    (hlt : pc < code.size) (hbyte : code[pc] = 0x55) (h : NoWrite message state gas) :
+    HoareG fork (At code message pc (key :: new :: rest) memory gas state substate) Stuck := by
+  rcases h with h | h | ⟨hist, h⟩
+  · exact sstore_stuck hlt hbyte (.inl h)
+  · exact sstore_stuck hlt hbyte (.inr h)
+  · exact sstore_low_stuck hist hlt hbyte h
 
 /-- A read of a slot keeps the account. -/
 theorem hasAccount_readSlot_iff {state : State.TransactionState} {C T : Address} {n : U256} :

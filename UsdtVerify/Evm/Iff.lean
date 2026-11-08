@@ -1,5 +1,6 @@
 import UsdtVerify.Evm.Exact
 import UsdtVerify.Evm.Route
+import UsdtVerify.Evm.Stuck
 
 /-!
 # Exact success conditions
@@ -111,6 +112,40 @@ theorem not_runsOk_low3 {G : Prop} {B1 B2 cost gas : Nat} (hlt : gas < cost)
     ¬ RunsOk fork bound runChild evm within :=
   not_runsOk_low2 (B1 := B1 + B2) hlt
     (fun hG g h1 h2 => hspec hG g (Complete.le_l h1) (Complete.le_r h1) h2) start within hcomp
+
+/-- No run ends with no error, if every run that ends with no error meets `G`, and under `G`
+the frame, with its own gas, reaches a `Stuck` frame. -/
+theorem not_runsOk_stuck {G : Prop} {gas : Nat}
+    (hstuck : G → HoareG fork (At code message pc stack memory gas state substate) Stuck)
+    (start : At code message pc stack memory gas state substate evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =
+      .ok s → s.error = none → G) :
+    ¬ RunsOk fork bound runChild evm within := by
+  rintro ⟨s, hs, hok⟩
+  exact no_ok_stuck_at (hstuck (hcomp s hs hok)) start within hs hok
+
+/-- The condition `G` of a run that ends with no error. -/
+theorem of_runsOk {G : Prop} (h : RunsOk fork bound runChild evm within)
+    (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =
+      .ok s → s.error = none → G) : G :=
+  let ⟨s, hs, hok⟩ := h
+  hcomp s hs hok
+
+/-- The form of an exact gas threshold: if `R` is equivalent to `G` from `max cost stip` gas on,
+fails below `cost`, fails from `cost` to below `stip`, and implies `G`, then `R` holds exactly
+when `G` holds and the gas is at least `max cost stip`. -/
+theorem iff_max {R G : Prop} {cost stip gas : Nat}
+    (hok : cost ≤ gas → stip ≤ gas → (R ↔ G)) (hlow : gas < cost → ¬ R)
+    (hmid : cost ≤ gas → gas < stip → ¬ R) (hcomp : R → G) :
+    R ↔ G ∧ max cost stip ≤ gas := by
+  constructor
+  · intro h
+    have h1 : cost ≤ gas := Nat.le_of_not_lt fun hl => hlow hl h
+    have h2 : stip ≤ gas := Nat.le_of_not_lt fun hl => hmid h1 hl h
+    exact ⟨hcomp h, Nat.max_le.mpr ⟨h1, h2⟩⟩
+  · rintro ⟨hG, hm⟩
+    exact (hok (Nat.max_le.mp hm).1 (Nat.max_le.mp hm).2).2 hG
 
 /-! ## Paths that forward a message -/
 

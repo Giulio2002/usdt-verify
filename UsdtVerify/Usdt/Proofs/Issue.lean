@@ -506,10 +506,10 @@ theorem redeemOwner (hfork : .berlin ≤ fork) {a : U256}
 of `balances[owner]`, which is `Stuck`. -/
 theorem issueOwnerBad (hfork : .berlin ≤ fork) {a : U256}
     {rest : List U256} (hrest : rest.length ≤ 800)
-    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
     (hc0 : coldIn substate message.currentTarget 0 = false)
     (hcO : coldIn substate message.currentTarget (ownerBal state message.currentTarget) = false)
-    {M : ByteArray} (hM : M.size = 96) {gas : Nat} (hg : 360 ≤ gas) :
+    {M : ByteArray} (hM : M.size = 96) {gas : Nat} (hbad : Gas.NoWrite message state (gas - 358))
+    (hg : 358 ≤ gas) :
     Gas.HoareG fork (At CODE message 6338 (a :: rest) M gas state substate) Gas.Stuck := by
   have hcO' := TransferFrom.coldIn_accessSlot_false (n := 0) hcO
   step jumpdestR
@@ -517,22 +517,51 @@ theorem issueOwnerBad (hfork : .berlin ≤ fork) {a : U256}
   step ownerLookup hfork (by decide) (by simp; omega) hM hc0 (gas := gas - 1 - 3) (by gas_ok)
   step pushR 1 (0 : U256)
   owner_pre 0x01 instruction_add
-  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
+  exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
 
 /-- At 6741 (redeem), in a static frame or with no account for `C`: the run reaches the `SSTORE`
 of `_totalSupply`, which is `Stuck`. -/
 theorem redeemTotalBad (hfork : .berlin ≤ fork) {a : U256}
     {rest : List U256} (hrest : rest.length ≤ 800)
-    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
     (hc1 : coldIn substate message.currentTarget 1 = false) {M : ByteArray} {gas : Nat}
-    (hg : 134 ≤ gas) :
+    (hbad : Gas.NoWrite message state (gas - 132))
+    (hg : 132 ≤ gas) :
     Gas.HoareG fork (At CODE message 6741 (a :: rest) M gas state substate) Gas.Stuck := by
   step jumpdestR
   step dupR 0
   step pushR 1 (0x01 : U256)
   step pushR 1 (0 : U256)
   op_pre 0x03 Local.instruction_sub hc1
-  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
+  exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
+
+/-- At 6449 (issue), when the `SSTORE` of `_totalSupply` cannot complete (`NoWrite`): the run
+reaches it, and it is `Stuck`. -/
+theorem issueTotalBad (hfork : .berlin ≤ fork) {a : U256}
+    {rest : List U256} (hrest : rest.length ≤ 800)
+    (hc1 : coldIn substate message.currentTarget 1 = false) {M : ByteArray} {gas : Nat}
+    (hbad : Gas.NoWrite message state (gas - 131)) (hg : 131 ≤ gas) :
+    Gas.HoareG fork (At CODE message 6449 (a :: rest) M gas state substate) Gas.Stuck := by
+  step dupR 0
+  step pushR 1 (0x01 : U256)
+  step pushR 1 (0 : U256)
+  op_pre 0x01 instruction_add hc1
+  exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
+
+/-- At 6758 (redeem), when the `SSTORE` of `balances[owner]` cannot complete (`NoWrite`): the run
+reaches it, and it is `Stuck`. -/
+theorem redeemOwnerBad (hfork : .berlin ≤ fork) {a : U256}
+    {rest : List U256} (hrest : rest.length ≤ 800)
+    (hc0 : coldIn substate message.currentTarget 0 = false)
+    (hcO : coldIn substate message.currentTarget (ownerBal state message.currentTarget) = false)
+    {M : ByteArray} (hM : M.size = 96) {gas : Nat}
+    (hbad : Gas.NoWrite message state (gas - 357)) (hg : 357 ≤ gas) :
+    Gas.HoareG fork (At CODE message 6758 (a :: rest) M gas state substate) Gas.Stuck := by
+  have hcO' := TransferFrom.coldIn_accessSlot_false (n := 0) hcO
+  step dupR 0
+  step ownerLookup hfork (by decide) (by simp; omega) hM hc0 (gas := gas - 3) (by gas_ok)
+  step pushR 1 (0 : U256)
+  owner_pre 0x03 Local.instruction_sub
+  exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
 
 /-! ## redeem's tests -/
 

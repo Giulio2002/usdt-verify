@@ -242,13 +242,13 @@ theorem spec_setParams (hfork : .berlin ≤ fork)
 /-- `setParams(b, m)` by the owner, with `b < 20` and `m < 50`, in a static frame or with no
 account for `C`: the run reaches the `SSTORE` of slot 3, which is `Stuck`. -/
 theorem bad_setParams (hfork : .berlin ≤ fork)
-    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xc0324c77)
     (hv : message.value = 0) (hown : callerWord message = ownerOf state message.currentTarget)
     (hb : (wordArg message.data 0).toNat < 20) (hm : (wordArg message.data 1).toNat < 50)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
-    (hg : 5000 + slotCost c0 ≤ gas) :
+    (hbad : Gas.NoWrite message state (gas - (807 + slotCost c0)))
+    (hg : 807 + slotCost c0 ≤ gas) :
     Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
   refine Triple.seq (toBody hsize hsize' hsel hv (by omega)) ?_
   step ownerOk hfork (mem_CHECKS (by decide)) (by simp) hc0 hown (by gas_ok)
@@ -257,8 +257,60 @@ theorem bad_setParams (hfork : .berlin ≤ fork)
   step pass (Or.inl ⟨rfl, rfl⟩) (lt_ne (by simpa using hb)) (by simp) (by gas_ok)
   step test2 (by simp) (by gas_ok)
   step pass (Or.inr ⟨rfl, rfl⟩) (lt_ne (by simpa using hm)) (by simp) (by gas_ok)
-  refine write3Bad (state := readSlot state message.currentTarget 0) ?_ hbad ?_
+  refine write3Bad (state := readSlot state message.currentTarget 0) ?_ (hbad.le ?_) ?_
   · simp
+  · gas_ok
+  · gas_ok
+
+/-- `setParams(b, m)` by the owner, with `b < 20`, `m < 50` and no overflow of `m * 10^d`, a frame
+that may write and an account for `C`, with more than 2300 gas left at the `SSTORE` of slot 3 but
+at most 2300 at the `SSTORE` of slot 4 (`hlow`): the run reaches the second one, which is
+`Stuck`. -/
+theorem low_setParams2 (hfork : .berlin ≤ fork)
+    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
+    (hsize : 4 ≤ message.data.size)
+    (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xc0324c77)
+    (hv : message.value = 0) (hown : callerWord message = ownerOf state message.currentTarget)
+    (hb : (wordArg message.data 0).toNat < 20) (hm : (wordArg message.data 1).toNat < 50)
+    (hov : (wordArg message.data 1).toNat *
+      (exp (0x0a : U256) (storageAt state message.currentTarget 9)).toNat < 2 ^ 256)
+    {c0 c3 c9 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
+    (hc3 : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget 3 = c3)
+    (hc9 : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget 3)
+      message.currentTarget 9 = c9)
+    {gas : Nat} (hstip : 3108 + slotCost c0 ≤ gas)
+    (hg : 867 + slotCost c0 + Gas.writeCost fork (originalAt state message.currentTarget 3)
+      (storageAt state message.currentTarget 3) (wordArg message.data 0) c3 + slotCost c9 +
+      50 * exponentBytes (storageAt state message.currentTarget 9) +
+      mulCost (wordArg message.data 1) ≤ gas)
+    (hlow : gas < 3168 + slotCost c0 + Gas.writeCost fork (originalAt state message.currentTarget 3)
+      (storageAt state message.currentTarget 3) (wordArg message.data 0) c3 + slotCost c9 +
+      50 * exponentBytes (storageAt state message.currentTarget 9) +
+      mulCost (wordArg message.data 1)) :
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
+  have hacc0 := hasAccount_readSlot (n := 0) (other := message.currentTarget) hacc
+  have h9 : storageAt (writeSlot (readSlot state message.currentTarget 0) message.currentTarget 3
+      (wordArg message.data 0)) message.currentTarget 9 = storageAt state message.currentTarget 9 := by
+    rw [storageAt_writeSlot_of_ne hacc0 (by decide), storageAt_readSlot]
+  have hc9' : coldIn (storeSub fork (accessSlot substate message.currentTarget 0)
+      message.currentTarget 3 (originalAt state message.currentTarget 3)
+      (storageAt state message.currentTarget 3) (wordArg message.data 0)) message.currentTarget 9 =
+      c9 := hc9
+  refine Triple.seq (toBody hsize hsize' hsel hv (by omega)) ?_
+  step ownerOk hfork (mem_CHECKS (by decide)) (by simp) hc0 hown (by gas_ok)
+  at_pc 5881
+  step test1 (by simp) (by gas_ok)
+  step pass (Or.inl ⟨rfl, rfl⟩) (lt_ne (by simpa using hb)) (by simp) (by gas_ok)
+  step test2 (by simp) (by gas_ok)
+  step pass (Or.inr ⟨rfl, rfl⟩) (lt_ne (by simpa using hm)) (by simp) (by gas_ok)
+  step write3 hfork (by simp) hstatic hacc0 hc3 (by gas_ok)
+    (by rw [originalAt_readSlot, storageAt_readSlot]; gas_ok)
+  rw [originalAt_readSlot, storageAt_readSlot]
+  refine Triple.seq (mulCall hfork (c9 := c9) hc9' (by rw [h9]; exact hov) ?hgm) ?_
+  case hgm => rw [h9]; gas_ok
+  rw [h9]
+  refine write4Bad (by simp) (.of_low hfork ?_) ?_
+  · gas_ok
   · gas_ok
 
 /-- After `setParams(b, m)`: slot 3 is `b`, slot 4 is `m * 10^d`, every other slot is unchanged.

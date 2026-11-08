@@ -721,12 +721,13 @@ theorem debitStore (hfork : .berlin ≤ fork) {nb send fee v a : U256}
 /-- At 10072, in a static frame or with no account for `C`: the run reaches the `SSTORE` of
 `balances[msg.sender]`, which is `Stuck`. -/
 theorem debitStoreBad {nb send fee v a : U256} {rest : List U256} (hrest : rest.length ≤ 800)
-    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget) {gas : Nat}
-    (hg : 101 ≤ gas) {M : ByteArray} (hM : M.size = 96) :
+    {gas : Nat}
+    (hbad : Gas.NoWrite message state (gas - 99))
+    (hg : 99 ≤ gas) {M : ByteArray} (hM : M.size = 96) :
     Gas.HoareG fork (At CODE message 10072 (nb :: 0x40 :: send :: fee :: v :: a :: rest) M gas state
         substate) Gas.Stuck := by
   debit_pre
-  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
+  exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
 
 /-- The slot of `balances[_to]` for the recipient word `a`: mapping base slot 2. -/
 abbrev recipientSlot (a : U256) : U256 := mapSlot (mkey a) 2
@@ -802,6 +803,25 @@ theorem creditStore (hfork : .berlin ≤ fork) {nt send v a : U256}
   step pushR 2 (0x2997 : U256)
   step jumpiR (by decide)
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
+
+/-- At 10221 (fee of 0), when the `SSTORE` of `balances[_to]` cannot complete (`NoWrite`): the run
+reaches it, and it is `Stuck`. -/
+theorem creditStoreBad {nt send v a : U256} {rest : List U256} (hrest : rest.length ≤ 800)
+    {gas : Nat} (hbad : Gas.NoWrite message state (gas - 100)) (hg : 100 ≤ gas) {M : ByteArray}
+    (hM : M.size = 96) :
+    Gas.HoareG fork (At CODE message 10221 (nt :: 0x40 :: send :: 0 :: v :: a :: rest) M gas state
+        substate) Gas.Stuck := by
+  step jumpdestR
+  step pushR 1 (0x02 : U256)
+  step pushR 1 (0 : U256)
+  step dupR 7
+  at_pc 10227
+  step hashTail (by decide) (by simp; omega) hM (by gas_ok)
+  at_pc 10285
+  step dupR 1
+  step swapR 0
+  norm
+  exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
 
 /-- The topic of the event `Transfer(address,address,uint256)`. -/
 abbrev TRANSFER_TOPIC : U256 :=
@@ -1098,6 +1118,69 @@ theorem body (hfork : .berlin ≤ fork)
   refine (endBlock (by gas_ok)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
+
+/-- From 9883, with a fee of 0, a frame that may write and an account for `C`, with more than
+2300 gas left at the `SSTORE` of the sender's balance but at most 2300 at the `SSTORE` of the
+recipient's balance (`hlow`): the run reaches the second one, which is `Stuck`. -/
+theorem bodyLow2 (hfork : .berlin ≤ fork)
+    (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
+    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
+    {v a sel : U256} {M : ByteArray} (hM : M.size = 96)
+    (hov : v.toNat * (storageAt state message.currentTarget 3).toNat < 2 ^ 256)
+    (hfee : feeOf state message v = 0)
+    (hbal : v.toNat ≤ (balS state message).toNat)
+    (hto : (balT state message v a).toNat + v.toNat < 2 ^ 256)
+    {c3 c4 cS cT : Bool} (hc3 : coldIn substate message.currentTarget 3 = c3)
+    (hc4 : coldIn (accessSlot substate message.currentTarget 3) message.currentTarget 4 = c4)
+    (hcS : coldIn (accessSlot (accessSlot substate message.currentTarget 3) message.currentTarget 4)
+      message.currentTarget (senderSlot message) = cS)
+    (hcT : coldIn (access3 substate message) message.currentTarget (recipientSlot a) = cT)
+    {gas : Nat}
+    (hstip1 : 530 + slotCost c3 + slotCost c4 + slotCost cS + mulCost v +
+      capCost (rawFee state message v) (storageAt state message.currentTarget 4) + 2400 ≤ gas)
+    (hg : 937 + readCost c3 c4 cS cT + mulCost v +
+      capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
+      debitCost fork state message v ≤ gas)
+    (hlow : gas < 837 + readCost c3 c4 cS cT + mulCost v +
+      capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
+      debitCost fork state message v + 2401) :
+    Gas.HoareG fork (At CODE message 9883 [v, a, 0x1699, v, a, 0x078a, sel] M gas state substate)
+      Gas.Stuck := by
+  simp only [readCost, debitCost, rawFee, feeOf, balS, balT, debited, reads3] at hstip1 hg hlow hfee hbal hto ⊢
+  have hacc3 : hasAccount (reads3 state message) message.currentTarget :=
+    hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc))
+  simp only [debited, reads3, balS] at hacc3
+  step payloadOk hlong hsz (by simp) (by gas_ok)
+  step feeCall hfork (by simp) hc3 (by gas_ok)
+  step mulBlock (by simp) (by valid_dest) hov (by gas_ok)
+  at_pc 9937
+  step divCall (by simp) (by gas_ok)
+  step divBlock (by simp) (by valid_dest) (by decide) (by gas_ok)
+  at_pc 9951
+  step capBlock hfork (by simp) hc4 (by simp only [storageAt_readSlot]; gas_ok)
+  simp only [storageAt_readSlot]
+  step Gas.reshapeG (s' := (0x40 : U256) :: 0 :: 0 :: v :: a :: [0x1699, v, a, 0x078a, sel])
+    (by rw [hfee]) rfl rfl
+  step sendCall (by simp) (by gas_ok)
+  step subBlock (by simp) (by valid_dest) (by simp) (by gas_ok)
+  at_pc 9988
+  step Gas.reshapeG (s' := v :: (0x40 : U256) :: 0 :: 0 :: v :: a :: [0x1699, v, a, 0x078a, sel])
+    (by simp [sub]) rfl rfl
+  step debitCall hfork (by simp) hcS (by gas_ok) hM
+  simp only [storageAt_readSlot]
+  step subBlock (by simp) (by valid_dest) hbal (by gas_ok)
+  at_pc 10072
+  step debitStore hfork (by simp) hstatic hacc3 (coldIn_accessSlot_self _ _ _) (by gas_ok)
+    (by simp only [storageAt_readSlot, originalAt_readSlot]; gas_ok) (size_mapMem hM _ _)
+  simp only [storageAt_readSlot, originalAt_readSlot]
+  step creditCall hfork (by simp) (cT := cT) (by rw [coldIn_storeSub]; exact hcT) (by gas_ok)
+    (size_mapMem (size_mapMem hM _ _) _ _)
+  step addBlock (by simp) (by valid_dest) hto (by gas_ok)
+  at_pc 10221
+  refine creditStoreBad (by simp) (.of_low hfork ?_) ?_
+    (size_mapMem (size_mapMem (size_mapMem hM _ _) _ _) _ _)
+  · gas_ok
+  · gas_ok
 
 end UsdtVerify.TransferOk
 

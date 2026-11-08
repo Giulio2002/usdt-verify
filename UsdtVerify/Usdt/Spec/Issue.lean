@@ -395,7 +395,6 @@ theorem spec_issue (hfork : .berlin ≤ fork)
 /-- `issue(a)` by the owner, with both `require`s passing, in a static frame or with no account
 for `C`: the run reaches the `SSTORE` of `balances[owner]`, which is `Stuck`. -/
 theorem bad_issue (hfork : .berlin ≤ fork)
-    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xcc872b66)
     (hv : message.value = 0) (hown : callerWord message = ownerOf state message.currentTarget)
@@ -407,7 +406,8 @@ theorem bad_issue (hfork : .berlin ≤ fork)
     (hc1 : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget 1 = c1)
     (hcO : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget 1)
       message.currentTarget (ownerBal state message.currentTarget) = cO)
-    {gas : Nat} (hg : 5000 + slotCost c0 + slotCost c1 + slotCost cO ≤ gas) :
+    {gas : Nat} (hbad : Gas.NoWrite message state (gas - (1814 + slotCost c0 + slotCost c1 + slotCost cO)))
+    (hg : 1814 + slotCost c0 + slotCost c1 + slotCost cO ≤ gas) :
     Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
   have hw0 : coldIn (reqSub substate state message.currentTarget) message.currentTarget 0 =
       false :=
@@ -419,9 +419,59 @@ theorem bad_issue (hfork : .berlin ≤ fork)
     exact coldIn_accessSlot_self _ _ _
   refine Triple.seq (issuePre hfork hsize hsize' hsel hv hown hT hc0 hc1 hcO (by omega)) ?_
   step reqPass (Or.inr (Or.inl ⟨rfl, rfl⟩)) (gtAdd_ne ⟨hT.1, hB⟩) (by simp) (by gas_ok)
-  refine issueOwnerBad (state := reqState state message.currentTarget) hfork ?_ hbad hw0 hwO
-    (size_mapMem (size_mapMem size_MEM0 _ _) _ _) ?_
+  refine issueOwnerBad (state := reqState state message.currentTarget) hfork ?_ hw0 hwO
+    (size_mapMem (size_mapMem size_MEM0 _ _) _ _) (hbad.le ?_) ?_
   · simp
+  · gas_ok
+  · gas_ok
+
+/-- `issue(a)` by the owner, both `require`s passing, a frame that may write and an account for
+`C`, with more than 2300 gas left at the `SSTORE` of `balances[owner]` but at most 2300 at the
+`SSTORE` of `_totalSupply` (`hlow`): the run reaches the second one, which is `Stuck`. -/
+theorem low_issue2 (hfork : .berlin ≤ fork)
+    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
+    (hsize : 4 ≤ message.data.size)
+    (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xcc872b66)
+    (hv : message.value = 0) (hown : callerWord message = ownerOf state message.currentTarget)
+    (hT : 0 < (wordArg message.data 0).toNat ∧
+      (storageAt state message.currentTarget 1).toNat + (wordArg message.data 0).toNat < 2 ^ 256)
+    (hB : (storageAt state message.currentTarget (ownerBal state message.currentTarget)).toNat +
+        (wordArg message.data 0).toNat < 2 ^ 256)
+    {c0 c1 cO : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
+    (hc1 : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget 1 = c1)
+    (hcO : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget 1)
+      message.currentTarget (ownerBal state message.currentTarget) = cO)
+    {gas : Nat} (hstip : 4115 + slotCost c0 + slotCost c1 + slotCost cO ≤ gas)
+    (hg : 1947 + slotCost c0 + slotCost c1 + slotCost cO + issueCostO fork state message ≤ gas)
+    (hlow : gas < 4248 + slotCost c0 + slotCost c1 + slotCost cO + issueCostO fork state message) :
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
+  simp only [issueCostO] at hg hlow
+  have hacc2 : hasAccount (reqState state message.currentTarget) message.currentTarget :=
+    hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc))
+  have hw0 : coldIn (reqSub substate state message.currentTarget) message.currentTarget 0 =
+      false :=
+    TransferFrom.coldIn_accessSlot_false (TransferFrom.coldIn_accessSlot_false
+      (coldIn_accessSlot_self _ _ _))
+  have hwO : coldIn (reqSub substate state message.currentTarget) message.currentTarget
+      (ownerBal (reqState state message.currentTarget) message.currentTarget) = false := by
+    rw [ownerBal_readSlot, ownerBal_readSlot, ownerBal_readSlot]
+    exact coldIn_accessSlot_self _ _ _
+  have hw1 : coldIn (storeSub fork (accessSlot (reqSub substate state message.currentTarget)
+      message.currentTarget 0) message.currentTarget (ownerBal state message.currentTarget)
+      (originalAt state message.currentTarget (ownerBal state message.currentTarget))
+      (storageAt state message.currentTarget (ownerBal state message.currentTarget))
+      (add (storageAt state message.currentTarget (ownerBal state message.currentTarget))
+        (wordArg message.data 0))) message.currentTarget 1 = false :=
+    TransferFee.coldIn_storeSub_false (TransferFrom.coldIn_accessSlot_false
+      (TransferFrom.coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
+  refine Triple.seq (issuePre hfork hsize hsize' hsel hv hown hT hc0 hc1 hcO (by omega)) ?_
+  step reqPass (Or.inr (Or.inl ⟨rfl, rfl⟩)) (gtAdd_ne ⟨hT.1, hB⟩) (by simp) (by gas_ok)
+  step issueOwner hfork (by simp) hstatic hacc2 hw0 hwO
+    (size_mapMem (size_mapMem size_MEM0 _ _) _ _) (by gas_ok)
+    (by simp only [ownerBal_readSlot, storageAt_readSlot, originalAt_readSlot]; gas_ok)
+  simp only [ownerBal_readSlot, ownerOf_readSlot, storageAt_readSlot, originalAt_readSlot]
+  refine issueTotalBad hfork (by simp) hw1 (.of_low hfork ?_) ?_
+  · gas_ok
   · gas_ok
 
 /-- From pc 0 to the JUMPI of redeem's second `require`. -/
@@ -602,7 +652,6 @@ theorem spec_redeem (hfork : .berlin ≤ fork)
 /-- `redeem(a)` by the owner, with both `require`s passing, in a static frame or with no
 account for `C`: the run reaches the `SSTORE` of `_totalSupply`, which is `Stuck`. -/
 theorem bad_redeem (hfork : .berlin ≤ fork)
-    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xdb006a75)
     (hv : message.value = 0) (hown : callerWord message = ownerOf state message.currentTarget)
@@ -613,15 +662,70 @@ theorem bad_redeem (hfork : .berlin ≤ fork)
     (hc1 : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget 1 = c1)
     (hcO : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget 1)
       message.currentTarget (ownerBal state message.currentTarget) = cO)
-    {gas : Nat} (hg : 5000 + slotCost c0 + slotCost c1 + slotCost cO ≤ gas) :
+    {gas : Nat} (hbad : Gas.NoWrite message state (gas - (1178 + slotCost c0 + slotCost c1 + slotCost cO)))
+    (hg : 1178 + slotCost c0 + slotCost c1 + slotCost cO ≤ gas) :
     Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
   have hw1 : coldIn (reqSub substate state message.currentTarget) message.currentTarget 1 =
       false :=
     TransferFrom.coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)
   refine Triple.seq (redeemPre hfork hsize hsize' hsel hv hown hT hc0 hc1 hcO (by omega)) ?_
   step reqPass (Or.inr (Or.inr (Or.inr ⟨rfl, rfl⟩))) (ge_ne hB) (by simp) (by gas_ok)
-  refine redeemTotalBad (state := reqState state message.currentTarget) hfork ?_ hbad hw1 ?_
+  refine redeemTotalBad (state := reqState state message.currentTarget) hfork ?_ hw1 (hbad.le ?_) ?_
   · simp
+  · gas_ok
+  · gas_ok
+
+/-- `redeem(a)` by the owner, both `require`s passing, a frame that may write and an account for
+`C`, with more than 2300 gas left at the `SSTORE` of `_totalSupply` but at most 2300 at the
+`SSTORE` of `balances[owner]` (`hlow`): the run reaches the second one, which is `Stuck`. -/
+theorem low_redeem2 (hfork : .berlin ≤ fork)
+    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
+    (hsize : 4 ≤ message.data.size)
+    (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xdb006a75)
+    (hv : message.value = 0) (hown : callerWord message = ownerOf state message.currentTarget)
+    (hT : (wordArg message.data 0).toNat ≤ (storageAt state message.currentTarget 1).toNat)
+    (hB : (wordArg message.data 0).toNat ≤
+      (storageAt state message.currentTarget (ownerBal state message.currentTarget)).toNat)
+    {c0 c1 cO : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
+    (hc1 : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget 1 = c1)
+    (hcO : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget 1)
+      message.currentTarget (ownerBal state message.currentTarget) = cO)
+    {gas : Nat} (hstip : 3479 + slotCost c0 + slotCost c1 + slotCost cO ≤ gas)
+    (hg : 1537 + slotCost c0 + slotCost c1 + slotCost cO + redeemCostT fork state message ≤ gas)
+    (hlow : gas < 3838 + slotCost c0 + slotCost c1 + slotCost cO + redeemCostT fork state message) :
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
+  simp only [redeemCostT] at hg hlow
+  have hacc2 : hasAccount (reqState state message.currentTarget) message.currentTarget :=
+    hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc))
+  have hw1 : coldIn (reqSub substate state message.currentTarget) message.currentTarget 1 =
+      false :=
+    TransferFrom.coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)
+  have hw0 : coldIn (storeSub fork (reqSub substate state message.currentTarget)
+      message.currentTarget 1 (originalAt state message.currentTarget 1)
+      (storageAt state message.currentTarget 1)
+      (sub (storageAt state message.currentTarget 1) (wordArg message.data 0)))
+      message.currentTarget 0 = false :=
+    TransferFee.coldIn_storeSub_false (TransferFrom.coldIn_accessSlot_false
+      (TransferFrom.coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
+  have hwO : coldIn (storeSub fork (reqSub substate state message.currentTarget)
+      message.currentTarget 1 (originalAt state message.currentTarget 1)
+      (storageAt state message.currentTarget 1)
+      (sub (storageAt state message.currentTarget 1) (wordArg message.data 0)))
+      message.currentTarget (ownerBal (writeSlot (reqState state message.currentTarget)
+        message.currentTarget 1
+        (sub (storageAt state message.currentTarget 1) (wordArg message.data 0)))
+        message.currentTarget) = false := by
+    rw [ownerBal_writeSlot hacc2 (by decide), ownerBal_readSlot, ownerBal_readSlot,
+      ownerBal_readSlot]
+    exact TransferFee.coldIn_storeSub_false (coldIn_accessSlot_self _ _ _)
+  refine Triple.seq (redeemPre hfork hsize hsize' hsel hv hown hT hc0 hc1 hcO (by omega)) ?_
+  step reqPass (Or.inr (Or.inr (Or.inr ⟨rfl, rfl⟩))) (ge_ne hB) (by simp) (by gas_ok)
+  step redeemTotal hfork (by simp) hstatic hacc2 hw1 (by gas_ok)
+    (by simp only [storageAt_readSlot, originalAt_readSlot]; gas_ok)
+  simp only [storageAt_readSlot, originalAt_readSlot]
+  refine redeemOwnerBad hfork (by simp) hw0 hwO (size_mapMem size_MEM0 _ _)
+    (.of_low hfork ?_) ?_
+  · gas_ok
   · gas_ok
 
 theorem toNat_add' {x a : U256} (h : x.toNat + a.toNat < 2 ^ 256) : (add x a).toNat = x.toNat + a.toNat := by

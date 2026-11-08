@@ -11,7 +11,12 @@ From Berlin, a fresh frame of `CODE` at pc 0 with call data below `2^256` bytes,
   also `stipCostF`, more than 2300 gas left at the SSTORE of `balances[t]`), the run ends with no
   error if and only if `TransferFromGuard` holds.
 - `transferFrom_low`: with less gas than `transferFromCost`, no run ends with no error.
-  A gas between `transferFromCost` and `stipCostF` is not covered.
+- `transferFrom_mid` (round 26): with at least `transferFromCost` but less than
+  `transferFromStip` gas, no run ends with no error: with a fee of 0, the SSTORE of `balances[t]`
+  is reached with at most 2300 gas left (EIP-2200).
+- `transferFrom_iff_gas` (round 26): for every gas, the run ends with no error if and only if
+  `TransferFromGuard` holds and the gas is at least the larger of `transferFromCost` and
+  `transferFromStip`.
 -/
 
 namespace UsdtVerify.Exact
@@ -34,6 +39,14 @@ abbrev transferFromCost (fork : Fork) (state : State.TransactionState) (message 
   if feeOf (checkState state message) message (valArg message) = 0 then
     okCostF fork state message c0 cB c10 cA c3 c4 cF cT
   else feeCostF fork state message c0 cB c10 cA c3 c4 cF cT cO
+
+/-- The stipend bound of the success path of `transferFrom(f, t, v)`: `stipCostF` with a fee of 0,
+none otherwise (the logs after the SSTOREs of the fee path cost more than 2300). -/
+abbrev transferFromStip (fork : Fork) (state : State.TransactionState) (message : Message fork)
+    (c0 cB c10 cA c3 c4 cF cT : Bool) : Nat :=
+  if feeOf (checkState state message) message (valArg message) = 0 then
+    stipCostF fork state message c0 cB c10 cA c3 c4 cF cT
+  else 0
 
 section
 
@@ -116,6 +129,36 @@ theorem transferFrom_low
         spec_feeF hfork hst hacc hl hsize' hsel hv hp hb hdep hov hfee hfv hallow hbal hto
           (hown hfee) hc0 hcB hc10 hcA hc3 hc4 hcF hcT hcO)
       start within hcomp
+
+theorem transferFrom_mid
+    (hg : transferFromCost fork state message c0 cB c10 cA c3 c4 cF cT cO ≤ gas)
+    (hlt : gas < transferFromStip fork state message c0 cB c10 cA c3 c4 cF cT) :
+    ¬ RunsOk fork bound runChild evm within := by
+  refine not_runsOk_stuck
+    (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hl, hp, hb, hov, hallow, hfv, hbal, hto, hown⟩ => ?_) start
+    within
+    (transferFrom_comp hfork hsize' start within hsel hdep hc0 hcB hc10 hcA hc3 hc4 hcF hcT hcO)
+  by_cases hfee : feeOf (checkState state message) message (valArg message) = 0
+  · simp only [transferFromCost, transferFromStip, hfee, ↓reduceIte] at hg hlt
+    rw [sendOf_zero hfee] at hto
+    exact low_transferFrom2 hfork hst hacc hl hsize' hsel hv hp hb hdep hov hfee hallow hbal hto
+      hc0 hcB hc10 hcA hc3 hc4 hcF hcT hg hlt
+  · simp only [transferFromStip, hfee, ↓reduceIte] at hlt
+    omega
+
+/-- `transferFrom(f, t, v)`, not deprecated, succeeds exactly when `TransferFromGuard` holds and
+the gas is at least the larger of `transferFromCost` and `transferFromStip`. -/
+theorem transferFrom_iff_gas :
+    RunsOk fork bound runChild evm within ↔ TransferFromGuard state message ∧
+      max (transferFromCost fork state message c0 cB c10 cA c3 c4 cF cT cO)
+        (transferFromStip fork state message c0 cB c10 cA c3 c4 cF cT) ≤ gas :=
+  iff_max (fun hg hs => transferFrom_ok_iff hfork hsize' start within hsel hdep hc0 hcB hc10 hcA
+      hc3 hc4 hcF hcT hcO
+      (fun hfee => by simpa only [transferFromStip, hfee, ↓reduceIte] using hs) hg)
+    (transferFrom_low hfork hsize' start within hsel hdep hc0 hcB hc10 hcA hc3 hc4 hcF hcT hcO)
+    (transferFrom_mid hfork hsize' start within hsel hdep hc0 hcB hc10 hcA hc3 hc4 hcF hcT hcO)
+    (fun h => of_runsOk h (transferFrom_comp hfork hsize' start within hsel hdep hc0 hcB hc10 hcA
+      hc3 hc4 hcF hcT hcO))
 
 end
 

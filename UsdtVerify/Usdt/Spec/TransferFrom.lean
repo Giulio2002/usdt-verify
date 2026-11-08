@@ -1966,6 +1966,54 @@ theorem bad_transferFrom (hfork : .berlin ≤ fork)
     (bodyDebitBad (state := checkState state message) hfork hbad (size_mapMem size_MEM0 _ _) hov
       hfv hmax hbal hcA hc3 hc4 hcF (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hg)))
 
+/-- `transferFrom(f, t, v)`, not deprecated, with the checks of `spec_ok` passing (a fee of 0), a
+frame that may write and an account for `C`, the gas of the whole success path (`hg`) but at most
+2300 gas left at the `SSTORE` of `balances[t]` (`hlow`): the run reaches it, and it is
+`Stuck`. -/
+theorem low_transferFrom2 (hfork : .berlin ≤ fork)
+    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
+    (hlong : 100 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
+    (hsel : selector message.data = 0x23b872dd) (hv : message.value = 0)
+    (hnp : byte20 (storageAt state message.currentTarget 0) = 0)
+    (hnb : (storageAt state message.currentTarget (blackFrom (fromArg message))).toNat % 256 = 0)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    (hov : (valArg message).toNat *
+      (storageAt (checkState state message) message.currentTarget 3).toNat < 2 ^ 256)
+    (hfee : feeOf (checkState state message) message (valArg message) = 0)
+    (hallow : allowOf (checkState state message) message (fromArg message) = MAX_UINT ∨
+      (valArg message).toNat ≤ (allowOf (checkState state message) message (fromArg message)).toNat)
+    (hbal : (valArg message).toNat ≤
+      (balFrom (checkState state message) message (valArg message) (fromArg message)).toNat)
+    (hto : (balTo (checkState state message) message (valArg message) (toArg message)
+      (fromArg message)).toNat + (valArg message).toNat < 2 ^ 256)
+    {c0 cB c10 cA c3 c4 cF cT : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
+    (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
+      (blackFrom (fromArg message)) = cB)
+    (hc10 : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
+      (blackFrom (fromArg message))) message.currentTarget 10 = c10)
+    (hcA : coldIn (checkSub substate message) message.currentTarget
+      (allowFrom message (fromArg message)) = cA)
+    (hc3 : coldIn (accessSlot (checkSub substate message) message.currentTarget
+      (allowFrom message (fromArg message))) message.currentTarget 3 = c3)
+    (hc4 : coldIn (accessSlot (accessSlot (checkSub substate message) message.currentTarget
+      (allowFrom message (fromArg message))) message.currentTarget 3) message.currentTarget 4 = c4)
+    (hcF : coldIn (allowedSubF fork (checkSub substate message) (checkState state message) message
+      (valArg message) (fromArg message)) message.currentTarget (recipientSlot (fromArg message)) =
+        cF)
+    (hcT : coldIn (accessSlot (allowedSubF fork (checkSub substate message)
+      (checkState state message) message (valArg message) (fromArg message)) message.currentTarget
+      (recipientSlot (fromArg message))) message.currentTarget (recipientSlot (toArg message)) = cT)
+    {gas : Nat} (hg : okCostF fork state message c0 cB c10 cA c3 c4 cF cT ≤ gas)
+    (hlow : gas < stipCostF fork state message c0 cB c10 cA c3 c4 cF cT) :
+    Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck :=
+  Triple.seq (preF hfork hlong hsz hsel hv hnp hnb hdep hc0 hcB hc10
+      (Nat.le_trans (Nat.le_add_right _ _) hg))
+    (bodyLow2F (state := checkState state message) (substate := checkSub substate message)
+      hfork hstatic (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
+      (size_mapMem size_MEM0 (mkey (fromArg message)) 6) hov hfee hallow hbal hto hcA hc3 hc4 hcF
+      hcT (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hg))
+      (by simp only [stipCostF] at hlow; omega))
+
 /-- The specification of `transferFrom(f, t, v)` when `balances[t] + (v - fee)` overflows.
 
 Hypotheses: as `spec_feeGtF` up to the allowance, with a frame that is not static and an account

@@ -122,8 +122,8 @@ theorem ok_transfer (hfork : .berlin ≤ fork)
       hc10 hc3 hc4 hcS hg) (fun _ e h => faulted_error e h) start within hrun hok).elim
   have hbal := Nat.le_of_not_lt hlow
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_transfer hfork (Gas.bad_of_not hgood) hl hsize' hsel
-      hv hp hb hdep hov hfv hbal hc0 hcB hc10 hc3 hc4 hcS hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuck (fun g hg => bad_transfer hfork hl hsize' hsel
+      hv hp hb hdep hov hfv hbal hc0 hcB hc10 hc3 hc4 hcS (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   by_cases hto : 2 ^ 256 ≤ (balT (shortState state message) message (wordArg message.data 1)
       (addrArg message.data 0)).toNat +

@@ -720,6 +720,25 @@ theorem creditStore (hfork : .berlin ≤ fork)
   step jumpiR (by decide)
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
+/-- At 9274 (fee of 0), when the `SSTORE` of `balances[_to]` cannot complete (`NoWrite`): the run
+reaches it, and it is `Stuck`. -/
+theorem creditStoreBadF {nt send A v t f : U256} {rest : List U256} (hrest : rest.length ≤ 8)
+    {gas : Nat} (hbad : Gas.NoWrite message state (gas - 100)) (hg : 100 ≤ gas) {M : ByteArray}
+    (hM : M.size = 96) :
+    Gas.HoareG fork (At CODE message 9274 (nt :: 0x60 :: send :: 0 :: A :: v :: t :: f :: rest) M
+        gas state substate) Gas.Stuck := by
+  step jumpdestR
+  step pushR 1 (0x02 : U256)
+  step pushR 1 (0 : U256)
+  step dupR 8
+  at_pc 9280
+  step hashTail (by decide) (by simp; omega) hM (by gas_ok)
+  at_pc 9338
+  step dupR 1
+  step swapR 0
+  norm
+  exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
+
 /-- At 9700, the code logs `Transfer(_from, _to, sendAmount)` and returns to 4247. -/
 theorem logBlock {send fee A v t f : U256} {rest : List U256} (hrest : rest.length ≤ 900)
     (hstatic : message.isStatic = false) {gas : Nat} (hg : 1855 ≤ gas) {M : ByteArray}
@@ -1054,6 +1073,95 @@ theorem body (hfork : .berlin ≤ fork)
   refine (endBlock (by gas_ok)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
+
+/-- From 8648, with a fee of 0 and the gas of the whole success path (`hg`; the SSTOREs of the
+allowance and of `balances[_from]` then have more than 2300 gas left), a frame that may write and
+an account for `C`, with at most 2300 gas left at the `SSTORE` of `balances[_to]` (`hlow`): the
+run reaches it, and it is `Stuck`. -/
+theorem bodyLow2F (hfork : .berlin ≤ fork)
+    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
+    {v t f sel : U256} {M : ByteArray} (hM : M.size = 96)
+    (hov : v.toNat * (storageAt state message.currentTarget 3).toNat < 2 ^ 256)
+    (hfee : feeOf state message v = 0)
+    (hallow : allowOf state message f = MAX_UINT ∨ v.toNat ≤ (allowOf state message f).toNat)
+    (hbal : v.toNat ≤ (balFrom state message v f).toNat)
+    (hto : (balTo state message v t f).toNat + v.toNat < 2 ^ 256)
+    {cA c3 c4 cF cT : Bool}
+    (hcA : coldIn substate message.currentTarget (allowFrom message f) = cA)
+    (hc3 : coldIn (accessSlot substate message.currentTarget (allowFrom message f))
+      message.currentTarget 3 = c3)
+    (hc4 : coldIn (accessSlot (accessSlot substate message.currentTarget (allowFrom message f))
+      message.currentTarget 3) message.currentTarget 4 = c4)
+    (hcF : coldIn (allowedSubF fork substate state message v f) message.currentTarget
+      (recipientSlot f) = cF)
+    (hcT : coldIn (accessSlot (allowedSubF fork substate state message v f) message.currentTarget
+      (recipientSlot f)) message.currentTarget (recipientSlot t) = cT)
+    {gas : Nat}
+    (hg : 2971 + slotCost cA + slotCost c3 + slotCost c4 + slotCost cF + slotCost cT +
+      mulCost v + capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
+      allowCostF fork state message v f + debitCostF fork state message v f +
+      creditCostF fork state message v t f ≤ gas)
+    (hlow : gas < 972 + slotCost cA + slotCost c3 + slotCost c4 + slotCost cF + slotCost cT +
+      mulCost v + capCost (rawFee state message v) (storageAt state message.currentTarget 4) +
+      allowCostF fork state message v f + debitCostF fork state message v f + 2401) :
+    Gas.HoareG fork (At CODE message 8648 [0x60, 0, 0, 0, v, t, f, 0x1097, v, t, f, 0x0392, sel] M
+        gas state substate) Gas.Stuck := by
+  have hacc3 : hasAccount (readsF state message f) message.currentTarget :=
+    hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc))
+  have hacc4 : hasAccount (readSlot (allowedF state message v f) message.currentTarget
+      (recipientSlot f)) message.currentTarget :=
+    hasAccount_readSlot (hasAccount_allowState hacc3)
+  have horig : ∀ m, originalAt (allowedF state message v f) message.currentTarget m =
+      originalAt state message.currentTarget m := by
+    intro m
+    rw [originalAt_allowState hacc3]
+    simp only [originalAt_readSlot]
+  have hT := slotCost_ge cT
+  simp only [allowCostF, debitCostF, creditCostF, rawFee, feeOf, allowOf, balFrom, balTo,
+    creditedF, debitedF, allowedF, readsF, loggedSubF, creditedSubF, debitedSubF, allowedSubF,
+    accessF] at hlow hg hfee hbal hto hallow hcF hcT hacc4 horig ⊢
+  step allowRead hfork (by simp) hcA (by gas_ok) hM
+  step feeCall hfork (by simp) hc3 (by gas_ok)
+  step mulBlock (by simp) (by valid_dest) (by simpa only [storageAt_readSlot] using hov)
+    (by gas_ok)
+  at_pc 8802
+  step divCall (by simp) (by gas_ok)
+  step divBlock (by simp) (by valid_dest) (by decide) (by gas_ok)
+  at_pc 8816
+  step capBlock hfork (by simp) hc4 (by simp only [storageAt_readSlot]; gas_ok)
+  simp only [storageAt_readSlot]
+  step Gas.reshapeG (s' := (0x60 : U256) :: 0 :: 0 ::
+      storageAt state message.currentTarget (allowFrom message f) :: v :: t :: f ::
+      [0x1097, v, t, f, 0x0392, sel]) (by rw [hfee]) rfl rfl
+  step allowStep hfork (by simp) (by simp only [storageAt_readSlot]) hallow
+    (fun _ => ⟨hstatic, hacc3⟩)
+    (coldIn_accessSlot_false (coldIn_accessSlot_false (coldIn_accessSlot_self _ _ _)))
+    (by simp only [originalAt_readSlot]; gas_ok)
+    (size_allowMem hM f)
+  simp only [originalAt_readSlot]
+  have hMa : (allowMem message M f).size = 96 := size_allowMem hM f
+  have hMb := size_allowMem2 (message := message) hMa (storageAt state message.currentTarget
+    (allowFrom message f)) f
+  step sendCall (by simp) (by gas_ok)
+  step subBlock (by simp) (by valid_dest) (by simp) (by gas_ok)
+  at_pc 9041
+  step Gas.reshapeG (s' := v :: (0x60 : U256) :: 0 :: 0 ::
+      storageAt state message.currentTarget (allowFrom message f) :: v :: t :: f ::
+      [0x1097, v, t, f, 0x0392, sel]) (by simp [sub]) rfl rfl
+  step debitCall hfork (by simp) hcF (by gas_ok) hMb
+  step subBlock (by simp) (by valid_dest) hbal (by gas_ok)
+  at_pc 9125
+  step debitStore hfork (by simp) hstatic hacc4 (coldIn_accessSlot_self _ _ _)
+    (by simp only [storageAt_readSlot, originalAt_readSlot, horig]; gas_ok) (size_mapMem hMb _ _)
+  simp only [storageAt_readSlot, originalAt_readSlot, horig]
+  step creditCall hfork (by simp) (cT := cT) (by rw [coldIn_storeSub]; exact hcT) (by gas_ok)
+    (size_mapMem (size_mapMem hMb _ _) _ _)
+  step addBlock (by simp) (by valid_dest) hto (by gas_ok)
+  at_pc 9274
+  refine creditStoreBadF (by simp) (.of_low hfork ?_) ?_
+    (size_mapMem (size_mapMem (size_mapMem hMb _ _) _ _) _ _)
+  · gas_ok
+  · gas_ok
 
 end UsdtVerify.TransferFrom
 

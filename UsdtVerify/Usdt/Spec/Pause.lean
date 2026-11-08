@@ -225,13 +225,13 @@ theorem spec_unpause (hfork : .berlin ≤ fork)
 /-- `pause()` by the owner, when not paused, in a static frame or with no account for `C`: the
 run reaches the `SSTORE` of slot 0, which is `Stuck`. -/
 theorem bad_pause (hfork : .berlin ≤ fork)
-    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x8456cb59)
     (hv : message.value = 0) (hown : callerWord message = ownerOf state message.currentTarget)
     (hnp : byte20 (storageAt state message.currentTarget 0) = 0)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
-    (hg : 5000 + slotCost c0 ≤ gas) :
+    (hbad : Gas.NoWrite message state (gas - (996 + slotCost c0)))
+    (hg : 996 + slotCost c0 ≤ gas) :
     Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
   refine Triple.seq (toBody (Or.inl ⟨rfl, rfl, rfl, rfl, rfl⟩) hsize hsize' hsel hv (by omega)) ?_
   step ownerOk hfork (mem_CHECKS (by decide)) (by simp) hc0 hown (by gas_ok)
@@ -239,21 +239,22 @@ theorem bad_pause (hfork : .berlin ≤ fork)
   step pauseTest hfork (by simp) (coldIn_accessSlot_self _ _ _) (by gas_ok)
   rw [readSlot_readSlot, accessSlot_accessSlot, storageAt_readSlot]
   step flagPass (Or.inl ⟨rfl, rfl⟩) (isZero3_flag_ne hnp) (by simp) (by gas_ok)
-  refine pauseWriteBad (state := readSlot state message.currentTarget 0) hfork ?_ hbad
-    (coldIn_accessSlot_self _ _ _) ?_
+  refine pauseWriteBad (state := readSlot state message.currentTarget 0) hfork ?_
+    (coldIn_accessSlot_self _ _ _) (hbad.le ?_) ?_
   · simp
+  · gas_ok
   · gas_ok
 
 /-- `unpause()` by the owner, when paused, in a static frame or with no account for `C`: the
 run reaches the `SSTORE` of slot 0, which is `Stuck`. -/
 theorem bad_unpause (hfork : .berlin ≤ fork)
-    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget)
     (hsize : 4 ≤ message.data.size)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x3f4ba83a)
     (hv : message.value = 0) (hown : callerWord message = ownerOf state message.currentTarget)
     (hp : byte20 (storageAt state message.currentTarget 0) ≠ 0)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
-    (hg : 5000 + slotCost c0 ≤ gas) :
+    (hbad : Gas.NoWrite message state (gas - (883 + slotCost c0)))
+    (hg : 883 + slotCost c0 ≤ gas) :
     Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
   refine Triple.seq (toBody (Or.inr ⟨rfl, rfl, rfl, rfl, rfl⟩) hsize hsize' hsel hv (by omega)) ?_
   step ownerOk hfork (mem_CHECKS (by decide)) (by simp) hc0 hown (by gas_ok)
@@ -261,9 +262,10 @@ theorem bad_unpause (hfork : .berlin ≤ fork)
   step unpauseTest hfork (by simp) (coldIn_accessSlot_self _ _ _) (by gas_ok)
   rw [readSlot_readSlot, accessSlot_accessSlot, storageAt_readSlot]
   step flagPass (Or.inr ⟨rfl, rfl⟩) (isZero2_flag hp) (by simp) (by gas_ok)
-  refine unpauseWriteBad (state := readSlot state message.currentTarget 0) hfork ?_ hbad
-    (coldIn_accessSlot_self _ _ _) ?_
+  refine unpauseWriteBad (state := readSlot state message.currentTarget 0) hfork ?_
+    (coldIn_accessSlot_self _ _ _) (hbad.le ?_) ?_
   · simp
+  · gas_ok
   · gas_ok
 
 end UsdtVerify.PauseSpec

@@ -83,8 +83,8 @@ theorem ok_approve (hfork : .berlin ≤ fork)
   have hl : 68 ≤ message.data.size := by omega
   by_cases hz : wordArg message.data 1 = 0
   · by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-    · exact (Gas.no_ok_stuck (fun g hg => bad_zero hfork (Gas.bad_of_not hgood) hl hsize' hsel hv
-        hdep hz hc10 hg) start within hrun hok).elim
+    · exact (Gas.no_ok_stuck (fun g hg => bad_zero hfork hl hsize' hsel hv
+        hdep hz hc10 (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
     obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
     obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_add_left _ _)
       (B := (2997 + slotCost c10) + (2560 + slotCost c10 + Gas.writeCost fork
@@ -100,8 +100,8 @@ theorem ok_approve (hfork : .berlin ≤ fork)
   have ha : storageAt state message.currentTarget (allowArg message) = 0 := by
     simpa using ha
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_set hfork (Gas.bad_of_not hgood) hl hsize' hsel hv
-      hdep hz ha hc10 hcA hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuck (fun g hg => bad_set hfork hl hsize' hsel hv
+      hdep hz ha hc10 hcA (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_add_left _ _)
     (B := (3190 + slotCost c10 + slotCost cA) + (2753 + slotCost c10 + slotCost cA + Gas.writeCost fork

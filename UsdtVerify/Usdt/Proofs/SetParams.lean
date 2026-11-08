@@ -178,11 +178,12 @@ theorem write3 (hfork : .berlin ≤ fork) {b m : U256}
 /-- At 5911, in a static frame or with no account for `C`: the run reaches the `SSTORE` of
 slot 3, which is `Stuck`. -/
 theorem write3Bad {b m : U256} {rest : List U256} (hrest : rest.length ≤ 16)
-    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget) {M : ByteArray}
-    {gas : Nat} (hg : 15 ≤ gas) :
+    {M : ByteArray}
+    {gas : Nat} (hbad : Gas.NoWrite message state (gas - 13))
+    (hg : 13 ≤ gas) :
     Gas.HoareG fork (At CODE message 5911 (m :: b :: rest) M gas state substate) Gas.Stuck := by
   write3_pre
-  exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
+  exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
 
 /-- At 5919: reads `decimals` (slot 9), computes `10 ** decimals`, and calls `mul(newMaxFee,
 10 ** decimals)`, which returns to 5942. -/
@@ -242,6 +243,19 @@ theorem write4 (hfork : .berlin ≤ fork) {f b m : U256}
   step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic hacc hc4 (by gas_ok) (by gas_ok)
   step popR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
+
+/-- At 5942, when the `SSTORE` of slot 4 cannot complete (`NoWrite`): the run reaches it, and it
+is `Stuck`. -/
+theorem write4Bad {f b m : U256} {rest : List U256} (hrest : rest.length ≤ 16) {M : ByteArray}
+    {gas : Nat} (hbad : Gas.NoWrite message state (gas - 10)) (hg : 10 ≤ gas) :
+    Gas.HoareG fork (At CODE message 5942 (f :: m :: b :: rest) M gas state substate)
+      Gas.Stuck := by
+  step jumpdestR
+  step pushR 1 (0x04 : U256)
+  step dupR 1
+  step swapR 0
+  norm
+  exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
 
 /-- GENERIC: the 64 bytes after a memory `M` of 96 bytes in `M ++ a ++ b` are `a ++ b`. -/
 theorem read_after64 {M : ByteArray} (hM : M.size = 96) (a b : ByteArray) (ha : a.size = 32)

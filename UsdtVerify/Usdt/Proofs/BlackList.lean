@@ -110,9 +110,10 @@ of `isBlackListed[a]`, which is `Stuck`. -/
 theorem listWriteBad (hfork : .berlin ≤ fork) {p : Nat} {v : U256}
     (hp : (p = 3375 ∧ v = 1) ∨ (p = 7379 ∧ v = 0)) {a : U256} {rest : List U256}
     (hrest : rest.length ≤ 16)
-    (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget) {cB : Bool}
+    {cB : Bool}
     (hcB : coldIn substate message.currentTarget (listSlot a) = cB) {M : ByteArray}
-    (hM : M.size = 96) {gas : Nat} (hg : 158 + slotCost cB ≤ gas) :
+    (hM : M.size = 96) {gas : Nat} (hbad : Gas.NoWrite message state (gas - (156 + slotCost cB)))
+    (hg : 156 + slotCost cB ≤ gas) :
     Gas.HoareG fork (At CODE message p (a :: rest) M gas state substate) Gas.Stuck := by
   have hexp : exponentBytes (0 : U256) = 0 := by decide
   have hff : mul (0xff : U256) 1 = 0xff := by decide
@@ -122,7 +123,7 @@ theorem listWriteBad (hfork : .berlin ≤ fork) {p : Nat} {v : U256}
   rcases hp with ⟨rfl, hv⟩ | ⟨rfl, hv⟩
   all_goals
     list_pre
-    exact Gas.sstoreStuckW (by code_fact) (by code_fact) hbad
+    exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
 
 /-- The topic of `AddedBlackList(address)`. -/
 abbrev ADDED_TOPIC : U256 :=
