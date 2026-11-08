@@ -1,3 +1,4 @@
+import UsdtVerify.Usdt.Sanity.Calls
 import UsdtVerify.Usdt.Sanity.Runner
 import UsdtVerify.Usdt.Security.Supply
 import UsdtVerify.Usdt.Security.Allowance
@@ -515,3 +516,12 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Sanity.honestBalance_of_answers
 #print axioms UsdtVerify.Sanity.bal_honest
 #print axioms UsdtVerify.Sanity.runner_assumptions_hold
+#print axioms UsdtVerify.hasAccount_sState
+#print axioms UsdtVerify.storageAt_sState_cons
+#print axioms UsdtVerify.selector_append
+#print axioms UsdtVerify.loadWord_append_wordBytes_append
+#print axioms UsdtVerify.Sanity.transfer_ok_sat
+#print axioms UsdtVerify.Sanity.approve_set_sat
+#print axioms UsdtVerify.Sanity.issue_sat
+#print axioms UsdtVerify.Sanity.redeem_sat
+#print axioms UsdtVerify.Sanity.destroy_sat

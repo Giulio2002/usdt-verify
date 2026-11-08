@@ -11,6 +11,7 @@ import UsdtVerify.Evm.Local.Rules
 import UsdtVerify.Evm.MemRev
 import UsdtVerify.Evm.Route
 import UsdtVerify.Evm.Runners
+import UsdtVerify.Evm.Sample
 import UsdtVerify.Evm.Split
 import UsdtVerify.Evm.Steps
 import UsdtVerify.Evm.Storage
@@ -82,3 +83,5 @@ import UsdtVerify.Usdt.Security.Blacklist
 import UsdtVerify.Usdt.Security.Allowance
 import UsdtVerify.Usdt.Security.Supply
 import UsdtVerify.Usdt.Sanity.Runner
+import UsdtVerify.Usdt.Sanity.Transfer
+import UsdtVerify.Usdt.Sanity.Calls
