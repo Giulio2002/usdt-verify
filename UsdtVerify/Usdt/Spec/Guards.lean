@@ -26,6 +26,11 @@ only if the condition holds.
   `DestroyBlackFundsGuard` (when not deprecated).
 - `ApproveGuard` (approve when not deprecated).
 - `TransferGuard`, `TransferFromGuard` (transfer, transferFrom when not deprecated).
+- When deprecated, a function that forwards succeeds exactly when the forward is made and the
+  upgraded contract's answer is as the theorem's runner hypothesis says: `ForwardOk` (`CallOk`,
+  the upgraded code `c` is not empty, the depth leaves room for the call), with
+  `TransferDepGuard`, `ApproveDepGuard`, `TransferFromDepGuard`, `DestroyDepGuard` for the checks
+  before the forward.
   Its terms are those the bytecode computes, read in the state after the checks of the prelude
   (reads only, so each slot holds the word it holds in the start state); the recipient's balance is
   read after the write of the sender's, and the owner's after the write of the recipient's.
@@ -177,5 +182,41 @@ def TransferFromGuard (state : State.TransactionState) (message : Message fork) 
       (balOF (checkState state message) message (valArg message) (toArg message)
         (fromArg message)).toNat +
         (feeOf (checkState state message) message (valArg message)).toNat < 2 ^ 256)
+
+/-! ## When deprecated -/
+
+/-- The forward is made: `CallOk`, the code `c` of the upgraded address is not empty, and the
+depth leaves room for one more frame. -/
+def ForwardOk (message : Message fork) (c : ByteArray) : Prop :=
+  CallOk message ∧ 0 < c.size ∧ message.depth + 1 ≤ STACK_DEPTH_LIMIT
+
+/-- The checks of `transfer(a, v)` before the forward: `ForwardOk`, not paused, the caller not
+blacklisted. -/
+def TransferDepGuard (state : State.TransactionState) (message : Message fork) (c : ByteArray) :
+    Prop :=
+  ForwardOk message c ∧ byte20 (storageAt state message.currentTarget 0) = 0 ∧
+    (storageAt state message.currentTarget (Transfer.blackSlot message)).toNat % 256 = 0
+
+/-- The checks of `approve(s, v)` before the forward: `ForwardOk`, at least 68 bytes of call
+data. -/
+def ApproveDepGuard (message : Message fork) (c : ByteArray) : Prop :=
+  ForwardOk message c ∧ 68 ≤ message.data.size
+
+/-- The checks of `transferFrom(f, t, v)` before the forward: `ForwardOk`, not paused, `f` not
+blacklisted. -/
+def TransferFromDepGuard (state : State.TransactionState) (message : Message fork)
+    (c : ByteArray) : Prop :=
+  ForwardOk message c ∧ byte20 (storageAt state message.currentTarget 0) = 0 ∧
+    (storageAt state message.currentTarget
+      (TransferFrom.blackFrom (TransferFrom.fromArg message))).toNat % 256 = 0
+
+/-- The checks of `destroyBlackFunds(a)` when deprecated, besides the answer: `ForwardOk`,
+`IsOwner`, `a` blacklisted, and the frame not static (the code writes after the forward). -/
+def DestroyDepGuard (state : State.TransactionState) (message : Message fork) (c : ByteArray) :
+    Prop :=
+  ForwardOk message c ∧ IsOwner state message ∧
+    (storageAt state message.currentTarget (BlackList.listSlot (addrArg message.data 0))).toNat %
+      256 ≠ 0 ∧
+    message.isStatic = false
 
 end UsdtVerify

@@ -1,5 +1,7 @@
 import UsdtVerify.Usdt.Sanity.Strings
 import UsdtVerify.Usdt.Exact.Getters
+import UsdtVerify.Usdt.Sanity.Exact
+import UsdtVerify.Usdt.Exact.Deprecated
 import UsdtVerify.Usdt.Exact.TransferFrom
 import UsdtVerify.Usdt.Exact.Transfer
 import UsdtVerify.Usdt.Exact.Approve
@@ -618,3 +620,23 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Exact.transfer_low
 #print axioms UsdtVerify.Exact.transferFrom_ok_iff
 #print axioms UsdtVerify.Exact.transferFrom_low
+#print axioms UsdtVerify.Exact.runsOk_of_specUnder
+#print axioms UsdtVerify.Exact.fwd_ok_iff
+#print axioms UsdtVerify.Exact.routes_unique
+#print axioms UsdtVerify.Exact.totalSupply_dep_ok_iff
+#print axioms UsdtVerify.Exact.totalSupply_dep_low
+#print axioms UsdtVerify.Exact.balanceOf_dep_ok_iff
+#print axioms UsdtVerify.Exact.balanceOf_dep_low
+#print axioms UsdtVerify.Exact.allowance_dep_ok_iff
+#print axioms UsdtVerify.Exact.allowance_dep_low
+#print axioms UsdtVerify.Exact.transfer_dep_ok_iff
+#print axioms UsdtVerify.Exact.transfer_dep_low
+#print axioms UsdtVerify.Exact.approve_dep_ok_iff
+#print axioms UsdtVerify.Exact.approve_dep_low
+#print axioms UsdtVerify.Exact.transferFrom_dep_ok_iff
+#print axioms UsdtVerify.Exact.transferFrom_dep_low
+#print axioms UsdtVerify.Exact.destroyBlackFunds_dep_ok_iff
+#print axioms UsdtVerify.Exact.destroyBlackFunds_dep_low
+#print axioms UsdtVerify.Sanity.answerRunner_noFail
+#print axioms UsdtVerify.Sanity.answerRunner_ans
+#print axioms UsdtVerify.Sanity.answerRunner_ans_acc

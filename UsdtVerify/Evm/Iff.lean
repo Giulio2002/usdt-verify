@@ -1,4 +1,5 @@
 import UsdtVerify.Evm.Exact
+import UsdtVerify.Evm.Route
 
 /-!
 # Exact success conditions
@@ -96,5 +97,70 @@ theorem not_runsOk_low3 {G : Prop} {B1 B2 cost gas : Nat} (hlt : gas < cost)
     ¬ RunsOk fork bound runChild evm within :=
   not_runsOk_low2 (B1 := B1 + B2) hlt
     (fun hG g h1 h2 => hspec hG g (Complete.le_l h1) (Complete.le_r h1) h2) start within hcomp
+
+/-! ## Paths that forward a message -/
+
+open UsdtVerify.Complete (Route Routes SendsVia)
+
+/-- The runner returns a frame for every message. -/
+def NoFail (runChild : MessageRunner fork Nat bound) : Prop :=
+  ∀ caller msg lt e, runChild caller msg lt ≠ .error e
+
+/-- The callee assumption: a message forwarded from `M` to `ua` along the route `r` with data `d`
+ends with no error exactly when `A` holds. -/
+def AnsIff (M : Message fork) (ua : EthLib.Base.Address) (c : ByteArray) (r : Route)
+    (d : ByteArray) (A : Prop) : Evm fork Nat → Message fork → Evm fork Nat → Prop :=
+  fun _ msg child => SendsVia M ua c r d msg → (child.error = none ↔ A)
+
+/-- A specification under a callee assumption, a runner that meets it and never fails: the loop
+ends with no error when every end frame of the specification has none. -/
+theorem runsOk_of_specUnder {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop}
+    {P Q : Evm fork Nat → Prop} (h : SpecUnder fork callee P Q) (meets : Meets callee runChild)
+    (hnf : NoFail runChild) (hQ : ∀ e, Q e → e.error = none) (hp : P evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound) :
+    RunsOk fork bound runChild evm within := by
+  obtain ⟨after, hreach, ⟨halted, hq⟩ | aborted⟩ := h bound runChild meets evm hp within
+  · refine ⟨after, ?_, hQ _ hq⟩
+    rw [runFrame_eq_of_reaches StepBy.gasHeld_le StepBy.runFrame_eq hreach within,
+      runFrame_of_running_eq_false halted]
+  · obtain ⟨-, caller, msg, -, -, lt, e, failed⟩ := aborted
+    exact absurd failed (hnf caller msg lt e)
+
+/-- A path that forwards one message: `RunsOk` holds exactly when `G` and `A` hold. -/
+theorem fwd_ok_iff {G A : Prop} {P : Evm fork Nat → Prop} {M : Message fork}
+    {ua : EthLib.Base.Address} {c : ByteArray} {r : Route} {d : ByteArray}
+    (hspec : G → SpecUnder fork (AnsIff M ua c r d A) P (fun e => A → e.error = none))
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =
+      .ok s → s.error = none → G ∧ ∃ caller msg lt child, runChild caller msg lt = .ok child ∧
+        child.1.error = none ∧ SendsVia M ua c r d msg)
+    (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child → SendsVia M ua c r d msg →
+      (child.1.error = none ↔ A))
+    (hnf : NoFail runChild) (hp : P evm) :
+    RunsOk fork bound runChild evm within ↔ G ∧ A := by
+  constructor
+  · rintro ⟨s, hs, hok⟩
+    obtain ⟨hG, caller, msg, lt, child, hch, he, hfwd⟩ := hcomp s hs hok
+    exact ⟨hG, (hans caller msg lt child hch hfwd).1 he⟩
+  · rintro ⟨hG, hA⟩
+    exact runsOk_of_specUnder (hspec hG)
+      ⟨fun caller msg lt child hch hfwd => hans caller msg lt child hch hfwd,
+        fun caller msg lt e h => absurd h (hnf caller msg lt e)⟩
+      hnf (fun e h => h hA) hp within
+
+/-- A code has at most one route in a state. -/
+theorem routes_unique {st : State.TransactionState} {c : ByteArray} {r r' : Route}
+    (h : Routes fork st c r) (h' : Routes fork st c r') : r = r' := by
+  rcases r with _ | ⟨d, c1⟩ <;> rcases r' with _ | ⟨d', c2⟩
+  · rfl
+  · obtain ⟨hp, hd, -⟩ := h'
+    rw [h hp] at hd; cases hd
+  · obtain ⟨hp, hd, -⟩ := h
+    rw [h' hp] at hd; cases hd
+  · obtain ⟨-, hd, hc⟩ := h
+    obtain ⟨-, hd', hc'⟩ := h'
+    rw [hd] at hd'; cases hd'
+    rw [hc] at hc'; cases hc'
+    rfl
 
 end UsdtVerify.Exact

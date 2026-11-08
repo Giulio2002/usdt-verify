@@ -148,7 +148,7 @@ The six other forwarding functions write nothing locally after the forwarded cal
 - Every writing function, when not deprecated, has a theorem `X_ok_iff`. Given gas at least the cost of its success path, and more than 2300 gas left at each storage write as EIP-2200 requires, the call succeeds exactly when its condition holds. For `transfer` the condition is: at least 68 bytes of call data, no ether, not paused, sender not blacklisted, no overflow in the fee product, fee at most the amount, amount at most the sender's balance, no overflow at the recipient, a frame that is not static and an existing account. The owner functions add that the caller is the owner, plus each function's own checks.
 - When the cost depends on the path, for example a fee of 0 or above 0, it is stated as an `if`.
 - Gas at least the cost but at or below a 2300 bound is not covered.
-- The deprecated paths are in progress.
+- The seven deprecated paths have `X_dep_ok_iff`. Given enough gas and a runner that never fails and ends each forwarded call without an error exactly when some condition `A` holds, the call succeeds exactly when the checks before the forward pass and `A` holds. With too little gas they fail for every runner. Runners that may fail, and gas between the two bounds of a forward spec, are not covered.
 
 ## Security properties
 

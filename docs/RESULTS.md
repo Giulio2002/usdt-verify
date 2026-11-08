@@ -786,6 +786,26 @@ The terms of transfer and transferFrom are the words the bytecode computes (`fee
 checks; reads change no slot, so the slots hold the words of the start state, except the balances
 read after a write, as stated.
 
+When deprecated (`Usdt/Exact/Deprecated.lean`), the seven functions that forward to the upgraded
+address (totalSupply, balanceOf, allowance, transfer, approve, transferFrom, destroyBlackFunds)
+have `X_dep_ok_iff` and `X_dep_low`. Their hypotheses: the flag set (`hdep`), the code `c` of the
+upgraded address found in the state with `c.size < 2^256`, the route `r` of the CALL, the
+coldness flags, the gas up to the CALL (`hg`) and after its price (`htail`), and two hypotheses on
+the message runner: it never fails (`NoFail`: it returns a frame for every message), and each
+message it is given that is the forward along the route ends with no error exactly when a
+condition `A` holds (`hans`). For destroyBlackFunds, `A` is instead the condition for "the forward
+ends with no error and the contract has an account in its end state".
+- `X_dep_ok_iff`: `RunsOk` holds if and only if the checks before the forward hold and `A` holds.
+  The checks: `ForwardOk` (`CallOk`, `0 < c.size`, the depth leaves room for one more frame) for
+  totalSupply, balanceOf, allowance; `TransferDepGuard` (also not paused, the caller not
+  blacklisted); `ApproveDepGuard` (also at least 68 bytes); `TransferFromDepGuard` (also not
+  paused, `f` not blacklisted); `DestroyDepGuard` (also `IsOwner`, `a` blacklisted, not static).
+- `X_dep_low`: if the gas is below the bound of `hg`, `RunsOk` does not hold, for every runner.
+  A gas between that bound and the bound of `htail` is not covered.
+- `NoFail` excludes a runner that fails, which makes the run abort (EthLib's `Meets` allows such
+  errors). `Sanity/Exact.lean`: every `answerRunner` never fails and ends every message with no
+  error, so its `A` is `True`.
+
 ## What is trusted
 
 - The Lean 4 kernel (v4.35.0).
@@ -819,7 +839,9 @@ read after a write, as stated.
 - A theorem that neither `KeepsInv` nor `KeepsInvAcc` implies the other (it holds by the
   definitions; it is not stated).
 - Runs that run out of gas below the stated bounds, except at the dispatcher (see above) and below
-  the cost of a success path (round 25, `X_low`). A gas at or above that cost but below a
-  stipend bound is not covered.
+  the cost of a success path (round 25, `X_low`; when deprecated, below the gas to the CALL,
+  `X_dep_low`). A gas at or above that cost but below a stipend bound, or (deprecated) below the
+  bound of `htail`, is not covered.
+- The deprecated exact conditions for a runner that may fail (`NoFail` is a hypothesis).
 - Forks before Berlin. Glamsterdam rests on EthLib's model of that fork at the pin (its prices
   and the order of its checks).

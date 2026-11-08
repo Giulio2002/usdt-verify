@@ -1227,8 +1227,20 @@ entry; `DESTS` = the 32 destinations).
   and `ok_exact`. Costs that depend on the path are `if`s: `strCost` (name, symbol),
   `ownershipCost`, `approveCost`/`approveStip`, `transferCost`/`transferStip1`/`transferStip2`,
   `transferFromCost` (with `stipCostF`).
+- `Usdt/Exact/Deprecated.lean`: `X_dep_ok_iff`, `X_dep_low` for the seven forwarding paths
+  (totalSupply, balanceOf, allowance, transfer, approve, transferFrom, destroyBlackFunds). Given
+  the upgraded code `c` and route `r`, the gas `hg`, `htail` of the forward spec, a runner that
+  never fails (`NoFail`) and ends each forwarded message with no error exactly when `A` holds
+  (destroyBlackFunds: with no error and an account of the contract in its end state), `RunsOk`
+  holds iff the checks before the forward (`ForwardOk`, `TransferDepGuard`, `ApproveDepGuard`,
+  `TransferFromDepGuard`, `DestroyDepGuard`) and `A` hold. One direction from `dep_*_complete`
+  with `routes_unique` and the uniqueness of the code found; the other from the forward spec
+  under the callee assumption `AnsIff` (`fwd_ok_iff`, `runsOk_of_specUnder`). `X_dep_low`: below
+  the gas of `hg`, no successful run, for every runner (from `dep_*_complete`).
+- `Usdt/Sanity/Exact.lean`: `answerRunner_noFail`, `answerRunner_ans`, `answerRunner_ans_acc`.
 - Not covered: a gas at or above the cost but below a stipend bound (the run may fail there by
-  EIP-2200; no theorem says either way).
+  EIP-2200; no theorem says either way); when deprecated, a gas between the bounds of `hg` and
+  `htail`, and a runner that may fail.
 - `lake build UsdtVerify` (incremental, after each code commit): exit 0, 0 "error:" lines.
 
 ## Open (not proved)
@@ -1264,8 +1276,10 @@ entry; `DESTS` = the 32 destinations).
   `balRunner` meet it, and that `balRunner` meets `HonestBalance`.
 - Non-vacuity (round 24): no witness run is deprecated; `KeccakSep` and `AllowSep` are not
   discharged.
-- Exact success conditions (round 25): done for the 32 functions not deprecated; a gas between
-  the cost of a success path and a stipend bound is not covered.
+- Exact success conditions (round 25): done for the 32 functions not deprecated and the seven
+  deprecated forwarding paths (under `NoFail` and a runner hypothesis giving the answer `A`); a gas
+  between the cost of a success path and a stipend bound (deprecated: between `hg` and `htail`) is
+  not covered.
 
 ## Generic gaps found (for the EthLib program-logic agent)
 1. Missing opcode rules at the pin (kept as LOCAL lemmas, UsdtVerify/Evm/Local/Rules.lean):
