@@ -1,3 +1,4 @@
+import UsdtVerify.Usdt.Sanity.TransferFrom
 import UsdtVerify.Usdt.Sanity.Calls
 import UsdtVerify.Usdt.Sanity.Runner
 import UsdtVerify.Usdt.Security.Supply
@@ -525,3 +526,17 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Sanity.issue_sat
 #print axioms UsdtVerify.Sanity.redeem_sat
 #print axioms UsdtVerify.Sanity.destroy_sat
+#print axioms UsdtVerify.le_writeSlot
+#print axioms UsdtVerify.Sanity.transfer_witness
+#print axioms UsdtVerify.Sanity.approve_zero_run
+#print axioms UsdtVerify.Sanity.paused_witness
+#print axioms UsdtVerify.Sanity.listed_witness
+#print axioms UsdtVerify.Sanity.inv_empty
+#print axioms UsdtVerify.Sanity.inv_witness
+#print axioms UsdtVerify.Sanity.nonOwner_applies
+#print axioms UsdtVerify.Sanity.allowKept_supply_applies
+#print axioms UsdtVerify.Sanity.paused_applies
+#print axioms UsdtVerify.Sanity.listed_applies
+#print axioms UsdtVerify.Sanity.inv_applies
+#print axioms UsdtVerify.Sanity.transferFrom_ok_sat
+#print axioms UsdtVerify.Sanity.transferFrom_bound_applies

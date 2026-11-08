@@ -185,6 +185,38 @@ theorem wordArg_data2_1 (hs : sel.size = 4) (a b : U256) : wordArg (data2 sel a 
   have := loadWord_append_wordBytes (sel ++ wordBytes a) b
   rwa [ByteArray.size_append, hs, size_wordBytes] at this
 
+/-- A 4-byte selector and three argument words. -/
+def data3 (sel : ByteArray) (a b c : U256) : ByteArray :=
+  sel ++ wordBytes a ++ wordBytes b ++ wordBytes c
+
+theorem size_data3 (hs : sel.size = 4) (a b c : U256) : (data3 sel a b c).size = 100 := by
+  simp [data3, ByteArray.size_append, size_wordBytes, hs]
+
+theorem selector_data3 (hs : sel.size = 4) (a b c : U256) :
+    selector (data3 sel a b c) = selector sel := by
+  rw [data3, selector_append _ (by simp only [ByteArray.size_append, hs]; omega),
+    selector_append _ (by rw [ByteArray.size_append, hs]; omega),
+    selector_append _ (by simp [hs])]
+
+theorem wordArg_data3_2 (hs : sel.size = 4) (a b c : U256) : wordArg (data3 sel a b c) 2 = c := by
+  have := loadWord_append_wordBytes (sel ++ wordBytes a ++ wordBytes b) c
+  rwa [ByteArray.size_append, ByteArray.size_append, hs, size_wordBytes] at this
+
+theorem addrArg_data3_0 (hs : sel.size = 4) (a b c : U256) :
+    addrArg (data3 sel a b c) 0 = bitwiseAnd ADDR_MASK a := by
+  have := loadWord_append_wordBytes_append sel (wordBytes b ++ wordBytes c) a
+  rw [hs, ← ByteArray.append_assoc] at this
+  show bitwiseAnd ADDR_MASK (loadWord (sel ++ wordBytes a ++ wordBytes b ++ wordBytes c) 4 32) = _
+  rw [this]
+
+/-- A write keeps a bound on every word of an account that the written word meets. -/
+theorem le_writeSlot {X : State.TransactionState} {C : Address} {k v : U256} {B : Nat}
+    (hacc : hasAccount X C) (hX : ∀ n, (storageAt X C n).toNat ≤ B) (hv : v.toNat ≤ B) (n : U256) :
+    (storageAt (writeSlot X C k v) C n).toNat ≤ B := by
+  by_cases h : n = k
+  · subst h; rw [storageAt_writeSlot_self hacc]; exact hv
+  · rw [storageAt_writeSlot_of_ne hacc h]; exact hX n
+
 theorem slotCost_le (c : Bool) : slotCost c ≤ 2100 := by cases c <;> decide
 
 end UsdtVerify

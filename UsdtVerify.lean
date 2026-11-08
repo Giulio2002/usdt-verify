@@ -85,3 +85,5 @@ import UsdtVerify.Usdt.Security.Supply
 import UsdtVerify.Usdt.Sanity.Runner
 import UsdtVerify.Usdt.Sanity.Transfer
 import UsdtVerify.Usdt.Sanity.Calls
+import UsdtVerify.Usdt.Sanity.Security
+import UsdtVerify.Usdt.Sanity.TransferFrom
