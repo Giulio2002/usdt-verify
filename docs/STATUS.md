@@ -1564,6 +1564,12 @@ T3 (third audit): a deprecated state where destroyBlackFunds reaches the CALL
   through the CALL.
 - Not proved: `Inv` in `S2` (it needs keccak separation facts about the balance slots).
 
+T4 (third audit): `keepsInvAt_of_acc` (Usdt/Invariant/All.lean): `KeepsInvAcc` and
+`KeepsInvNoAcc` give `KeepsInvAt` (through `keepsInv_of_acc` and `keepsInv_at`). `KeepsInvAcc`
+alone does not give it: `SameView` fixes only storage and code, so `SentVia` allows a caller state
+where `C` has no account, and `KeepsInvAcc` says nothing there (argued; no counterexample is
+proved, since breaking `Inv` needs a keccak fact such as `NotBal 1`).
+
 ## Open (not proved)
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded

@@ -584,6 +584,12 @@ state with no account of `C`, and `SameView` (storage and code only) allows such
 So a runner that breaks `Inv` only there meets `KeepsInvAcc` and not `KeepsInvAt` (argued).
 Replacement sent.
 
+**Resolution (round 33).** The true direction is now a theorem. `keepsInvAt_of_acc`
+(Usdt/Invariant/All.lean): `KeepsInvAcc` and `KeepsInvNoAcc` together give `KeepsInvAt`. No
+theorem gives `KeepsInvAt` from `KeepsInvAcc` alone, and the reviewer's argument against it
+stands. A machine-checked counterexample would need a keccak fact such as `NotBal 1` to break
+`Inv`, so none is given. The README was corrected before this round.
+
 ## T5. Truncated subtraction in completeness gas equalities (Low)
 
 `ok_transfer` and the other non-deprecated `ok_*` conclude `s.gas = gas - okCost …` (`Nat`) and

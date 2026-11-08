@@ -131,6 +131,15 @@ theorem keepsInv_at (h : KeepsInv runChild message.currentTarget (upAddr state m
   intro caller msg lt child ⟨_, _, _, _, hv, _⟩ hch he hI
   exact h caller msg lt child hch hv.1 hv.2.1 he hI
 
+/-- Round 33 (docs/AUDIT.md, third audit, T4): `KeepsInvAcc` gives `KeepsInvAt` together with
+`KeepsInvNoAcc`, the case of a caller state where `C` has no account. `SentVia` fixes only the
+storage and code of the caller state, so that case is not excluded. -/
+theorem keepsInvAt_of_acc
+    (hacc : KeepsInvAcc runChild message.currentTarget (upAddr state message))
+    (hno : KeepsInvNoAcc runChild message.currentTarget (upAddr state message)) :
+    KeepsInvAt runChild message state :=
+  keepsInv_at (keepsInv_of_acc hacc hno)
+
 theorem honest_at (h : HonestBalance runChild message state) :
     HonestBalanceAt runChild message state := by
   intro caller msg lt child ⟨_, _, _, _, hv, _⟩ hch hmd he

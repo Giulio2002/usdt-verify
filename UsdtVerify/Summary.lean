@@ -517,6 +517,7 @@ Round 33: `Sanity.process_step_dep_hyps2` and `Sanity.destroy_mirror_runs`
 `a` is blacklisted and `balances[a]` is not 0. There `processRunner` meets `KeepsInvAt` and
 `HonestBalanceAt`, and (Paris to before Glamsterdam, 1000000 gas) the destroyBlackFunds call
 ends with no error through the CALL.
+Round 33: `keepsInvAt_of_acc`: `KeepsInvAcc` and `KeepsInvNoAcc` together give `KeepsInvAt`.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

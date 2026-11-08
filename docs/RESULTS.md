@@ -448,7 +448,9 @@ address (`SameView`; the code only records reads before its CALL), and `msg` is 
 `SendsVia`: from `C` to `ua`, with the code that `ua` holds in `state` (along its EIP-7702 route),
 no value, the depth and static flag of the call to `C`; its data and gas are any. The completeness
 theorems give these facts for every forwarding CALL (`dep_*_local`). The old forms imply the new
-ones (`keepsInv_at`, `honest_at`, `Keeps.at`). EthLib's `processRunner` meets `KeepsInvAt` (and
+ones (`keepsInv_at`, `honest_at`, `Keeps.at`). Round 33: `KeepsInvAcc` gives `KeepsInvAt` only
+together with `KeepsInvNoAcc` (`keepsInvAt_of_acc`), since `SameView` allows a caller state where
+`C` has no account. No theorem gives `KeepsInvAt` from `KeepsInvAcc` alone. EthLib's `processRunner` meets `KeepsInvAt` (and
 the five `Keeps*` of the security theorems) from Paris when `ua` holds the one byte STOP and is no
 precompile (`Sanity.processRunner_stop_keepsAll`, `Sanity.keepsInvAt_process_stop`).
 Round 30: `processRunner` meets `HonestBalanceAt` from Paris when `ua` holds `MIRROR` (a 25-byte

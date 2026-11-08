@@ -826,6 +826,7 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.KeepsAt.mono
 #print axioms UsdtVerify.Keeps.at
 #print axioms UsdtVerify.Complete.keepsInv_at
+#print axioms UsdtVerify.Complete.keepsInvAt_of_acc
 #print axioms UsdtVerify.Complete.honest_at
 #print axioms UsdtVerify.Sanity.keepsAll_of_same
 #print axioms UsdtVerify.Sanity.stop_keeps_all
