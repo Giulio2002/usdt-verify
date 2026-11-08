@@ -1503,6 +1503,17 @@ Finding 3: an instance with an upgraded code whose success depends on its gas.
 - Not done: `MIRROR` instances of the other five forwards (`MIRROR` answers `balanceOf` only), and
   one upgraded state where a useful code meets `KeepsInvAt` and `HonestBalanceAt` together.
 
+Finding 3: `X_dep_ok_or_fails` on the gas-aware `hans` (Evm/Iff.lean, Usdt/Exact/Deprecated.lean).
+- `fwd_ok_or_fails` now has the hypotheses of `fwd_ok_iff_fails` without `hfail` (any errors of
+  the runner; the failure in the conclusion is on a message of `S`); `fwd_ok_iff_fails` is derived
+  from it. The round-26 form (under `AnsIff`, with `hab`) is removed.
+- The seven `X_dep_ok_or_fails` (destroyBlackFunds is new): the hypotheses of `X_dep_ok_iff_fails`
+  without `hfail` (`hg` only, `hans` with `CallFrom`); conclusion: success gives the checks and
+  `A`, the checks and `A` give success or a failure of the runner on a `SendsVia` message. The
+  `X_dep_ok_iff_fails` are derived from them. The old forms (with `htail`, the old `hans`, `hab`)
+  follow from the new ones; they are not kept as theorems.
+
+
 ## Open (not proved)
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
@@ -1551,7 +1562,7 @@ Finding 3: an instance with an upgraded code whose success depends on its gas.
   (Sanity/ProcessExact.lean). Round 31: discharged for `processRunner` with the upgraded code
   `MIRROR`, whose success depends on its gas, for `balanceOf_dep_ok_iff_gas` and
   `destroyBlackFunds_dep_ok_iff_gas` (Sanity/MirrorExact.lean).
-  `X_dep_ok_or_fails` keep the old `hans` over every gas.
+  Round 31: the `X_dep_ok_or_fails` take the gas-aware `hans` too (the seven paths).
 
 ## Generic gaps found (for the EthLib program-logic agent)
 1. Missing opcode rules at the pin (kept as LOCAL lemmas, UsdtVerify/Evm/Local/Rules.lean):

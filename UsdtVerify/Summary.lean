@@ -476,9 +476,10 @@ they meet `hans` with `A = True` (used for the six forwards other than destroyBl
 Round 26, the six forwards other than destroyBlackFunds: `Exact.X_dep_ok_iff_gas` drops `htail`;
 its `hans` makes `A` equivalent to the forwarded message ending with no error and leaving enough
 gas for the code after the CALL (the gas the CALL keeps plus the gas left in the ended frame), so
-with `Exact.X_dep_low` every gas is covered. `Exact.X_dep_ok_or_fails` (with `hg` and `htail`): for
-a runner that may fail with errors that abort the run, success gives the checks and `A`, and the
-checks and `A` give success or a failure of the runner on some message.
+with `Exact.X_dep_low` every gas is covered. `Exact.X_dep_ok_or_fails` (round 31, the seven
+paths, the hypotheses of `Exact.X_dep_ok_iff_fails` without `hfail`): for a runner that may fail
+with any error, success gives the checks and `A`, and the checks and `A` give success or a failure
+of the runner on a message the path sends.
 `Sanity.answerRunnerAt_hans`: the runner `answerRunnerAt (sState C kvs) f` meets the `hans` of
 deprecated destroyBlackFunds with `A = True`, for a message whose current target is `C`;
 `Sanity.answerRunnerAt_ans_gas`: each frame it ends meets the condition of the `hans` of

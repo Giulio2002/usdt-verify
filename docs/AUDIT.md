@@ -219,6 +219,14 @@ instances: the run succeeds iff the checks hold, the gas the CALL gives covers `
 and the gas left after the CALL plus what `MIRROR` returns covers the code after it. Only these
 two of the seven paths are instantiated with `MIRROR`.
 
+**Resolution (round 31), `X_dep_ok_or_fails`.** Moved to the gas-aware `hans`: the seven
+`X_dep_ok_or_fails` (destroyBlackFunds added) take the hypotheses of `X_dep_ok_iff_fails` without
+`hfail` (no `htail`, no requirement that the runner's errors abort), and the failure in their
+conclusion is on a message the path sends (`SendsVia`). `X_dep_ok_iff_fails` is now derived from
+them. The old form follows from the new one (argued, not kept as a theorem: the old `hans` with
+`htail` gives the new `hans`, as the proof of `X_dep_ok_iff` does, and a failure on a `SendsVia`
+message is a failure on some message).
+
 ## 4. `stopRunner` is not "a runner whose upgraded contract only runs STOP" (Medium)
 
 `stopRunner fork bound ua` (`Evm/Runners.lean:57`) is `processRunner` on messages to `ua` whose

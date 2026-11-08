@@ -937,7 +937,7 @@ ends with no error and the contract has an account in its end state".
   `st` and substate `ss` of the frame at the CALL (`atCallState`, `atCallSub`). `A` can be a
   condition on `g`, `st` and `ss`. The specifications `spec_dep*_g` and `spec_depD_g` pass
   `CallFrom` to their callee assumption `hcg`; `fwd_ok_iff_fails` takes a call condition `Cl`.
-  `X_dep_ok_or_fails` keeps the old `hans` (over every gas).
+  Round 31: `X_dep_ok_or_fails` takes the same `hans` (below).
   `Sanity/ProcessExact.lean`: from Paris, with the upgraded address holding STOP and no
   precompile, every message the path sends ends under `processRunner` with no error, all its
   gas, the caller's state and accesses, and no output (`process_stop_child`). So `processRunner`
@@ -977,11 +977,16 @@ ends with no error and the contract has an account in its end state".
   `X_dep_low`, every gas is covered for these six. The specifications behind it
   (`spec_dep_g`, `spec_depB_g`, `spec_depAl_g`, `spec_depT_g`, `spec_depA_g`, `spec_depF_g`) take
   that bound on the callee (`hcg`) in place of `htail`; the old specifications follow from them.
-- `X_dep_ok_or_fails` (round 26, the same six): the hypotheses of `X_dep_ok_iff` (with `htail`),
-  for a runner that may fail, with errors that abort the run (as `Meets` asks, `hab`), in place of
-  `NoFail`: a run that ends with no error gives the checks
-  and `A`; the checks and `A` give a run that ends with no error, or a failure of the runner on
-  some message (not shown to be the forward). This is not an iff.
+- `X_dep_ok_or_fails` (round 31, the seven paths): the hypotheses of `X_dep_ok_iff_fails` (below)
+  without `hfail`, for a runner that may fail with any error: a run that ends with no error gives
+  the checks and `A`; the checks and `A` give a run that ends with no error, or a failure of the
+  runner on a message the path sends (`SendsVia`). This is not an iff. `X_dep_ok_iff_fails` is
+  derived from it (`hfail` rules out the failure). Through round 30 the six forwards other than
+  destroyBlackFunds had a weaker form: it took `htail`, a `hans` asked of every gas of the
+  forwarded message (unsatisfiable for `processRunner` with a code that can run out of gas,
+  docs/AUDIT.md finding 3) and errors that abort, and its failure was on some message, not shown to
+  be the forward. The new form implies it: the old `hans` with `htail` gives the new one, as in
+  `X_dep_ok_iff`.
 - `NoFail` excludes a runner that fails, which makes the run abort (EthLib's `Meets` allows such
   errors). `Sanity/Exact.lean`: every `answerRunner` never fails and ends every message with no
   error, so it meets `hans` with `A = True` for the six forwards other than destroyBlackFunds.
