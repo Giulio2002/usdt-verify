@@ -10,7 +10,7 @@ import UsdtVerify.Usdt.Complete.Deprecated.Destroy
 
 From Berlin, a fresh frame of `CODE` at pc 0 with call data below `2^256` bytes and the selector
 of the function, byte 20 of slot 10 not 0 (`hdep`), the code `c` of the upgraded address found
-in the state (`hcode`, `c.size < 2^256`), the route `r` of the CALL (`hroute`), any gas bound and
+in the state (`hcode`; `c.size < 2^256`, `hszl`, for `*_dep_ok_iff`), the route `r` of the CALL (`hroute`), any gas bound and
 any message runner `runChild`.
 
 - `*_dep_ok_iff`: with the gas of the success path up to the CALL and after it (`hg`, `htail`),

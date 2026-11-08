@@ -11,9 +11,11 @@ import UsdtVerify.Usdt.Spec.TransferFrom
 /-!
 # When each function succeeds, in plain terms
 
-Each condition below is the exact success condition of a function: the theorems of
-`Usdt/Exact/` prove that, with the gas of the success path, the run ends with no error if and
-only if the condition holds.
+Each `*Guard` below for a function not deprecated, and `CallOk` for the getters, is the exact
+success condition of that function: the theorems of `Usdt/Exact/` prove that, with the gas of the
+success path, the run ends with no error if and only if the condition holds.
+`CanWrite`, `IsOwner` and `ForwardOk` are parts of these conditions.
+When deprecated, the condition is a deprecated guard together with the answer `A` (see below).
 
 - `CallOk`: the call data has at least 4 bytes and the call has no value.
   Every function of the table is nonpayable, so every success condition contains it.
@@ -26,14 +28,16 @@ only if the condition holds.
   `DestroyBlackFundsGuard` (when not deprecated).
 - `ApproveGuard` (approve when not deprecated).
 - `TransferGuard`, `TransferFromGuard` (transfer, transferFrom when not deprecated).
-- When deprecated, a function that forwards succeeds exactly when the forward is made and the
-  upgraded contract's answer is as the theorem's runner hypothesis says: `ForwardOk` (`CallOk`,
-  the upgraded code `c` is not empty, the depth leaves room for the call), with
+  Their terms are those the bytecode computes, read in the state after the checks of the prelude
+  (reads only, so each slot holds the word it holds in the start state); in transferFrom
+  `balances[f]` is read after the allowance step; the recipient's balance is read after the write
+  of the sender's, and the owner's after the write of the recipient's.
+- When deprecated, for a runner that never fails (`NoFail`) and with the gas of `hg` and `htail`,
+  a function that forwards succeeds exactly when the checks before the forward hold and the
+  upgraded contract's answer is `A`, as the theorem's runner hypothesis `hans` says: `ForwardOk`
+  (`CallOk`, the upgraded code `c` is not empty, the depth leaves room for the call), with
   `TransferDepGuard`, `ApproveDepGuard`, `TransferFromDepGuard`, `DestroyDepGuard` for the checks
   before the forward.
-  Its terms are those the bytecode computes, read in the state after the checks of the prelude
-  (reads only, so each slot holds the word it holds in the start state); the recipient's balance is
-  read after the write of the sender's, and the owner's after the write of the recipient's.
 -/
 
 namespace UsdtVerify
@@ -160,7 +164,8 @@ open TransferOk TransferFee TransferFrom in
 /-- `transferFrom(f, t, v)`, not deprecated, succeeds exactly when: `CallOk`, `CanWrite`, at
 least 100 bytes of call data, not paused, `f` not blacklisted (the caller's status is not read),
 `v * basisPointsRate < 2^256`, the allowance `allowed[f][caller]` is `MAX_UINT` or at least `v`,
-`fee ≤ v`, `v ≤ balances[f]` (read after the write of the allowance), `balances[t] + (v - fee) <
+`fee ≤ v`, `v ≤ balances[f]` (read after the allowance step: the write of `allowance - v`, none if
+the allowance is `MAX_UINT`), `balances[t] + (v - fee) <
 2^256` (read after the write of `balances[f]`), and, if `fee ≠ 0`, `balances[owner] + fee <
 2^256` (read after the write of `balances[t]`). -/
 def TransferFromGuard (state : State.TransactionState) (message : Message fork) : Prop :=

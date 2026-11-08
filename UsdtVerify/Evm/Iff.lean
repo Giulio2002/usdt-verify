@@ -6,11 +6,25 @@ import UsdtVerify.Evm.Route
 
 - `RunsOk`: the loop of the interpreter, run from a frame, ends in a frame with no error.
 - `runsOk_of_spec`: a specification to a frame with no error gives `RunsOk`.
-- `runsOk_iff`: a condition `G` under which a specification to a frame with no error holds, and
-  that every run ending with no error meets, is equivalent to `RunsOk`.
+- `halted_false_ok`: a normal halt has no error.
+- `runsOk_iff`: from a frame where the precondition holds, a condition `G` under which a
+  specification to a frame with no error holds, and that every run ending with no error meets,
+  is equivalent to `RunsOk`.
 - `not_runsOk_low`: with a condition `G` that every run ending with no error meets, and under
   which a specification to a normal halt that pays `cost` holds for every gas from a bound
   `B ≥ cost` on, no run with less gas than `cost` ends with no error.
+  `not_runsOk_low2` and `not_runsOk_low3` take a specification with one or two more gas bounds.
+- `NoFail`: the message runner returns a frame for every message (it never fails).
+- `AnsIff M ua c r d A`: the callee assumption that a message forwarded along the route `r`
+  (`SendsVia M ua c r d`) ends with no error exactly when `A` holds.
+- `runsOk_of_specUnder`: a specification under a callee assumption to frames with no error,
+  from a frame where its precondition holds, under a runner that meets the assumption and never
+  fails, gives `RunsOk`.
+- `fwd_ok_iff`: for a path that forwards one message, `RunsOk` holds exactly when `G` and `A`
+  hold, if `G` gives a specification under `AnsIff` whose end frames have no error when `A` holds,
+  every run that ends with no error meets `G` and had a forwarded message end with no error, and
+  the runner never fails and ends each forwarded message with no error exactly when `A` holds.
+- `routes_unique`: a code has at most one route in a state.
 -/
 
 namespace UsdtVerify.Exact

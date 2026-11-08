@@ -1235,13 +1235,19 @@ entry; `DESTS` = the 32 destinations).
   holds iff the checks before the forward (`ForwardOk`, `TransferDepGuard`, `ApproveDepGuard`,
   `TransferFromDepGuard`, `DestroyDepGuard`) and `A` hold. One direction from `dep_*_complete`
   with `routes_unique` and the uniqueness of the code found; the other from the forward spec
-  under the callee assumption `AnsIff` (`fwd_ok_iff`, `runsOk_of_specUnder`). `X_dep_low`: below
+  under the callee assumption `AnsIff` (`fwd_ok_iff`); destroyBlackFunds under its own callee
+  assumption (no error and an account of the contract), through `runsOk_of_specUnder`. `X_dep_low`: below
   the gas of `hg`, no successful run, for every runner (from `dep_*_complete`).
 - `Usdt/Sanity/Exact.lean`: `answerRunner_noFail`, `answerRunner_ans`, `answerRunner_ans_acc`.
 - Not covered: a gas at or above the cost but below a stipend bound (the run may fail there by
   EIP-2200; no theorem says either way); when deprecated, a gas between the bounds of `hg` and
   `htail`, and a runner that may fail.
 - `lake build UsdtVerify` (incremental, after each code commit): exit 0, 0 "error:" lines.
+- Independent accuracy check of the round-25 docs against the statements: nine items fixed (the
+  gas hypotheses and `NoFail` named where a sentence left them out, `TransferOwnershipGuard`'s
+  conditional `CanWrite`, the allowance step of transferFrom, the Sanity scope (`answerRunner`
+  meets `hans` with `A = True` for the six forwards other than destroyBlackFunds), the proof route
+  of deprecated destroyBlackFunds, `hszl` only in `*_dep_ok_iff`, the Iff.lean header).
 
 ## Open (not proved)
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
@@ -1382,6 +1388,11 @@ entry; `DESTS` = the 32 destinations).
    a fork-generic `callWith`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+- Round 25 (tree of commit 0f5fb8b, rm -rf .lake/build, EthLib oleans prebuilt): 102.14 s wall,
+  336.50 s user, 1776189440 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines, 1392
+  jobs. `#print axioms`: 568 [propext, Classical.choice, Quot.sound], 5 [propext, Quot.sound],
+  5 [propext], 3 with no axioms (581). grep of the new files for sorry, admit, axiom declarations,
+  native_decide, bv_decide, decide +native, maxHeartbeats, maxRecDepth: none.
 - Round 24 (tree of commit 2969de2 plus the round-24 docs, rm -rf .lake/build, EthLib oleans
   prebuilt): 124.57 s wall, 310.57 s user, 1785806848 bytes max RSS (`/usr/bin/time -l`), exit 0,
   0 "error:" lines, 1383 jobs. `#print axioms`: 480 [propext, Classical.choice, Quot.sound],

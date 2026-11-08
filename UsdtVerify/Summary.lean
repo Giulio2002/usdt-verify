@@ -443,7 +443,8 @@ and symbol under `StrForm`, gas `Exact.strCost`; totalSupply, balanceOf, allowan
 `TransferFromGuard` (under `hdep`; gas `Exact.approveCost`, `Exact.transferCost`,
 `Exact.transferFromCost`, stipends `Exact.approveStip`, `Exact.transferStip1`,
 `Exact.transferStip2`, `TransferFrom.stipCostF`). Each writing condition contains `CanWrite`
-(not static, an account of `C`); each owner condition `IsOwner`.
+(not static, an account of `C`), `TransferOwnershipGuard` only when `a ≠ 0`; each owner condition
+contains `IsOwner`.
 Deprecated (`Usdt/Exact/Deprecated.lean`): for the seven functions that forward
 (`Exact.X_dep_ok_iff`), with the upgraded code `c` and the route `r` of the CALL given, the gas
 of the path (`hg`, `htail`), and a runner that never fails (`Exact.NoFail`) and ends each
@@ -451,7 +452,8 @@ forwarded message with no error exactly when `A` holds (for destroyBlackFunds: w
 an account of `C` in its end state), `RunsOk` holds if and only if the checks before the forward
 hold (`ForwardOk`, `TransferDepGuard`, `ApproveDepGuard`, `TransferFromDepGuard`,
 `DestroyDepGuard`) and `A` holds. `Exact.X_dep_low`: below the gas of `hg`, `RunsOk` does not
-hold, whatever the runner. `Sanity.answerRunner_noFail`: the runners `answerRunner` never fail.
+hold, whatever the runner. `Sanity.answerRunner_noFail`: the runners `answerRunner` never fail; `Sanity.answerRunner_ans`:
+they meet `hans` with `A = True` (used for the six forwards other than destroyBlackFunds).
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

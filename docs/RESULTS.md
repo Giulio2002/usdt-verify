@@ -734,7 +734,8 @@ from that state.
 `UsdtVerify/Usdt/Exact/`, with the conditions in `UsdtVerify/Usdt/Spec/Guards.lean` and the generic
 lemmas in `UsdtVerify/Evm/Iff.lean`.
 Completeness says that every run that ends with no error is a proved success path.
-These theorems add the converse: the success path is taken whenever its condition holds.
+These theorems add the converse: with the gas of the success path (its cost and stipend bounds),
+the success path is taken whenever its condition holds.
 `RunsOk fork bound runChild evm within` says that the loop of the interpreter, run from `evm`,
 returns a frame with no error (a REVERT or a fault sets an error).
 
@@ -789,7 +790,7 @@ read after a write, as stated.
 When deprecated (`Usdt/Exact/Deprecated.lean`), the seven functions that forward to the upgraded
 address (totalSupply, balanceOf, allowance, transfer, approve, transferFrom, destroyBlackFunds)
 have `X_dep_ok_iff` and `X_dep_low`. Their hypotheses: the flag set (`hdep`), the code `c` of the
-upgraded address found in the state with `c.size < 2^256`, the route `r` of the CALL, the
+upgraded address found in the state (and, for `X_dep_ok_iff`, `c.size < 2^256`), the route `r` of the CALL, the
 coldness flags, the gas up to the CALL (`hg`) and after its price (`htail`), and two hypotheses on
 the message runner: it never fails (`NoFail`: it returns a frame for every message), and each
 message it is given that is the forward along the route ends with no error exactly when a
@@ -804,7 +805,8 @@ ends with no error and the contract has an account in its end state".
   A gas between that bound and the bound of `htail` is not covered.
 - `NoFail` excludes a runner that fails, which makes the run abort (EthLib's `Meets` allows such
   errors). `Sanity/Exact.lean`: every `answerRunner` never fails and ends every message with no
-  error, so its `A` is `True`.
+  error, so it meets `hans` with `A = True` for the six forwards other than destroyBlackFunds
+  (for destroyBlackFunds no `A` is derived for it).
 
 ## What is trusted
 
