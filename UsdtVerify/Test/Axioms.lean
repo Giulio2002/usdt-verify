@@ -1,4 +1,5 @@
 import UsdtVerify.Evm.CallMeter
+import UsdtVerify.Evm.StepSim
 import UsdtVerify.Usdt.Meter
 import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.MeterOwner
@@ -1078,3 +1079,10 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Complete.resumeCall_sgm
 #print axioms UsdtVerify.Complete.lifts_gasStep
 #print axioms UsdtVerify.Complete.lifts_extcodesizeStep
+#print axioms UsdtVerify.Complete.callStep_child_sim
+#print axioms UsdtVerify.Complete.callStep_deep_sim
+#print axioms UsdtVerify.Complete.callStep_low_rS
+#print axioms UsdtVerify.Complete.callStep_missingS
+#print axioms UsdtVerify.Meter.step_simX
+#print axioms UsdtVerify.Meter.routes_or_missing
+#print axioms UsdtVerify.Meter.step_callX
