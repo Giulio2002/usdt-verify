@@ -385,6 +385,17 @@ instances (`noFailOn_process_stop`, `noFailOn_process_mirror`, for any caller co
   (exit 0, axioms within `[propext, Classical.choice, Quot.sound]`); they are not in the repository.
 - I2: no change.
 
+**Resolution (round 31) of L4 and I1.** Usdt/Sanity/MirrorState.lean restates the reviewer's
+scratch results as committed theorems. `keepsInvAt_process_mirror`: from Paris, `processRunner`
+meets `KeepsInvAt` when the upgraded address holds `MIRROR` (no precompile). `S1 C H` is a
+concrete deprecated state (slot 10 of `C`: byte 20 is 1, upgraded address 0x1234, which holds
+`MIRROR` under a code hash `H` other than the empty one; `exists_hash` gives one; both accounts have
+the same storage). `balanceOf_mirror_sat`: from Paris and before Glamsterdam, every hypothesis of
+`balanceOf_dep_ok_iff_gas_process_mirror` holds there for a `balanceOf(a)` call with 1000000 gas.
+`process_step_dep_hyps`: from Paris, for a `destroyBlackFunds(a)` call there, the flag is set and
+`processRunner` meets `KeepsInvAt` and `HonestBalanceAt` together. Not shown: these with the
+keccak hypotheses `SepOn` of the call, which `process_step` also takes.
+
 ## Verdicts on the resolutions
 
 - Finding 1, round 29: holds. `SepOn` / `SecSep` compare one given slot against the 2^160 address

@@ -970,6 +970,13 @@ ends with no error and the contract has an account in its end state".
   USDT's `balances[a]` in the start state as the subtracted word, and the substate at the CALL with
   the slot accessed. These are two of the seven paths; the other five forwards are not
   instantiated with `MIRROR` (it answers only `balanceOf`).
+  `Sanity/MirrorState.lean`: a concrete deprecated state `S1 C H` (slot 10 of `C` with byte 20 = 1
+  and upgraded address 0x1234, which holds `MIRROR`; both accounts have the same storage).
+  `balanceOf_mirror_sat`: from Paris and before Glamsterdam, every hypothesis of
+  `balanceOf_dep_ok_iff_gas_process_mirror` holds there for a `balanceOf(a)` call with 1000000 gas.
+  `keepsInvAt_process_mirror`, `process_step_dep_hyps`: `processRunner` meets `KeepsInvAt` with
+  `MIRROR`, and in `S1 C H`, for a `destroyBlackFunds(a)` call, the flag, `KeepsInvAt` and
+  `HonestBalanceAt` hold together.
 - `X_dep_ok_iff_gas` (round 26, the six forwards other than destroyBlackFunds): the hypotheses of
   `X_dep_ok_iff` without `htail`, and `hans` with "ends with no error" replaced by "ends with no
   error, and the gas the CALL keeps plus the gas left in the ended frame is at least the gas of
@@ -1054,8 +1061,8 @@ ends with no error and the contract has an account in its end state".
 - The invariant over deprecated calls without the runner assumptions `KeepsInvAt` and
   `HonestBalanceAt` (destroyBlackFunds can break it, see above). `KeepsInvAt` is shown for
   `processRunner` with the upgraded code STOP (round 29); `HonestBalanceAt` with the upgraded code
-  `MIRROR` under `hmirror` (round 30). No file states one deprecated state where a useful code meets
-  both.
+  `MIRROR` under `hmirror` (round 30). Round 31: `Sanity.process_step_dep_hyps` gives one concrete
+  deprecated state with `MIRROR` where `processRunner` meets both.
 - The keccak hypotheses `SepOn` and `SecSep` of a call's keys (finitely many separation facts about
   given slots; not proved, and not shown for any particular call).
 - The security properties for deprecated calls of the six forwarding functions (and, for the

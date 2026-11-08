@@ -13,6 +13,7 @@ import UsdtVerify.Usdt.Sanity.Process
 import UsdtVerify.Usdt.Sanity.ProcessExact
 import UsdtVerify.Usdt.Sanity.Mirror
 import UsdtVerify.Usdt.Sanity.MirrorExact
+import UsdtVerify.Usdt.Sanity.MirrorState
 import UsdtVerify.Usdt.Security.Supply
 import UsdtVerify.Usdt.Security.Allowance
 import UsdtVerify.Usdt.Security.Blacklist
@@ -900,3 +901,10 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Sanity.hans_destroy_gas_process_mirror
 #print axioms UsdtVerify.Sanity.balanceOf_dep_ok_iff_gas_process_mirror
 #print axioms UsdtVerify.Sanity.destroyBlackFunds_dep_ok_iff_gas_process_mirror
+-- round 31: a deprecated state with MIRROR (docs/AUDIT.md, second audit, L4 and I1)
+#print axioms UsdtVerify.Sanity.keepsInvAt_process_mirror
+#print axioms UsdtVerify.Sanity.exists_hash
+#print axioms UsdtVerify.Sanity.storageAt_S1
+#print axioms UsdtVerify.Sanity.hcode_S1
+#print axioms UsdtVerify.Sanity.balanceOf_mirror_sat
+#print axioms UsdtVerify.Sanity.process_step_dep_hyps

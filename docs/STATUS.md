@@ -1514,6 +1514,12 @@ Second audit, M1: the runner-failure hypotheses at the CALL's caller frame.
   `hfail … → SendsVia … msg → CallFrom … → ¬ A`, and `X_dep_ok_or_fails`'s failure with
   `CallFrom`. Sanity: `noFailOn_process_stop`, `noFailOn_process_mirror` for any caller condition.
 
+Second audit, L4 and I1: a deprecated state (Usdt/Sanity/MirrorState.lean).
+- `keepsInvAt_process_mirror`, `W`, `UA`, `hnp_UA`, `exists_hash`, `S1`, `storageAt_S1`,
+  `slot10_S1`, `up_S1`, `hcode_S1`, `balanceOf_mirror_sat` (Paris ≤ fork < Glamsterdam, the iff of
+  `balanceOf_dep_ok_iff_gas_process_mirror` in `S1`), `process_step_dep_hyps` (flag set,
+  `KeepsInvAt` and `HonestBalanceAt` together in `S1`, from Paris).
+
 Finding 3: `X_dep_ok_or_fails` on the gas-aware `hans` (Evm/Iff.lean, Usdt/Exact/Deprecated.lean).
 - `fwd_ok_or_fails` now has the hypotheses of `fwd_ok_iff_fails` without `hfail` (any errors of
   the runner; the failure in the conclusion is on a message of `S`); `fwd_ok_iff_fails` is derived
@@ -1559,8 +1565,11 @@ Finding 3: `X_dep_ok_or_fails` on the gas-aware `hans` (Evm/Iff.lean, Usdt/Exact
   `processRunner` meets `KeepsInvAt` when the upgraded code is STOP (`keepsInvAt_process_stop`).
   Round 30: `processRunner` meets `HonestBalanceAt` when the upgraded code is `MIRROR` and its
   queried slot holds USDT's `balances[a]` in the start state (`honestBalanceAt_process_mirror`);
-  not shown for one upgraded state with both `KeepsInvAt` and `HonestBalanceAt` and a useful code.
-- Non-vacuity (round 24): no witness run is deprecated; the keccak hypotheses of the witness calls
+  round 31: shown together with `KeepsInvAt` in one concrete deprecated state with `MIRROR`
+  (`process_step_dep_hyps`; the keccak hypotheses of `process_step` there are not discharged).
+- Non-vacuity (round 24): no witness run is deprecated (round 31: `balanceOf_mirror_sat` gives the
+  hypotheses of a deprecated exact theorem in a concrete deprecated state, not a witness run of the
+  spec theorems); the keccak hypotheses of the witness calls
   (`SepOn` / `SecSep` of their keys, since round 29) are not discharged.
 - Exact success conditions (round 25): done for the 32 functions not deprecated and the seven
   deprecated forwarding paths (under `NoFail`, since round 29 `NoFailOn`, and a runner hypothesis
@@ -1679,6 +1688,11 @@ Finding 3: `X_dep_ok_or_fails` on the gas-aware `hans` (Evm/Iff.lean, Usdt/Exact
    a fork-generic `callWith`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+- Round 31, after M1 and MirrorState (tree of commit 161d97e, rm -rf .lake/build, EthLib oleans
+  prebuilt, LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`): 137.82 s wall,
+  341.04 s user, 1798881280 bytes max RSS, exit 0, 0 "error:" lines, 1400 jobs. Hash check: 11075
+  bytes, keccak256 b44fb4e9...ea55. `#print axioms`: 827 with axioms, 6 with none; no sorryAx,
+  ofReduceBool or trustCompiler.
 - Round 31 (tree of commit 725dd5b, rm -rf .lake/build, EthLib oleans prebuilt,
   LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`): 135.77 s wall, 340.22 s
   user, 1796440064 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines, 1399 jobs. Hash
