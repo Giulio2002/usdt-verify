@@ -60,6 +60,7 @@ When USDT is deprecated, it forwards each call to an upgraded contract. Those pa
 - `UsdtVerify/Usdt/Spec/` says what each function does, one file per function.
 - `UsdtVerify/Usdt/Proofs/` holds the block by block proofs, one file per function.
 - `UsdtVerify/Usdt/Complete/` holds the completeness theorems.
+- `UsdtVerify/Usdt/Exact/` holds the exact success conditions.
 - `UsdtVerify/Usdt/Invariant/` holds the supply invariant.
 - `UsdtVerify/Usdt/Security/` holds the access control, pause, blacklist, allowance and supply properties.
 - `UsdtVerify/Usdt/Sanity/` shows that the named assumptions can hold, so the theorems are not vacuous.
@@ -138,6 +139,13 @@ The six other forwarding functions write nothing locally after the forwarded cal
 ### Sequences of calls
 
 `inv_calls` in `UsdtVerify/Usdt/Invariant/Seq.lean` lifts the invariant to any finite sequence of steps. A step is either a successful call that meets the hypotheses of `inv_call_all`, each with its own fork, message and runner, or a step that leaves every storage word of USDT unchanged. `goodCall_process` shows that a successful top-level message to USDT with no value, from Paris, is such a call. A failed call is proved to leave every storage word unchanged after the rollback (`untouched_process_failed`), using a general lemma proved here from EthLib's semantics: every step keeps the parent block of the state. A top-level call to USDT with a nonzero value always fails (`process_value_fails`). So `process_step` shows that every top-level message to USDT, from Paris, is one of the two kinds of step, with no assumption about failed calls.
+
+## Exact success conditions
+
+`UsdtVerify/Usdt/Exact/` proves the converse of completeness: with enough gas, a call succeeds if and only if its stated conditions hold, so there are no unexpected reverts. With less gas than the success path costs, the call fails. The conditions are written out in `UsdtVerify/Usdt/Spec/Guards.lean`.
+
+- The 19 read functions, including `totalSupply`, `balanceOf` and `allowance` when not deprecated, and `name` and `symbol` for the string forms Solidity writes, succeed exactly when the call data has at least 4 bytes and the call sends no ether.
+- The writing functions are in progress.
 
 ## Security properties
 

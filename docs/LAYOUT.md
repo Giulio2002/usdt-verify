@@ -5,6 +5,7 @@ Where to look:
 - What a USDT function does: `UsdtVerify/Usdt/Spec/<Function>.lean`.
 - The block-by-block proofs behind it: `UsdtVerify/Usdt/Proofs/<Function>.lean`.
 - That the specification covers every successful run (any gas): `UsdtVerify/Usdt/Complete/`.
+- When each function succeeds, exactly (with the gas of its success path): the conditions in `UsdtVerify/Usdt/Spec/Guards.lean`, the theorems in `UsdtVerify/Usdt/Exact/`.
 - The supply invariant: `UsdtVerify/Usdt/Invariant/`.
 - The security properties (access control, pause, blacklist, allowances, supply): `UsdtVerify/Usdt/Security/`.
 - Lemmas about the EVM that hold for every code: `UsdtVerify/Evm/`.
@@ -27,6 +28,7 @@ No file there imports a file outside `Evm/`.
 - `Sample.lean`: sample states (`sState`: one account with given slots), messages (`sMsg`), frames (`sFrame`) and call data (`data1`, `data2`), with their lemmas.
 - `MemRev.lean`: a read across two adjacent memory writes made in reverse order.
 - `Exact.lean`, `Split.lean`: from a specification over `StepG` to every successful run of the interpreter loop.
+- `Iff.lean` (round 25): `RunsOk` (the interpreter loop ends with no error), `runsOk_iff` (a condition that gives a specification to no error, and that every successful run meets, is equivalent to `RunsOk`), `not_runsOk_low` (no successful run with less gas than the cost of the success path).
 - `Route.lean`, `Call.lean`: the route of a CALL (EIP-7702 delegation included), and the EXTCODESIZE, GAS, SUB and CALL steps for any gas and any runner.
 - `Local/`: generic rules missing from EthLib at the pinned commit (opcode rules, EXTCODESIZE at every fork from Berlin, every message keeps the block).
 
@@ -38,6 +40,7 @@ No file there imports a file outside `Evm/`.
 - `Spec/`: one file per function or small family, with the specifications from pc 0 (`spec_*`, `runFrame_*`) and the reverts and failed asserts.
   `Spec/Deprecated/` holds the forwards to the upgraded contract.
   `Spec/Dispatch.lean` holds the nonpayable revert and the fallback; `Spec/RunFrames.lean` the `runFrame` wrappers that lacked one.
+  `Spec/Guards.lean` (round 25) states, for each function, the condition under which it succeeds, in plain terms (`CallOk`, ...).
 - `Proofs/`: the blocks that the specifications compose (`Common`, `SafeMath`, `Owner`, `Admin`, then one file per function; `Fee.lean` is the fee path shared by transfer and transferFrom).
   No file in `Proofs/` imports a file in `Spec/`.
 - `Complete/`: completeness, every successful run with any gas follows the specification; `Complete/Deprecated/` for the deprecated paths.
@@ -45,6 +48,8 @@ No file there imports a file outside `Evm/`.
 
 - `Security/`: `Effect.lean` (what every successful call, not deprecated, does to the storage: `Effect`, `effect_call`; the slot classes; `AllowSep`; sequences `Seq` and `seq_lift`), `Access.lean` (access control), `Pause.lean` (no balance moves while paused), `Blacklist.lean` (a blacklisted address cannot lower its balance), `Allowance.lean` (transferFrom within the allowance; only approve and transferFrom change allowances), `Supply.lean` (`_totalSupply` changes only through issue, redeem and destroyBlackFunds).
   Since round 23 each file also has the forms deprecated or not (`*_call_all`, `*_seq_all`, with the runner assumptions `KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); `Effect.lean` has `effect_local`, `EffectD`, `effect_all`, `RunOkR`, `SeqR`, `seqR_lift`; `Access.lean` has `owner_only` and `nonOwner_local`; `Pause.lean` has `transfer_checks_all` and `transferFrom_checks_all`.
+
+- `Exact/` (round 25): exact success conditions. For each function, `X_ok_iff`: with the gas of the success path (the cost, and the stipends of the SSTOREs where the specification asks for them), the run ends with no error if and only if the condition of `Spec/Guards.lean` holds; `X_low`: with less gas than the cost of the success path, no run ends with no error. `Getters.lean`: the 19 functions that only read (name and symbol under `StrForm`; totalSupply, balanceOf and allowance when not deprecated).
 
 - `Sanity/` (round 24): the assumptions of the main theorems hold for some runner, state, message and gas. `Runner.lean`: runners that meet `KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`, `KeepsInv`, `StaticKeeps`, `HonestBalance`. `Transfer.lean`, `Calls.lean`: a state, message and gas where all the hypotheses of `transfer_ok`, `approve_set`, `issue`, `redeem`, `destroyBlackFunds` hold, and the run ends with no error; `TransferFrom.lean` the same for `transferFrom_ok`. `Security.lean`: `OkRun`, witnesses of the non-keccak hypotheses of the security theorems and of `inv_call_all`, and the `_applies` theorems that apply them. `Strings.lean`: the words of "Tether USD" and "USDT" are of `StrForm`, and `inv_call_all`, `supply_call` apply with them in slots 7 and 8.
 

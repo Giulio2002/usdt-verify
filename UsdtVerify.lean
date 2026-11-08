@@ -4,6 +4,7 @@ import UsdtVerify.Evm.Exact
 import UsdtVerify.Evm.Frame
 import UsdtVerify.Evm.Keeps
 import UsdtVerify.Evm.Gas
+import UsdtVerify.Evm.Iff
 import UsdtVerify.Evm.GasRules
 import UsdtVerify.Evm.Local.Extcodesize
 import UsdtVerify.Evm.Local.Parent
@@ -32,6 +33,7 @@ import UsdtVerify.Usdt.Complete.Owner
 import UsdtVerify.Usdt.Complete.Read
 import UsdtVerify.Usdt.Complete.Transfer
 import UsdtVerify.Usdt.Complete.TransferFrom
+import UsdtVerify.Usdt.Exact.Getters
 import UsdtVerify.Usdt.Invariant.All
 import UsdtVerify.Usdt.Invariant.Calls
 import UsdtVerify.Usdt.Invariant.DeprecatedDestroy
@@ -65,6 +67,7 @@ import UsdtVerify.Usdt.Spec.Deprecated.TransferFrom
 import UsdtVerify.Usdt.Spec.Destroy
 import UsdtVerify.Usdt.Spec.Dispatch
 import UsdtVerify.Usdt.Spec.Getters
+import UsdtVerify.Usdt.Spec.Guards
 import UsdtVerify.Usdt.Spec.Issue
 import UsdtVerify.Usdt.Spec.Pause
 import UsdtVerify.Usdt.Spec.RunFrames

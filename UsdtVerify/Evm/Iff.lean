@@ -1,0 +1,72 @@
+import UsdtVerify.Evm.Exact
+
+/-!
+# Exact success conditions
+
+- `RunsOk`: the loop of the interpreter, run from a frame, ends in a frame with no error.
+- `runsOk_of_spec`: a specification to a frame with no error gives `RunsOk`.
+- `runsOk_iff`: a condition `G` under which a specification to a frame with no error holds, and
+  that every run ending with no error meets, is equivalent to `RunsOk`.
+- `not_runsOk_low`: with a condition `G` that every run ending with no error meets, and under
+  which a specification to a normal halt that pays `cost` holds for every gas from a bound
+  `B ≥ cost` on, no run with less gas than `cost` ends with no error.
+-/
+
+namespace UsdtVerify.Exact
+
+open EthLib.Base (Fork U256)
+open EthLib.Execution
+open EthLib.Execution.Evm
+open EthLib.Execution.Evm.Logic
+open UsdtVerify.Gas
+
+variable {fork : Fork} {code : ByteArray} {message : Message fork} {pc : Nat}
+  {stack : List U256} {memory : ByteArray} {state : State.TransactionState}
+  {substate : Substate} {bound : Nat} {runChild : MessageRunner fork Nat bound}
+  {evm : Evm fork Nat}
+
+/-- The loop of the interpreter, run from `evm` with gas bound `bound` and message runner
+`runChild`, ends in a frame with no error. -/
+def RunsOk (fork : Fork) (bound : Nat) (runChild : MessageRunner fork Nat bound)
+    (evm : Evm fork Nat) (within : GasMeter.gasHeld evm.gas ≤ bound) : Prop :=
+  ∃ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s ∧
+    s.error = none
+
+/-- A normal halt has no error. -/
+theorem halted_false_ok {out : ByteArray} {g : Nat} {st : State.TransactionState}
+    {ss : Substate} (e : Evm fork Nat) (h : Halted false out g st ss e) : e.error = none := by
+  rw [h.2.1]; simp
+
+/-- A specification to frames with no error, from a frame where its precondition holds. -/
+theorem runsOk_of_spec {P Q : Evm fork Nat → Prop} (h : SpecG fork P Q)
+    (hQ : ∀ e, Q e → e.error = none) (hp : P evm) (within : GasMeter.gasHeld evm.gas ≤ bound) :
+    RunsOk fork bound runChild evm within := by
+  obtain ⟨s, hs, hq⟩ := SpecG.runFrame h hp within (runChild := runChild)
+  exact ⟨s, hs, hQ s hq⟩
+
+/-- `RunsOk` holds exactly when `G` holds, if `G` gives a specification to frames with no error
+and every run that ends with no error meets `G`. -/
+theorem runsOk_iff {G : Prop} {P Q : Evm fork Nat → Prop} (hspec : G → SpecG fork P Q)
+    (hQ : ∀ e, Q e → e.error = none) (hp : P evm) (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =
+      .ok s → s.error = none → G) :
+    RunsOk fork bound runChild evm within ↔ G :=
+  ⟨fun ⟨s, hs, hok⟩ => hcomp s hs hok, fun hg => runsOk_of_spec (hspec hg) hQ hp within⟩
+
+/-- With less gas than `cost`, no run ends with no error, if every run that ends with no error
+meets `G`, and under `G` a specification to a normal halt that pays `cost` holds from `B` gas
+on. -/
+theorem not_runsOk_low {G : Prop} {B cost gas : Nat} (hB : cost ≤ B) (hlt : gas < cost)
+    {out : ByteArray} {st' : State.TransactionState} {ss' : Substate}
+    (hspec : G → ∀ g, B ≤ g → SpecG fork (At code message pc stack memory g state substate)
+      (Halted false out (g - cost) st' ss'))
+    (start : At code message pc stack memory gas state substate evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =
+      .ok s → s.error = none → G) :
+    ¬ RunsOk fork bound runChild evm within := by
+  rintro ⟨s, hs, hok⟩
+  have := (Complete.ok_exact hB (hspec (hcomp s hs hok)) start within hs hok).1
+  omega
+
+end UsdtVerify.Exact

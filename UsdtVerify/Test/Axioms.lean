@@ -1,4 +1,5 @@
 import UsdtVerify.Usdt.Sanity.Strings
+import UsdtVerify.Usdt.Exact.Getters
 import UsdtVerify.Usdt.Sanity.TransferFrom
 import UsdtVerify.Usdt.Sanity.Calls
 import UsdtVerify.Usdt.Sanity.Runner
@@ -545,3 +546,43 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Sanity.strForm_symbol
 #print axioms UsdtVerify.Sanity.inv_mainnet
 #print axioms UsdtVerify.Sanity.strings_applies
+#print axioms UsdtVerify.Exact.runsOk_iff
+#print axioms UsdtVerify.Exact.not_runsOk_low
+#print axioms UsdtVerify.Exact.decimals_ok_iff
+#print axioms UsdtVerify.Exact.decimals_low
+#print axioms UsdtVerify.Exact.maximumFee_ok_iff
+#print axioms UsdtVerify.Exact.maximumFee_low
+#print axioms UsdtVerify.Exact.totalSupplyVar_ok_iff
+#print axioms UsdtVerify.Exact.totalSupplyVar_low
+#print axioms UsdtVerify.Exact.basisPointsRate_ok_iff
+#print axioms UsdtVerify.Exact.basisPointsRate_low
+#print axioms UsdtVerify.Exact.deprecated_ok_iff
+#print axioms UsdtVerify.Exact.deprecated_low
+#print axioms UsdtVerify.Exact.paused_ok_iff
+#print axioms UsdtVerify.Exact.paused_low
+#print axioms UsdtVerify.Exact.upgradedAddress_ok_iff
+#print axioms UsdtVerify.Exact.upgradedAddress_low
+#print axioms UsdtVerify.Exact.owner_ok_iff
+#print axioms UsdtVerify.Exact.owner_low
+#print axioms UsdtVerify.Exact.getOwner_ok_iff
+#print axioms UsdtVerify.Exact.getOwner_low
+#print axioms UsdtVerify.Exact.maxUint_ok_iff
+#print axioms UsdtVerify.Exact.maxUint_low
+#print axioms UsdtVerify.Exact.balances_ok_iff
+#print axioms UsdtVerify.Exact.balances_low
+#print axioms UsdtVerify.Exact.isBlackListed_ok_iff
+#print axioms UsdtVerify.Exact.isBlackListed_low
+#print axioms UsdtVerify.Exact.getBlackListStatus_ok_iff
+#print axioms UsdtVerify.Exact.getBlackListStatus_low
+#print axioms UsdtVerify.Exact.allowed_ok_iff
+#print axioms UsdtVerify.Exact.allowed_low
+#print axioms UsdtVerify.Exact.totalSupply_ok_iff
+#print axioms UsdtVerify.Exact.totalSupply_low
+#print axioms UsdtVerify.Exact.balanceOf_ok_iff
+#print axioms UsdtVerify.Exact.balanceOf_low
+#print axioms UsdtVerify.Exact.allowance_ok_iff
+#print axioms UsdtVerify.Exact.allowance_low
+#print axioms UsdtVerify.Exact.name_ok_iff
+#print axioms UsdtVerify.Exact.name_low
+#print axioms UsdtVerify.Exact.symbol_ok_iff
+#print axioms UsdtVerify.Exact.symbol_low
