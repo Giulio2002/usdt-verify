@@ -84,6 +84,26 @@ theorem wMeter_gasLeft {g : StateGasMeter} {P : Nat} {o c n : U256} {cold : Bool
   change g.gasLeft - P + sstoreBump g _ _ - _ - _ + P + _ = _
   omega
 
+/-- Reading a slot leaves every word of the storage as it is (`getStorage` form). -/
+theorem getStorage_readSlot (st : State.TransactionState) (t a : EthLib.Base.Address) (n : U256)
+    (k : EthLib.Base.Bytes32) : (readSlot st t n).getStorage a k = st.getStorage a k :=
+  (State.TransactionState.recordStorageRead_reads st t a _ k default).2.1
+
+/-- `ExactS` at a frame `m` given with its execution gas `gas`. -/
+theorem ExactS.run {code : ByteArray} {message : Message fork} {pc : Nat} {stack : List U256}
+    {memory : ByteArray} {state : State.TransactionState} {substate : Substate}
+    {Ok : StateGasMeter → Prop} {End : StateGasMeter → Evm fork StateGasMeter → Prop}
+    (h : ExactS fork code message pc stack memory state substate Ok End) {gas : Nat}
+    {m : Evm fork StateGasMeter} (start : At code message pc stack memory gas state substate (toNat m))
+    {bound : Nat} {runChild : MessageRunner fork StateGasMeter bound}
+    (within : GasMeter.gasHeld m.gas ≤ bound) :
+    m.gas.gasLeft = gas ∧ (Shadow.RunsOkS fork bound runChild m within ↔ Ok m.gas) ∧
+      ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild m within = .ok s →
+        s.error = none → End m.gas s := by
+  have hg : m.gas.gasLeft = gas := start.2.2.2.2.2.2.1
+  subst hg
+  exact ⟨rfl, h m start runChild within⟩
+
 /-- **A cheap stretch to a normal halt over `StateGasMeter`.** -/
 theorem exactS_halt {code : ByteArray} {message : Message fork} {pc : Nat} {stack : List U256}
     {memory out : ByteArray} {state state' : State.TransactionState}

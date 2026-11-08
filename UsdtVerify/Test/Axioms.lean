@@ -8,6 +8,9 @@ import UsdtVerify.Evm.OneWrite
 import UsdtVerify.Usdt.Refill.ApproveS
 import UsdtVerify.Evm.Chain
 import UsdtVerify.Usdt.Refill.OwnerS
+import UsdtVerify.Usdt.Refill.ChainOwner
+import UsdtVerify.Usdt.Refill.ChainTransfer
+import UsdtVerify.Usdt.Refill.ChainFee
 import UsdtVerify.Evm.StepSim
 import UsdtVerify.Usdt.Complete.Deprecated.Meter
 import UsdtVerify.Usdt.Complete.Deprecated.MeterR
@@ -1143,6 +1146,32 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.BlackListSpec.removeBlackList_sgm
 #print axioms UsdtVerify.AddrWriteSpec.ownPre
 #print axioms UsdtVerify.AddrWriteSpec.transferOwnership_sgm
+#print axioms UsdtVerify.Complete.ExactS.run
+#print axioms UsdtVerify.AddrWriteSpec.depPre
+#print axioms UsdtVerify.AddrWriteSpec.depMid
+#print axioms UsdtVerify.AddrWriteSpec.deprecate_sgm
+#print axioms UsdtVerify.IssueSpec.issueW1
+#print axioms UsdtVerify.IssueSpec.issueW2
+#print axioms UsdtVerify.IssueSpec.issue_sgm
+#print axioms UsdtVerify.IssueSpec.redeemW1
+#print axioms UsdtVerify.IssueSpec.redeemW2
+#print axioms UsdtVerify.IssueSpec.redeem_sgm
+#print axioms UsdtVerify.SetParamsSpec.paramsW1
+#print axioms UsdtVerify.SetParamsSpec.paramsW2
+#print axioms UsdtVerify.SetParamsSpec.setParams_sgm
+#print axioms UsdtVerify.DestroySpec.destroyW1
+#print axioms UsdtVerify.DestroySpec.destroyW2
+#print axioms UsdtVerify.DestroySpec.destroyBlackFunds_sgm
+#print axioms UsdtVerify.Complete.getStorage_readSlot
+#print axioms UsdtVerify.TransferOk.bodyW1
+#print axioms UsdtVerify.TransferOk.bodyW2
+#print axioms UsdtVerify.TransferOk.bodyW3
+#print axioms UsdtVerify.TransferOk.transfer_sgm
+#print axioms UsdtVerify.TransferFee.feeW1
+#print axioms UsdtVerify.TransferFee.feeW2
+#print axioms UsdtVerify.TransferFee.feeW3
+#print axioms UsdtVerify.TransferFee.feePost
+#print axioms UsdtVerify.TransferFee.transferFee_sgm
 #print axioms UsdtVerify.Exact.approve_ok_dom
 #print axioms UsdtVerify.Exact.transfer_ok_dom
 #print axioms UsdtVerify.Exact.transferFrom_ok_dom
