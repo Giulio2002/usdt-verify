@@ -394,7 +394,8 @@ of `CODE`, deprecated, for any gas bound and message runner over `StateGasMeter`
   ten owner functions that ends with no error is a call by the owner, deprecated or not, with no
   runner assumption, from reservoir 0 for deprecated destroyBlackFunds and any reservoir otherwise.
 - Still not covered: a reservoir other than 0 when deprecated, the gas left after the CALL
-  (both covered in round 42, below).
+  (covered in round 42 below, the gas as execution gas left plus reservoir, exact for six paths,
+  a lower bound for destroyBlackFunds).
 
 ## The EIP-8037 meter, round 42: any reservoir when deprecated, the gas after the CALL, refills
 
@@ -406,7 +407,8 @@ of `CODE`, deprecated, for any gas bound and message runner over `StateGasMeter`
   reservoir of `m` (`msg.reservoir = m.gas.reservoir`). The caller frame has reservoir 0.
 - The gas after the CALL, in the same theorems. For totalSupply, balanceOf, allowance, transfer,
   approve and transferFrom, the execution gas left plus the reservoir at the end, plus the gas of
-  the tail after the CALL (121, 126, 128, 51, 53, 53), equals the gas before the CALL less the
+  the tail after the CALL (121, 126, 128, 51, 53, 53), equals the execution gas left of the first
+  frame (its reservoir goes to the child with the message) less the path to the CALL and the
   price of the CALL plus the execution gas left and the reservoir that the child returned. For
   destroyBlackFunds the same sum is a lower bound: its two writes after the CALL may refill. The
   split of the sum between execution gas and reservoir is not stated.
@@ -420,7 +422,8 @@ of `CODE`, deprecated, for any gas bound and message runner over `StateGasMeter`
   (`noRefill_of_specA`).
 - Refills (Evm/Dom.lean, `X_ok_dom` in Usdt/Exact/). From Berlin, for the 13 writing functions not
   deprecated, at any reservoir and with no hypothesis on refills: under the guard of
-  `Usdt/Spec/Guards.lean` and the gas of `X_ok_iff` (the one-counter threshold), the run over
+  `Usdt/Spec/Guards.lean` and the gas of `X_ok_iff` (the one-counter threshold, met by the
+  execution gas left of the first frame alone, the reservoir not counted), the run over
   `StateGasMeter` from a frame whose `toNat` is the fresh frame, for any gas bound and message
   runner, ends with no error. Through `Shadow.dom_run`: at every step the execution gas left over
   `StateGasMeter` is at least the gas over `Nat`, since a refill only adds and the state gas comes

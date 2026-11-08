@@ -583,10 +583,11 @@ steps of `SeqRS`). `Security.owner_only_allS` (Usdt/Security/DepMeter.lean): `ow
 Round 42 (Usdt/Complete/Deprecated/MeterR.lean): `Complete.dep_X_completeR` for the seven
 deprecated functions over `StateGasMeter` from any reservoir (`Complete.runC_of_sgmR`). The
 forwarded message carries the reservoir of the first frame. For six paths the execution gas left
-plus the reservoir at the end, plus the gas of the tail, is the gas before the CALL less its price
-plus the execution gas left and the reservoir of the child, and for destroyBlackFunds that sum is a
-lower bound. Round 42 (Usdt/Exact/): `Exact.X_ok_dom` for the 13 writing functions: under the guard
-and the threshold of `X_ok_iff`, a run over `StateGasMeter` at any reservoir ends with no error,
+plus the reservoir at the end, plus the gas of the tail, is the execution gas left of the first
+frame less the path to the CALL and its price, plus the execution gas left and the reservoir of the
+child, and for destroyBlackFunds that sum is a lower bound. Round 42 (Usdt/Exact/):
+`Exact.X_ok_dom` for the 13 writing functions: under the guard and the threshold of `X_ok_iff`, met
+by the execution gas left of the first frame alone (the reservoir not counted), a run over `StateGasMeter` at any reservoir ends with no error,
 with no refill hypothesis (`Shadow.dom_run`). Not covered: the exact threshold and gas when a write
 refills, and the split of the gas between execution gas and reservoir.
 

@@ -1843,7 +1843,7 @@ T1 (third audit), the two items left open in round 41, and the refill cases.
   `noState_cheapE` (a cheap stretch charges no state gas: the charge alone is 97,920), `StepJ`,
   `HoareJ`, `HoareG.toJE`, `HoareG.toJA`, `SpecG.toJA`. `Fwd` now also asks `NoStateAtN`, and
   `low_to_runningC`, `HoareJ.lowC`, `ok_splitC`, `ok_splitCA`, `no_okC` go over `StepJ`. No
-  statement of a deprecated theorem changed for this.
+  statement text changed for this, and `RunC` now exits at more frames.
 - Evm/CallSim.lean: `callStep_child_simR`, `callStep_deep_simR` (CALL over both meters at any
   reservoir: the message over `StateGasMeter` is the message over `Nat` with the reservoir of the
   frame). Evm/StepSimR.lean: `CorrR`, `sim_sstoreStepR`, `sim_of_simulatedR`, `step_simXR` (one
@@ -1855,20 +1855,22 @@ T1 (third audit), the two items left open in round 41, and the refill cases.
   (`noRefill_of_specA`). The Nat theorems `dep_X_complete` and the round 39 `dep_X_completeS`
   keep their statements.
 - Evm/RunCR.lean: `RunSR`, `TailQ`, `runC_of_sgmR`: from Berlin, a run over `StateGasMeter` from
-  any meter gives `RunC` exactly up to the CALL, and after it the gas `G` of the end over `Nat` is
+  any meter gives `RunC`, step for step while the frames are `Fwd` (the `dep_X_completeC` show
+  that the path stays `Fwd` up to the CALL), and after the CALL the gas `G` of the end over `Nat` is
   at most the execution gas left plus the reservoir of the end plus a constant `E`, with equality
   when no frame of the tail refills.
 - Usdt/Complete/Deprecated/MeterR.lean: `dep_X_completeR` for the seven deprecated functions, any
   reservoir, any gas bound and runner over `StateGasMeter`. The message the runner ran carries the
   reservoir of the first frame. For six paths, the execution gas left plus the reservoir at the
-  end plus the gas of the tail is the gas before the CALL less its price plus the execution gas
+  end plus the gas of the tail is the execution gas left of the first frame less the path to the
+  CALL and its price, plus the execution gas
   left and the reservoir of the child. For destroyBlackFunds that is a lower bound.
 - Evm/Dom.lean: `sgm_charges_dom`, `dom_step`, `dom_run`, `runsOkS_of_specG` (a `StepG` run of the
   meter `Nat` is followed over `StateGasMeter` from a frame with the same fields and at least the
   gas, at any reservoir, refills allowed, with at least the gas at each step). Usdt/Exact/:
   `X_ok_dom` for the 13 writing functions: under the guard and the one-counter threshold of
-  `X_ok_iff`, the run over `StateGasMeter` at any reservoir ends with no error, with no refill
-  hypothesis.
+  `X_ok_iff`, met by the execution gas left of the first frame alone (the reservoir not counted),
+  the run over `StateGasMeter` at any reservoir ends with no error, with no refill hypothesis.
 - Item 2 of round 41 (is a reservoir other than 0 impossible to state because of GAS before the
   CALL?): no. No step before the CALL charges state gas, so the execution gas left follows the gas
   of the meter `Nat` exactly at any reservoir, and GAS pushes the same word on both.
