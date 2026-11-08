@@ -1100,9 +1100,11 @@ ends with no error and the contract has an account in its end state".
 - Forks before Berlin. Glamsterdam rests on EthLib's model of that fork at the pin (its prices
   and the order of its checks).
 - Runs under EthLib's EIP-8037 meter `StateGasMeter`, which EthLib's `processTransaction` uses
-  from Glamsterdam, beyond the round-34 results below: frames with a reservoir other than 0, runs
-  where an SSTORE refills state gas, the deprecated paths (their CALL), and the direction "enough
-  gas gives success" (`X_ok_iff`, `X_iff_gas`, `RunsOk`). See docs/STATUS.md (rounds 33 and 34).
+  from Glamsterdam, beyond the results of rounds 34 and 35 below: the deprecated paths (their
+  CALL); the gas of a run with a reservoir other than 0 or with a refill; the exact success
+  condition for the functions other than approve, and for transfer with a fee, and for
+  transferFrom; `process_step` and `goodCall_process` at Glamsterdam. See docs/STATUS.md (rounds
+  33 to 35).
 
 ## The EIP-8037 meter (round 34; UsdtVerify/Evm/Meter.lean, UsdtVerify/Usdt/Meter.lean)
 
@@ -1130,6 +1132,44 @@ ends with no error and the contract has an account in its end state".
   (`hres`), and no SSTORE that the steps reach refills state gas (`hnr`, over every frame that the
   start reaches along `Step`). Neither is derived from the call: `hnr` is not proved for any
   path, and `hres` holds for the first frame of a transaction of at most 2^24 gas.
-- Not covered: the deprecated paths, a reservoir other than 0, runs with a refill, and the
-  direction of `X_ok_iff` and `X_iff_gas` that says enough gas gives success.
+- Not covered by round 34: the deprecated paths, a reservoir other than 0, runs with a refill, and
+  the direction of `X_ok_iff` and `X_iff_gas` that says enough gas gives success.
+
+## The EIP-8037 meter, round 35 (UsdtVerify/Evm/Refill.lean, Evm/Shadow.lean, Usdt/Refill/, Usdt/MeterIff.lean)
+
+- When an SSTORE refills: from Glamsterdam, when it writes 0 over a word that is not 0, in a slot
+  that was 0 at the start of the transaction (EthLib's `sstoreStateRefill`).
+- `Refill.noRefill_cheap`, `Refill.noRefill_one`: over the meter `Nat`, no frame of a `StepG` chain
+  refills, when the two ends of the chain have the same storage (or differ at one word, which does
+  not go from not 0 to 0 while it was 0 before the transaction), the end has no error, and the
+  chain pays less than 97,920 gas (twice that if the word is created). `HoareG.toIA`,
+  `HoareG.toIW`, `sstoreWI` lift triples over `StepG` to `StepI` (steps from frames that refill
+  nothing) under these conditions.
+- `Refill.ends_of_sgmN`: `ends_of_sgm` with `hnr` stated for the run of the meter `Nat` from
+  `toNat m`. `Refill.noRefill_low`: a `StepI` chain from `sh k lo` to a stopped frame gives that
+  hypothesis for the run from `lo`. `Refill.sgm_of_reaches`: a `StepG` chain from `toNat m` to a
+  stopped frame `z`, from reservoir 0 with no refill on the run, gives a run over `StateGasMeter`
+  from `m`, for any gas bound and message runner, that ends in a frame whose `toNat` is `z`.
+- `Shadow.shadow_run`: a run over `StateGasMeter` from `m`, for any gas bound and message runner,
+  that ends with no error is followed, in every field but the gas, by the run of the meter `Nat`
+  from a frame with the fields of `m` and at least `budget m` gas (gas left, reservoir, and 97,920
+  for each unit of the measure): `Ends` holds to a frame with the fields of the end. Any reservoir;
+  SSTORE may refill.
+- `Exact.ok_approve_any`, `ok_transfer_any`, `ok_transferFrom_any`: a run of approve, transfer or
+  transferFrom over `StateGasMeter`, any reservoir, that ends with no error meets the guard
+  (`ApproveGuard`, `TransferGuard`, `TransferFromGuard`), with an empty output and the state and
+  substate of the Nat path. Hypotheses: Berlin ≤ fork, size < 2^256, the selector, not
+  deprecated, `toNat m` the fresh frame of `CODE`.
+- `Exact.approve_iff_gas_sgm`: from reservoir 0, when the write of the allowance refills nothing
+  (`hnr`), the run over `StateGasMeter` ends with no error if and only if `ApproveGuard` holds and
+  the gas is at least `max approveCost approveStip`. `approve_ok_sgm`: then the execution gas left
+  is `gas - approveCost`. The write refills exactly when `v = 0`, the allowance slot was 0 at the
+  start of the transaction, and it is not 0 at the call.
+- `Exact.transfer_iff_gas_sgm`, `transfer_ok_sgm`: the same for transfer with a fee of 0 (`hfee`),
+  when the write of the sender's balance refills nothing (`hnrD`; it refills exactly when that slot
+  was 0 at the start of the transaction, is not 0 at the call, and `v` is the whole balance). The
+  write of the recipient's balance adds without overflow, so it never refills.
+- Not covered: transfer with a fee above 0 and transferFrom in the exact form (their success paths
+  are not lifted to `StepI`), the gas of a run with a reservoir other than 0 or with a refill, the
+  deprecated paths, `process_step` and `goodCall_process` over `StateGasMeter`.
 

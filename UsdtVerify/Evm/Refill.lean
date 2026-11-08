@@ -405,6 +405,148 @@ theorem noRefill_cheap {c y y1 e : Evm fork Nat} (hcy : Reaches (StepG fork) c y
       have := create_gas hglam hye (by rw [oy1]; exact ho) hw (by rw [hsame]; exact hc0)
       omega
 
+/-- From Glamsterdam, a step from a `SimAt` frame that turns a word that was 0 before the
+transaction and is 0 into a word that is not 0 pays at least `STORAGE_SET_STATE_GAS`, and changes
+no other word. -/
+theorem step_create (hg : fork ≥ .glamsterdam) {x y : Evm fork Nat} (h : Step fork x y)
+    (hp : SimAt x) {a : EthLib.Base.Address} {k : EthLib.Base.Bytes32}
+    (ho : x.state.getStorageOriginal a k = 0) (hc : x.state.getStorage a k = 0)
+    (hy : y.state.getStorage a k ≠ 0) :
+    y.gas + STORAGE_SET_STATE_GAS ≤ x.gas ∧
+      ∀ b j, (b ≠ a ∨ j ≠ k) → y.state.getStorage b j = x.state.getStorage b j := by
+  obtain ⟨-, -, ch⟩ := step_store h hp
+  obtain ⟨key, new, rest, hst, rfl, rfl, hw, hgas⟩ := ch _ _ (by rw [hc]; exact hy)
+  refine ⟨?_, fun b j hne => ?_⟩
+  · rw [ho, hc] at hgas
+    have hs : sstoreStateGas fork 0 0 new = STORAGE_SET_STATE_GAS := by
+      unfold sstoreStateGas
+      exact ite_eq_left_iff.mpr fun hn => absurd ⟨hg, rfl, rfl, by rw [← hw]; exact hy⟩ hn
+    omega
+  · apply Classical.byContradiction
+    intro hn
+    obtain ⟨key', _, _, hst', rfl, rfl, -, -⟩ := ch _ _ hn
+    rw [hst] at hst'
+    simp only [List.cons.injEq] at hst'
+    rw [hst'.1] at hne
+    rcases hne with h | h <;> exact h rfl
+
+/-- From Glamsterdam, along `StepG`, turning two different words that were 0 before the
+transaction and are 0 at the first frame into words that are not 0 pays at least twice
+`STORAGE_SET_STATE_GAS`: one step writes one word. -/
+theorem create2_gas (hg : fork ≥ .glamsterdam) {c y : Evm fork Nat}
+    (h : Reaches (StepG fork) c y) {a a' : EthLib.Base.Address} {k k' : EthLib.Base.Bytes32}
+    (hne : a ≠ a' ∨ k ≠ k')
+    (ho : c.state.getStorageOriginal a k = 0) (ho' : c.state.getStorageOriginal a' k' = 0)
+    (hc : c.state.getStorage a k = 0) (hc' : c.state.getStorage a' k' = 0)
+    (hy : y.state.getStorage a k ≠ 0) (hy' : y.state.getStorage a' k' ≠ 0) :
+    y.gas + 2 * STORAGE_SET_STATE_GAS ≤ c.gas := by
+  revert ho ho' hc hc'
+  induction h with
+  | refl => intro _ _ hc _; exact absurd hc hy
+  | step hs hr ih =>
+    rename_i c c1 y
+    intro ho ho' hc hc'
+    obtain ⟨g1, o1, -⟩ := step_store hs.1 hs.2.1
+    by_cases h1 : c1.state.getStorage a k = 0
+    · by_cases h2 : c1.state.getStorage a' k' = 0
+      · have := ih hy hy' (by rw [o1]; exact ho) (by rw [o1]; exact ho') h1 h2
+        omega
+      · obtain ⟨gs, hu⟩ := step_create hg hs.1 hs.2.1 ho' hc' h2
+        have := create_gas hg hr (by rw [o1]; exact ho) h1 hy
+        omega
+    · obtain ⟨gs, hu⟩ := step_create hg hs.1 hs.2.1 ho hc h1
+      have h2 : c1.state.getStorage a' k' = 0 := by
+        rw [hu a' k' (by rcases hne with h | h; exact .inl (Ne.symm h); exact .inr (Ne.symm h))]
+        exact hc'
+      have := create_gas hg hr (by rw [o1]; exact ho') h2 hy'
+      omega
+
+/-- **No refill along a stretch with one write.** A frame `y` that a `StepG` chain passes from
+`c` to `e`, with a step to `y1` from which the chain goes on to `e`, refills nothing at an SSTORE,
+from Glamsterdam, when: the storage at `e` reads as at `c` except at the word `(T, K)`; that word
+does not go from a word that is not 0 at `c` to 0 at `e` while it was 0 before the transaction;
+`e` has no error; and less than `STORAGE_SET_STATE_GAS` is paid from `c` to `e`, or less than
+twice that when the word goes from 0 at `c` to a word that is not 0 at `e` while it was 0 before
+the transaction. -/
+theorem noRefill_one (hglam : fork ≥ .glamsterdam) {c y y1 e : Evm fork Nat}
+    (hcy : Reaches (StepG fork) c y) (hy : StepG fork y y1) (hye : Reaches (StepG fork) y1 e)
+    (herr : e.error = none) {T : EthLib.Base.Address} {K : EthLib.Base.Bytes32}
+    (hsame : ∀ a k, (a ≠ T ∨ k ≠ K) → e.state.getStorage a k = c.state.getStorage a k)
+    (hA : ¬(c.state.getStorageOriginal T K = 0 ∧ c.state.getStorage T K ≠ 0 ∧
+      e.state.getStorage T K = 0))
+    (hgas2 : c.gas < e.gas + 2 * STORAGE_SET_STATE_GAS)
+    (hgas1 : ¬(c.state.getStorageOriginal T K = 0 ∧ c.state.getStorage T K = 0 ∧
+      e.state.getStorage T K ≠ 0) → c.gas < e.gas + STORAGE_SET_STATE_GAS) :
+    NoRefillAtN y := by
+  intro hlt hop key new rest hst
+  apply Classical.byContradiction
+  intro hR
+  obtain ⟨-, ho, hcur, hnew⟩ := sstoreStateRefill_ne_zero hR
+  obtain ⟨gcy, ocy⟩ := chain_store hcy
+  obtain ⟨gye, oye⟩ := chain_store hye
+  obtain ⟨gy1, oy1, chy⟩ := step_store hy.1 hy.2.1
+  generalize hP : y.message.currentTarget = a at ho hcur hst
+  generalize hK : key.toBeBytes = k at ho hcur
+  have hoc : c.state.getStorageOriginal a k = 0 := by rw [← ocy]; exact ho
+  have hy1 : y1.state.getStorage a k = 0 := by
+    rcases step_sstore hy.1 hlt hop hst with ⟨hr1, he1⟩ | hw
+    · have := reaches_stopped (reaches_toStep hye) hr1
+      rw [this] at herr
+      exact absurd herr he1
+    · rw [← hP, ← hK, hw, hnew]
+  have hoy1 : y1.state.getStorageOriginal a k = 0 := by rw [oy1]; exact ho
+  have hS := Nat.zero_lt_succ 0
+  by_cases hPT : a = T ∧ k = K
+  · obtain ⟨rfl, rfl⟩ := hPT
+    by_cases hc0 : c.state.getStorage a k = 0
+    · have h1 := create_gas hglam hcy hoc hc0 hcur
+      by_cases he0 : e.state.getStorage a k = 0
+      · have := hgas1 fun h => h.2.2 he0
+        omega
+      · have h2 := create_gas hglam hye hoy1 hy1 he0
+        omega
+    · by_cases he0 : e.state.getStorage a k = 0
+      · exact hA ⟨hoc, hc0, he0⟩
+      · have h2 := create_gas hglam hye hoy1 hy1 he0
+        have := hgas1 fun h => hc0 h.2.1
+        omega
+  · have hne : a ≠ T ∨ k ≠ K := by
+      by_cases ha : a = T
+      · exact .inr fun hk => hPT ⟨ha, hk⟩
+      · exact .inl ha
+    have hek := hsame a k hne
+    by_cases hcr : c.state.getStorageOriginal T K = 0 ∧ c.state.getStorage T K = 0 ∧
+        e.state.getStorage T K ≠ 0
+    · obtain ⟨hoQ, hcQ, heQ⟩ := hcr
+      have hy1Q : y1.state.getStorage T K = y.state.getStorage T K := by
+        apply Classical.byContradiction
+        intro hn
+        obtain ⟨key', _, _, hst', rfl, rfl, -, -⟩ := chy _ _ hn
+        rw [hst] at hst'
+        simp only [List.cons.injEq] at hst'
+        rw [← hst'.1, hK] at hPT
+        exact hPT ⟨hP.symm, rfl⟩
+      by_cases hyQ : y.state.getStorage T K = 0
+      · have hQ := create_gas hglam hye (by rw [oy1, ocy]; exact hoQ) (by rw [hy1Q]; exact hyQ) heQ
+        by_cases hc0 : c.state.getStorage a k = 0
+        · have := create_gas hglam hcy hoc hc0 hcur
+          omega
+        · have := create2_gas hglam hye hne hoy1 (by rw [oy1, ocy]; exact hoQ) hy1
+            (by rw [hy1Q]; exact hyQ) (by rw [hek]; exact hc0) heQ
+          omega
+      · by_cases hc0 : c.state.getStorage a k = 0
+        · have := create2_gas hglam hcy hne hoc hoQ hc0 hcQ hcur hyQ
+          omega
+        · have h1 := create_gas hglam hcy hoQ hcQ hyQ
+          have h2 := create_gas hglam hye hoy1 hy1 (by rw [hek]; exact hc0)
+          omega
+    · have := hgas1 hcr
+      by_cases hc0 : c.state.getStorage a k = 0
+      · have := create_gas hglam hcy hoc hc0 hcur
+        omega
+      · have := create_gas hglam hye hoy1 hy1 (by rw [hek]; exact hc0)
+        omega
+
 /-! ## Triples whose steps refill nothing -/
 
 /-- A step over `StepG` from a frame where an SSTORE refills nothing. -/
@@ -473,6 +615,79 @@ theorem SpecG.toIA {code : ByteArray} {message : Message fork} {pc : Nat}
   SpecG.toI h fun c e hc he => by
     rw [hc.2.2.2.2.2.2.1, he.2.2.2.1, he.2.2.2.2.1, he.2.1, hc.2.2.2.2.2.2.2.2.2.2.1]
     exact ⟨hg, rfl, hs⟩
+
+theorem if_pos' {p : Prop} [Decidable p] {α : Type} {a b : α} (h : p) :
+    (if p then a else b) = a := by simp [h]
+
+/-- Before Glamsterdam, every triple over `StepG` is one over `StepI`. -/
+theorem HoareG.toI_lt (hlt : fork < .glamsterdam) {P Q : Evm fork Nat → Prop}
+    (h : HoareG fork P Q) : HoareI fork P Q := fun c hp =>
+  let ⟨e, hr, hq⟩ := h c hp
+  ⟨e, reaches_liftI hr fun y _ _ _ _ => noRefillAtN_of_lt hlt y, hq⟩
+
+/-- From Glamsterdam, the price of a write is at most 12,100 and its state gas. -/
+theorem writeCost_le_glam (hg : fork ≥ .glamsterdam) (o c w : U256) (cold : Bool) :
+    writeCost fork o c w cold ≤ 12100 + sstoreStateGas fork o c w := by
+  simp only [writeCost, sstoreCost, hg, ↓reduceIte, COLD_STORAGE_ACCESS, WARM_ACCESS,
+    STORAGE_WRITE]
+  cases cold <;> simp only [Bool.false_eq_true, ↓reduceIte] <;> split <;> omega
+
+/-- **A stretch with one write.** A triple over `StepG` between two `At` frames, whose second
+state is the first one with slot `n` of `T` written to `w`, is one over `StepI` when the write
+refills nothing, `T` has an account, and the stretch pays the price of the write and at most
+80,000 more. -/
+theorem HoareG.toIW {code code' : ByteArray} {message message' : Message fork} {pc pc' : Nat}
+    {stack stack' : List U256} {memory memory' : ByteArray} {g d : Nat}
+    {st : State.TransactionState} {ss ss' : Substate} {T : EthLib.Base.Address} {n w : U256}
+    {cold : Bool}
+    (h : HoareG fork (At code message pc stack memory g st ss)
+      (At code' message' pc' stack' memory'
+        (g - (d + writeCost fork (originalAt st T n) (storageAt st T n) w cold))
+        (writeSlot st T n w) ss'))
+    (hd : d ≤ 80000) (hacc : hasAccount st T)
+    (hle : d + writeCost fork (originalAt st T n) (storageAt st T n) w cold ≤ g)
+    (hnr : sstoreStateRefill fork (originalAt st T n) (storageAt st T n) w = 0) :
+    HoareI fork (At code message pc stack memory g st ss)
+      (At code' message' pc' stack' memory'
+        (g - (d + writeCost fork (originalAt st T n) (storageAt st T n) w cold))
+        (writeSlot st T n w) ss') := by
+  by_cases hglam : fork ≥ .glamsterdam
+  · intro c hp
+    obtain ⟨e, hr, hq⟩ := h c hp
+    have hcs := hp.2.2.2.2.2.2.2.2.2.2.1
+    have hcg := hp.2.2.2.2.2.2.1
+    have hes := hq.2.2.2.2.2.2.2.2.2.2.1
+    have heg := hq.2.2.2.2.2.2.1
+    have herr := hq.2.2.2.2.2.2.2.2.1
+    have hw : e.state.getStorage T (U256.toBeBytes n) = w := by
+      rw [hes]; exact storageAt_writeSlot_self hacc
+    have hsame : ∀ a k, (a ≠ T ∨ k ≠ U256.toBeBytes n) →
+        e.state.getStorage a k = c.state.getStorage a k := by
+      intro a k hne
+      rw [hes, hcs, State.TransactionState.getStorage_setStorage_of_ne (setStorage_writeSlot hacc)
+        hne]
+      rfl
+    have hwc := writeCost_le_glam hglam (originalAt st T n) (storageAt st T n) w cold
+    have hS : STORAGE_SET_STATE_GAS = 97920 := rfl
+    have hsg : sstoreStateGas fork (originalAt st T n) (storageAt st T n) w ≤ 97920 := by
+      unfold sstoreStateGas; split <;> simp [STORAGE_SET_STATE_GAS, STATE_BYTES_PER_STORAGE_SET, CPSB]
+    refine ⟨e, reaches_liftI hr fun y y1 hcy hy hye =>
+      noRefill_one hglam hcy hy hye herr hsame ?_ ?_ ?_, hq⟩
+    · rw [hcs, hw]
+      rintro ⟨h1, h2, h3⟩
+      have : sstoreStateRefill fork (originalAt st T n) (storageAt st T n) w ≠ 0 := by
+        unfold sstoreStateRefill
+        rw [if_pos' ⟨hglam, h1, h2, h3⟩]
+        decide
+      exact this hnr
+    · rw [hcg, heg]; omega
+    · rw [hcs, hw, hcg, heg]
+      intro hn
+      have : sstoreStateGas fork (originalAt st T n) (storageAt st T n) w = 0 := by
+        unfold sstoreStateGas
+        exact ite_eq_right_iff.mpr fun h => absurd ⟨h.2.1, h.2.2.1, h.2.2.2⟩ hn
+      omega
+  · exact HoareG.toI_lt (Nat.lt_of_not_le hglam) h
 
 /-- **The frames of a run that refill nothing.** If a `StepI` chain goes from `sh k lo` to a
 stopped frame, then every running frame that `lo` reaches along `Step` refills nothing. The run

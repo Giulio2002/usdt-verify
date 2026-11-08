@@ -1650,12 +1650,39 @@ T1 (third audit), the route of round 33, in part.
   carried to `StateGasMeter`, which `step_sim` gives, and a runner-free run, not written);
   `process_step` and `goodCall_process` over `processMessage` at `StateGasMeter`.
 
+### Round 35: refills located, the converse over the EIP-8037 meter (Evm/Refill.lean, Evm/Shadow.lean, Usdt/Refill/, Usdt/MeterIff.lean)
+
+T1 (third audit), continued.
+- Evm/Refill.lean: `NoRefillN`, `NoRefillAtN` (the Nat forms of `NoRefill`, `NoRefillAt`);
+  `sstoreStep_cases`, `instr_same`, `step_store` (a step from a `SimAt` frame keeps the original
+  words, does not raise the gas, and changes a word only as its SSTORE, paying its state gas);
+  `create_gas`, `step_create`, `create2_gas` (turning one or two words that were 0 before the
+  transaction into words that are not 0 pays 97,920 each); `noRefill_cheap`, `noRefill_one`;
+  `StepI`, `HoareI`, `HoareG.toI`, `HoareG.toIA`, `SpecG.toIA`, `HoareG.toIW`, `HoareG.toI_lt`,
+  `At.ruleI`, `sstoreWI`; `noRefill_low`, `noRefill_run`; `ends_of_sgmN`; `sgm_of_reaches`.
+- Evm/Shadow.lean: `SstoreOk`, `sstoreAfter`, `sstoreOk_of_step`, `sstoreStep_of_ok` (for any
+  meter, from Berlin); `runMono_of_simulated`, `lifts_of_simulated`; `budget`, `shadow_step`,
+  `shadow_run`; `RunsOkS`, `shadow_ends`, `runFrame_of_specI`, `ends_of_specI`.
+- Usdt/Refill/Approve.lean: `storeI`, `suffixAI`, `spec_zeroI` (with `hnr`), `spec_setI` (no
+  hypothesis: a write of a word other than 0 never refills, `refill_of_ne`).
+- Usdt/Refill/Transfer.lean: `bodyI`, `spec_okI` (fee 0, with `hnrD`); `refill_add` (the credit
+  never refills); the tactics `cheap`, `same_store`, `stepC`.
+- Usdt/MeterIff.lean: `ok_approve_any`, `ok_transfer_any`, `ok_transferFrom_any` (any reservoir);
+  `approve_specI`, `approve_ok_sgm`, `approve_iff_gas_sgm`; `stip1_le_stip2`, `transfer_specI`,
+  `transfer_ok_sgm`, `transfer_iff_gas_sgm` (reservoir 0, fee 0).
+- Not done: the fee path of transfer (`bodyFee`, `feeHead`, `ownerPart`) and transferFrom over
+  `StepI`, so their exact forms; `process_step` / `goodCall_process` over `StateGasMeter`; the gas
+  of a run with a reservoir other than 0.
+
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
   Glamsterdam (third audit, T1; rounds 33 and 34 above). Round 34 covers the completeness
   theorems not deprecated and `inv_call`, for a frame with reservoir 0 and runs where no SSTORE
-  refills (`hnr`, not proved for any path). Not covered: the deprecated paths, a reservoir other
-  than 0, the "enough gas" direction of `X_ok_iff` / `X_iff_gas`, and `process_step` /
+  refills (`hnr`). Round 35 derives `hnr` for approve and transfer with a fee of 0 (one hypothesis
+  on the start state for the write that can refill), proves their exact success condition over
+  `StateGasMeter` from reservoir 0, and gives the guard and the effects of approve, transfer and
+  transferFrom at any reservoir. Not covered: the deprecated paths, the gas at a reservoir other
+  than 0, the exact forms of transfer with a fee and of transferFrom, and `process_step` /
   `goodCall_process` over `StateGasMeter`.
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
@@ -1813,6 +1840,10 @@ T1 (third audit), the route of round 33, in part.
    a fork-generic `callWith`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+Round 35: clean project build (`rm -rf .lake/build`, LEAN_NUM_THREADS=2, safe.sh 9G) 142.97 s
+wall, 1765408768 bytes max RSS (/usr/bin/time -l), exit 0, 0 "error:" lines, 1407 jobs, 871
+`#print axioms` lines: 841 [propext, Classical.choice, Quot.sound], 20 [propext, Quot.sound],
+10 [propext].
 - Round 34 (tree of commit 5224fdd, rm -rf .lake/build, EthLib oleans prebuilt,
   `lake build UsdtVerify UsdtVerify.Test.Axioms` under `safe.sh -m 9G`): 109.30 s wall, 362.78 s
   user, 1773879296 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines, 1402 jobs. Hash

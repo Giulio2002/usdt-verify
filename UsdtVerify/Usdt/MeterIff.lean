@@ -1,6 +1,9 @@
 import UsdtVerify.Usdt.Refill.Approve
 import UsdtVerify.Usdt.Exact.Approve
 import UsdtVerify.Evm.Shadow
+import UsdtVerify.Usdt.Refill.Transfer
+import UsdtVerify.Usdt.Exact.Transfer
+import UsdtVerify.Usdt.Exact.TransferFrom
 
 /-!
 # Exact success conditions over EthLib's EIP-8037 meter
@@ -16,9 +19,16 @@ with `gas` gas.
   (`hnr`), the run ends with no error if and only if `ApproveGuard` holds and the gas is at least
   the larger of `approveCost` and `approveStip`.
 - `approve_ok_sgm`: in that case, the execution gas left is `gas - approveCost`.
+- `ok_transfer_any`, `ok_transferFrom_any`: as `ok_approve_any`, for `transfer` and
+  `transferFrom`, with `TransferGuard` and `TransferFromGuard`.
+- `transfer_iff_gas_sgm`, `transfer_ok_sgm`: as for `approve`, for `transfer` with a fee of 0
+  (`hfee`), when the write of the sender's balance refills nothing (`hnrD`). The write of the
+  recipient's balance adds to it without overflow, so it never refills. Not proved: the fee path.
 
 The write of `approve(s, v)` refills, from Glamsterdam, exactly when `v = 0`, the allowance slot
-was 0 at the start of the transaction, and it is not 0 at the call (`sstoreStateRefill`).
+was 0 at the start of the transaction, and it is not 0 at the call (`sstoreStateRefill`). The
+write of the sender's balance in `transfer(a, v)` refills exactly when that slot was 0 at the start
+of the transaction, is not 0 at the call, and `v` is the whole balance.
 -/
 
 namespace UsdtVerify.Exact
@@ -183,5 +193,208 @@ theorem approve_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound) :
     exact ⟨s, hs, he⟩
 
 end
+
+
+section Transfer
+
+open Transfer TransferOk TransferFee SafeMath
+
+/-- **transfer over the EIP-8037 meter, any reservoir.** A run of the loop over `StateGasMeter`
+from `m`, for any gas bound and message runner, that ends with no error meets `TransferGuard`;
+its output is empty, and its state and substate are those of the path of `ok_transfer`. -/
+theorem ok_transfer_any (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
+    (hsel : selector message.data = 0xa9059cbb)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    (start : At CODE message 0 [] .empty gas state substate (toNat m))
+    {within : GasMeter.gasHeld m.gas ≤ bound}
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild m within = .ok s)
+    (hok : s.error = none) :
+    TransferGuard state message ∧ s.output = .empty ∧
+      ((feeOf (shortState state message) message (wordArg message.data 1) = 0 ∧
+        s.state = credited (shortState state message) message (wordArg message.data 1)
+          (addrArg message.data 0) ∧
+        s.substate = loggedSub fork (shortSubstate substate message) (shortState state message)
+          message (wordArg message.data 1) (addrArg message.data 0)) ∨
+      (feeOf (shortState state message) message (wordArg message.data 1) ≠ 0 ∧
+        s.state = feeState (shortState state message) message (wordArg message.data 1)
+          (addrArg message.data 0) ∧
+        s.substate = feeSub fork (shortSubstate substate message) (shortState state message)
+          message (wordArg message.data 1) (addrArg message.data 0))) := by
+  obtain ⟨G, hE⟩ := shadow_ends hfork hrun hok
+  have st' := at_sh start (budget m)
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' st' hE hok
+  obtain ⟨hst, hacc, hl, hp, hb, hov, hfv, hbal, hto, ho, h⟩ :=
+    ok_transfer hfork hsize' hsel hdep rfl rfl rfl rfl rfl rfl rfl rfl st' hE hok
+  refine ⟨⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hl, hp, hb, hov, hfv, hbal, hto, fun hfee => ?_⟩, ho, ?_⟩
+  · rcases h with ⟨h0, -⟩ | ⟨-, hown, -⟩
+    · exact absurd h0 hfee
+    · exact hown
+  · rcases h with ⟨h0, -, hs, hss⟩ | ⟨h0, -, -, hs, hss⟩
+    · exact .inl ⟨h0, hs, hss⟩
+    · exact .inr ⟨h0, hs, hss⟩
+
+theorem stip1_le_stip2 (fork : Fork) (state : State.TransactionState) (message : Message fork)
+    (c0 cB c10 c3 c4 cS cT : Bool) :
+    transferStip1 state message c0 cB c10 c3 c4 cS ≤
+      transferStip2 fork state message c0 cB c10 c3 c4 cS cT := by
+  simp only [transferStip1, transferStip2, readCost]
+  omega
+
+section
+
+variable (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
+  (hsel : selector message.data = 0xa9059cbb)
+  (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+  {c0 cB c10 c3 c4 cS cT cO : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
+  (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
+    (blackSlot message) = cB)
+  (hc10 : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
+    (blackSlot message)) message.currentTarget 10 = c10)
+  (hc3 : coldIn (shortSubstate substate message) message.currentTarget 3 = c3)
+  (hc4 : coldIn (accessSlot (shortSubstate substate message) message.currentTarget 3)
+    message.currentTarget 4 = c4)
+  (hcS : coldIn (accessSlot (accessSlot (shortSubstate substate message) message.currentTarget 3)
+    message.currentTarget 4) message.currentTarget (senderSlot message) = cS)
+  (hcT : coldIn (access3 (shortSubstate substate message) message) message.currentTarget
+    (recipientSlot (addrArg message.data 0)) = cT)
+  (hcO : coldIn (creditedSubFee fork (shortSubstate substate message) (shortState state message)
+    message (wordArg message.data 1) (addrArg message.data 0)) message.currentTarget
+    (ownerSlot (ownerWord (shortState state message) message (wordArg message.data 1)
+      (addrArg message.data 0))) = cO)
+  (start : At CODE message 0 [] .empty gas state substate (toNat m))
+  (hres : m.gas.reservoir = 0)
+  (hfee : feeOf (shortState state message) message (wordArg message.data 1) = 0)
+  (hnrD : sstoreStateRefill fork (originalAt state message.currentTarget (senderSlot message))
+    (balS (shortState state message) message)
+    (sub (balS (shortState state message) message) (wordArg message.data 1)) = 0)
+include hfork hsize' hsel hdep hc0 hcB hc10 hc3 hc4 hcS hcT hcO start hres hfee hnrD
+
+omit hcO start hres in
+/-- The success path of `transfer` with a fee of 0 over `StepI`. -/
+theorem transfer_specI (hG : TransferGuard state message) {g : Nat}
+    (hm : max (transferCost fork state message c0 cB c10 c3 c4 cS cT cO)
+      (transferStip fork state message c0 cB c10 c3 c4 cS cT) ≤ g) :
+    HoareI fork (At CODE message 0 [] .empty g state substate)
+      (fun e => e.running = false ∧
+        Halted false .empty (g - transferCost fork state message c0 cB c10 c3 c4 cS cT cO)
+          e.state e.substate e) := by
+  obtain ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hl, hp, hb, hov, hfv, hbal, hto, -⟩ := hG
+  obtain ⟨hc, hs⟩ := Nat.max_le.mp hm
+  simp only [transferCost, transferStip, hfee, ↓reduceIte] at hc hs
+  have h1 : transferStip1 state message c0 cB c10 c3 c4 cS ≤ g :=
+    Nat.le_trans (stip1_le_stip2 fork state message c0 cB c10 c3 c4 cS cT) hs
+  rw [sendOf_zero hfee] at hto
+  refine (spec_okI hfork hst hacc hl hsize' hsel hv hp hb hdep hov hfee hbal hto hc0 hcB hc10
+    hc3 hc4 hcS hcT hnrD h1 hs hc).consequence (fun _ h => h) ?_
+  rintro e ⟨hr, h1, h2, h3, h4, -, -⟩
+  simp only [transferCost, hfee, ↓reduceIte]
+  exact ⟨hr, h1, h2, h3, h4, rfl, rfl⟩
+
+omit hcO in
+/-- **transfer over the EIP-8037 meter, with a fee of 0 and enough gas.** From reservoir 0, when
+the write of the sender's balance refills nothing (`hnrD`), under `TransferGuard` with a fee of 0
+and with at least the larger of `transferCost` and `transferStip` gas, the loop over
+`StateGasMeter`, for any gas bound and message runner, ends with no error and
+`gas - transferCost` execution gas left. -/
+theorem transfer_ok_sgm (hG : TransferGuard state message)
+    (hm : max (transferCost fork state message c0 cB c10 c3 c4 cS cT cO)
+      (transferStip fork state message c0 cB c10 c3 c4 cS cT) ≤ gas)
+    (within : GasMeter.gasHeld m.gas ≤ bound) :
+    ∃ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild m within = .ok s ∧
+      s.error = none ∧
+      s.gas.gasLeft = gas - transferCost fork state message c0 cB c10 c3 c4 cS cT cO := by
+  obtain ⟨s, hs, -, he, -, hg, -⟩ := runFrame_of_specI
+    (transfer_specI hfork hsize' hsel hdep hc0 hcB hc10 hc3 hc4 hcS hcT hfee hnrD hG hm)
+    start hres within
+  exact ⟨s, hs, he, hg⟩
+
+/-- **transfer over the EIP-8037 meter: the exact success condition with a fee of 0.** From
+reservoir 0, with a fee of 0, when the write of the sender's balance refills nothing (`hnrD`), the
+loop over `StateGasMeter`, for any gas bound and message runner, ends with no error if and only if
+`TransferGuard` holds and the gas is at least the larger of `transferCost` and `transferStip`. -/
+theorem transfer_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound) :
+    RunsOkS fork bound runChild m within ↔ TransferGuard state message ∧
+      max (transferCost fork state message c0 cB c10 c3 c4 cS cT cO)
+        (transferStip fork state message c0 cB c10 c3 c4 cS cT) ≤ gas := by
+  constructor
+  · rintro ⟨s, hs, hok⟩
+    have hG := (ok_transfer_any hfork hsize' hsel hdep start hs hok).1
+    have hE : Ends fork (toNat m) (toNat s) :=
+      ends_of_specI (transfer_specI hfork hsize' hsel hdep hc0 hcB hc10 hc3 hc4 hcS hcT
+        hfee hnrD hG (g := gas + max (transferCost fork state message c0 cB c10 c3 c4 cS cT cO)
+          (transferStip fork state message c0 cB c10 c3 c4 cS cT)) (Nat.le_add_left _ _))
+        (at_sh start _) hres hs
+    have hc : okCost fork state message c0 cB c10 c3 c4 cS cT ≤ gas := by
+      obtain ⟨-, -, -, -, -, -, -, -, -, -, h⟩ :=
+        ok_transfer hfork hsize' hsel hdep hc0 hcB hc10 hc3 hc4 hcS hcT hcO start hE hok
+      rcases h with ⟨-, ⟨hc, -⟩, -⟩ | ⟨h0, -⟩
+      · exact hc
+      · exact absurd hfee h0
+    obtain ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hl, hp, hb, hov, hfv, hbal, hto, -⟩ := id hG
+    refine ⟨hG, Nat.max_le.mpr ⟨?_, ?_⟩⟩
+    · simp only [transferCost, hfee, ↓reduceIte]
+      exact hc
+    · simp only [transferStip, hfee, ↓reduceIte]
+      refine Nat.le_of_not_lt fun hlt => ?_
+      simp only [transferStip2, okCost, readCost] at hlt hc
+      by_cases h1 : gas < transferStip1 state message c0 cB c10 c3 c4 cS
+      · simp only [transferStip1] at h1
+        exact no_ok_stuck_atE (bad_transfer hfork hl hsize' hsel hv hp hb hdep hov hfv hbal hc0
+          hcB hc10 hc3 hc4 hcS (.of_low hfork (by omega)) (by omega)) start hE hok
+      · simp only [transferStip1] at h1
+        rw [sendOf_zero hfee] at hto
+        exact no_ok_stuck_atE (low_transfer2 hfork hst hacc hl hsize' hsel hv hp hb hdep hov hfee
+          hbal hto hc0 hcB hc10 hc3 hc4 hcS hcT (by omega) (by simp only [readCost]; omega)
+          (by simp only [readCost]; omega)) start hE hok
+  · rintro ⟨hG, hm⟩
+    obtain ⟨s, hs, he, -⟩ := transfer_ok_sgm hfork hsize' hsel hdep hc0 hcB hc10 hc3 hc4 hcS hcT
+      start hres hfee hnrD hG hm within
+    exact ⟨s, hs, he⟩
+
+end
+
+end Transfer
+
+section TransferFrom
+
+open Transfer TransferOk TransferFee SafeMath TransferFrom
+
+/-- **transferFrom over the EIP-8037 meter, any reservoir.** A run of the loop over
+`StateGasMeter` from `m`, for any gas bound and message runner, that ends with no error meets
+`TransferFromGuard`; its output is empty, and its state and substate are those of the path of
+`ok_transferFrom`. -/
+theorem ok_transferFrom_any (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
+    (hsel : selector message.data = 0x23b872dd)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    (start : At CODE message 0 [] .empty gas state substate (toNat m))
+    {within : GasMeter.gasHeld m.gas ≤ bound}
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild m within = .ok s)
+    (hok : s.error = none) :
+    TransferFromGuard state message ∧ s.output = .empty ∧
+      ((feeOf (checkState state message) message (valArg message) = 0 ∧
+        s.state = creditedF (checkState state message) message (valArg message) (toArg message)
+          (fromArg message) ∧
+        s.substate = loggedSubF fork (checkSub substate message) (checkState state message)
+          message (valArg message) (toArg message) (fromArg message)) ∨
+      (feeOf (checkState state message) message (valArg message) ≠ 0 ∧
+        s.state = feeStateF (checkState state message) message (valArg message) (toArg message)
+          (fromArg message) ∧
+        s.substate = feeSubF fork (checkSub substate message) (checkState state message) message
+          (valArg message) (toArg message) (fromArg message))) := by
+  obtain ⟨G, hE⟩ := shadow_ends hfork hrun hok
+  have st' := at_sh start (budget m)
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' st' hE hok
+  obtain ⟨hst, hacc, hl, hp, hb, hov, hallow, hfv, hbal, hto, ho, h⟩ :=
+    ok_transferFrom hfork hsize' hsel hdep rfl rfl rfl rfl rfl rfl rfl rfl rfl st' hE hok
+  refine ⟨⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hl, hp, hb, hov, hallow, hfv, hbal, hto, fun hfee => ?_⟩, ho,
+    ?_⟩
+  · rcases h with ⟨h0, -⟩ | ⟨-, hown, -⟩
+    · exact absurd h0 hfee
+    · exact hown
+  · rcases h with ⟨h0, -, hs, hss⟩ | ⟨h0, -, -, hs, hss⟩
+    · exact .inl ⟨h0, hs, hss⟩
+    · exact .inr ⟨h0, hs, hss⟩
+
+end TransferFrom
 
 end UsdtVerify.Exact

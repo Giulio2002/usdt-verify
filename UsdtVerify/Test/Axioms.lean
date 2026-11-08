@@ -950,3 +950,12 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Exact.ok_approve_any
 #print axioms UsdtVerify.Exact.approve_ok_sgm
 #print axioms UsdtVerify.Exact.approve_iff_gas_sgm
+#print axioms UsdtVerify.Refill.create2_gas
+#print axioms UsdtVerify.Refill.noRefill_one
+#print axioms UsdtVerify.Refill.HoareG.toIW
+#print axioms UsdtVerify.TransferOk.bodyI
+#print axioms UsdtVerify.TransferOk.spec_okI
+#print axioms UsdtVerify.Exact.ok_transfer_any
+#print axioms UsdtVerify.Exact.transfer_ok_sgm
+#print axioms UsdtVerify.Exact.transfer_iff_gas_sgm
+#print axioms UsdtVerify.Exact.ok_transferFrom_any

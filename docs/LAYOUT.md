@@ -18,6 +18,8 @@ Where to look:
 No file there imports a file outside `Evm/`.
 
 - `Gas.lean`, `GasRules.lean`: runs with less gas (`StepG`, `HoareG`, `SpecG`), and the opcode rules over `StepG`.
+- `Refill.lean` (round 35): where SSTORE refills over the meter `Nat` (`step_store`, `create_gas`, `create2_gas`, `noRefill_cheap`, `noRefill_one`), `StepI` / `HoareI` and the lifts `HoareG.toIA`, `HoareG.toIW`, `sstoreWI`, `noRefill_low`, `ends_of_sgmN`, `sgm_of_reaches`.
+- `Shadow.lean` (round 35): `SstoreOk`, `sstoreAfter`, `runMono_of_simulated`, `lifts_of_simulated`, `budget`, `shadow_step`, `shadow_run` (a StateGasMeter run followed by a Nat run with more gas), `RunsOkS`, `runFrame_of_specI`, `ends_of_specI`.
 - `Meter.lean` (round 34): the EIP-8037 meter `StateGasMeter` against `Nat`: `toNat`, `lift`, `Lifts` (the instructions that charge only execution gas), `sim_sstoreStep`, `step_sim` (one step, reservoir 0, no refill), `ends_of_sgm` (a run gives `Ends`), `allocateGas_reservoir`. `Gas.lean` holds `simulated`, `SimAt` (in `GasMono` and `Stuck` since round 34) and `Ends` with the `E` forms of the primitives (`low_of_reachesE`, `SpecG.lowE`, ...; `Exact.lean` and `Stuck.lean` have `ok_exactE`, `no_okE`, `no_ok_stuckE`, ...).
 - `Stuck.lean`: an SSTORE that cannot complete (static frame, or no account; round 26: at most 2300 gas left from Istanbul, `NoWrite`, `sstore_low_stuck`).
 - `Storage.lean`, `Write.lean`: slots, reads and writes (`storageAt`, `readSlot`, `writeSlot`, `mapSlot`, `byte20`).
@@ -51,6 +53,8 @@ No file there imports a file outside `Evm/`.
 - `Complete/`: completeness, every successful run with any gas follows the specification: `Dispatch` (the dispatcher), `Read` (totalSupply, balanceOf), `Transfer`, `Approve`, `TransferFrom`, `Owner` (the ten owner functions), `Getters` (the getters, name and symbol).
   `Complete/Deprecated/` for the deprecated paths: `Call` (the steps from EXTCODESIZE on, for `CODE`), `TotalSupply`, `BalanceOf`, `Transfer` (transfer, approve, transferFrom), `Allowance`, `Destroy`.
 - `Meter.lean` (round 34): the results not deprecated over EthLib's EIP-8037 meter: `inv_call_sgm`, `ok_transfer_sgm`, `ok_approve_sgm`, `ok_transferFrom_sgm`.
+- `Refill/Approve.lean`, `Refill/Transfer.lean` (round 35): the success paths of approve and of transfer with a fee of 0 over `StepI` (`spec_zeroI`, `spec_setI`, `bodyI`, `spec_okI`).
+- `MeterIff.lean` (round 35): `ok_approve_any`, `ok_transfer_any`, `ok_transferFrom_any` (any reservoir), `approve_iff_gas_sgm`, `approve_ok_sgm`, `transfer_iff_gas_sgm`, `transfer_ok_sgm` (reservoir 0, no refill).
 - `Invariant/`: `Supply.lean` (the invariant and its effects; the keccak hypotheses `SepOn`, `FixedSep`, `UniqBal`, `NotBal` and the keys of a call `callKeys`, round 29), `Calls.lean` (every successful call, not deprecated), `DeprecatedDestroy.lean`, `All.lean` (deprecated or not; round 33: `keepsInvAt_of_acc`), `Static.lean` (static frames), `Seq.lean` (a finite sequence of calls).
 
 - `Security/`: `Effect.lean` (what every successful call, not deprecated, does to the storage: `Effect`, `effect_call`; the slot classes; the keccak hypothesis `SecSep` and the keyed write class `KeyBA` (round 29); sequences `Seq` and `seq_lift`), `Access.lean` (access control), `Pause.lean` (no balance moves while paused), `Blacklist.lean` (a blacklisted address cannot lower its balance), `Allowance.lean` (transferFrom within the allowance; only approve and transferFrom change allowances), `Supply.lean` (`_totalSupply` changes only through issue, redeem and destroyBlackFunds).

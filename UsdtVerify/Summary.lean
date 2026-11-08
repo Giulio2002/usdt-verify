@@ -43,7 +43,7 @@ All theorems are about the 11075-byte runtime code `CODE` (data/usdt.runtime.hex
 EthLib's EVM semantics from pc 0 in a fresh frame (`At CODE message 0 [] .empty gas state
 substate`), for every fork from Berlin on, with EthLib's one-counter gas meter `Nat` (EthLib runs
 transactions with it up to BPO5; from Glamsterdam it runs them with the EIP-8037 `StateGasMeter`,
-which only the round-34 theorems of Usdt/Meter.lean cover). The paths that write storage hold from Berlin on,
+which only the theorems of Usdt/Meter.lean and Usdt/MeterIff.lean cover). The paths that write storage hold from Berlin on,
 Glamsterdam included, since round 17: each SSTORE costs `Gas.writeCost` (`sstoreCost` plus the
 state gas of a new slot, `sstoreStateGas`, 0 before Glamsterdam), by the local rule
 `Gas.sstoreWG`. The deprecated paths hold at the same forks since round 19: EXTCODESIZE costs
@@ -527,6 +527,11 @@ Round 34: the completeness theorems not deprecated and `Complete.inv_call` take
 over `StateGasMeter` meets from a reservoir of 0 with no SSTORE refill (`Meter.ends_of_sgm`).
 `Complete.inv_call_sgm`, `Complete.ok_transfer_sgm`, `Complete.ok_approve_sgm`,
 `Complete.ok_transferFrom_sgm` state them for such a run (Usdt/Meter.lean).
+Round 35 (Usdt/MeterIff.lean): `Exact.ok_approve_any`, `ok_transfer_any`, `ok_transferFrom_any`
+give the guard and the effects of a run over `StateGasMeter` that ends with no error, at any
+reservoir (`Shadow.shadow_run`). `Exact.approve_iff_gas_sgm` and `Exact.transfer_iff_gas_sgm`
+(fee 0) give the exact success condition over `StateGasMeter` from reservoir 0, when the one
+write that can refill does not (`hnr`, `hnrD`).
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

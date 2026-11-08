@@ -521,6 +521,26 @@ result.
   `X_iff_gas` under `StateGasMeter`; `process_step` / `goodCall_process` at Glamsterdam (their
   `processMessage` still runs over `Nat`).
 
+**Progress (round 35).** Not resolved for every result.
+- `hnr` is derived for approve and for transfer with a fee of 0, from the facts of their success
+  paths. The derivation lifts a path over `StepG` to `StepI` (steps from frames that refill nothing):
+  a stretch with the same storage at both ends, or one word written, and less than 97,920 gas paid,
+  has no refill (`Refill.noRefill_cheap`, `noRefill_one`); each write of the path is checked from
+  its original, current and new words. The one case that refills is stated as a hypothesis: approve
+  writing 0 over an allowance that was 0 at the start of the transaction and is not 0 at the call
+  (`hnr`), and transfer moving the whole balance of a sender whose slot was 0 at the start of the
+  transaction (`hnrD`).
+- Converse: `Exact.approve_iff_gas_sgm` and `Exact.transfer_iff_gas_sgm` (fee 0): from reservoir 0,
+  under that hypothesis, the run over `StateGasMeter` ends with no error if and only if the guard
+  holds and the gas reaches the threshold (`Refill.sgm_of_reaches`).
+- Any reservoir, refills allowed: `Shadow.shadow_run` follows a run over `StateGasMeter` that ends
+  with no error by a run of the meter `Nat` with more gas. `ok_approve_any`, `ok_transfer_any`,
+  `ok_transferFrom_any` give the guard and the effects from it, with no hypothesis on the reservoir
+  or on refills, but no gas figure.
+- Still open: transfer with a fee above 0 and transferFrom in the exact form, the gas of a run with
+  a reservoir other than 0 or with a refill, the deprecated paths, `process_step` and
+  `goodCall_process` over `StateGasMeter`.
+
 ## T2. The runner hypotheses range over every block and transaction environment (Medium)
 
 **Evidence.** `SendsVia` (Evm/Route.lean:134) fixes `caller`, `currentTarget`, `target`,
