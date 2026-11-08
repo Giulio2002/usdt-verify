@@ -424,7 +424,9 @@ def CallEnd (runChild : MessageRunner fork Nat bound) (code : ByteArray) (messag
     msg.code = routeCode calleeCode r ∧ msg.disablePrecompiles = r.isSome ∧
     msg.data = memoryReadBytes (memoryExtend memory
       (extendMemory memory.size [(i, isz), (o, osz)]).expandBy) i.toNat isz.toNat ∧
-    msg.value = 0 ∧ msg.depth = message.depth + 1 ∧ msg.isStatic = message.isStatic ∧
+    msg.value = 0 ∧ msg.depth = message.depth + 1 ∧
+    (msg.isStatic = message.isStatic ∧ msg.blockEnv = message.blockEnv ∧
+      msg.txEnv = message.txEnv ∧ msg.shouldTransferValue = true) ∧
     ∃ after w, At code message (pc + 1) ((if child.1.error.isNone then 1 else 0) :: rest)
       (memoryWrite (memoryExtend memory
         (extendMemory memory.size [(i, isz), (o, osz)]).expandBy)
@@ -467,7 +469,7 @@ theorem call_ok (hfork : .berlin ≤ fork)
   obtain ⟨hc, hj, hm, hpc, hst, hmem, hg, hr, herr, hout, hs, hss⟩ := start
   subst hm hg hs hss hcold hmem
   obtain ⟨caller, msg, hstep, c1, c2, c3, c4, c5, c6, c7, c8, c9, co, c10, c11, m1, m2, m3, mt,
-      mca, m4, mdp, md, m5, m6, m7⟩ :=
+      mca, m4, mdp, md, m5, m6, m7, m8, m9, m10⟩ :=
     callStep_child_r hfork hst hcode hroute hdepth
       (by rw [hcost]; omega)
   have hsent : step fork evm = .ok (.child caller msg (resumeCall fork caller 0 o osz)) := by
@@ -489,7 +491,7 @@ theorem call_ok (hfork : .berlin ≤ fork)
       resumeCall_eq (child := child.1) (o := o) (osz := osz) hlen
     rw [runFrame_of_step_eq_child hr hsent lt hch hres] at hrun
     refine ⟨caller, msg, lt, child, hch, c10, c11, by rw [m1, hcost], m2, m3, mt, mca, m4, mdp,
-      md, m5, m6, m7, after, _, ?_, hrun⟩
+      md, m5, m6, ⟨m7, m8, m9, m10⟩, after, _, ?_, hrun⟩
     refine ⟨by rw [a1, c1, hc], by rw [a2, c2, hj], by rw [a3, c3], by rw [a4, c4, hpc],
       by rw [a5, c5], by rw [a6, c6], ?_, by rw [a8, c8, hr], by rw [a9, c9, herr],
       by rw [ao, co, hout], a10, a11⟩

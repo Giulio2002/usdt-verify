@@ -529,6 +529,16 @@ This is the same class of issue as finding 3 and M1, one field set further.
 For `KeepsAt`, either fix the data (`dataB` for destroyBlackFunds, the forwarded data otherwise) or
 state in the README that it is free.
 
+**Resolution (round 33).** `SendsVia` (Evm/Route.lean) adds `msg.blockEnv = message.blockEnv`,
+`msg.txEnv = message.txEnv` and `msg.shouldTransferValue = true`. `callStep_child_r` proves them
+from EthLib's `finishCall`, and `callWithRS`, `callWithR` and `CallEnd` carry them. `SentVia`
+contains `SendsVia`, so `KeepsAt`, `KeepsInvAt` and `HonestBalanceAt` get them. `CallFrom` is
+unchanged, because every hypothesis that takes `CallFrom` also takes `SendsVia` of the same
+message. The reviewer's `sendsVia_callFrom_env` and `sentVia_env` no longer hold for a changed
+environment (`SendsVia.env`). The whole repository builds with no other proof changed, and the
+STOP and `MIRROR` instances stand. `SentVia` still leaves the call data, the gas and the caller's
+substate free. No instance with an environment-reading upgraded code is proved.
+
 ## T3. `S1` exercises no deprecated destroyBlackFunds forward (Low)
 
 **Evidence.** In `S1 C H` the only nonzero slot of `C` is 10. So the owner is the zero address,

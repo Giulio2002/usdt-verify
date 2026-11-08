@@ -509,6 +509,9 @@ Round 31: `Sanity.balanceOf_dep_ok_iff_gas_process_mirror` and
 with the upgraded code `MIRROR`, whose success depends on its gas (the second under `hmirror`):
 `RunsOk` holds iff the checks hold, the gas the CALL gives covers `MIRROR`'s cost, and the gas left
 after the CALL plus what `MIRROR` returns covers the code after it.
+Round 33: the forwarded message of every deprecated path (`SendsVia`) has the block and
+transaction environments of `message`, as EthLib's CALL gives them, so `hans`, `NoFailOn`,
+`hfail` and the `KeepsAt` forms are no longer asked under other environments.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

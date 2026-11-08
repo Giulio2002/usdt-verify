@@ -1530,6 +1530,23 @@ Finding 3: `X_dep_ok_or_fails` on the gas-aware `hans` (Evm/Iff.lean, Usdt/Exact
   `X_dep_ok_iff_fails` are derived from them. The old forms (with `htail`, the old `hans`, `hab`)
   follow from the new ones; they are not kept as theorems.
 
+### Round 33: third audit T2–T5 (Evm/Route.lean, Evm/Call.lean)
+
+T2 (third audit): the forwarded message carries the environments of the message of the path.
+- Evm/Route.lean: `SendsVia` adds `msg.blockEnv = message.blockEnv`, `msg.txEnv = message.txEnv`
+  and `msg.shouldTransferValue = true`, the fields EthLib's CALL (`finishCall`) gives the child.
+  `callStep_child_r` concludes the three. `callWithRS` and `callWithR` give them, with
+  `msg.isStatic`, in one conjunct of their postcondition. `SendsVia.env` reads the first two back.
+- Evm/Call.lean: `CallEnd` carries the same conjunct.
+- `SentVia` (the set of `KeepsAt`, `KeepsInvAt`, `HonestBalanceAt`) is `SendsVia` with the
+  data free, so it fixes the environments too. `CallFrom` is not changed: every hypothesis that
+  takes it takes `SendsVia` of the same message with it. The hypotheses `hans`, `NoFailOn`,
+  `hfail`, and the failure disjunct of `X_dep_ok_or_fails` are now asked only of messages with
+  the environments of `message`. No proof other than these two files changed. The STOP and
+  `MIRROR` instances (Sanity/) build unchanged, since they assume `SendsVia` and use none of its
+  new conjuncts.
+- Still free in `SentVia`: the call data, the gas and the caller's substate (`KeepsAt` is over
+  every call that the code of `C` makes from `S`, with any data and gas).
 
 ## Open (not proved)
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,

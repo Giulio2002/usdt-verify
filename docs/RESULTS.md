@@ -1037,6 +1037,13 @@ ends with no error and the contract has an account in its end state".
   `X_dep_ok_or_fails` comes with `CallFrom`. Behind them, `Sends.AbortsOn` / `HoareOn` / `SpecOn`
   name the failing message by a condition on the caller frame and the message, and `callWithRS`
   gives the caller's state and substate and the message's gas in it.
+- Round 33 (docs/AUDIT.md, third audit, T2): `SendsVia` also fixes the block and transaction
+  environments of the forwarded message to those of `message`, and says that it transfers value,
+  as EthLib's CALL builds it. Through round 32, `hans`, `NoFailOn`, `hfail`, `KeepsInvAt`,
+  `HonestBalanceAt` and the `KeepsAt` forms were asked of the forwarded message under every
+  block and transaction environment. For an upgraded code whose success reads the timestamp, no
+  `A` met `hans` under `processRunner` (argued). `SentVia` still leaves the call data and the gas
+  free.
 
 ## What is trusted
 

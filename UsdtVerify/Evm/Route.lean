@@ -130,13 +130,22 @@ abbrev depCallGas (fork : Fork) (asked : U256) (left R : Nat) : MessageCallGas :
 
 /-- The message that a deprecated path sends along the route `r`: from the contract to `ua`, with
 the code and the code address of the route, the precompiles disabled when delegated, the data `d`
-and no value. -/
+and no value. Round 33 (docs/AUDIT.md, T2): it also carries the block and transaction
+environments of `message`, and transfers value, as EthLib's CALL builds it. -/
 def SendsVia (message : Message fork) (ua : Address) (c : ByteArray) (r : Route) (d : ByteArray)
     (msg : Message fork) : Prop :=
   msg.caller = message.currentTarget ∧ msg.currentTarget = ua ∧ msg.target = some ua ∧
     msg.codeAddress = some (routeAddr ua r) ∧ msg.code = routeCode c r ∧
     msg.disablePrecompiles = r.isSome ∧ msg.data = d ∧ msg.value = 0 ∧
-    msg.depth = message.depth + 1 ∧ msg.isStatic = message.isStatic
+    msg.depth = message.depth + 1 ∧ msg.isStatic = message.isStatic ∧
+    msg.blockEnv = message.blockEnv ∧ msg.txEnv = message.txEnv ∧ msg.shouldTransferValue = true
+
+/-- A message that a deprecated path sends has the block and transaction environments of the
+message of the path. -/
+theorem SendsVia.env {message msg : Message fork} {ua : Address} {c : ByteArray} {r : Route}
+    {d : ByteArray} (h : SendsVia message ua c r d msg) :
+    msg.blockEnv = message.blockEnv ∧ msg.txEnv = message.txEnv :=
+  ⟨h.2.2.2.2.2.2.2.2.2.2.1, h.2.2.2.2.2.2.2.2.2.2.2.1⟩
 
 /-- The state of the caller frame at a CALL from `C` to `ua` along the route `r`, from the state
 `st` before the CALL: the reads of `ua`, of the delegate and of `C` recorded. -/
@@ -202,7 +211,8 @@ theorem callStep_child_r (hfork : .berlin ≤ fork)
       msg.data = memoryReadBytes (memoryExtend evm.memory
         (extendMemory evm.memory.size [(i, isz), (o, osz)]).expandBy) i.toNat isz.toNat ∧
       msg.value = 0 ∧ msg.depth = evm.message.depth + 1 ∧
-      msg.isStatic = evm.message.isStatic := by
+      msg.isStatic = evm.message.isStatic ∧ msg.blockEnv = evm.message.blockEnv ∧
+      msg.txEnv = evm.message.txEnv ∧ msg.shouldTransferValue = true := by
   rcases evm with ⟨pc, ⟨l, hl⟩, memory, code, valid, gas, running, message, output, returnData,
     state, substate, error⟩
   simp only at hst
@@ -259,7 +269,7 @@ theorem callStep_child_r (hfork : .berlin ≤ fork)
         chargeStateGas, GasMeter.chargeState, hgas, hk1, hmin', hx, routeState, routeSub, routeAddr,
         routeCode]
       exact ⟨_, _, ⟨rfl, rfl, rfl⟩, rfl, rfl, rfl, rfl, rfl, rfl, by dsimp only; omega, rfl, rfl, rfl,
-        rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
+        rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
     · simp [callStep, popCallOperands, popCallValue, CallKind.sendsValue, popWord, Stack.pop, bind,
         Except.bind, pure, Except.pure, accessAddress, hfork, checkGas, hG, accessDelegation,
         accountCode, recordAccountRead, hgc, hga, hal, hcode, hdel', hdcode d dCode rfl, htw,
@@ -269,7 +279,7 @@ theorem callStep_child_r (hfork : .berlin ≤ fork)
         Nat.not_lt.mpr hdepth, hM, chargeStateGas, GasMeter.chargeState, hgas, Nat.not_lt.mpr hgas, hk1, hk2, hmin', hx,
         routeState, routeSub, routeAddr, routeCode]
       exact ⟨_, _, ⟨rfl, rfl, rfl⟩, rfl, rfl, rfl, rfl, rfl, rfl, by dsimp only; omega, rfl, rfl, rfl,
-        rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
+        rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
   · have hmin2 : ¬ gas < min g.toNat (maxMessageCallGas (gas - M - (cb + dc))) + (cb + dc) + M := by
       rw [hx]; omega
     rcases r with _ | ⟨d, dCode⟩
@@ -284,7 +294,7 @@ theorem callStep_child_r (hfork : .berlin ≤ fork)
         GasMeter.gasLeft, GasMeter.drain, GasMeter.reservoir, hcb', Nat.not_lt.mpr hdepth, hM, hgas,
         hmin2, hsd, routeState, routeSub, routeAddr, routeCode]
       exact ⟨_, _, ⟨rfl, rfl, rfl⟩, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl,
-        rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
+        rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
     · simp [callStep, popCallOperands, popCallValue, CallKind.sendsValue, popWord, Stack.pop, bind,
         Except.bind, pure, Except.pure, accessAddress, hfork, checkGas, hG, accessDelegation,
         accountCode, recordAccountRead, hgc, hga, hal, hcode, hdel', hdcode d dCode rfl, htw,
@@ -293,7 +303,7 @@ theorem callStep_child_r (hfork : .berlin ≤ fork)
         GasMeter.gasLeft, GasMeter.drain, GasMeter.reservoir, hcb', hdc' d dCode rfl,
         Nat.not_lt.mpr hdepth, hM, hgas, hmin2, hsd, routeState, routeSub, routeAddr, routeCode]
       exact ⟨_, _, ⟨rfl, rfl, rfl⟩, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl,
-        rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
+        rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 
 /-- CALL with no value along the route `r`, under a callee assumption, for a runner that may fail
@@ -348,7 +358,9 @@ theorem callWithRS (hfork : .berlin ≤ fork)
         msg.code = routeCode calleeCode r ∧ msg.disablePrecompiles = r.isSome ∧
         msg.data = memoryReadBytes (memoryExtend memory
           (extendMemory memory.size [(i, isz), (o, osz)]).expandBy) i.toNat isz.toNat ∧
-        msg.value = 0 ∧ msg.depth = message.depth + 1 ∧ msg.isStatic = message.isStatic ∧
+        msg.value = 0 ∧ msg.depth = message.depth + 1 ∧
+        (msg.isStatic = message.isStatic ∧ msg.blockEnv = message.blockEnv ∧
+          msg.txEnv = message.txEnv ∧ msg.shouldTransferValue = true) ∧
         At code message (pc + 1) ((if child.error.isNone then 1 else 0) :: rest)
           (memoryWrite (memoryExtend memory
             (extendMemory memory.size [(i, isz), (o, osz)]).expandBy)
@@ -365,10 +377,10 @@ theorem callWithRS (hfork : .berlin ≤ fork)
   have hcost := callBaseCost_eq hfork cold
   subst hm hg hs hss hcold hmem
   obtain ⟨caller, msg, hstep, c1, c2, c3, c4, c5, c6, c7, c8, c9, co, c10, c11, m1, m2, m3, mt,
-      mca, m4, mdp, md, m5, m6, m7⟩ :=
+      mca, m4, mdp, md, m5, m6, m7, m8, m9, m10⟩ :=
     callStep_child_r hfork hst hcode hroute hdepth (by rw [hcost]; omega)
   refine ⟨hrun', caller, msg, resumeCall fork caller 0 o osz, ?_,
-    ⟨⟨m2, m3, mt, mca, m4, mdp, md, m5, m6, m7⟩, c10, c11, by rw [m1, hcost]⟩, ?_⟩
+    ⟨⟨m2, m3, mt, mca, m4, mdp, md, m5, m6, m7, m8, m9, m10⟩, c10, c11, by rw [m1, hcost]⟩, ?_⟩
   · rw [step_of_messageInstruction (by rw [hc, hpc]; exact hlt)
       (by simp only [hc, hpc, hbyte]; exact ofByte_of_decode (op := .call) rfl (Fork.frontier_le _))
       instruction_call messageInstruction_call]
@@ -383,7 +395,7 @@ theorem callWithRS (hfork : .berlin ≤ fork)
     obtain ⟨after, hres, a1, a2, a3, a4, a5, a6, a7, a8, a9, ao, a10, a11⟩ :=
       resumeCall_eq (child := child) (o := o) (osz := osz) hlen
     refine .inl ⟨after, hres, caller, msg, child, hcallee, hchild, c10, c11, ?_, m2, m3, mt, mca,
-      m4, mdp, md, m5, m6, m7, ?_⟩
+      m4, mdp, md, m5, m6, ⟨m7, m8, m9, m10⟩, ?_⟩
     · rw [m1, hcost]
     · refine ⟨by rw [a1, c1, hc], by rw [a2, c2, hj], by rw [a3, c3], by rw [a4, c4, hpc],
         by rw [a5, c5], by rw [a6, c6], ?_, by rw [a8, c8, hrun'], by rw [a9, c9, herr],
@@ -428,7 +440,9 @@ theorem callWithR (hfork : .berlin ≤ fork)
         msg.code = routeCode calleeCode r ∧ msg.disablePrecompiles = r.isSome ∧
         msg.data = memoryReadBytes (memoryExtend memory
           (extendMemory memory.size [(i, isz), (o, osz)]).expandBy) i.toNat isz.toNat ∧
-        msg.value = 0 ∧ msg.depth = message.depth + 1 ∧ msg.isStatic = message.isStatic ∧
+        msg.value = 0 ∧ msg.depth = message.depth + 1 ∧
+        (msg.isStatic = message.isStatic ∧ msg.blockEnv = message.blockEnv ∧
+          msg.txEnv = message.txEnv ∧ msg.shouldTransferValue = true) ∧
         At code message (pc + 1) ((if child.error.isNone then 1 else 0) :: rest)
           (memoryWrite (memoryExtend memory
             (extendMemory memory.size [(i, isz), (o, osz)]).expandBy)
