@@ -420,7 +420,11 @@ messages to `ua` that run the one byte STOP, and it fails every other message to
 `StaticKeeps`. `balRunner` keeps the state and answers the word of `balances[x]`. It meets all six,
 `StaticKeeps` and `HonestBalanceAt` (`Sanity.runner_assumptions_hold`). Round 29: EthLib's own
 `processRunner`, when the upgraded address holds STOP and is no precompile, meets all six from
-Paris (`Sanity.processRunner_stop_keepsAll`, `Sanity.keepsInvAt_process_stop`).
+Paris (`Sanity.processRunner_stop_keepsAll`, `Sanity.keepsInvAt_process_stop`). Round 30:
+`Sanity.honestBalanceAt_process_mirror`: when the upgraded address holds `MIRROR` (Evm/Mirror.lean,
+25 bytes that answer `balanceOf(a)` from slot `keccak(a ++ 2)` of their own storage) and is no
+precompile, and that slot holds in the start state the word of USDT's `balances[a]`, `processRunner`
+meets `HonestBalanceAt` from Paris.
 For every fork from Berlin, block, transaction, contract address and substate, each of these
 gives a call, a start state and a gas where every hypothesis of a spec theorem holds, with a run
 under `processRunner` that ends with no error: `Sanity.transfer_ok_sat`,
@@ -461,8 +465,9 @@ contains `IsOwner`.
 Deprecated (`Usdt/Exact/Deprecated.lean`): for the seven functions that forward
 (`Exact.X_dep_ok_iff`), with the upgraded code `c` and the route `r` of the CALL given, the gas
 of the path (`hg`, `htail`), and a runner that fails on none of the messages the path sends
-(`Exact.NoFailOn`, round 29; `Exact.NoFail` for `destroyBlackFunds_dep_ok_iff`) and ends each
-forwarded message with no error exactly when `A` holds (for destroyBlackFunds: with no error and
+(`Exact.NoFailOn`, round 29; for `destroyBlackFunds_dep_ok_iff` since round 30) and ends each
+forwarded message with no error exactly when `A` holds (round 30: asked only of the message the
+CALL sends, with the gas it gives, from the caller frame at the CALL, `Complete.CallFrom`) (for destroyBlackFunds: with no error and
 an account of `C` in its end state), `RunsOk` holds if and only if the checks before the forward
 hold (`ForwardOk`, `TransferDepGuard`, `ApproveDepGuard`, `TransferFromDepGuard`,
 `DestroyDepGuard`) and `A` holds. `Exact.X_dep_low`: below the gas of `hg`, `RunsOk` does not
@@ -490,8 +495,14 @@ the `X_dep_ok_iff_gas` theorems follow from them. Behind them: `Sends.SpecOn` (E
 specification under a runner that may fail whose runs end in the postcondition or at a failure on
 a forwarded message; the forward specifications `spec_dep*_g`, `spec_depD_g` are stated so.
 `Sanity.failRunner_hans`, `Sanity.failRunner_hfail`: the runner that fails on every message meets
-both with `A = False`. The runner hypotheses quantify over every caller frame; none is
-discharged for a real upgraded contract.
+both with `A = False`. Round 30: `hans` of `X_dep_ok_iff`, `X_dep_ok_iff_gas` and
+`X_dep_ok_iff_fails` is asked only of the forwarded message with the gas the CALL gives
+(`spec_dep*_g` pass `CallFrom` to `hcg`), so `A` may be a condition on that gas.
+`Sanity.X_dep_ok_iff_process_stop` and `Sanity.X_dep_ok_iff_gas_process_stop` (the seven
+forwards, Usdt/Sanity/ProcessExact.lean): with EthLib's `processRunner` and the upgraded code
+STOP (from Paris, no precompile), the runner hypotheses hold and `RunsOk` holds iff the checks
+hold (and, in the gas-exact form, the gas left after the CALL plus the gas it gives covers the
+code after it; for destroyBlackFunds, with an account of `C` in the state at the CALL).
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

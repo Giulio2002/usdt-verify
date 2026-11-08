@@ -451,7 +451,11 @@ theorems give these facts for every forwarding CALL (`dep_*_local`). The old for
 ones (`keepsInv_at`, `honest_at`, `Keeps.at`). EthLib's `processRunner` meets `KeepsInvAt` (and
 the five `Keeps*` of the security theorems) from Paris when `ua` holds the one byte STOP and is no
 precompile (`Sanity.processRunner_stop_keepsAll`, `Sanity.keepsInvAt_process_stop`).
-`HonestBalanceAt` is not shown for `processRunner` with any real code.
+Round 30: `processRunner` meets `HonestBalanceAt` from Paris when `ua` holds `MIRROR` (a 25-byte
+contract that answers `balanceOf(a)` with slot `keccak(a ++ 2)` of its own storage), is no
+precompile, and that slot of `ua` holds in `state` the word of `balances[a]` of `C`
+(`Sanity.honestBalanceAt_process_mirror`). The last condition is a hypothesis on `state` for the
+one queried slot; nothing makes a deployed upgraded contract keep it.
 If the interpreter loop ends with no error, `Inv` holds in the end state.
 Nothing is assumed of the code of `ua` (round 16: the hypothesis `hdel` is gone). When that code
 is an EIP-7702 delegation, the message still has `ua` as its current target and runs the
@@ -739,7 +743,9 @@ hold at once, for some runner, state, message and gas. They do not prove the kec
 hold, see the invariant above; through round 28 they assumed the global `KeccakSep` and
 `AllowSep`, almost certainly false, docs/AUDIT.md finding 1). Most runners here are not
 `processRunner`; `Sanity/Process.lean` (round 29) shows that `processRunner` meets the `At` forms
-of the runner assumptions when the upgraded address holds STOP.
+of the runner assumptions when the upgraded address holds STOP, and `Sanity/Mirror.lean` (round
+30) that it meets `HonestBalanceAt` when the upgraded address holds `MIRROR` and its queried slot
+mirrors USDT's.
 
 Runner assumptions (`Sanity/Runner.lean`, `Evm/Runners.lean`):
 - `keepsAll_of_same`: if every message from `C` to `ua` that the runner ends with no error
@@ -766,8 +772,18 @@ Runner assumptions (`Sanity/Runner.lean`, `Evm/Runners.lean`):
   makes ends with no error in its caller state, `process_stop`). So it meets all six `At` forms
   (`processRunner_stop_keepsAll`), and `KeepsInvAt (processRunner fork message.gas) message S`,
   the deprecated-case hypothesis of `goodCall_process` and `process_step`
-  (`keepsInvAt_process_stop`). STOP is a real contract, though not a useful one;
-  `HonestBalanceAt` is not shown for `processRunner` with any code.
+  (`keepsInvAt_process_stop`). STOP is a real contract, though not a useful one; it answers no
+  word, so it does not give `HonestBalanceAt`.
+- `Sanity/Mirror.lean` (round 30): `honestBalanceAt_process_mirror`: from Paris, when the upgraded
+  address of `message` in `S` holds `MIRROR` (Evm/Mirror.lean: `PUSH1 2 PUSH1 32 MSTORE PUSH1 4
+  CALLDATALOAD PUSH1 0 MSTORE PUSH1 64 PUSH1 0 KECCAK256 SLOAD PUSH1 0 MSTORE PUSH1 32 PUSH1 0
+  RETURN`), is no precompile, and `storageAt S ua (balSlot message) = storageAt S C (balSlot
+  message)` (`hmirror`), `processRunner` at any bound meets `HonestBalanceAt … message S`. MIRROR
+  reads its own storage, so `hmirror` is needed: its answer is USDT's balance only when its slot
+  holds the same word. Every gas is covered: `process_mirror` (from `mirror_spec`, the exact
+  gas `87 + slotCost`, and `Complete.ok_exact`) says that a run that ends with no error returns
+  the word, and `HonestBalanceAt` asks nothing of a run that ends with an error. MIRROR only reads,
+  so USDT's slot in the child's end state is the slot of `S`.
 
 Spec preconditions (`Sanity/Transfer.lean`, `Calls.lean`, `TransferFrom.lean`). Each `*_sat` holds
 at every fork from Berlin and for every block, transaction, contract address `C` and substate.
@@ -893,7 +909,8 @@ upgraded address found in the state (and, for `X_dep_ok_iff`, `c.size < 2^256`),
 coldness flags, the gas up to the CALL (`hg`) and after its price (`htail`), and two hypotheses on
 the message runner: it never fails (`NoFail`: it returns a frame for every message), and each
 message it is given that is the forward along the route ends with no error exactly when a
-condition `A` holds (`hans`). For destroyBlackFunds, `A` is instead the condition for "the forward
+condition `A` holds (`hans`; round 30: only the message the CALL sends with the gas it gives, from
+the caller frame at the CALL, whose state and substate are given, `CallFrom`). For destroyBlackFunds, `A` is instead the condition for "the forward
 ends with no error and the contract has an account in its end state".
 - `X_dep_ok_iff`: `RunsOk` holds if and only if the checks before the forward hold and `A` holds.
   The checks: `ForwardOk` (`CallOk`, `0 < c.size`, the depth leaves room for one more frame) for
@@ -905,22 +922,35 @@ ends with no error and the contract has an account in its end state".
   Since round 29 they (and the six `X_dep_ok_iff_gas`, and `destroyBlackFunds_dep_ok_iff_gas`)
   take `NoFailOn runChild (SendsVia message ua c r d)`: the runner fails on none of the messages
   the path sends, in place of `NoFail` (it fails on no message at all). `NoFail.on` gives the new
-  form from the old. `destroyBlackFunds_dep_ok_iff` still takes `NoFail`.
+  form from the old. Round 30: `destroyBlackFunds_dep_ok_iff` takes `NoFailOn` too; it is derived
+  from `destroyBlackFunds_dep_ok_iff_fails` (with `htail` the tail has its gas, `tail_le_max`).
 - `X_dep_low`: if the gas is below the bound of `hg`, `RunsOk` does not hold, for every runner.
-- Audit finding 3 (docs/AUDIT.md), round 29, partly resolved. `NoFail` is false for
-  `processRunner`, which fails a message whose value exceeds the caller's balance; the messages
-  the path sends carry no value, and `NoFailOn` asks only of them. `Sanity/Process.lean`: from
-  Paris, with the upgraded address holding STOP and no precompile, `processRunner` meets
-  `NoFailOn` and the `hans` of `X_dep_ok_iff` with `A = True` (`noFailOn_process_stop`,
-  `hans_process_stop`), and `totalSupply_dep_ok_iff_process_stop` instantiates
-  `totalSupply_dep_ok_iff` with the real runner: the run succeeds iff `ForwardOk`. Not resolved:
-  `hans` still asks one `A` for every caller frame and every gas of the forwarded message
-  (`SendsVia` does not fix the gas). With `htail` this is satisfiable when the callee's success
-  does not depend on its gas (STOP). In `X_dep_ok_iff_gas` and `X_dep_ok_iff_fails` the condition
-  inside `hans` reads the child's gas left, which for `processRunner` depends on the message's gas
-  (for STOP it is that gas), so their `hans` is unsatisfiable for `processRunner` with every
-  upgraded code. Fixing it needs the CALL step (`callWithRS`) and the seven forwarding
-  specifications to expose the message's gas to the callee assumption; not done.
+- Audit finding 3 (docs/AUDIT.md), rounds 29 and 30. `NoFail` is false for `processRunner`, which
+  fails a message whose value exceeds the caller's balance; the messages the path sends carry no
+  value, and `NoFailOn` asks only of them. Through round 29, `hans` asked one `A` for every caller
+  frame and every gas of the forwarded message (`SendsVia` does not fix the gas); in
+  `X_dep_ok_iff_gas` and `X_dep_ok_iff_fails` the condition inside `hans` reads the child's gas
+  left, which for `processRunner` depends on the message's gas, so no `A` fit. Since round 30,
+  `hans` of `X_dep_ok_iff`, `X_dep_ok_iff_gas` and `X_dep_ok_iff_fails` (the seven paths) asks
+  only of a forwarded message `msg` from a caller frame `caller` with `CallFrom g st ss caller msg`:
+  `msg.gas` is the gas `g` the CALL gives (`callGas…` of the path), and `caller` has the state
+  `st` and substate `ss` of the frame at the CALL (`atCallState`, `atCallSub`). `A` can be a
+  condition on `g`, `st` and `ss`. The specifications `spec_dep*_g` and `spec_depD_g` pass
+  `CallFrom` to their callee assumption `hcg`; `fwd_ok_iff_fails` takes a call condition `Cl`.
+  `X_dep_ok_or_fails` keeps the old `hans` (over every gas).
+  `Sanity/ProcessExact.lean`: from Paris, with the upgraded address holding STOP and no
+  precompile, every message the path sends ends under `processRunner` with no error, all its
+  gas, the caller's state and accesses, and no output (`process_stop_child`). So `processRunner`
+  meets `NoFailOn` and the new `hans` (`hans_process_stop`, `hans_gas_process_stop`,
+  `hans_destroy_process_stop`, `hans_destroy_gas_process_stop`), and for the seven forwards:
+  `X_dep_ok_iff_process_stop` (with `hg`, `htail`: `RunsOk` iff the checks hold; for
+  destroyBlackFunds also an account of `C` in the state at the CALL) and
+  `X_dep_ok_iff_gas_process_stop` (with `hg` only: iff the checks hold and the gas left after the
+  CALL plus the gas it gives is at least the gas of the code after the CALL; for destroyBlackFunds
+  an account of `C` and `max tailCost tailStip`, over the state and accesses at the CALL and the
+  empty output). Not done: an instance with an upgraded code whose success depends on its gas
+  (e.g. `MIRROR`): it would need that `processRunner` returns a frame (not an error) for such a
+  code at every gas, and the failure below its cost.
 - `X_dep_ok_iff_gas` (round 26, the six forwards other than destroyBlackFunds): the hypotheses of
   `X_dep_ok_iff` without `htail`, and `hans` with "ends with no error" replaced by "ends with no
   error, and the gas the CALL keeps plus the gas left in the ended frame is at least the gas of

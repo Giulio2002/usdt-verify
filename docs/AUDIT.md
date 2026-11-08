@@ -155,6 +155,14 @@ all six when the upgraded address holds STOP and is no precompile, so the deprec
 `process_step` is no longer vacuous for the real runner. Not done: `HonestBalanceAt` for
 `processRunner` with a real code.
 
+**Resolution (round 30).** `Sanity.honestBalanceAt_process_mirror`: from Paris, `processRunner`
+meets `HonestBalanceAt` when the upgraded address holds `MIRROR` (Evm/Mirror.lean, 25 bytes that
+answer `balanceOf(a)` with slot `keccak(a ++ 2)` of their own storage), is no precompile, and
+that slot holds in the start state the word of USDT's `balances[a]` (`hmirror`, a hypothesis on
+the state for the one queried slot). Every gas is covered (`process_mirror`, from the exact
+`mirror_spec` and `Complete.ok_exact`). Not shown: one state where a useful upgraded code meets
+both `KeepsInvAt` and `HonestBalanceAt` for `process_step`.
+
 ## 3. Deprecated exact theorems: `NoFail` and `hans` vs `processRunner` (High)
 
 - `NoFail runChild := ∀ caller msg lt e, runChild caller msg lt ≠ .error e`
@@ -185,6 +193,18 @@ the EIP-150 gas the theorem already computes (`callGasT …`).
 `ForwardOk`. Not resolved: the `hans` of `X_dep_ok_iff_gas` and `X_dep_ok_iff_fails` still asks
 one `A` for every gas of the forwarded message, so it is unsatisfiable for `processRunner`; a fix
 needs the CALL step and the forwarding specifications to pass `msg.gas` to the callee assumption.
+
+**Resolution (round 30).** `hans` of the seven `X_dep_ok_iff`, `X_dep_ok_iff_gas` and
+`X_dep_ok_iff_fails` takes `CallFrom g st ss caller msg` (Evm/Route.lean): it is asked only of the
+message the CALL sends, with the gas `g` the CALL gives, from a caller frame with the state and
+substate at the CALL, so `A` may depend on that gas. `spec_dep*_g` / `spec_depD_g` pass `CallFrom`
+to `hcg` (`callWithRS` already gave the facts). `destroyBlackFunds_dep_ok_iff` takes `NoFailOn`.
+Sanity/ProcessExact.lean: from Paris, with the upgraded code STOP and no precompile,
+`processRunner` meets `NoFailOn` and the new `hans` for the seven forwards;
+`X_dep_ok_iff_process_stop` and `X_dep_ok_iff_gas_process_stop` instantiate both forms (the
+gas-exact condition: the gas left after the CALL plus the gas it gives covers the code after it).
+Not done: an instance with an upgraded code whose success depends on its gas; the
+`X_dep_ok_or_fails` theorems keep the old `hans`.
 
 ## 4. `stopRunner` is not "a runner whose upgraded contract only runs STOP" (Medium)
 

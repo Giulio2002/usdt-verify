@@ -1437,6 +1437,43 @@ Finding 3 (high), partly: the deprecated exact theorems.
   `processRunner`. It needs `callWithRS` and the seven `spec_dep*_g` to give the callee
   assumption `msg.gas`; not done.
 
+### Round 30: audit findings 2 and 3 finished (Evm/Route.lean, Evm/Iff.lean, Evm/Mirror.lean, Usdt/Spec/Deprecated/, Usdt/Exact/Deprecated.lean, Usdt/Sanity/ProcessExact.lean, Usdt/Sanity/Mirror.lean)
+
+Finding 3: `hans` is gas-aware.
+- `Complete.CallFrom g st ss caller msg` (Evm/Route.lean): `msg.gas = g`, `caller.state = st`,
+  `caller.substate = ss`; `atCallState`, `atCallSub`: the state and substate of the caller frame at
+  a CALL along a route.
+- The seven `spec_dep*_g` / `spec_depD_g`: `hcg` takes `CallFrom` of the CALL's gas (`callGas…`)
+  and caller frame, besides `SendsVia` (`callWithRS` already gave these facts in its
+  postcondition). `fwd_ok_iff_fails` takes a call condition `Cl` beside the message set `S`.
+- `Exact.X_dep_ok_iff`, `X_dep_ok_iff_gas`, `X_dep_ok_iff_fails` (the seven paths): `hans` takes
+  `CallFrom` too, so it is asked only of the message the CALL sends with the gas it gives, from the
+  caller frame at the CALL. `A` may depend on that gas. `X_dep_ok_or_fails` keep the old `hans`.
+- `destroyBlackFunds_dep_ok_iff` takes `NoFailOn` (was `NoFail`); it is now derived from
+  `destroyBlackFunds_dep_ok_iff_fails` with `DeprecatedDestroy.tail_le_max` (the cost and the
+  stipend bound of the tail are at most `TAIL_MAX`).
+- Sanity/ProcessExact.lean (the round-29 exact part of Sanity/Process.lean moved here):
+  `process_stop_child` (STOP under `processRunner`: no error, all its gas, the caller's state and
+  accesses, no output), `hans_process_stop`, `hans_gas_process_stop`, `hans_destroy_process_stop`,
+  `hans_destroy_gas_process_stop`, and the instances `X_dep_ok_iff_process_stop` and
+  `X_dep_ok_iff_gas_process_stop` for totalSupply, balanceOf, allowance, transfer, approve,
+  transferFrom and destroyBlackFunds (from Paris, upgraded code STOP, no precompile).
+
+Finding 2: `HonestBalanceAt` for `processRunner` with a real code.
+- Evm/Mirror.lean: `MIRROR` (25 bytes: store 2 at 32 and the call-data word at 4 at 0, KECCAK256
+  of the 64 bytes, SLOAD, return the word). `mirror_spec`: the `SpecG` from pc 0 (cost
+  `87 + slotCost`). `process_mirror`: from Paris, a message running `MIRROR` (no value, no
+  precompile) under `processRunner` that ends with no error returns the word of slot
+  `mapSlot k 2` of its current target in the caller's state, and ends in that state with the slot
+  recorded read (any gas: `Complete.ok_exact`).
+- Sanity/Mirror.lean: `honestBalanceAt_process_mirror`: from Paris, upgraded code `MIRROR`, no
+  precompile, and `hmirror : storageAt S ua (balSlot message) = storageAt S C (balSlot message)`
+  give `HonestBalanceAt (processRunner fork bound) message S`. `MIRROR` reads its own storage, so
+  `hmirror` (for the one queried slot of the start state) is needed.
+- Not done: an exact deprecated instance with `MIRROR` (gas-exact `hans` for a code whose success
+  depends on its gas): it needs `NoFailOn` for `MIRROR` at every gas and its failure below its
+  cost under `processRunner`; only successful runs are characterized (`ok_exact`).
+
 ## Open (not proved)
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
@@ -1468,8 +1505,10 @@ Finding 3 (high), partly: the deprecated exact theorems.
   destroyBlackFunds keeps `Inv` exactly when the answer is the local balance
   (`inv_dep_destroy_iff`); `exists_breaks` gives a state where a different answer breaks it.
   Round 29: the assumptions are `KeepsInvAt` / `HonestBalanceAt` (the calls the code makes);
-  `processRunner` meets `KeepsInvAt` when the upgraded code is STOP (`keepsInvAt_process_stop`);
-  `HonestBalanceAt` is not proved for any real upgraded contract (`balRunner` meets it).
+  `processRunner` meets `KeepsInvAt` when the upgraded code is STOP (`keepsInvAt_process_stop`).
+  Round 30: `processRunner` meets `HonestBalanceAt` when the upgraded code is `MIRROR` and its
+  queried slot holds USDT's `balances[a]` in the start state (`honestBalanceAt_process_mirror`);
+  not shown for one upgraded state with both `KeepsInvAt` and `HonestBalanceAt` and a useful code.
 - Non-vacuity (round 24): no witness run is deprecated; the keccak hypotheses of the witness calls
   (`SepOn` / `SecSep` of their keys, since round 29) are not discharged.
 - Exact success conditions (round 25): done for the 32 functions not deprecated and the seven
@@ -1477,10 +1516,11 @@ Finding 3 (high), partly: the deprecated exact theorems.
   Round 26: every gas for the 13 writing functions not deprecated (`X_iff_gas`) and for the seven
   deprecated forwards (`X_dep_ok_iff_gas` with `X_dep_low`; destroyBlackFunds in the second part),
   and an iff for a runner that may fail with any error (`X_dep_ok_iff_fails`, under `hfail`).
-  These take the runner hypotheses `hans` (and `NoFailOn`/`NoFail` or `hfail`), which quantify
-  over every caller frame and gas. Round 29: discharged for `processRunner` with the upgraded code
-  STOP for `X_dep_ok_iff` (with `htail`; instance `totalSupply_dep_ok_iff_process_stop`); the `hans`
-  of `X_dep_ok_iff_gas` / `_fails` stays unsatisfiable for `processRunner`.
+  These take the runner hypotheses `hans` (and `NoFailOn` or `hfail`). Round 30: `hans` is asked
+  only of the call the path makes, with its gas (`CallFrom`); discharged for `processRunner` with
+  the upgraded code STOP for the seven forwards, `X_dep_ok_iff` and `X_dep_ok_iff_gas`
+  (Sanity/ProcessExact.lean). Not discharged for a code whose success depends on its gas.
+  `X_dep_ok_or_fails` keep the old `hans` over every gas.
 
 ## Generic gaps found (for the EthLib program-logic agent)
 1. Missing opcode rules at the pin (kept as LOCAL lemmas, UsdtVerify/Evm/Local/Rules.lean):
