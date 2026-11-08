@@ -358,6 +358,18 @@ the failure disjunct of `X_dep_ok_or_fails` holds whatever the actual run does. 
 (statements, not done here): add `CallFrom` of the CALL (or `SameView` of the start state) to
 `NoFailOn`, `hfail` and the existential. `fwd_ok_or_fails` already carries `Cl`.
 
+**Resolution (round 31).** Done as suggested. `Sends.AbortsOn`, `HoareOn` and `SpecOn` take the set
+of failing messages as a condition on the caller frame and the message; `callWithRS` (Evm/Route.lean)
+puts in it the caller's state and substate at the CALL and the message's gas, and the seven
+`spec_dep*_g` / `spec_depD_g` state their set as `SendsVia … msg ∧ CallFrom g st ss caller msg`.
+`NoFailOn runChild S` takes `S` over the caller frame and the message. In the seven paths,
+`X_dep_ok_iff` and `X_dep_ok_iff_gas` take `NoFailOn` of `SendsVia ∧ CallFrom`, `X_dep_ok_iff_fails`
+takes `hfail` with `CallFrom`, and the failure in `X_dep_ok_or_fails` comes with `CallFrom`. So all
+three are asked only of the message the CALL sends, from the caller frame at the CALL, with the gas
+it gives; a runner failure from another caller state no longer matters. The STOP and `MIRROR`
+instances (`noFailOn_process_stop`, `noFailOn_process_mirror`, for any caller condition) and every
+`X_dep_*_process_*` theorem are re-derived unchanged in their conclusions.
+
 ## L1–L4, I1, I2
 
 - L1, L2: README text; reported to the main session for the README.

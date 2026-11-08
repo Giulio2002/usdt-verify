@@ -98,10 +98,12 @@ theorem process_stop_sends (hparis : .paris ≤ fork) {bound : Nat} {message : M
 theorem noFailOn_process_stop (hparis : .paris ≤ fork) {bound : Nat} {message : Message fork}
     {S : State.TransactionState} {ua : Address} {r : Route} {d : ByteArray}
     (hroute : Routes fork S STOP_CODE r)
-    (hnp : Precompiles.isPrecompile fork ua.toU256.toNat = false) :
-    NoFailOn (processRunner fork bound) (SendsVia message ua STOP_CODE r d) := by
+    (hnp : Precompiles.isPrecompile fork ua.toU256.toNat = false)
+    {Cl : Evm fork Nat → Message fork → Prop} :
+    NoFailOn (processRunner fork bound)
+      (fun caller msg => SendsVia message ua STOP_CODE r d msg ∧ Cl caller msg) := by
   intro caller msg lt e hs h
-  obtain ⟨child, hc, -⟩ := process_stop_sends hparis hroute hnp caller lt hs
+  obtain ⟨child, hc, -⟩ := process_stop_sends hparis hroute hnp caller lt hs.1
   rw [hc] at h; cases h
 
 /-- The `hans` of the six `X_dep_ok_iff` (round 30 form, with `CallFrom`), `A = True`. -/

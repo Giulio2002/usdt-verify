@@ -367,7 +367,8 @@ theorem spec_depB_g (hfork : .berlin ≤ fork)
         (atCallState (callState state message) (upAddr state message) r message.currentTarget)
         (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
       126 ≤ gas - preCostB fork c10 cU - (callGasB fork gas c10 cU (callR substate state message r)).cost + child.gas) :
-    Sends.SpecOn fork callee (SendsVia message (upAddr state message) c r (dataB message))
+    Sends.SpecOn fork callee (fun caller msg => SendsVia message (upAddr state message) c r (dataB message) msg ∧
+      CallFrom (callGasB fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)
       (At CODE message 0 [] .empty gas state substate)
       fun evm => ∃ caller msg child, callee caller msg child ∧
         SendsVia message (upAddr state message) c r (dataB message) msg ∧
@@ -406,9 +407,11 @@ theorem spec_depB_g (hfork : .berlin ≤ fork)
     (by rw [hext, hR]; simp only [accCost_false]; omega)
   rw [hext, hR] at hcall
   simp only [accCost_false] at hcall
-  have hcall := hcall.mono_S (S' := SendsVia message (upAddr state message) c r (dataB message)) fun _ h => by
-    obtain ⟨a1, a2, a3, a4, a5, a6, a7, a8, a9, a10⟩ := h
-    exact ⟨a1, a2, a3, a4, a5, a6, by rw [a7]; exact data_M2B _, a8, a9, a10⟩
+  have hcall := hcall.mono_S (S' := (fun caller msg => SendsVia message (upAddr state message) c r (dataB message) msg ∧
+      CallFrom (callGasB fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg))
+    fun _ _ h => by
+    obtain ⟨⟨a1, a2, a3, a4, a5, a6, a7, a8, a9, a10⟩, b1, b2, b3⟩ := h
+    exact ⟨⟨a1, a2, a3, a4, a5, a6, by rw [a7]; exact data_M2B _, a8, a9, a10⟩, b3, b1, b2⟩
   refine Sends.SpecOn.seq (Sends.HoareOn.of_hoare (preCallB hfork hsize hsize' hsel hv hdep hcode
     hsz hszl hc10 hcU (by omega))) (Sends.HoareOn.seq hcall (Sends.HoareOn.of_hoare ?_))
   rintro evm ⟨caller, msg, child, hcal, -, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd, hmv,

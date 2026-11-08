@@ -298,7 +298,8 @@ theorem callStep_child_r (hfork : .berlin ≤ fork)
 
 /-- CALL with no value along the route `r`, under a callee assumption, for a runner that may fail
 with any error: the run ends at the step after the CALL or at a failure of the runner on the
-message the CALL sends (`SendsVia` with the data read from memory): EthLib's `callWith`, for
+message the CALL sends (`SendsVia` with the data read from memory; round 31: from the caller
+frame of the CALL, with its state, substate and gas): EthLib's `callWith`, for
 the code of the address itself or, from Pectra, the code of its delegate. The price adds the
 access to the delegate (`routeCost`); the message runs the code of the route at the address of
 the route, with the precompiles disabled when delegated, and keeps `to` as its current target;
@@ -318,8 +319,17 @@ theorem callWithRS (hfork : .berlin ≤ fork)
       routeCost fork (substate.accessedAddresses.insert (toAddressMasked to)) r +
       (extendMemory memory.size [(i, isz), (o, osz)]).cost ≤ gas) :
     Sends.HoareOn fork callee
-      (SendsVia message (toAddressMasked to) calleeCode r (memoryReadBytes (memoryExtend memory
-        (extendMemory memory.size [(i, isz), (o, osz)]).expandBy) i.toNat isz.toNat))
+      (fun caller msg => SendsVia message (toAddressMasked to) calleeCode r
+        (memoryReadBytes (memoryExtend memory
+          (extendMemory memory.size [(i, isz), (o, osz)]).expandBy) i.toNat isz.toNat) msg ∧
+        caller.state = (routeState (state.recordAccountRead (toAddressMasked to)) r).recordAccountRead
+          message.currentTarget ∧
+        caller.substate = routeSub { substate with
+          accessedAddresses := substate.accessedAddresses.insert (toAddressMasked to) } r ∧
+        msg.gas = (messageCallGas fork 0 asked.toNat gas
+          (extendMemory memory.size [(i, isz), (o, osz)]).cost
+          (accCost fork cold +
+            routeCost fork (substate.accessedAddresses.insert (toAddressMasked to)) r)).subCall)
       (At code message pc (asked :: to :: 0 :: i :: isz :: o :: osz :: rest) memory gas state
         substate)
       fun after => ∃ caller msg child, callee caller msg child ∧
@@ -358,7 +368,7 @@ theorem callWithRS (hfork : .berlin ≤ fork)
       mca, m4, mdp, md, m5, m6, m7⟩ :=
     callStep_child_r hfork hst hcode hroute hdepth (by rw [hcost]; omega)
   refine ⟨hrun', caller, msg, resumeCall fork caller 0 o osz, ?_,
-    ⟨m2, m3, mt, mca, m4, mdp, md, m5, m6, m7⟩, ?_⟩
+    ⟨⟨m2, m3, mt, mca, m4, mdp, md, m5, m6, m7⟩, c10, c11, by rw [m1, hcost]⟩, ?_⟩
   · rw [step_of_messageInstruction (by rw [hc, hpc]; exact hlt)
       (by simp only [hc, hpc, hbyte]; exact ofByte_of_decode (op := .call) rfl (Fork.frontier_le _))
       instruction_call messageInstruction_call]

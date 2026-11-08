@@ -1503,6 +1503,17 @@ Finding 3: an instance with an upgraded code whose success depends on its gas.
 - Not done: `MIRROR` instances of the other five forwards (`MIRROR` answers `balanceOf` only), and
   one upgraded state where a useful code meets `KeepsInvAt` and `HonestBalanceAt` together.
 
+Second audit, M1: the runner-failure hypotheses at the CALL's caller frame.
+- Evm/Sends.lean: `AbortsOn`, `HoareOn`, `SpecOn`, `of_child`, `mono_S` take `S` over the caller
+  frame and the message. Evm/Route.lean: `callWithRS`'s set adds the caller's state and substate
+  and the message's gas. The seven deprecated `spec_dep*_g` / `spec_depD_g`: set
+  `SendsVia … msg ∧ CallFrom …`.
+- Evm/Iff.lean: `NoFailOn runChild S` with `S : Evm → Message → Prop`; `fwd_ok_or_fails` and
+  `fwd_ok_iff_fails`: the failure comes with `Cl`, and `hfail` takes it.
+- Exact/Deprecated.lean: `hnf : NoFailOn runChild (fun caller msg => SendsVia … msg ∧ CallFrom …)`,
+  `hfail … → SendsVia … msg → CallFrom … → ¬ A`, and `X_dep_ok_or_fails`'s failure with
+  `CallFrom`. Sanity: `noFailOn_process_stop`, `noFailOn_process_mirror` for any caller condition.
+
 Finding 3: `X_dep_ok_or_fails` on the gas-aware `hans` (Evm/Iff.lean, Usdt/Exact/Deprecated.lean).
 - `fwd_ok_or_fails` now has the hypotheses of `fwd_ok_iff_fails` without `hfail` (any errors of
   the runner; the failure in the conclusion is on a message of `S`); `fwd_ok_iff_fails` is derived

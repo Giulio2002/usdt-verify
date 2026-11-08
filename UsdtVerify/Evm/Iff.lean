@@ -173,13 +173,16 @@ open UsdtVerify.Complete (Route Routes SendsVia)
 def NoFail (runChild : MessageRunner fork Nat bound) : Prop :=
   ∀ caller msg lt e, runChild caller msg lt ≠ .error e
 
-/-- The runner returns a frame for every message that satisfies `S` (round 29, docs/AUDIT.md
-finding 3: `NoFail` asks it of every message, which EthLib's `processRunner` does not meet; the
-exact theorems now ask it only of the messages their path sends). -/
-def NoFailOn (runChild : MessageRunner fork Nat bound) (S : Message fork → Prop) : Prop :=
-  ∀ caller msg lt e, S msg → runChild caller msg lt ≠ .error e
+/-- The runner returns a frame for every caller frame and message that satisfy `S` (round 29,
+docs/AUDIT.md finding 3: `NoFail` asks it of every message, which EthLib's `processRunner` does
+not meet; the exact theorems ask it only of the messages their path sends; round 31, second audit
+M1: `S` also reads the caller frame, so they ask it only from the caller frame at the CALL). -/
+def NoFailOn (runChild : MessageRunner fork Nat bound) (S : Evm fork Nat → Message fork → Prop) :
+    Prop :=
+  ∀ caller msg lt e, S caller msg → runChild caller msg lt ≠ .error e
 
-theorem NoFail.on {S : Message fork → Prop} (h : NoFail runChild) : NoFailOn runChild S :=
+theorem NoFail.on {S : Evm fork Nat → Message fork → Prop} (h : NoFail runChild) :
+    NoFailOn runChild S :=
   fun caller msg lt e _ => h caller msg lt e
 
 /-- The callee assumption: a message forwarded from `M` to `ua` along the route `r` with data `d`
@@ -205,12 +208,12 @@ theorem runsOk_of_specUnder {callee : Evm fork Nat → Message fork → Evm fork
 /-- A path that forwards one message, under a runner that may fail with any error (round 31): with
 the hypotheses of `fwd_ok_iff_fails` but no `hfail`, a run that ends with no error meets `G` and
 `A`, and when `G` and `A` hold, the run ends with no error or the runner fails on a message of
-`S`. -/
+`S` sent from a caller frame meeting `Cl`. -/
 theorem fwd_ok_or_fails {G A : Prop} {Q : Evm fork Nat → Evm fork Nat → Prop}
     {S : Message fork → Prop} {Cl : Evm fork Nat → Message fork → Prop}
     {P : Evm fork Nat → Prop}
     (hspec : G → Sends.SpecOn fork (fun caller msg child => S msg → Cl caller msg → Q caller child)
-      S P (fun e => e.error = none))
+      (fun caller msg => S msg ∧ Cl caller msg) P (fun e => e.error = none))
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok s → s.error = none → G ∧ ∃ caller msg lt child, runChild caller msg lt = .ok child ∧
@@ -220,46 +223,47 @@ theorem fwd_ok_or_fails {G A : Prop} {Q : Evm fork Nat → Evm fork Nat → Prop
     (hp : P evm) :
     (RunsOk fork bound runChild evm within → G ∧ A) ∧
       (G ∧ A → RunsOk fork bound runChild evm within ∨
-        ∃ caller msg lt e, runChild caller msg lt = .error e ∧ S msg) := by
+        ∃ caller msg lt e, runChild caller msg lt = .error e ∧ S msg ∧ Cl caller msg) := by
   constructor
   · rintro ⟨s, hs, hok⟩
     obtain ⟨hG, caller, msg, lt, child, hch, hq, hS, hC⟩ := hcomp s hs hok
     exact ⟨hG, (hans caller msg lt child hch hS hC).1 hq⟩
   · rintro ⟨hG, hA⟩
-    obtain ⟨after, hreach, ⟨halted, hq⟩ | ⟨-, caller, msg, -, -, hS, lt, e, failed⟩⟩ :=
+    obtain ⟨after, hreach, ⟨halted, hq⟩ | ⟨-, caller, msg, -, -, ⟨hS, hC⟩, lt, e, failed⟩⟩ :=
       hspec hG bound runChild
         (fun caller msg lt child hch hS hC => (hans caller msg lt child hch hS hC).2 hA)
         evm hp within
     · refine .inl ⟨after, ?_, hq⟩
       rw [runFrame_eq_of_reaches StepBy.gasHeld_le StepBy.runFrame_eq hreach within,
         runFrame_of_running_eq_false halted]
-    · exact .inr ⟨caller, msg, lt, e, failed, hS⟩
+    · exact .inr ⟨caller, msg, lt, e, failed, hS, hC⟩
 
 /-- A path that forwards one message, under a runner that may fail with any error: `RunsOk` holds
 exactly when `G` and `A` hold, if `G` gives a specification to frames with no error that holds
 under every runner whose frames for messages of `S` sent from a caller frame meeting `Cl` meet `Q`
 (`Q` of the caller's frame and the ended frame) and that ends otherwise only at a failure of the
-runner on a message of `S` (`Sends.SpecOn`); every run that ends with no error meets `G` and had a
+runner on a message of `S` sent from a caller frame meeting `Cl` (`Sends.SpecOn`); every run that ends with no error meets `G` and had a
 message of `S`, sent from a caller frame meeting `Cl`, end in a frame meeting `Q`; the runner ends
 each message of `S` sent from a caller frame meeting `Cl` in a frame meeting `Q` exactly when `A`
-holds (`hans`); and a failure of the runner on a message of `S` excludes `A` (`hfail`). -/
+holds (`hans`); and a failure of the runner on a message of `S` from a caller frame meeting `Cl`
+excludes `A` (`hfail`). -/
 theorem fwd_ok_iff_fails {G A : Prop} {Q : Evm fork Nat → Evm fork Nat → Prop}
     {S : Message fork → Prop} {Cl : Evm fork Nat → Message fork → Prop}
     {P : Evm fork Nat → Prop}
     (hspec : G → Sends.SpecOn fork (fun caller msg child => S msg → Cl caller msg → Q caller child)
-      S P (fun e => e.error = none))
+      (fun caller msg => S msg ∧ Cl caller msg) P (fun e => e.error = none))
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok s → s.error = none → G ∧ ∃ caller msg lt child, runChild caller msg lt = .ok child ∧
         Q caller child.1 ∧ S msg ∧ Cl caller msg)
     (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child → S msg → Cl caller msg →
       (Q caller child.1 ↔ A))
-    (hfail : ∀ caller msg lt e, runChild caller msg lt = .error e → S msg → ¬ A)
+    (hfail : ∀ caller msg lt e, runChild caller msg lt = .error e → S msg → Cl caller msg → ¬ A)
     (hp : P evm) :
     RunsOk fork bound runChild evm within ↔ G ∧ A := by
   have h := fwd_ok_or_fails hspec within hcomp hans hp
   exact ⟨h.1, fun hGA => (h.2 hGA).resolve_right
-    fun ⟨caller, msg, lt, e, failed, hS⟩ => hfail caller msg lt e failed hS hGA.2⟩
+    fun ⟨caller, msg, lt, e, failed, hS, hC⟩ => hfail caller msg lt e failed hS hC hGA.2⟩
 
 /-- A code has at most one route in a state. -/
 theorem routes_unique {st : State.TransactionState} {c : ByteArray} {r r' : Route}

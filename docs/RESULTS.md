@@ -1020,13 +1020,16 @@ ends with no error and the contract has an account in its end state".
   errors, the run ends in the postcondition or at a failure of the runner on a message that is the
   forward (`SendsVia`); EthLib's `SpecUnder` follows from it (`toUnder`). `Sanity.failRunner_hans`,
   `Sanity.failRunner_hfail`: the runner that fails on every message meets both with `A = False`.
-- Since round 30, `hans` is asked only of the caller frame at the CALL (`CallFrom`). `NoFailOn`,
-  `hfail` and the failure in the conclusion of `X_dep_ok_or_fails` still range over every caller
-  frame, with any state, and every message that is the forward. For a code that reads another
-  account's code (a CALL or EXTCODESIZE in the upgraded contract), `processRunner` fails with a
-  state error from a caller state where that code is missing, so `NoFailOn` is false there and
-  `hfail` forces `¬ A` (argued in docs/AUDIT.md, second audit, M1; not machine-checked). The STOP
-  and `MIRROR` instances touch no other account.
+- Since round 30, `hans` is asked only of the caller frame at the CALL (`CallFrom`). Through the
+  first part of round 31, `NoFailOn`, `hfail` and the failure in the conclusion of
+  `X_dep_ok_or_fails` still ranged over every caller frame (docs/AUDIT.md, second audit, M1): for
+  a code that reads another account's code, `processRunner` fails with a state error from a caller
+  state where that code is missing (argued). Since round 31 they too are asked only of the message
+  the CALL sends from the caller frame at the CALL, with its gas (`CallFrom`): `NoFailOn` takes a
+  condition on the caller frame and the message, `hfail` takes `CallFrom`, and the failure in
+  `X_dep_ok_or_fails` comes with `CallFrom`. Behind them, `Sends.AbortsOn` / `HoareOn` / `SpecOn`
+  name the failing message by a condition on the caller frame and the message, and `callWithRS`
+  gives the caller's state and substate and the message's gas in it.
 
 ## What is trusted
 

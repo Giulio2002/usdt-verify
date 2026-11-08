@@ -9,6 +9,8 @@ its triples allow the run to end at a frame whose runner fails on ANY message it
 which messages it may fail:
 
 - `AbortsOn S`: the frame sends a message of `S`, and the runner fails on it (with any error).
+  Round 31: `S` is a condition on the caller frame of the step and the message (docs/AUDIT.md,
+  second audit, M1), so a failure is known to come from that caller frame.
 - `MeetsOk callee runChild`: each frame that the runner gives meets `callee` (the `ok` part of
   `Meets`).
 - `HoareOn fork callee S P Q`: under every runner that meets `callee` in that sense, every frame of
@@ -29,11 +31,12 @@ open EthLib.Execution.Evm.Logic
 
 variable {fork : Fork}
 
-/-- The frame sends a message of `S`, and the runner fails on it (with any error). -/
-def AbortsOn (S : Message fork → Prop) (bound : Nat) (runChild : MessageRunner fork Nat bound)
+/-- The frame sends a message of `S` (a condition on the caller frame and the message), and the
+runner fails on it (with any error). -/
+def AbortsOn (S : Evm fork Nat → Message fork → Prop) (bound : Nat) (runChild : MessageRunner fork Nat bound)
     (evm : Evm fork Nat) : Prop :=
   evm.running = true ∧ ∃ caller message resume,
-    step fork evm = .ok (.child caller message resume) ∧ S message ∧
+    step fork evm = .ok (.child caller message resume) ∧ S caller message ∧
       ∃ lt e, runChild caller message lt = .error e
 
 /-- Each frame that the runner gives meets the assumption (the runner may fail, with any
@@ -47,7 +50,7 @@ def MeetsOk {bound : Nat} (callee : Evm fork Nat → Message fork → Evm fork N
 a frame whose runner fails on a message of `S`, for every bound on the gas of messages at least
 the gas of the frame. -/
 def HoareOn (fork : Fork) (callee : Evm fork Nat → Message fork → Evm fork Nat → Prop)
-    (S : Message fork → Prop) (P Q : Evm fork Nat → Prop) : Prop :=
+    (S : Evm fork Nat → Message fork → Prop) (P Q : Evm fork Nat → Prop) : Prop :=
   ∀ bound (runChild : MessageRunner fork Nat bound), MeetsOk callee runChild →
     ∀ evm, P evm → GasMeter.gasHeld evm.gas ≤ bound →
       ∃ after, Reaches (StepBy fork bound runChild) evm after ∧
@@ -55,10 +58,11 @@ def HoareOn (fork : Fork) (callee : Evm fork Nat → Message fork → Evm fork N
 
 /-- `HoareOn` to a stopped frame. -/
 def SpecOn (fork : Fork) (callee : Evm fork Nat → Message fork → Evm fork Nat → Prop)
-    (S : Message fork → Prop) (P Q : Evm fork Nat → Prop) : Prop :=
+    (S : Evm fork Nat → Message fork → Prop) (P Q : Evm fork Nat → Prop) : Prop :=
   HoareOn fork callee S P fun evm => evm.running = false ∧ Q evm
 
-variable {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop} {S : Message fork → Prop}
+variable {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop}
+  {S : Evm fork Nat → Message fork → Prop}
 
 namespace HoareOn
 
@@ -72,7 +76,7 @@ theorem of_hoare {P Q : Evm fork Nat → Prop} (h : Hoare fork P Q) : HoareOn fo
 EthLib's `HoareUnder.of_child`). -/
 theorem of_child {P Q : Evm fork Nat → Prop}
     (h : ∀ evm, P evm → evm.running = true ∧ ∃ caller message resume,
-      step fork evm = .ok (.child caller message resume) ∧ S message ∧
+      step fork evm = .ok (.child caller message resume) ∧ S caller message ∧
       ∀ child, GasMeter.gasHeld child.gas ≤ message.gas → callee caller message child →
         (∃ after, resume child = .ok after ∧ Q after) ∨
           ∃ e, resume child = .error e ∧ e.aborts = false ∧ Q (exceptionalHalt evm e)) :
@@ -108,11 +112,11 @@ theorem consequence {P P' Q Q' : Evm fork Nat → Prop} (h : HoareOn fork callee
   ⟨after, hr, hq.imp_left (post after)⟩
 
 /-- A larger set of messages. -/
-theorem mono_S {S' : Message fork → Prop} {P Q : Evm fork Nat → Prop}
-    (h : HoareOn fork callee S P Q) (hS : ∀ m, S m → S' m) : HoareOn fork callee S' P Q :=
+theorem mono_S {S' : Evm fork Nat → Message fork → Prop} {P Q : Evm fork Nat → Prop}
+    (h : HoareOn fork callee S P Q) (hS : ∀ c m, S c m → S' c m) : HoareOn fork callee S' P Q :=
   fun bound runChild meets evm hp within =>
     let ⟨after, hr, hq⟩ := h bound runChild meets evm hp within
-    ⟨after, hr, hq.imp_right fun ⟨r, c, m, res, s, hm, rest⟩ => ⟨r, c, m, res, s, hS m hm, rest⟩⟩
+    ⟨after, hr, hq.imp_right fun ⟨r, c, m, res, s, hm, rest⟩ => ⟨r, c, m, res, s, hS c m hm, rest⟩⟩
 
 /-- A triple of EthLib under the same callee assumption. -/
 theorem toUnder {P Q : Evm fork Nat → Prop} (h : HoareOn fork callee S P Q) :

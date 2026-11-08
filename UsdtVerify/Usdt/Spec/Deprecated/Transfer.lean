@@ -526,7 +526,8 @@ theorem spec_depT_g {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
         (atCallState (callStateT state message) (upAddr state message) r message.currentTarget)
         (atCallSub (callSubT substate state message) (upAddr state message) r) caller msg →
       51 ≤ gas - preCostT fork c0 cB c10 cU - (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).cost + child.gas) :
-    Sends.SpecOn fork callee (SendsVia message (upAddr state message) c r (dataT message))
+    Sends.SpecOn fork callee (fun caller msg => SendsVia message (upAddr state message) c r (dataT message) msg ∧
+      CallFrom (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).subCall (atCallState (callStateT state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubT substate state message) (upAddr state message) r) caller msg)
       (At CODE message 0 [] .empty gas state substate)
       fun evm => ∃ caller msg child, callee caller msg child ∧
         SendsVia message (upAddr state message) c r (dataT message) msg ∧
@@ -565,9 +566,11 @@ theorem spec_depT_g {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
     (by simp [upAddr]) (by rw [hext, hR]; simp only [accCost_false]; omega)
   rw [hext, hR] at hcall
   simp only [accCost_false] at hcall
-  have hcall := hcall.mono_S (S' := SendsVia message (upAddr state message) c r (dataT message)) fun _ h => by
-    obtain ⟨a1, a2, a3, a4, a5, a6, a7, a8, a9, a10⟩ := h
-    exact ⟨a1, a2, a3, a4, a5, a6, by rw [a7]; exact data_memT message, a8, a9, a10⟩
+  have hcall := hcall.mono_S (S' := (fun caller msg => SendsVia message (upAddr state message) c r (dataT message) msg ∧
+      CallFrom (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).subCall (atCallState (callStateT state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubT substate state message) (upAddr state message) r) caller msg))
+    fun _ _ h => by
+    obtain ⟨⟨a1, a2, a3, a4, a5, a6, a7, a8, a9, a10⟩, b1, b2, b3⟩ := h
+    exact ⟨⟨a1, a2, a3, a4, a5, a6, by rw [a7]; exact data_memT message, a8, a9, a10⟩, b3, b1, b2⟩
   refine Sends.SpecOn.seq (Sends.HoareOn.of_hoare (preCallT h.berlin h.size h.size' h.sel h.value
     h.notPaused h.notBlack h.deprecated h.code h.codeSize h.codeSize' h.cold0 h.coldB h.cold10
     h.coldU (by omega))) (Sends.HoareOn.seq hcall (Sends.HoareOn.of_hoare ?_))
@@ -944,7 +947,8 @@ theorem spec_depA_g {c : ByteArray} {r : Route} {c10 cU : Bool}
         (atCallState (callState state message) (upAddr state message) r message.currentTarget)
         (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
       53 ≤ gas - preCostA fork c10 cU - (callGasA fork gas c10 cU (callR substate state message r)).cost + child.gas) :
-    Sends.SpecOn fork callee (SendsVia message (upAddr state message) c r (dataA message))
+    Sends.SpecOn fork callee (fun caller msg => SendsVia message (upAddr state message) c r (dataA message) msg ∧
+      CallFrom (callGasA fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)
       (At CODE message 0 [] .empty gas state substate)
       fun evm => ∃ caller msg child, callee caller msg child ∧
         SendsVia message (upAddr state message) c r (dataA message) msg ∧
@@ -1007,9 +1011,11 @@ theorem spec_depA_g {c : ByteArray} {r : Route} {c10 cU : Bool}
     (by simp [upAddr]) (by rw [hext, hR]; simp only [accCost_false]; omega)
   rw [hext, hR] at hcall
   simp only [accCost_false] at hcall
-  have hcall := hcall.mono_S (S' := SendsVia message (upAddr state message) c r (dataA message)) fun _ h => by
-    obtain ⟨a1, a2, a3, a4, a5, a6, a7, a8, a9, a10⟩ := h
-    exact ⟨a1, a2, a3, a4, a5, a6, by rw [a7]; exact data_memA message, a8, a9, a10⟩
+  have hcall := hcall.mono_S (S' := (fun caller msg => SendsVia message (upAddr state message) c r (dataA message) msg ∧
+      CallFrom (callGasA fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg))
+    fun _ _ h => by
+    obtain ⟨⟨a1, a2, a3, a4, a5, a6, a7, a8, a9, a10⟩, b1, b2, b3⟩ := h
+    exact ⟨⟨a1, a2, a3, a4, a5, a6, by rw [a7]; exact data_memA message, a8, a9, a10⟩, b3, b1, b2⟩
   refine Sends.SpecOn.seq (Sends.HoareOn.of_hoare hpre) (Sends.HoareOn.seq hcall (Sends.HoareOn.of_hoare ?_))
   rintro evm ⟨caller, msg, child, hcal, -, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd, hmv,
     hmdep, hmst, hat⟩
