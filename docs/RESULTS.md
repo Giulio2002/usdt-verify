@@ -247,17 +247,36 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
 
 - **The global invariant** (`Usdt/Invariant/Supply.lean`). `Inv` says that the sum of `balances[a]` over all
   2^160 addresses equals `_totalSupply` (slot 1), both read from the contract's storage.
-  - The theorems assume `KeccakSep`, a stated hypothesis about keccak that is not proved:
-    - distinct addresses have distinct balance slots;
-    - a balance slot is none of the fixed slots 0 to 10, and no slot of `isBlackListed` or
-      `allowed`;
-    - slot 1 is no slot of `isBlackListed` or `allowed`.
-  - Caveat (audit, docs/AUDIT.md finding 1): `KeccakSep` is a closed statement about the concrete
-    keccak, and as written it quantifies over all 2^256 key words (2^160 for `inj`). By counting,
-    it is almost certainly false. `fixed` expects about 11 hits, `list` and `allow` about 2^256
-    collisions, and `inj` about 2^63 collisions among the 2^160 balance slots. The same holds for
-    `AllowSep`. The theorems that assume them give no guarantee for the real keccak until the
-    hypothesis is restated over the slots a run touches.
+  - Since round 29 the theorems assume `SepOn (callKeys message state)`, a stated hypothesis
+    about keccak that is not proved. `callKeys message state` is the list of the four address
+    words the call uses as mapping keys: the caller (masked), the first two address arguments,
+    and the owner (the low 160 bits of slot 0 of the start state). `SepOn A` says, with "balance
+    slot" meaning `keccak(x ++ 2)` for one of the 2^160 address words `x`:
+    - `fixed`: none of the slots 0 to 10 is a balance slot (`FixedSep`);
+    - `uniq`: for each address word `x` of `A`, no other address word has the balance slot of `x`
+      (`UniqBal x`);
+    - `list`: for each `y` of `A`, the slot `keccak(y ++ 6)` of `isBlackListed` is no balance slot
+      and is not slot 1;
+    - `allow`: for each `y`, `z` of `A`, the slot `keccak(y ++ keccak(z ++ 5))` of `allowed` is no
+      balance slot and none of the slots 0 to 10.
+    Each field is a finite number of facts, each comparing one given slot with the 2^160 balance
+    slots (or with the 11 fixed slots). Treating keccak as a random function, each fails with
+    probability about 2^160 / 2^256 = 2^-96, so for any given call the hypothesis is expected to
+    hold; a call for which it fails would exhibit a keccak collision between a given slot and one
+    of 2^160 others. It is not proved, and it is not shown for any particular call.
+  - How the hypothesis changed (round 29, docs/AUDIT.md finding 1). Through round 28 the theorems
+    assumed `KeccakSep`, the same separation for ALL key words at once: distinct addresses have
+    distinct balance slots, no balance slot is a fixed slot or any slot of `isBlackListed` or
+    `allowed`, slot 1 is no slot of `isBlackListed` or `allowed`. As written it quantifies over all
+    2^256 key words (2^512 for `allowed`, 2^160 for `inj`), and by counting it is almost certainly
+    false (about 11 expected hits for `fixed`, 2^256 collisions for `list` and `allow`, 2^63 for
+    `inj`), so the theorems that assumed it were, as far as anyone can tell, vacuous. The new
+    hypothesis is per call and about the slots the call writes. It is weaker: `KeccakSep` with
+    `AllowSep` implies `SepOn A` and `SecSep A` for every `A` (`Security.sepOn_of_global`), so
+    each old statement follows from the new one, with one exception: `Protected` (access
+    control) now names the slots of `isBlackListed` of address words only, where it named those
+    of every word (the code reads and writes only the former). `KeccakSep` and `AllowSep` are kept as
+    definitions only for that corollary.
   - Under it, and when the contract is not deprecated, the end state of each proved success
     path keeps `Inv`, with the same no-wrap hypotheses that the path's specification already
     makes. The paths are transfer and transferFrom (with fee 0 and with a fee), approve, pause,
@@ -318,7 +337,8 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   `UsdtVerify/Usdt/Invariant/Calls.lean`). From Berlin on (Glamsterdam included since round 17), take a fresh frame of the deployed
   code at pc 0, with any call data below 2^256 bytes, any value, any gas, any gas bound and any
   message runner. Assume:
-  - `KeccakSep` (keccak keeps the storage slots apart; not proved);
+  - `SepOn (callKeys message state)` (keccak keeps the slots keyed by the call's words apart from
+    the balance slots; not proved; through round 28 `KeccakSep`);
   - (until round 18: the frame is not static, and the contract has an account; both are now
     derived from the successful run, see above);
   - the contract is not deprecated (byte 20 of slot 10 is 0);
@@ -376,21 +396,24 @@ contract for `balanceOf(a)`, gets a word `d`, and then, in this contract, sets `
 and `_totalSupply` to `_totalSupply - d` (no overflow check). Write `S` for the state the call
 left. The callee may call back into this contract, so `S` can differ from the start state.
 
-- `inv_tail_iff`: assume `KeccakSep`, the contract `C` has an account in `S`, `a` is below 2^160,
-  and `Inv C S`. Then `Inv` holds after the two writes if and only if `d` equals `balances[a]` in
+- `inv_tail_iff`: assume `FixedSep`, `UniqBal a` (through round 28 `KeccakSep`), the contract `C`
+  has an account in `S`, `a` is below 2^160, and `Inv C S`. Then `Inv` holds after the two writes if and only if `d` equals `balances[a]` in
   `S`.
-- `exists_breaks`: a concrete counterexample, assuming `KeccakSep`. The state is `zeroState C`:
-  an empty account at `C` and no storage word set, so every word is 0 and `Inv` holds. With
-  `a = 0` and the answer `d = 1`, `Inv` fails after the writes.
+- `exists_breaks`: a concrete counterexample, assuming only `NotBal 1` (slot 1 is the balance slot
+  of no address word; through round 28 `KeccakSep`). The state is `zeroState C`: an empty account
+  at `C` and no storage word set, so every word is 0 and `Inv` holds. With `a = 0` and the answer
+  `d = 1`, `Inv` fails after the writes. Some hypothesis on slot 1 is needed: if slot 1 were the
+  balance slot of exactly one address word, `Inv` would force every other balance to 0 and every
+  such tail would keep `Inv` (argued, not proved).
 - `depD_breaks` is the same at the level of runs. Assume the hypotheses of `spec_depD` and
-  `KeccakSep`, `Inv` at the start, and these callee hypotheses:
+  `SepOn (callKeys message state)`, `Inv` at the start, and these callee hypotheses:
   - `hans`: the callee succeeds and answers an output `o` of at least 32 bytes;
   - `hsame`: it keeps the contract's account and every word of the contract's storage;
   - `hne`: the first word of `o` is not `balances[a]` at the start.
   Then under every runner that meets the callee assumption, the run ends with no error and `Inv`
   false, or the runner aborts. No concrete runner, message and state that meet all of these
   hypotheses at once is constructed.
-- `depD_inv` assumes the hypotheses of `spec_depD`, `KeccakSep`, and a callee hypothesis
+- `depD_inv` assumes the hypotheses of `spec_depD`, `SepOn (callKeys message state)`, and a callee hypothesis
   `hcallee`: a successful forwarded call leaves the contract's account and `Inv`. It covers
   anything the callee does, including calls back into this contract. A run that ends with no
   error ends in `tailState S C a d` with `Inv C S`, and there `Inv` holds iff `d = balances[a]`
@@ -405,7 +428,7 @@ left. The callee may call back into this contract, so `S` can differ from the st
 `inv_call_all`). It is `inv_call` without the
 hypothesis "not deprecated". From Berlin on (Glamsterdam included; through round 18 before Glamsterdam when deprecated), take a fresh frame of the
 deployed code at pc 0, with any call data below 2^256 bytes, any value, any gas, any gas bound
-and any message runner. Assume `KeccakSep`, `StrForm` of slots 7
+and any message runner. Assume `SepOn (callKeys message state)`, `StrForm` of slots 7
 and 8, and `Inv` at the start (through round 18 also a frame that is not static). When the
 contract is deprecated, also assume (through round 19 also an account for the contract `C`):
 - `KeepsInv` (`hkeeps`): whenever the runner ends a message from `C` to `ua` with no error, and
@@ -468,7 +491,10 @@ need the account of `C`. (In a static frame, `hstat` of `inv_call_all` still imp
 `GoodCall` (one successful run of the deployed code for a message to `C`, from the state at
 that point, under the hypotheses of `inv_call_all` for that run, each with its own fork, message,
 gas and runner) or `Untouched` (any change that keeps every storage word of `C`).
-- `inv_calls`: under `KeccakSep`, `Inv C S` and `Calls C S S'` give `Inv C S'`.
+- `inv_calls`: `Inv C S` and `Calls C S S'` give `Inv C S'`. Since round 29 each `GoodCall` carries
+  its own keccak hypothesis `SepOn (callKeys message S)` at its start state `S` (through round 28,
+  `inv_calls` took one global `KeccakSep`); `goodCall_process` and `process_step` take it for the
+  message they classify.
 - `goodCall_process`: from Paris on (Glamsterdam included since round 19), a top-level message to `C` with the
   deployed code, no value and no precompile, run by EthLib's `processMessage`, that ends with no
   error, is a `GoodCall` from its start state to its end state, under the named assumptions for
@@ -506,8 +532,17 @@ Each single-call theorem and `nonOwner_seq`, `paused_seq`, `listed_seq` take "no
 (`hdep`: byte 20 of slot 10 is 0) and, except `transferFrom_bound`, slots 7 and 8 of `StrForm`
 (`h7`, `h8`; the completeness proofs of name() and symbol() use them); `allowKept_seq` and
 `supply_seq` take both in each call's predicate instead; the `Effect.*` lemmas take neither.
-The keccak hypotheses are `KeccakSep` (as for the invariant) and, where named, `AllowSep` (new,
-not proved: a slot of `allowed` is none of the slots 0..10 and no slot of `isBlackListed`).
+The keccak hypotheses (round 29) are `SepOn (callKeys message state)` (as for the invariant) and,
+where named, `SecSep (callKeys message state)`: `SepOn`, and moreover the balance slots of the
+call's address words and the slots of `allowed` keyed by two of them are no slot of
+`isBlackListed` of an address word (each one given slot against 2^160 others; not proved).
+Through round 28 they were the global `KeccakSep` and `AllowSep`, almost certainly false
+(docs/AUDIT.md, finding 1). Two conclusions were narrowed with the hypothesis, because a global
+conclusion would need a global hypothesis: the protected slots of `isBlackListed` are those of
+address words (through round 28 of every word), and `allowKept_*` keep the one slot of `allowed`
+keyed by given words `y`, `z`, under `SecSep` of the call's keys and `y`, `z` (through round 28
+every slot of `allowed` at once). The owner functions' write class `OwnW message` names the one
+slot of `isBlackListed` they write (that of the first address argument).
 The owner is the low 160 bits of slot 0; the caller is compared with it masked to 160 bits, as
 the code does.
 
@@ -518,23 +553,24 @@ the code does.
   owner function that writes only slots 0, 3, 4, 10 and slots of `isBlackListed`; issue, redeem,
   destroyBlackFunds by the owner, with their end states.
 - Access control, `nonOwner_call` (Access.lean): if the caller is not the owner, only slots of
-  `balances` and of `allowed` change. Under `KeccakSep` and `AllowSep`, slots 0 (owner, `paused`),
-  1 (`_totalSupply`), 3, 4, 10 (`upgradedAddress`, `deprecated`) and every slot of
-  `isBlackListed` keep their words.
+  `balances` and of `allowed` change. Under `SecSep` of the call's keys, slots 0 (owner, `paused`),
+  1 (`_totalSupply`), 3, 4, 10 (`upgradedAddress`, `deprecated`) and the slot of `isBlackListed`
+  of every address word keep their words.
 - Pause, `paused_call` (Pause.lean): from a paused state (byte 20 of slot 0 not 0), under
-  `KeccakSep`, every balance keeps its word, or the caller is the owner and the function is
+  `SepOn` of the call's keys, every balance keeps its word, or the caller is the owner and the function is
   issue, redeem or destroyBlackFunds.
 - Blacklist, `listed_call` (Blacklist.lean): for an address word `a < 2^160` whose
-  `isBlackListed` low byte is not 0 at the start, under `KeccakSep`, `balances[a]` is not lower
+  `isBlackListed` low byte is not 0 at the start, under `SepOn` of the call's keys, `balances[a]` is not lower
   at the end, unless the run is the owner's redeem or destroyBlackFunds (`hsel`). This covers
   transfer by `a` and transferFrom with `_from = a`.
-- Allowances (Allowance.lean): `transferFrom_bound` (under `KeccakSep`): with `A` the allowance
+- Allowances (Allowance.lean): `transferFrom_bound` (under `SepOn` of the call's keys): with `A` the allowance
   `allowed[_from][caller]` at the start, `A = MAX_UINT` or `v ≤ A`; `balances[_from]` at the
   start is at most `balances[_from]` at the end plus `v`; if `A ≠ MAX_UINT` the allowance at the
-  end plus `v` is `A`; if `A = MAX_UINT` the allowance stays `MAX_UINT`. `allowKept_call` (under
-  `KeccakSep` and `AllowSep`): when the selector is neither approve nor transferFrom, every slot of
-  `allowed` keeps its word.
-- Supply, `supply_call` (Supply.lean, under `KeccakSep`): slot 1 keeps its word, or the owner
+  end plus `v` is `A`; if `A = MAX_UINT` the allowance stays `MAX_UINT`. `allowKept_call` (for
+  words `y`, `z`, under `SecSep` of the call's keys and `y`, `z`): when the selector is neither
+  approve nor transferFrom, the slot of `allowed` keyed by `y` and `z` keeps its word
+  (`AllowKeptAt y z`).
+- Supply, `supply_call` (Supply.lean, under `SepOn` of the call's keys): slot 1 keeps its word, or the owner
   called issue (slot 1 becomes `T + v` as numbers), redeem (`T - v` as numbers) or
   destroyBlackFunds (`T - balances[a]` as a 256-bit subtraction, unchecked in the code), with `T`
   and `balances[a]` read at the start.
@@ -543,17 +579,18 @@ Over sequences: `Seq C Q S S'` is a finite sequence of successful runs of the co
 to `C` (each as above, with the predicate `Q` on its message and start state) and of `Untouched`
 steps (any change that keeps every storage word of `C`); `seq_lift` lifts a reflexive and
 transitive relation with an invariant to it.
-- `nonOwner_seq`, `paused_seq`, `listed_seq` (`Q`: the caller is not the owner of that call's
-  start state): from a state that is not deprecated with slots 7 and 8 of `StrForm` (and paused,
-  for `paused_seq`; with `a` blacklisted, for `listed_seq`), under `KeccakSep` and `AllowSep`:
+- `nonOwner_seq`, `paused_seq`, `listed_seq` (`Q` = `NotOwnerK`: the caller is not the owner of
+  that call's start state, and `SecSep` of the call's keys there): from a state that is not
+  deprecated with slots 7 and 8 of `StrForm` (and paused, for `paused_seq`; with `a` blacklisted,
+  for `listed_seq`):
   only slots of `balances` and `allowed` change and the `Protected` slots keep their words; every
   balance keeps its word; `balances[a]` is not lower at the end. Not deprecated, `StrForm`, the
   flags and the owner are kept along the sequence, so they are needed only at the start.
-- `allowKept_seq` (`Q`: neither approve nor transferFrom, not deprecated and `StrForm` at that
-  call's start state; any caller): every slot of `allowed` keeps its word. Under `KeccakSep` and
-  `AllowSep`.
-- `supply_seq` (`Q`: none of issue, redeem, destroyBlackFunds, not deprecated and `StrForm` at that
-  call's start state; any caller): slot 1 keeps its word. Under `KeccakSep`.
+- `allowKept_seq` (`Q` = `NoAllowFn y z`: neither approve nor transferFrom, not deprecated,
+  `StrForm` and `SecSep` of the call's keys and `y`, `z` at that call's start state; any caller):
+  the slot of `allowed` keyed by `y` and `z` keeps its word.
+- `supply_seq` (`Q`: none of issue, redeem, destroyBlackFunds, not deprecated, `StrForm` and `SepOn`
+  of the call's keys at that call's start state; any caller): slot 1 keeps its word.
 
 Not covered by these theorems: deprecated calls (the forwarding functions end in the state the
 upgraded contract's call left, which is the runner's; round 23 below), and runs that are not a
@@ -617,16 +654,16 @@ audit. So with the real runner, the deprecated case of these theorems, and of
 `goodCall_process` / `process_step`, has a premise that cannot hold.
 
 One call, deprecated or not:
-- `nonOwner_call_all` (`KeccakSep`, `AllowSep`, `KeepsSlots`): if the caller is not the owner,
+- `nonOwner_call_all` (`SecSep` of the call's keys, `KeepsSlots`): if the caller is not the owner,
   every `Protected` slot keeps its word. (When not deprecated, `nonOwner_call` also gives that
   only slots of `balances` and `allowed` change; this form does not state it.)
-- `paused_call_all` (`KeccakSep`, `KeepsBal`): from a paused state, every balance keeps its word,
+- `paused_call_all` (`SepOn` of the call's keys, `KeepsBal`): from a paused state, every balance keeps its word,
   or the caller is the owner and the function is issue, redeem or destroyBlackFunds.
-- `listed_call_all` (`KeccakSep`, `KeepsListed`): for `a < 2^160` blacklisted at the start,
+- `listed_call_all` (`SepOn` of the call's keys, `KeepsListed`): for `a < 2^160` blacklisted at the start,
   `balances[a]` is not lower at the end unless it is the owner's redeem or destroyBlackFunds.
-- `allowKept_call_all` (`KeccakSep`, `AllowSep`, `KeepsAllow`): when the selector is neither
-  approve nor transferFrom, every slot of `allowed` keeps its word.
-- `supply_call_all` (`KeccakSep`, `KeepsSupply`): `SupplyStepD`, that is `SupplyStep` (slot 1
+- `allowKept_call_all` (`SecSep` of the call's keys and `y`, `z`, `KeepsAllow`): when the selector
+  is neither approve nor transferFrom, the slot of `allowed` keyed by `y` and `z` keeps its word.
+- `supply_call_all` (`SepOn` of the call's keys, `KeepsSupply`): `SupplyStepD`, that is `SupplyStep` (slot 1
   kept, or the owner's issue `+ v`, redeem `- v`, destroyBlackFunds `- balances[a]`), or the
   owner's destroyBlackFunds with slot 1 at the end equal to slot 1 at the start minus some word
   `d` (256-bit subtraction). Neither this statement nor `EffectD.dfwd` says what `d` is; only the
@@ -637,7 +674,7 @@ What the code alone guarantees when deprecated (no runner assumption):
   (`OwnerFn`: deprecate, addBlackList, unpause, pause, setParams, issue, redeem, removeBlackList,
   transferOwnership, destroyBlackFunds) is a call by the owner of the start state, deprecated or
   not. No `StrForm` hypothesis.
-- `nonOwner_local` (`KeccakSep`, `AllowSep`): for a caller other than the owner and any function
+- `nonOwner_local` (`SecSep` of the call's keys): for a caller other than the owner and any function
   outside the six of `FwdFn`, deprecated or not, only slots of `balances` and `allowed` change
   and every `Protected` slot keeps its word.
 - `transfer_checks_all`, `transferFrom_checks_all` (Pause.lean): every successful transfer
@@ -662,25 +699,29 @@ Over sequences: `SeqR C R Q` is `Seq` with steps `RunOkR C R` (a `RunOk` step wh
 `seqR_lift` lifts as `seq_lift` does. `Strs` is "slots 7 and 8 of `StrForm` at the call's start
 state"; it is part of each call's predicate `Q` here (in round 22 it was kept from the start for
 `nonOwner_seq`, `paused_seq`, `listed_seq`, and was already per call for `allowKept_seq`,
-`supply_seq`). The keccak hypotheses: `KeccakSep` and `AllowSep` for the first four below,
-`KeccakSep` for `supply_seq_all`.
-- `nonOwner_seq_all` (`R = ProtKept C`, `Q = NotOwnerS`: not the owner, `Strs`): every `Protected`
+`supply_seq`). The keccak hypotheses are per call, in `Q` (round 29): `SecSep` of the call's keys
+for the first three below, `SecSep` of the call's keys and `y`, `z` for `allowKept_seq_all`,
+`SepOn` of the call's keys for `supply_seq_all`.
+- `nonOwner_seq_all` (`R = ProtKept C`, `Q = NotOwnerS`: not the owner, `Strs`, `SecSep`): every `Protected`
   slot keeps its word.
 - `paused_seq_all` (`R`: `ProtKept C` and `BalKept C`, `Q = NotOwnerS`), from a paused state:
   every balance keeps its word.
 - `listed_seq_all` (`R`: `ProtKept C` and `ListedNoDec C`, `Q = NotOwnerS`), with `a < 2^160`
   blacklisted at the start: `balances[a]` is not lower at the end.
-- `allowKept_seq_all` (`R = AllowKept C`, `Q`: neither approve nor transferFrom, `Strs`): every
-  slot of `allowed` keeps its word.
-- `supply_seq_all` (`R = SupplyKept C`, `Q`: none of issue, redeem, destroyBlackFunds, `Strs`):
+- `allowKept_seq_all` (`R = AllowKept C`, `Q = NoAllowFnS y z`: neither approve nor transferFrom,
+  `Strs`, `SecSep` of the keys and `y`, `z`): the slot of `allowed` keyed by `y` and `z` keeps its
+  word.
+- `supply_seq_all` (`R = SupplyKept C`, `Q`: none of issue, redeem, destroyBlackFunds, `Strs`,
+  `SepOn`):
   slot 1 keeps its word.
 
 ## Non-vacuity: the assumptions can hold together (round 24)
 
 `UsdtVerify/Usdt/Sanity/`. These theorems show that the hypotheses of the main theorems can all
-hold at once, for some runner, state, message and gas. They do not prove `KeccakSep` or
-`AllowSep`, which are statements about keccak and almost certainly false as written (see the
-caveat above and docs/AUDIT.md). Their runners are not `processRunner`, which meets none of the
+hold at once, for some runner, state, message and gas. They do not prove the keccak hypotheses
+`SepOn` / `SecSep` of the witness calls' keys (finitely many separation facts, each expected to
+hold, see the invariant above; through round 28 they assumed the global `KeccakSep` and
+`AllowSep`, almost certainly false, docs/AUDIT.md finding 1). Their runners are not `processRunner`, which meets none of the
 `Keeps*` assumptions.
 
 Runner assumptions (`Sanity/Runner.lean`, `Evm/Runners.lean`):
@@ -731,7 +772,8 @@ interpreter loop with `processRunner` ends with no error. There are four witness
 - `paused_witness`: `approve(s, 0)` while paused.
 - `listed_witness`: `approve(s, 0)` with `Listed C S a`.
 - `inv_witness`: `approve(s, 1)` from the state with every slot 0, where `Inv` holds (`inv_empty`).
-Each `_applies` theorem takes `KeccakSep`, and `AllowSep` where needed, and applies the theorem to
+Each `_applies` theorem takes `SepOn` or `SecSep` of the witness call's keys (and of `y`, `z` for
+the allowance), and applies the theorem to
 a witness, so it discharges every other hypothesis. They cover `nonOwner_call` and `_call_all`,
 `allowKept_call` and `_call_all`, `supply_call` and `_call_all`, `paused_call` and `_call_all`,
 `listed_call` and `_call_all`, `inv_call_ns`, `inv_call_all` and `transferFrom_bound`.
@@ -741,8 +783,8 @@ needed. Their satisfiability is shown separately, above.
 
 `StrForm` (`Sanity/Strings.lean`): `strForm_name` and `strForm_symbol` prove that `NAME_WORD` and
 `SYMBOL_WORD`, the slot words of "Tether USD" and "USDT", are of `StrForm`.
-`inv_mainnet`: under `KeccakSep`, `Inv` holds in the state whose slots 7 and 8 hold them.
-`strings_applies`: under `KeccakSep`, `inv_call_all` and `supply_call` apply to `approve(s, 0)`
+`inv_mainnet`: under `FixedSep`, `Inv` holds in the state whose slots 7 and 8 hold them.
+`strings_applies`: under `SepOn` of the call's keys, `inv_call_all` and `supply_call` apply to `approve(s, 0)`
 from that state.
 
 ## Exact success conditions (rounds 25, 26)
@@ -916,8 +958,8 @@ ends with no error and the contract has an account in its end state".
 - The invariant over deprecated calls without the runner assumptions `KeepsInv` and
   `HonestBalance` (destroyBlackFunds can break it, see above). No real upgraded contract is
   shown to meet them. Concrete runners that meet them are given in round 24 (`Sanity/Runner.lean`).
-- `KeccakSep` (a hypothesis of the invariant theorems, about keccak) and `AllowSep` (a hypothesis
-  of some security theorems, about keccak).
+- The keccak hypotheses `SepOn` and `SecSep` of a call's keys (finitely many separation facts about
+  given slots; not proved, and not shown for any particular call).
 - The security properties for deprecated calls of the six forwarding functions (and, for the
   allowance and supply properties, of destroyBlackFunds) without the runner assumptions `KeepsSlots`, `KeepsBal`, `KeepsListed`,
   `KeepsAllow`, `KeepsSupply` (round 23). No real upgraded contract is shown to meet them.

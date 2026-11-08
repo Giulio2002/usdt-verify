@@ -9,7 +9,9 @@ value, ANY gas, any gas bound and any message runner. If the loop of the interpr
 error and `Inv C state` holds at the start (`C` the contract: the sum of the 2^160 balance words
 equals `_totalSupply`), then `Inv C s.state` holds at the end.
 
-Named hypotheses: `K : KeccakSep` (keccak separates the slots, not proved); `hdep` (byte 20 of
+Named hypotheses: `K : SepOn (callKeys message state)` (keccak separates the finitely many slots
+keyed by the call's address words, and the fixed slots from the balance slots; not proved; since
+round 29, replacing the global `KeccakSep`, docs/AUDIT.md finding 1); `hdep` (byte 20 of
 slot 10 is 0: not deprecated; the deprecated paths call the upgraded contract); `h7`, `h8`
 (`StrForm` of slots 7 and 8, used only by name() and symbol()).
 
@@ -273,7 +275,7 @@ theorem inv_symbol (hfork : .berlin ≤ fork)
   · rw [hst]; simp only [inv_readSlot, inv_rdSt]; exact hI
 
 /-- A successful `transfer` call keeps `Inv`. -/
-theorem inv_transfer (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem inv_transfer (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xa9059cbb)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
@@ -285,11 +287,11 @@ theorem inv_transfer (K : KeccakSep) (hfork : .berlin ≤ fork)
   obtain ⟨-, hacc, -, -, -, -, hfv, hbal, hto, -, h⟩ := ok_transfer hfork hsize' hsel hdep
     rfl rfl rfl rfl rfl rfl rfl rfl start within hrun hok
   rcases h with ⟨hfee, -, hst, -⟩ | ⟨-, hown, -, hst, -⟩
-  · rw [hst]; rw [sendOf_zero hfee] at hto; exact steps_inv K (reach_transfer_ok hacc hbal hto) hI
-  · rw [hst]; exact steps_inv K (reach_transfer_fee hacc hfv hbal hto hown) hI
+  · rw [hst]; rw [sendOf_zero hfee] at hto; exact steps_inv K.fixed (reach_transfer_ok K hacc hbal hto) hI
+  · rw [hst]; exact steps_inv K.fixed (reach_transfer_fee K hacc hfv hbal hto hown) hI
 
 /-- A successful `transferFrom` call keeps `Inv`. -/
-theorem inv_transferFrom (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem inv_transferFrom (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x23b872dd)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
@@ -302,11 +304,11 @@ theorem inv_transferFrom (K : KeccakSep) (hfork : .berlin ≤ fork)
     hsel hdep rfl rfl rfl rfl rfl rfl rfl rfl rfl start within hrun hok
   rcases h with ⟨hfee, -, hst, -⟩ | ⟨-, hown, -, hst, -⟩
   · rw [hst]; rw [sendOf_zero hfee] at hto
-    exact steps_inv K (reach_transferFrom_ok hacc hbal hto) hI
-  · rw [hst]; exact steps_inv K (reach_transferFrom_fee hacc hfv hbal hto hown) hI
+    exact steps_inv K.fixed (reach_transferFrom_ok K hacc hbal hto) hI
+  · rw [hst]; exact steps_inv K.fixed (reach_transferFrom_fee K hacc hfv hbal hto hown) hI
 
 /-- A successful `approve` call keeps `Inv`. -/
-theorem inv_approve (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem inv_approve (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x095ea7b3)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
@@ -318,11 +320,11 @@ theorem inv_approve (K : KeccakSep) (hfork : .berlin ≤ fork)
   obtain ⟨-, hacc, -, -, h⟩ := ok_approve hfork hsize' hsel hdep rfl rfl start within
     hrun hok
   rcases h with ⟨-, -, hst, -⟩ | ⟨-, -, -, hst, -⟩
-  · rw [hst]; exact steps_inv K (reach_approve_zero hacc) hI
-  · rw [hst]; exact steps_inv K (reach_approve_set hacc) hI
+  · rw [hst]; exact steps_inv K.fixed (reach_approve_zero K hacc) hI
+  · rw [hst]; exact steps_inv K.fixed (reach_approve_set K hacc) hI
 
 /-- A successful `pause` call keeps `Inv`. -/
-theorem inv_pause (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem inv_pause (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x8456cb59)
     (hI : Inv message.currentTarget state)
@@ -331,10 +333,10 @@ theorem inv_pause (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨-, hacc, -, -, -, -, hst, -⟩ := ok_pause hfork hsize' hsel rfl start within hrun hok
-  rw [hst]; exact steps_inv K (reach_pause hacc 1) hI
+  rw [hst]; exact steps_inv K.fixed (reach_pause hacc 1) hI
 
 /-- A successful `unpause` call keeps `Inv`. -/
-theorem inv_unpause (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem inv_unpause (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x3f4ba83a)
     (hI : Inv message.currentTarget state)
@@ -344,10 +346,10 @@ theorem inv_unpause (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨-, hacc, -, -, -, -, hst, -⟩ := ok_unpause hfork hsize' hsel rfl start within hrun
     hok
-  rw [hst]; exact steps_inv K (reach_pause hacc 0) hI
+  rw [hst]; exact steps_inv K.fixed (reach_pause hacc 0) hI
 
 /-- A successful `addBlackList` call keeps `Inv`. -/
-theorem inv_addBlackList (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem inv_addBlackList (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x0ecb93c0)
     (hI : Inv message.currentTarget state)
@@ -357,10 +359,10 @@ theorem inv_addBlackList (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨-, hacc, -, -, -, hst, -⟩ := ok_addBlackList hfork hsize' hsel rfl rfl start
     within hrun hok
-  rw [hst]; exact steps_inv K (reach_list hacc 1) hI
+  rw [hst]; exact steps_inv K.fixed (reach_list K hacc 1) hI
 
 /-- A successful `removeBlackList` call keeps `Inv`. -/
-theorem inv_removeBlackList (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem inv_removeBlackList (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xe4997dc5)
     (hI : Inv message.currentTarget state)
@@ -370,10 +372,10 @@ theorem inv_removeBlackList (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨-, hacc, -, -, -, hst, -⟩ := ok_removeBlackList hfork hsize' hsel rfl rfl start
     within hrun hok
-  rw [hst]; exact steps_inv K (reach_list hacc 0) hI
+  rw [hst]; exact steps_inv K.fixed (reach_list K hacc 0) hI
 
 /-- A successful `issue` call keeps `Inv`. -/
-theorem inv_issue (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem inv_issue (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xcc872b66)
     (hI : Inv message.currentTarget state)
@@ -383,10 +385,10 @@ theorem inv_issue (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨-, hacc, -, h0, hT, hB, -, -, hst, -⟩ := ok_issue hfork hsize' hsel rfl rfl rfl
     start within hrun hok
-  rw [hst]; exact steps_inv K (reach_issue hacc ⟨h0, hT⟩ hB) hI
+  rw [hst]; exact steps_inv K.fixed (reach_issue K hacc ⟨h0, hT⟩ hB) hI
 
 /-- A successful `redeem` call keeps `Inv`. -/
-theorem inv_redeem (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem inv_redeem (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xdb006a75)
     (hI : Inv message.currentTarget state)
@@ -396,10 +398,10 @@ theorem inv_redeem (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨-, hacc, -, hT, hB, -, -, hst, -⟩ := ok_redeem hfork hsize' hsel rfl rfl rfl
     start within hrun hok
-  rw [hst]; exact steps_inv K (reach_redeem hacc hT hB) hI
+  rw [hst]; exact steps_inv K.fixed (reach_redeem K hacc hT hB) hI
 
 /-- A successful `setParams` call keeps `Inv`. -/
-theorem inv_setParams (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem inv_setParams (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xc0324c77)
     (hI : Inv message.currentTarget state)
@@ -409,10 +411,10 @@ theorem inv_setParams (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨-, hacc, -, -, -, -, -, -, hst, -⟩ := ok_setParams hfork hsize' hsel rfl rfl rfl
     rfl start within hrun hok
-  rw [hst]; exact steps_inv K (reach_setParams hacc) hI
+  rw [hst]; exact steps_inv K.fixed (reach_setParams hacc) hI
 
 /-- A successful `deprecate` call keeps `Inv`. -/
-theorem inv_deprecate (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem inv_deprecate (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x0753c30c)
     (hI : Inv message.currentTarget state)
@@ -422,10 +424,10 @@ theorem inv_deprecate (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨-, hacc, -, -, -, hst, -⟩ := ok_deprecate hfork hsize' hsel rfl rfl start within
     hrun hok
-  rw [hst]; exact steps_inv K (reach_deprecate hacc) hI
+  rw [hst]; exact steps_inv K.fixed (reach_deprecate hacc) hI
 
 /-- A successful `transferOwnership` call keeps `Inv`. -/
-theorem inv_transferOwnership (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem inv_transferOwnership (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xf2fde38b)
     (hI : Inv message.currentTarget state)
@@ -437,10 +439,10 @@ theorem inv_transferOwnership (K : KeccakSep) (hfork : .berlin ≤ fork)
     hok
   rcases h with ⟨-, -, hst, -⟩ | ⟨-, -, hacc, -, hst, -⟩
   · rw [hst]; simp only [inv_readSlot]; exact hI
-  · rw [hst]; exact steps_inv K (reach_transferOwnership hacc) hI
+  · rw [hst]; exact steps_inv K.fixed (reach_transferOwnership hacc) hI
 
 /-- A successful `destroyBlackFunds` call keeps `Inv`. -/
-theorem inv_destroyBlackFunds (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem inv_destroyBlackFunds (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xf3bdc228)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
@@ -451,17 +453,18 @@ theorem inv_destroyBlackFunds (K : KeccakSep) (hfork : .berlin ≤ fork)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨-, hacc, -, -, -, -, hst, -⟩ := ok_destroyBlackFunds hfork hsize' hsel hdep rfl
     rfl rfl rfl rfl start within hrun hok
-  rw [hst]; exact steps_inv K (reach_destroy hacc) hI
+  rw [hst]; exact steps_inv K.fixed (reach_destroy K hacc) hI
 
 
 /-- **Every successful call keeps the invariant** (contract not deprecated).
 
 From Berlin on (Glamsterdam included), a fresh frame of `CODE` at pc 0 with any call data below
 2^256 bytes, any value, any gas, any gas bound and any message runner, static or not, with or
-without an account of the contract. Under `KeccakSep`, not deprecated, and with string slots 7
+without an account of the contract. Under `SepOn` of the call's keys (`callKeys`: the caller,
+the first two address arguments, the owner), not deprecated, and with string slots 7
 and 8 of `StrForm`: if `Inv C state` holds and the interpreter loop ends with no error, then
 `Inv C s.state` holds. -/
-theorem inv_call (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem inv_call (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     (h7 : StrForm (storageAt state message.currentTarget 7))

@@ -81,6 +81,16 @@ facts about the slots a run actually touches. Each such fact fails only with pro
 In the docs, state plainly that `KeccakSep` and `AllowSep` as written are almost certainly false
 (done in `docs/RESULTS.md`, see below).
 
+**Resolution (round 29).** Restated locally. Every theorem that took `KeccakSep` (and `AllowSep`)
+now takes `SepOn (callKeys message state)` (or `SecSep (callKeys message state)`): separation facts
+about the slots keyed by the four address words of that one call (caller, first two address
+arguments, owner) and about the fixed slots 0..10, each comparing one given slot with the 2^160
+balance (or `isBlackListed`) slots. Sequences carry it per call (`GoodCall`, the security
+predicates `Q`). The allowance conclusions are now per slot (`AllowKeptAt y z`, with `y`, `z`
+added to the keys), and `Protected` names the `isBlackListed` slots of address words only.
+`KeccakSep` with `AllowSep` implies the new hypothesis for every list (`sepOn_of_global`). See
+docs/STATUS.md, round 29, and docs/RESULTS.md (the invariant).
+
 ## 2. `KeepsInv` / `Keeps*` are false for `processRunner` (High)
 
 **Statement** (`Usdt/Invariant/All.lean:74`, `Evm/Keeps.lean:35`).
@@ -193,6 +203,12 @@ clone fetches it.
 conditional on a hypothesis that is almost certainly false. It could be made unconditional with
 a much weaker fact, for example "slot 1 is not the balance slot of exactly one address word".
 `docs/RESULTS.md` says "assuming `KeccakSep`". The README did not; fixed there.
+
+**Resolution (round 29).** `exists_breaks` now assumes only `NotBal 1` (slot 1 is the balance slot of
+no address word), one given slot against 2^160. It cannot be made unconditional: if slot 1 were
+the balance slot of exactly one address word, `Inv` would force every other balance to 0 and every
+`tailState` would keep `Inv` (argued, not machine-checked). `depD_breaks` takes `SepOn` of its
+call's keys.
 
 ## 8. Fetch block wording (Low)
 

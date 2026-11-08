@@ -22,9 +22,14 @@ described by one constructor of `Effect` (built from the completeness theorems `
 - `issue`, `redeem`, `destroy`: by the owner, with the end state of the specification.
 
 The slot classes: `BalSlot` (a slot of `balances`, `keccak(x ++ 2)` with `x < 2^160`),
-`AllowSlot` (a slot of `allowed`), `ListSlot` (a slot of `isBlackListed`). `AllowSep` is the
-keccak hypothesis (not proved) that some security theorems take beyond `KeccakSep`: a slot of
-`allowed` is none of the slots 0..10 and no slot of `isBlackListed`.
+`AllowSlot` (a slot of `allowed`), `ListSlot` (a slot of `isBlackListed` of an address word).
+`SecSep A` (round 29) is the keccak hypothesis (not proved) of the security theorems, for the
+finitely many slots keyed by the words of `A` (in the theorems, `callKeys message state`):
+`SepOn A`, and the balance and allowance slots keyed by `A` are no slot of `isBlackListed`.
+`KeyBA A`: the balance and allowance slots keyed by `A`, the slots that the writes of transfer,
+transferFrom and approve fall in (`writes_*K`). Through round 28 the theorems assumed the global
+`KeccakSep` and `AllowSep` instead (almost certainly false, docs/AUDIT.md finding 1); they imply
+`SecSep A` for every `A` (`sepOn_of_global`).
 
 Deprecated or not (round 23): `effect_local` is `effect_call` with `hdep` replaced by "not
 deprecated, or a function other than the seven of `FlagFn`" (the six that forward when deprecated,
@@ -57,7 +62,7 @@ open Invariant Complete
 open Transfer TransferOk TransferFee TransferFrom Owner Issue IssueSpec BlackList BlackListSpec
 open SetParamsSpec AddrWriteSpec DestroySpec Pause AddrWrite Approve StringsGen Deprecated
 
-/-! ## Slot classes and the extra keccak hypothesis -/
+/-! ## Slot classes and the keccak hypothesis of the security theorems -/
 
 /-- A slot of `balances`: `keccak(x ++ 2)` for an address word `x`. -/
 def BalSlot (n : U256) : Prop := ∃ x : U256, x.toNat < 2 ^ 160 ∧ n = mapSlot x 2
@@ -65,18 +70,49 @@ def BalSlot (n : U256) : Prop := ∃ x : U256, x.toNat < 2 ^ 160 ∧ n = mapSlot
 /-- A slot of `allowed`: `keccak(y ++ keccak(z ++ 5))`. -/
 def AllowSlot (n : U256) : Prop := ∃ y z : U256, n = mapSlot y (mapSlot z 5)
 
-/-- A slot of `isBlackListed`: `keccak(y ++ 6)`. -/
-def ListSlot (n : U256) : Prop := ∃ y : U256, n = mapSlot y 6
+/-- A slot of `isBlackListed` of an address word: `keccak(y ++ 6)`, `y < 2^160` (round 29; through
+round 28 any word `y`). The code only uses address words as keys. -/
+def ListSlot (n : U256) : Prop := ∃ y : U256, y.toNat < 2 ^ 160 ∧ n = mapSlot y 6
 
-/-- The slots an owner function other than issue, redeem and destroyBlackFunds may write. -/
-def OwnW (n : U256) : Prop := n = 0 ∨ n = 3 ∨ n = 4 ∨ n = 10 ∨ ListSlot n
+/-- The slots an owner function other than issue, redeem and destroyBlackFunds may write: slots
+0, 3, 4, 10 and the slot of `isBlackListed` of the first address argument (round 29; through
+round 28 any slot of `isBlackListed`). -/
+def OwnW {fork : Fork} (message : Message fork) (n : U256) : Prop :=
+  n = 0 ∨ n = 3 ∨ n = 4 ∨ n = 10 ∨ n = listSlot (addrArg message.data 0)
 
-/-- What the security theorems assume of keccak beyond `KeccakSep`, not proved. -/
+/-- No address word has `n` as its slot of `isBlackListed`. -/
+def NotList (n : U256) : Prop := ∀ y : U256, y.toNat < 2 ^ 160 → n ≠ mapSlot y 6
+
+/-- The keccak hypothesis of the security theorems (round 29), for the slots keyed by the words
+of `A`: `SepOn A`, and moreover the balance slot of an address word of `A` and a slot of
+`allowed` keyed by two words of `A` are no slot of `isBlackListed` of an address word. Finitely
+many facts, each about one given slot against 2^160 others; not proved. -/
+structure SecSep (A : List U256) : Prop extends SepOn A where
+  balList : ∀ x ∈ A, x.toNat < 2 ^ 160 → NotList (mapSlot x 2)
+  allowList : ∀ y ∈ A, ∀ z ∈ A, NotList (mapSlot y (mapSlot z 5))
+
+theorem SecSep.mono {A B : List U256} (h : SecSep B) (hAB : ∀ x ∈ A, x ∈ B) : SecSep A :=
+  ⟨h.toSepOn.mono hAB, fun x hx => h.balList x (hAB x hx),
+    fun y hy z hz => h.allowList y (hAB y hy) z (hAB z hz)⟩
+
+/-- Through round 28: what the security theorems assumed of keccak beyond `KeccakSep`, for all
+keys at once. Almost certainly false (docs/AUDIT.md, finding 1); kept only for
+`sepOn_of_global`. -/
 structure AllowSep : Prop where
   /-- A slot of `allowed` is not one of the fixed slots 0..10. -/
   fixed : ∀ y z : U256, ∀ n : Nat, n < 11 → mapSlot y (mapSlot z 5) ≠ BitVec.ofNat 256 n
   /-- A slot of `allowed` is not a slot of `isBlackListed`. -/
   list : ∀ y z w : U256, mapSlot y (mapSlot z 5) ≠ mapSlot w 6
+
+/-- The global hypotheses of rounds up to 28 give the local ones for every list of keys, so every
+theorem stated with `SepOn` or `SecSep` implies its older form. -/
+theorem sepOn_of_global (K : KeccakSep) (A' : AllowSep) (A : List U256) : SecSep A where
+  fixed n hn x _ e := K.fixed x n hn e.symm
+  uniq x _ hx y hy e := K.inj y x hy hx e
+  list y _ := ⟨fun x _ e => K.list x y e.symm, K.one_list y⟩
+  allow y _ z _ := ⟨fun x _ e => K.allow x y z e.symm, fun k hk => A'.fixed y z k hk⟩
+  balList x _ _ y _ := K.list x y
+  allowList y _ z _ w _ := A'.list y z w
 
 theorem bal_mk (x : U256) : BalSlot (mapSlot (bitwiseAnd ADDR_MASK x) 2) := ⟨_, mask_lt x, rfl⟩
 
@@ -85,46 +121,41 @@ theorem bal_arg (d : ByteArray) (i : Nat) : BalSlot (mapSlot (addrArg d i) 2) :=
 
 theorem allow_mk (y z : U256) : AllowSlot (mapSlot y (mapSlot z 5)) := ⟨y, z, rfl⟩
 
-theorem list_mk (y : U256) : ListSlot (mapSlot y 6) := ⟨y, rfl⟩
+section Local
 
-/-- A balance slot is no slot of `allowed`, of `isBlackListed`, nor slot 1. -/
-theorem bal_not_allow (K : KeccakSep) {n : U256} (h : BalSlot n) : ¬ AllowSlot n := by
-  rintro ⟨y, z, rfl⟩; obtain ⟨x, -, hx⟩ := h; exact K.allow x y z hx.symm
+variable {fork : Fork} {S : State.TransactionState} {message : Message fork}
 
-theorem bal_not_list (K : KeccakSep) {n : U256} (h : BalSlot n) : ¬ ListSlot n := by
-  rintro ⟨y, rfl⟩; obtain ⟨x, -, hx⟩ := h; exact K.list x y hx.symm
+/-- A slot that an owner function writes is no balance slot. -/
+theorem ownW_notBal (K : SepOn (callKeys message S)) {n : U256} (h : OwnW message n) :
+    NotBal n := by
+  rcases h with rfl | rfl | rfl | rfl | rfl
+  · exact K.fixed 0 (by decide)
+  · exact K.fixed 3 (by decide)
+  · exact K.fixed 4 (by decide)
+  · exact K.fixed 10 (by decide)
+  · exact K.listArg.1
 
-theorem bal_not_fixed (K : KeccakSep) {n : U256} (h : BalSlot n) {m : Nat} (hm : m < 11) :
-    n ≠ BitVec.ofNat 256 m := by
-  obtain ⟨x, -, rfl⟩ := h; exact K.fixed x m hm
-
-theorem bal_not_ownW (K : KeccakSep) {n : U256} (h : BalSlot n) : ¬ OwnW n := by
-  rintro (e | e | e | e | hl)
-  · exact bal_not_fixed K h (m := 0) (by decide) e
-  · exact bal_not_fixed K h (m := 3) (by decide) e
-  · exact bal_not_fixed K h (m := 4) (by decide) e
-  · exact bal_not_fixed K h (m := 10) (by decide) e
-  · exact bal_not_list K h hl
-
-theorem allow_not_ownW (A : AllowSep) {n : U256} (h : AllowSlot n) : ¬ OwnW n := by
-  obtain ⟨y, z, rfl⟩ := h
-  rintro (e | e | e | e | ⟨w, e⟩)
-  · exact A.fixed y z 0 (by decide) e
-  · exact A.fixed y z 3 (by decide) e
-  · exact A.fixed y z 4 (by decide) e
-  · exact A.fixed y z 10 (by decide) e
-  · exact A.list y z w e
-
-theorem allow_ne_one (K : KeccakSep) {n : U256} (h : AllowSlot n) : n ≠ 1 := by
-  obtain ⟨y, z, rfl⟩ := h; exact K.one_allow y z
-
-theorem ownW_ne_one (K : KeccakSep) {n : U256} (h : OwnW n) : n ≠ 1 := by
-  rcases h with rfl | rfl | rfl | rfl | ⟨y, rfl⟩
+theorem ownW_ne_one (K : SepOn (callKeys message S)) {n : U256} (h : OwnW message n) : n ≠ 1 := by
+  rcases h with rfl | rfl | rfl | rfl | rfl
   · decide
   · decide
   · decide
   · decide
-  · exact K.one_list y
+  · exact K.listArg.2
+
+/-- A slot that is no fixed slot and no slot of `isBlackListed` is no slot an owner function
+writes. -/
+theorem not_ownW {n : U256} (hf : NotFixed n) (hl : NotList n) : ¬ OwnW message n := by
+  rintro (e | e | e | e | e)
+  · exact hf 0 (by decide) e
+  · exact hf 3 (by decide) e
+  · exact hf 4 (by decide) e
+  · exact hf 10 (by decide) e
+  · rw [e] at hl
+    simp only [listSlot, mkey_addrArg] at hl
+    exact hl _ (addrArg_lt _ _) rfl
+
+end Local
 
 /-! ## Chains of reads and writes -/
 
@@ -232,6 +263,88 @@ theorem writes_destroy (hacc : hasAccount S message.currentTarget) :
 
 end States
 
+/-! ## The slots written, keyed by the call's words (round 29)
+
+`KeyBA A n`: `n` is the balance slot of an address word of `A`, or the slot of `allowed` keyed by
+two words of `A`. The writes of transfer, transferFrom and approve are of this class for
+`A = callKeys message S`; with `SecSep A` none of them is a protected slot. -/
+
+/-- The balance slot of an address word of `A`, or a slot of `allowed` keyed by two words of
+`A`. -/
+def KeyBA (A : List U256) (n : U256) : Prop :=
+  (∃ x ∈ A, x.toNat < 2 ^ 160 ∧ n = mapSlot x 2) ∨ ∃ y ∈ A, ∃ z ∈ A, n = mapSlot y (mapSlot z 5)
+
+section Keyed
+
+variable {fork : Fork} {S : State.TransactionState} {message : Message fork}
+
+theorem kba_sender : KeyBA (callKeys message S) (senderSlot message) :=
+  .inl ⟨callerWord message, by simp [callKeys], mask_lt _, by
+    simp only [senderSlot, callerKey, callerWord, mask_mask]⟩
+
+theorem kba_rec {i : Nat} (hi : i = 0 ∨ i = 1) :
+    KeyBA (callKeys message S) (recipientSlot (addrArg message.data i)) :=
+  .inl ⟨addrArg message.data i, by rcases hi with rfl | rfl <;> simp [callKeys], addrArg_lt _ _,
+    by simp only [recipientSlot, mkey_addrArg]⟩
+
+theorem kba_allowArg : KeyBA (callKeys message S) (allowArg message) := by
+  have h : mkey message.caller.toU256 = callerWord message := mask_mask _
+  refine .inr ⟨addrArg message.data 0, by simp [callKeys], callerWord message, by simp [callKeys], ?_⟩
+  simp only [allowArg, allowSlot, mkey_addrArg, h]
+
+theorem kba_allowFrom : KeyBA (callKeys message S) (allowFrom message (fromArg message)) := by
+  have h : mkey message.caller.toU256 = callerWord message := mask_mask _
+  refine .inr ⟨callerWord message, by simp [callKeys], addrArg message.data 0, by simp [callKeys], ?_⟩
+  simp only [allowFrom, fromArg, mkey_addrArg, h]
+
+theorem kba_owner {X : State.TransactionState}
+    (hX : storageAt X message.currentTarget 0 = storageAt S message.currentTarget 0) :
+    KeyBA (callKeys message S) (ownerSlotOf X message.currentTarget) :=
+  .inl ⟨ownerOf S message.currentTarget, by simp [callKeys], mask_lt _, by
+    simp only [ownerSlotOf, ownerSlot]; rw [Issue.mkey_owner, hX]⟩
+
+theorem writes_creditedK (hacc : hasAccount S message.currentTarget) :
+    Writes message.currentTarget (KeyBA (callKeys message S)) S
+      (credited (shortState S message) message (wordArg message.data 1) (addrArg message.data 0)) := by
+  have := kba_sender (S := S) (message := message)
+  have := kba_rec (S := S) (message := message) (i := 0) (.inl rfl)
+  wchain
+
+theorem writes_feeStateK (F : FixedSep) (hacc : hasAccount S message.currentTarget) :
+    Writes message.currentTarget (KeyBA (callKeys message S)) S
+      (feeState (shortState S message) message (wordArg message.data 1) (addrArg message.data 0)) := by
+  have := kba_sender (S := S) (message := message)
+  have := kba_rec (S := S) (message := message) (i := 0) (.inl rfl)
+  have := kba_owner (S := S) (message := message) (storageAt_creditedFee0 F hacc (wordArg message.data 1) (addrArg message.data 0))
+  wchain
+
+theorem writes_creditedFK (hacc : hasAccount S message.currentTarget) :
+    Writes message.currentTarget (KeyBA (callKeys message S)) S
+      (creditedF (checkState S message) message (valArg message) (toArg message) (fromArg message)) := by
+  have := kba_allowFrom (S := S) (message := message)
+  have := kba_rec (S := S) (message := message) (i := 0) (.inl rfl)
+  have := kba_rec (S := S) (message := message) (i := 1) (.inr rfl)
+  wchain
+
+theorem writes_feeStateFK (K : SepOn (callKeys message S)) (hacc : hasAccount S message.currentTarget) :
+    Writes message.currentTarget (KeyBA (callKeys message S)) S
+      (feeStateF (checkState S message) message (valArg message) (toArg message) (fromArg message)) := by
+  have := kba_allowFrom (S := S) (message := message)
+  have := kba_rec (S := S) (message := message) (i := 0) (.inl rfl)
+  have := kba_rec (S := S) (message := message) (i := 1) (.inr rfl)
+  have := kba_owner (S := S) (message := message)
+    (storageAt_creditedFeeF0 K.fixed hacc K.allowFromArg.2 (valArg message) (toArg message))
+  wchain
+
+/-- A fixed slot is not of `KeyBA A`. -/
+theorem fixed_not_kba {A : List U256} (K : SepOn A) {k : Nat} (hk : k < 11) :
+    ¬ KeyBA A (BitVec.ofNat 256 k) := by
+  rintro (⟨x, -, hx, e⟩ | ⟨y, hy, z, hz, e⟩)
+  · exact K.fixed k hk x hx e
+  · exact (K.allow y hy z hz).2 k hk e.symm
+
+end Keyed
+
 /-! ## The effect of one successful call -/
 
 /-- What a successful call (not deprecated) does to the storage of `C = message.currentTarget`,
@@ -302,7 +415,7 @@ inductive Effect {fork : Fork} (message : Message fork) (S S' : State.Transactio
       (hw : Writes message.currentTarget (· = allowArg message) S S')
   /-- An owner function that writes only slots 0, 3, 4, 10 and slots of `isBlackListed`. -/
   | ownerW (howner : callerWord message = ownerOf S message.currentTarget)
-      (hw : Writes message.currentTarget OwnW S S')
+      (hw : Writes message.currentTarget (OwnW message) S S')
   /-- issue(v). -/
   | issue (hsel : selector message.data = 0xcc872b66)
       (howner : callerWord message = ownerOf S message.currentTarget)
@@ -395,7 +508,7 @@ theorem effect_local (hfork : .berlin ≤ fork)
     refine .ownerW howner ?_
     rw [hst]
     exact Writes.wr (Writes.read _ _) (hasAccount_readSlot hacc)
-      (.inr (.inr (.inr (.inr (list_mk _))))) _
+      (.inr (.inr (.inr (.inr rfl)))) _
   | ⟨5, _⟩, hi =>
     obtain ⟨-, -, hst, -⟩ := ok_totalSupply hfork hsize' (hi.trans rfl)
       (flag_of hdep (.inl (.inr (.inl (hi.trans rfl))))) start within hrun hok
@@ -495,7 +608,7 @@ theorem effect_local (hfork : .berlin ≤ fork)
     refine .ownerW howner ?_
     rw [hst]
     exact Writes.wr (Writes.read _ _) (hasAccount_readSlot hacc)
-      (.inr (.inr (.inr (.inr (list_mk _))))) _
+      (.inr (.inr (.inr (.inr rfl)))) _
   | ⟨29, _⟩, hi =>
     obtain ⟨-, -, hst, -⟩ := ok_maxUint hfork hsize' (hi.trans rfl) start within hrun hok
     exact rd hst (fun _ => rfl)

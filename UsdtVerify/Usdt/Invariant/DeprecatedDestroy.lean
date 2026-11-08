@@ -10,7 +10,8 @@ contract, so `S` may differ from the state at the start in this contract's stora
 
 - `inv_tail_iff`: if `Inv C S` holds and `C` has an account in `S`, then `Inv` holds after the
   two writes exactly when `d` is the local balance `balances[a]` in `S`.
-- `exists_breaks`: under `KeccakSep`, for every address `C` there are a state `S` (an empty
+- `exists_breaks`: if slot 1 is no balance slot (`NotBal 1`, round 29; through round 28
+  `KeccakSep`), for every address `C` there are a state `S` (an empty
   account at `C`, every storage word 0), `a = 0` and `d = 1` with `Inv C S`, an account of `C`,
   and not `Inv C (tailState S C a d)`.
 - `depD_inv`: every run of deprecated `destroyBlackFunds(a)` under a runner whose successful
@@ -46,8 +47,9 @@ theorem toNat_sub_gt {x a : U256} (h : x.toNat < a.toNat) :
 
 /-- After the two writes of deprecated destroyBlackFunds over a state `S` with `Inv`, `Inv`
 holds exactly when the answer `d` is the local balance of `a` in `S`. -/
-theorem inv_tail_iff (K : KeccakSep) {C : Address} {S : State.TransactionState}
-    (hacc : hasAccount S C) {a : U256} (ha : a.toNat < 2 ^ 160) (hI : Inv C S) (d : U256) :
+theorem inv_tail_iff (F : FixedSep) {C : Address} {S : State.TransactionState}
+    (hacc : hasAccount S C) {a : U256} (ha : a.toNat < 2 ^ 160) (hu : UniqBal a) (hI : Inv C S)
+    (d : U256) :
     Inv C (tailState S C a d) ↔ d = storageAt S C (mapSlot a 2) := by
   have hb := le_sumTo (f := bal C S) (fun i => Int.natCast_nonneg _) (a := a.toNat) (2 ^ 160) ha
   simp only [bal, ofNat_toNat] at hb
@@ -55,11 +57,11 @@ theorem inv_tail_iff (K : KeccakSep) {C : Address} {S : State.TransactionState}
   unfold sumBal at hI'
   rw [hI'] at hb
   have h1 : storageAt (writeSlot S C (mapSlot a 2) 0) C 1 = storageAt S C 1 :=
-    storageAt_writeSlot_of_ne hacc (Ne.symm (bal_ne_one K a))
+    storageAt_writeSlot_of_ne hacc (Ne.symm (bal_ne_one F ha))
   unfold Invariant.Inv
   simp only [tailState, h1]
-  rw [sumBal_write_nb (hasAccount_writeSlot hacc) (fun x _ e => bal_ne_one K x e.symm),
-    sumBal_write_bal K hacc ha, tot_write_one (hasAccount_writeSlot hacc)]
+  rw [sumBal_write_nb (hasAccount_writeSlot hacc) (nb1 F),
+    sumBal_write_bal hacc hu ha, tot_write_one (hasAccount_writeSlot hacc)]
   have hI2 : sumBal C S = ((storageAt S C 1).toNat : Int) := hI
   rw [hI2]
   have z : (0 : U256).toNat = 0 := rfl
@@ -84,10 +86,10 @@ theorem inv_tail_iff (K : KeccakSep) {C : Address} {S : State.TransactionState}
       omega
 
 /-- An answer other than the local balance breaks `Inv`. -/
-theorem not_inv_tail (K : KeccakSep) {C : Address} {S : State.TransactionState}
-    (hacc : hasAccount S C) {a : U256} (ha : a.toNat < 2 ^ 160) (hI : Inv C S) {d : U256}
-    (hd : d ≠ storageAt S C (mapSlot a 2)) : ¬ Inv C (tailState S C a d) :=
-  fun h => hd ((inv_tail_iff K hacc ha hI d).mp h)
+theorem not_inv_tail (F : FixedSep) {C : Address} {S : State.TransactionState}
+    (hacc : hasAccount S C) {a : U256} (ha : a.toNat < 2 ^ 160) (hu : UniqBal a) (hI : Inv C S)
+    {d : U256} (hd : d ≠ storageAt S C (mapSlot a 2)) : ¬ Inv C (tailState S C a d) :=
+  fun h => hd ((inv_tail_iff F hacc ha hu hI d).mp h)
 
 /-- `Σ_{i < n} 0 = 0`. -/
 theorem sumTo_zero : ∀ n, sumTo (fun _ => (0 : Int)) n = 0
@@ -109,18 +111,35 @@ theorem hasAccount_zeroState (C : Address) : hasAccount (zeroState C) C := by
     State.TransactionState.getAccountOptional]
 
 /-- The concrete counterexample to `Inv` after deprecated destroyBlackFunds: the zero state, `a = 0`,
-the answer `d = 1` (the local balance is 0). -/
-theorem exists_breaks (K : KeccakSep) (C : Address) :
+the answer `d = 1` (the local balance is 0). The one hypothesis, `NotBal 1` (slot 1 is the
+balance slot of no address word), is about one given slot (round 29; through round 28 it assumed
+`KeccakSep`). It cannot be dropped entirely: if slot 1 were the balance slot of exactly one
+address word, `Inv` would force every other balance to 0, and every `tailState` would keep `Inv`
+(argued, not proved here). -/
+theorem exists_breaks (h1 : NotBal 1) (C : Address) :
     ∃ S : State.TransactionState, ∃ a d : U256, hasAccount S C ∧ Inv C S ∧
       ¬ Inv C (tailState S C a d) := by
+  have hacc := hasAccount_zeroState C
   have hI : Inv C (zeroState C) := by
     unfold Invariant.Inv sumBal tot
     rw [sumTo_congr (g := fun _ => (0 : Int)) _ (fun i _ => by simp [bal, storageAt_zeroState]),
       sumTo_zero, storageAt_zeroState]
     rfl
-  refine ⟨zeroState C, 0, 1, hasAccount_zeroState C, hI,
-    not_inv_tail K (hasAccount_zeroState C) (by decide) hI ?_⟩
-  rw [storageAt_zeroState]
+  refine ⟨zeroState C, 0, 1, hacc, hI, ?_⟩
+  have hb : ∀ i, i < 2 ^ 160 → bal C (tailState (zeroState C) C 0 1) i = (fun _ => (0 : Int)) i := by
+    intro i hi
+    have hlt : (BitVec.ofNat 256 i : U256).toNat < 2 ^ 160 := by
+      rw [BitVec.toNat_ofNat, Nat.mod_eq_of_lt (by omega)]; exact hi
+    simp only [bal, tailState]
+    rw [storageAt_writeSlot_of_ne (hasAccount_writeSlot hacc) (fun e => h1 _ hlt e.symm)]
+    by_cases e : mapSlot (BitVec.ofNat 256 i) 2 = mapSlot 0 2
+    · rw [e, storageAt_writeSlot_self hacc]; rfl
+    · rw [storageAt_writeSlot_of_ne hacc e, storageAt_zeroState]; rfl
+  have h01 : storageAt (writeSlot (zeroState C) C (mapSlot 0 2) 0) C 1 = 0 := by
+    rw [storageAt_writeSlot_of_ne hacc (fun e => h1 0 (by decide) e), storageAt_zeroState]
+  unfold Invariant.Inv sumBal tot
+  rw [sumTo_congr _ hb, sumTo_zero]
+  simp only [tailState, storageAt_writeSlot_self (hasAccount_writeSlot hacc), h01]
   decide
 
 /-- Two states with the same words in `C`'s storage have the same `Inv C`. -/
@@ -145,7 +164,7 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
 
 /-- Deprecated `destroyBlackFunds(a)`: a successful end is `tailState S C a d` over a state `S`
 with `Inv` (by `hcallee`), and there `Inv` holds iff `d = balances[a]` in `S`. -/
-theorem depD_inv (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem depD_inv (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false)
     (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xf3bdc228) (hv : message.value = 0)
@@ -181,14 +200,14 @@ theorem depD_inv (K : KeccakSep) (hfork : .berlin ≤ fork)
     rw [state_incorporateChild] at hs
     refine ⟨child.state, _, hI, hs, ?_⟩
     rw [hs]
-    exact inv_tail_iff K hacc (addrArg_lt _ _) hI _
+    exact inv_tail_iff K.fixed hacc (addrArg_lt _ _) K.uniqArg0 hI _
   · obtain ⟨-, herr', -⟩ := hko he
     rw [herr] at herr'
     simp at herr'
 
 /-- Deprecated `destroyBlackFunds(a)` with a callee that keeps `Inv` and answers the local
 balance of `a` in its end state (`hans`): every successful end keeps `Inv`. -/
-theorem depD_keeps (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem depD_keeps (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false)
     (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xf3bdc228) (hv : message.value = 0)
@@ -225,7 +244,7 @@ theorem depD_keeps (K : KeccakSep) (hfork : .berlin ≤ fork)
     obtain ⟨hacc, hI⟩ := hcallee caller msg child hcal hfwd he
     rw [state_incorporateChild] at hs
     rw [hs]
-    exact (inv_tail_iff K hacc (addrArg_lt _ _) hI _).mpr (hans caller msg child hcal hfwd he)
+    exact (inv_tail_iff K.fixed hacc (addrArg_lt _ _) K.uniqArg0 hI _).mpr (hans caller msg child hcal hfwd he)
   · obtain ⟨-, herr', -⟩ := hko he
     rw [herr] at herr'
     simp at herr'
@@ -233,7 +252,7 @@ theorem depD_keeps (K : KeccakSep) (hfork : .berlin ≤ fork)
 /-- The counterexample, for every start state with `Inv`: a callee that succeeds with the output
 `o`, keeps every word of `C`'s storage, and answers a word other than `balances[a]` at the start
 (`hne`). Every run ends with no error, and `Inv` fails at its end. -/
-theorem depD_breaks (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem depD_breaks (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hstatic : message.isStatic = false)
     (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xf3bdc228) (hv : message.value = 0)
@@ -277,7 +296,7 @@ theorem depD_breaks (K : KeccakSep) (hfork : .berlin ≤ fork)
   rw [state_incorporateChild, hout, resWord_outMemOf (size_memD _) ho] at hs
   refine ⟨by simpa using herr, ?_⟩
   rw [hs]
-  refine not_inv_tail K hacc (addrArg_lt _ _) ((inv_congr hst').mpr hI) ?_
+  refine not_inv_tail K.fixed hacc (addrArg_lt _ _) K.uniqArg0 ((inv_congr hst').mpr hI) ?_
   rw [hst']
   exact hne
 

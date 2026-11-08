@@ -6,7 +6,7 @@ import UsdtVerify.Usdt.Security.Pause
 `Listed C S a`: the low byte of `isBlackListed[a]` (slot `keccak(a ++ 6)`) is not 0, as the code
 tests it. The balance of `a` is the slot `keccak(a ++ 2)`.
 
-- `Effect.listed`: under `KeccakSep`, for an address word `a < 2^160` blacklisted at the start,
+- `Effect.listed`: under `SepOn` of the call's keys, for an address word `a < 2^160` blacklisted at the start,
   a successful call (not deprecated) does not lower the word of `balances[a]`, unless it is the
   owner's redeem or destroyBlackFunds. transfer checks the sender and transferFrom checks `_from`
   against the blacklist (so neither debits `a`); every other write to a balance adds to it
@@ -16,7 +16,7 @@ tests it. The balance of `a` is the slot `keccak(a ++ 2)`.
   and through transferFrom with `a` as `_from`.
 - `listed_seq`: along a finite sequence of successful calls by callers other than the owner and of
   `Untouched` steps, from a state where `a` is blacklisted, not deprecated, slots 7 and 8 of
-  `StrForm`: under `KeccakSep` and `AllowSep`, `balances[a]` never ends lower than it started (and
+  `StrForm`, each call under `SecSep` of its keys: `balances[a]` never ends lower than it started (and
   `a` stays blacklisted, by `nonOwner_seq`).
 
 Deprecated or not (round 23): `listed_call_all` (when deprecated the runner meets `KeepsListed`:
@@ -61,45 +61,50 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
   {substate : Substate} {bound : Nat} {runChild : MessageRunner fork Nat bound}
   {evm s : Evm fork Nat} {gas : Nat}
 
-theorem bal_ne_of_unlisted (K : KeccakSep) {S : State.TransactionState} {C : Address} {a x : U256}
-    (ha : a.toNat < 2 ^ 160) (hl : Listed C S a)
+theorem bal_ne_of_unlisted {S : State.TransactionState} {C : Address} {a x : U256}
+    (hu : UniqBal (bitwiseAnd ADDR_MASK x)) (ha : a.toNat < 2 ^ 160) (hl : Listed C S a)
     (hx : (storageAt S C (mapSlot (bitwiseAnd ADDR_MASK x) 6)).toNat % 256 = 0) :
     mapSlot a 2 ≠ mapSlot (bitwiseAnd ADDR_MASK x) 2 := by
   intro e
   apply hl
-  rw [K.inj _ _ ha (mask_lt _) e]
+  rw [hu a ha e]
   exact hx
 
 /-- A blacklisted address word `a` keeps at least its balance over a successful call that is not
 the owner's redeem or destroyBlackFunds. -/
-theorem Effect.listed (K : KeccakSep) {S S' : State.TransactionState} (h : Effect message S S')
+theorem Effect.listed {S S' : State.TransactionState} (K : SepOn (callKeys message S))
+    (h : Effect message S S')
     {a : U256} (ha : a.toNat < 2 ^ 160) (hl : Listed message.currentTarget S a)
     (hsel : (selector message.data ≠ 0xdb006a75 ∧ selector message.data ≠ 0xf3bdc228) ∨
       callerWord message ≠ ownerOf S message.currentTarget) :
     NoDec message.currentTarget (mapSlot a 2) S S' := by
-  have h1 : mapSlot a 2 ≠ 1 := bal_ne_one K a
+  have h1 : mapSlot a 2 ≠ 1 := bal_ne_one K.fixed ha
   cases h with
   | same h => unfold NoDec; rw [h]; exact Nat.le_refl _
   | transferOk _ hacc _ hblack _ hto hst =>
-    have hne : mapSlot a 2 ≠ senderSlot message := bal_ne_of_unlisted K ha hl hblack
+    have hne : mapSlot a 2 ≠ senderSlot message := bal_ne_of_unlisted K.uniqCaller ha hl hblack
     rw [hst]; ndchain
   | transferFee _ hacc _ hblack _ _ hto hown hst =>
-    have hne : mapSlot a 2 ≠ senderSlot message := bal_ne_of_unlisted K ha hl hblack
+    have hne : mapSlot a 2 ≠ senderSlot message := bal_ne_of_unlisted K.uniqCaller ha hl hblack
     rw [hst]; ndchain
   | fromOk _ hacc _ hblack _ _ hto hst =>
-    have hne : mapSlot a 2 ≠ recipientSlot (fromArg message) := bal_ne_of_unlisted K ha hl hblack
-    have hneA : mapSlot a 2 ≠ allowFrom message (fromArg message) := K.allow a _ _
+    have hne : mapSlot a 2 ≠ recipientSlot (fromArg message) :=
+      bal_ne_of_unlisted (K.uniqArg (.inl rfl)) ha hl hblack
+    have hneA : mapSlot a 2 ≠ allowFrom message (fromArg message) :=
+      fun e => K.allowFromArg.1 a ha e.symm
     rw [hst]; ndchain
   | fromFee _ hacc _ hblack _ _ _ hto hown hst =>
-    have hne : mapSlot a 2 ≠ recipientSlot (fromArg message) := bal_ne_of_unlisted K ha hl hblack
-    have hneA : mapSlot a 2 ≠ allowFrom message (fromArg message) := K.allow a _ _
+    have hne : mapSlot a 2 ≠ recipientSlot (fromArg message) :=
+      bal_ne_of_unlisted (K.uniqArg (.inl rfl)) ha hl hblack
+    have hneA : mapSlot a 2 ≠ allowFrom message (fromArg message) :=
+      fun e => K.allowFromArg.1 a ha e.symm
     rw [hst]; ndchain
-  | approve _ hw => exact NoDec.of_writes hw fun e => K.allow a _ _ e
-  | ownerW _ hw => exact NoDec.of_writes hw (bal_not_ownW K ⟨a, ha, rfl⟩)
+  | approve _ hw => exact NoDec.of_writes hw fun e => K.allowArg.1 a ha e.symm
+  | ownerW _ hw => exact NoDec.of_writes hw fun ho => ownW_notBal K ho a ha rfl
   | issue _ _ hacc hT hB hst =>
     have hT' : (storageAt (issueState1 S message) message.currentTarget 1).toNat +
         (wordArg message.data 0).toNat < 2 ^ 256 := by
-      rw [storageAt_writeSlot_of_ne (by acc) (Ne.symm (bal_ne_one K _))]
+      rw [storageAt_writeSlot_of_ne (by acc) (Ne.symm (bal_ne_one K.fixed (mask_lt _)))]
       simp only [storageAt_readSlot]; exact hT
     rw [hst]; ndchain
   | redeem hsel' howner =>
@@ -113,10 +118,11 @@ theorem Effect.listed (K : KeccakSep) {S S' : State.TransactionState} (h : Effec
 
 /-- **Blacklist, one call.** From Berlin (Glamsterdam included), a fresh frame of `CODE` at pc 0,
 static or not, any call data below 2^256 bytes, any value, any gas, any gas bound and any message
-runner; not deprecated, slots 7 and 8 of `StrForm`, under `KeccakSep`: for an address word
+runner; not deprecated, slots 7 and 8 of `StrForm`, under `SepOn` of the call's keys: for an
+address word
 `a < 2^160` blacklisted at the start, if the run ends with no error and it is not the owner's
 redeem or destroyBlackFunds (`hsel`), `balances[a]` is not lower at the end. -/
-theorem listed_call (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem listed_call (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     (h7 : StrForm (storageAt state message.currentTarget 7))
@@ -133,9 +139,9 @@ theorem listed_call (K : KeccakSep) (hfork : .berlin ≤ fork)
 /-- **Blacklist over a sequence.** Along a finite sequence of successful calls to `C` by callers
 other than the owner (of each call's start state) and of `Untouched` steps, from a state where
 `C` is not deprecated, slots 7 and 8 are of `StrForm`, and the address word `a < 2^160` is
-blacklisted: under `KeccakSep` and `AllowSep`, `balances[a]` is not lower at the end. -/
-theorem listed_seq (K : KeccakSep) (A : AllowSep) {C : Address} {S S' : State.TransactionState}
-    (h : Seq C NotOwner S S') (hdep : byte20 (storageAt S C 10) = 0)
+blacklisted, each call with `SecSep` of its keys: `balances[a]` is not lower at the end. -/
+theorem listed_seq {C : Address} {S S' : State.TransactionState}
+    (h : Seq C NotOwnerK S S') (hdep : byte20 (storageAt S C 10) = 0)
     (h7 : StrForm (storageAt S C 7)) (h8 : StrForm (storageAt S C 8))
     {a : U256} (ha : a.toNat < 2 ^ 160) (hl : Listed C S a) : NoDec C (mapSlot a 2) S S' := by
   refine seq_lift (I := fun X => Plain C X ∧ Listed C X a) (R := NoDec C (mapSlot a 2))
@@ -144,13 +150,14 @@ theorem listed_seq (K : KeccakSep) (A : AllowSep) {C : Address} {S S' : State.Tr
       plain_of_untouched hu hI.1, by unfold Listed; rw [hu]; exact hI.2⟩) ?_ h
     ⟨⟨hdep, h7, h8⟩, hl⟩
   intro S S' fork message hr hq hI
+  obtain ⟨hno, K⟩ := hq
   obtain ⟨⟨hdep, h7, h8⟩, hl⟩ := hI
   obtain ⟨hC, he⟩ := hr.effect hdep h7 h8
   subst hC
-  have hw := he.nonOwner hq
-  refine ⟨he.listed K ha hl (.inr hq), plain_of_writes K A hw ⟨hdep, h7, h8⟩, ?_⟩
+  have hw := he.nonOwnerK K.toSepOn hno
+  refine ⟨he.listed K.toSepOn ha hl (.inr hno), plain_of_writes K.toSepOn hw ⟨hdep, h7, h8⟩, ?_⟩
   unfold Listed
-  rw [hw _ (protected_not_ba K A (.inr (.inr (.inr (.inr (.inr ⟨a, rfl⟩))))))]
+  rw [hw _ (protected_not_kba K (.inr (.inr (.inr (.inr (.inr ⟨a, ha, rfl⟩))))))]
   exact hl
 
 /-! ## Deprecated or not -/
@@ -167,7 +174,7 @@ def KeepsListed {fork : Fork} {bound : Nat} (runChild : MessageRunner fork Nat b
     (C ua : Address) : Prop :=
   Keeps runChild C ua (ListedNoDec C)
 
-theorem EffectD.listed (K : KeccakSep) {S S' : State.TransactionState}
+theorem EffectD.listed {S S' : State.TransactionState} (K : SepOn (callKeys message S))
     (h : EffectD runChild message S S')
     {a : U256} (ha : a.toNat < 2 ^ 160) (hl : Listed message.currentTarget S a)
     (hsel : (selector message.data ≠ 0xdb006a75 ∧ selector message.data ≠ 0xf3bdc228) ∨
@@ -190,7 +197,7 @@ word `a < 2^160` blacklisted at the start, if the run ends with no error and it 
 redeem or destroyBlackFunds, `balances[a]` is not lower at the end. (transfer from a blacklisted
 caller, and transferFrom with a blacklisted `_from`, have no successful run, deprecated or not:
 `transfer_checks_all`, `transferFrom_checks_all`.) -/
-theorem listed_call_all (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem listed_call_all (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
     (h7 : StrForm (storageAt state message.currentTarget 7))
     (h8 : StrForm (storageAt state message.currentTarget 8))
@@ -209,9 +216,9 @@ theorem listed_call_all (K : KeccakSep) (hfork : .berlin ≤ fork)
 to `C` by callers other than the owner (of each call's start state, with slots 7 and 8 of
 `StrForm` there), whose runner, when `C` is deprecated at that state, meets `Keeps` for both
 `ProtKept C` and `ListedNoDec C` (that is, `KeepsSlots` and `KeepsListed`), and of `Untouched`
-steps, from a state where the address word `a < 2^160` is blacklisted: under `KeccakSep` and
-`AllowSep`, `balances[a]` is not lower at the end. -/
-theorem listed_seq_all (K : KeccakSep) (A : AllowSep) {C : Address}
+steps, from a state where the address word `a < 2^160` is blacklisted, each call with `SecSep` of
+its keys: `balances[a]` is not lower at the end. -/
+theorem listed_seq_all {C : Address}
     {S S' : State.TransactionState}
     (h : SeqR C (fun X Y => ProtKept C X Y ∧ ListedNoDec C X Y) NotOwnerS S S')
     {a : U256} (ha : a.toNat < 2 ^ 160) (hl : Listed C S a) : NoDec C (mapSlot a 2) S S' := by
@@ -220,14 +227,14 @@ theorem listed_seq_all (K : KeccakSep) (A : AllowSep) {C : Address}
     (fun hu hI => ⟨NoDec.of_writes (W := fun _ => False) (.of_same hu) id,
       by unfold Listed; rw [hu]; exact hI⟩) ?_ h hl
   intro S S' fork message hr hq hl
-  obtain ⟨hno, h7, h8⟩ := hq
+  obtain ⟨hno, ⟨h7, h8⟩, K⟩ := hq
   have hC : message.currentTarget = C := by obtain ⟨_, _, _, _, _, _, _, hC, -⟩ := hr; exact hC
   subst hC
   obtain ⟨-, bound, runChild, he, hk⟩ := hr.effect h7 h8
-  have hprot := he.protKept K A hno (fun hd => (hk hd).mono fun _ _ h => h.1)
-  refine ⟨he.listed K ha hl (.inr hno) (fun hd => (hk hd).mono fun _ _ h => h.2), ?_⟩
+  have hprot := he.protKept K hno (fun hd => (hk hd).mono fun _ _ h => h.1)
+  refine ⟨he.listed K.toSepOn ha hl (.inr hno) (fun hd => (hk hd).mono fun _ _ h => h.2), ?_⟩
   unfold Listed
-  rw [hprot _ (.inr (.inr (.inr (.inr (.inr ⟨a, rfl⟩)))))]
+  rw [hprot _ (.inr (.inr (.inr (.inr (.inr ⟨a, ha, rfl⟩)))))]
   exact hl
 
 end UsdtVerify.Security

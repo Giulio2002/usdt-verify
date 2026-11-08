@@ -346,7 +346,10 @@ REVERT, no output, unchanged, gas 46.
 
 ## The global invariant (Usdt/Invariant/Supply.lean, imports this file)
 `Inv C S`: the sum over the 2^160 addresses of `balances[a]` equals `_totalSupply` (slot 1).
-Under the keccak hypothesis `KeccakSep` (stated, not proved), the end state of every proved
+Under the keccak hypothesis `SepOn (callKeys message state)` (round 29: separation of the finitely
+many slots keyed by the call's caller, first two address arguments and owner, and of the fixed
+slots, from the 2^160 balance slots; stated, not proved; it replaces the global `KeccakSep`, which
+is almost certainly false, docs/AUDIT.md finding 1), the end state of every proved
 success path that writes is reached by `Steps` (`reach_*`), and `steps_inv` keeps `Inv` along any
 finite sequence of steps; read-only paths only record reads (`inv_readSlot`, `inv_rdSt`).
 destroyBlackFunds keeps `Inv`: under `Inv`, `d ≤ _totalSupply`, so its unchecked subtraction does
@@ -376,17 +379,18 @@ has an alias here, since Invariant imports this file.
 Over every successful run of a fresh frame of `CODE`, from Berlin (Glamsterdam included), static
 or not, any call data below 2^256 bytes, any value, any gas, bound and runner, not deprecated
 (`hdep`), slots 7 and 8 of `StrForm` (`h7`, `h8`; not taken by `transferFrom_bound`):
-`Security.effect_call` classifies the end state (`Effect`). Under `KeccakSep`, and `AllowSep`
-where named (a slot of `allowed` is none of the slots 0..10 and no slot of `isBlackListed`;
-not proved):
+`Security.effect_call` classifies the end state (`Effect`). Under `SepOn` of the call's keys, and
+`SecSep` where named (moreover the balance and allowance slots keyed by them are no slot of
+`isBlackListed` of an address word; not proved; round 29, replacing `KeccakSep` and `AllowSep`):
 `Security.nonOwner_call` (a caller other than the owner, the low 160 bits of slot 0, changes only
-slots of `balances` and `allowed`; slots 0, 1, 3, 4, 10 and the blacklist slots keep their words;
-`AllowSep`), `Security.paused_call` (when paused, every balance keeps its word, or it is the
+slots of `balances` and `allowed`; slots 0, 1, 3, 4, 10 and the blacklist slots of address words
+keep their words; `SecSep`), `Security.paused_call` (when paused, every balance keeps its word, or it is the
 owner's issue, redeem or destroyBlackFunds), `Security.listed_call` (a blacklisted address word's
 balance does not decrease, except by the owner's redeem or destroyBlackFunds),
 `Security.transferFrom_bound` (`v ≤ A` unless `A = MAX_UINT`; `balances[_from]` falls by at most
-`v`; the allowance becomes `A - v`, or stays `MAX_UINT`), `Security.allowKept_call` (only approve
-and transferFrom change a slot of `allowed`; `AllowSep`), `Security.supply_call` (slot 1 changes
+`v`; the allowance becomes `A - v`, or stays `MAX_UINT`), `Security.allowKept_call` (no function
+other than approve and transferFrom changes the slot of `allowed` keyed by given words `y`, `z`;
+`SecSep` of the call's keys and `y`, `z`), `Security.supply_call` (slot 1 changes
 only by the owner's issue `+ v`, redeem `- v`, destroyBlackFunds `- balances[a]`, unchecked).
 Over sequences (`Security.Seq`, with `Untouched` steps): `nonOwner_seq`, `paused_seq`,
 `listed_seq` (calls by callers other than the owner; the start state not deprecated, with
@@ -419,11 +423,11 @@ gives a call, a start state and a gas where every hypothesis of a spec theorem h
 under `processRunner` that ends with no error: `Sanity.transfer_ok_sat`,
 `Sanity.transferFrom_ok_sat`, `Sanity.approve_set_sat`, `Sanity.issue_sat`, `Sanity.redeem_sat`
 and `Sanity.destroy_sat`. No keccak fact is used.
-Under `KeccakSep`, and `AllowSep` where needed, the `Sanity.*_applies` theorems apply the
+Under `SepOn` or `SecSep` of the witness call's keys, the `Sanity.*_applies` theorems apply the
 security theorems, `inv_call_ns` and `inv_call_all` to such runs. They discharge every other
 hypothesis. No witness run is deprecated.
 `Sanity.strForm_name` and `Sanity.strForm_symbol`: the words of "Tether USD" and "USDT" are of
-`StrForm`. `Sanity.strings_applies`: under `KeccakSep`, `inv_call_all` and `supply_call` apply with
+`StrForm`. `Sanity.strings_applies`: under `SepOn` of the call's keys, `inv_call_all` and `supply_call` apply with
 those words in slots 7 and 8.
 
 ## Exact success conditions (rounds 25, 26; Usdt/Exact/, conditions in Usdt/Spec/Guards.lean)

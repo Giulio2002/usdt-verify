@@ -17,7 +17,7 @@ theorems `dep_*_complete`:
   So `Inv C` at the end is `Inv C` of the child's state.
 - destroyBlackFunds (`dep_destroy_local`): the same up to and through the CALL, then the two
   writes over the child's state `S`: the end state is `tailState S C a d`, `d` the word that the
-  call wrote at 0x60. By `DepInv.inv_tail_iff` (under `KeccakSep`, `Inv C S`, an account of `C`
+  call wrote at 0x60. By `DepInv.inv_tail_iff` (under `FixedSep` and `UniqBal a`, `Inv C S`, an account of `C`
   in `S`), `Inv` holds at the end iff `d = balances[a]` in `S` (`inv_dep_destroy_iff`).
   `dep_destroy_complete` proves the account of `C` in `S` for every run that ends with no error.
 
@@ -45,7 +45,7 @@ It reaches the runner: `localForward_noAcc` (with no account at the start, the C
 a caller state with no account of `C`).
 So that case cannot be ruled out from the code; `KeepsInv` assumes it for the runner.
 
-`inv_call_ns`: `Complete.inv_call` without `hdep`: under `KeccakSep`, `StrForm` of slots 7 and 8,
+`inv_call_ns`: `Complete.inv_call` without `hdep`: under `SepOn` of the call's keys, `StrForm` of slots 7 and 8,
 `Inv` at the start, and, when deprecated, `KeepsInv` and (for destroyBlackFunds) `HonestBalance`,
 every successful call ends with `Inv`.
 No account of `C` is assumed, deprecated or not.
@@ -287,7 +287,7 @@ theorem dep_destroy_local (hfork : .berlin ≤ fork)
 
 /-- Deprecated destroyBlackFunds under `KeepsInv`: `Inv` holds at the end iff the answer `d` is
 the local `balances[a]` in the state the call left. -/
-theorem inv_dep_destroy_iff (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem inv_dep_destroy_iff (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
     (hkeeps : KeepsInv runChild message.currentTarget (upAddr state message))
@@ -306,10 +306,10 @@ theorem inv_dep_destroy_iff (K : KeccakSep) (hfork : .berlin ≤ fork)
       hrun hok
   refine ⟨caller, msg, lt, child, hch, he, hmc, hmt, hmd, ?_⟩
   rw [hst]
-  exact DepInv.inv_tail_iff K hacc' (addrArg_lt _ _) hI' _
+  exact DepInv.inv_tail_iff K.fixed hacc' (addrArg_lt _ _) K.uniqArg0 hI' _
 
 /-- Deprecated destroyBlackFunds under `KeepsInv` and `HonestBalance` keeps `Inv`. -/
-theorem inv_dep_destroy (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem inv_dep_destroy (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
     (hkeeps : KeepsInv runChild message.currentTarget (upAddr state message))
@@ -330,12 +330,13 @@ theorem inv_dep_destroy (K : KeccakSep) (hfork : .berlin ≤ fork)
 
 `inv_call` with `hdep` replaced by what the deprecated paths need. From Berlin (Glamsterdam
 included), a fresh frame of `CODE` at pc 0, static or not (since round 19), with any call data
-below 2^256 bytes, any value, any gas, any gas bound and any message runner. Under `KeccakSep`, with
+below 2^256 bytes, any value, any gas, any gas bound and any message runner. Under `SepOn` of the
+call's keys, with
 string slots 7 and 8 of `StrForm`, and, when deprecated (byte 20 of slot 10 not 0): the runner
 meets `KeepsInv` (`hkeeps`), and for destroyBlackFunds it meets `HonestBalance` (`hhonest`).
 No account of the contract is assumed (since round 20).
 If `Inv C state` holds and the interpreter loop ends with no error, then `Inv C s.state` holds. -/
-theorem inv_call_ns (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem inv_call_ns (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
     (h7 : StrForm (storageAt state message.currentTarget 7))
     (h8 : StrForm (storageAt state message.currentTarget 8))

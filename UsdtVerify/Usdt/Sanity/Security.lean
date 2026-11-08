@@ -21,9 +21,11 @@ and substate, list the other hypotheses that are not about keccak:
 
 The `_applies` theorems apply each security theorem (`nonOwner_call`, `paused_call`,
 `listed_call`, `allowKept_call`, `supply_call`, and their `_call_all` forms) and `inv_call_all` to
-a witness: they take `KeccakSep` (and `AllowSep` where the theorem does) as hypotheses, and
-discharge every other hypothesis. `KeccakSep` and `AllowSep` are statements about keccak; they
-are not proved here.
+a witness: they take the keccak hypothesis of the theorem (`SepOn` or `SecSep` of the witness
+call's keys, and of `y`, `z` for the allowance) as a hypothesis, and discharge every other
+hypothesis. Since round 29 these are finitely many separation facts about given slots, each of
+the kind "this slot is none of the 2^160 balance slots" (docs/AUDIT.md, finding 1); they are not
+proved here.
 
 The runs are not deprecated, so the runner assumptions of the `_call_all` forms and of
 `inv_call_all` (taken only when deprecated) hold there with nothing to show; Runner.lean shows
@@ -186,25 +188,26 @@ theorem inv_witness (hfork : .berlin ≤ fork) (b : BlockEnvironment fork)
 /-! ## The theorems applied -/
 
 /-- `nonOwner_call` and `nonOwner_call_all` apply to `transfer_witness`. -/
-theorem nonOwner_applies (K : KeccakSep) (A : AllowSep) (hfork : .berlin ≤ fork)
+theorem nonOwner_applies (hfork : .berlin ≤ fork)
     (b : BlockEnvironment fork) (t : TransactionEnvironment fork) (C : Address) (to : U256)
-    (ss : Substate) :
+    (ss : Substate) (K : SecSep (callKeys (mT b t C CALLER_A to) (sT b t C CALLER_A to))) :
     ∃ s : Evm fork Nat, s.error = none ∧
       (Writes C BalOrAllow (sT b t C CALLER_A to) s.state ∧
         ∀ n, Protected n → storageAt s.state C n = storageAt (sT b t C CALLER_A to) C n) ∧
       ProtKept C (sT b t C CALLER_A to) s.state := by
   obtain ⟨⟨g, evm, hat, w, s, hr, he⟩, hsz, hdep, h7, h8, hno, -⟩ :=
     transfer_witness hfork b t C to ss
-  exact ⟨s, he, nonOwner_call K A hfork hsz hdep h7 h8 hno hat w hr he,
-    nonOwner_call_all K A hfork hsz h7 h8 hno (fun h => absurd hdep h) hat w hr he⟩
+  exact ⟨s, he, nonOwner_call K hfork hsz hdep h7 h8 hno hat w hr he,
+    nonOwner_call_all K hfork hsz h7 h8 hno (fun h => absurd hdep h) hat w hr he⟩
 
 /-- `allowKept_call`, `allowKept_call_all`, `supply_call`, `supply_call_all` apply to
 `transfer_witness`. -/
-theorem allowKept_supply_applies (K : KeccakSep) (A : AllowSep) (hfork : .berlin ≤ fork)
+theorem allowKept_supply_applies (hfork : .berlin ≤ fork)
     (b : BlockEnvironment fork) (t : TransactionEnvironment fork) (C : Address) (to : U256)
-    (ss : Substate) :
+    (ss : Substate) (y z : U256)
+    (K : SecSep (y :: z :: callKeys (mT b t C CALLER_A to) (sT b t C CALLER_A to))) :
     ∃ s : Evm fork Nat, s.error = none ∧
-      AllowKept C (sT b t C CALLER_A to) s.state ∧
+      AllowKeptAt y z C (sT b t C CALLER_A to) s.state ∧
       SupplyStep (mT b t C CALLER_A to) (sT b t C CALLER_A to) s.state ∧
       SupplyStepD (mT b t C CALLER_A to) (sT b t C CALLER_A to) s.state := by
   obtain ⟨⟨g, evm, hat, w, s, hr, he⟩, hsz, hdep, h7, h8, -, hsel⟩ :=
@@ -212,14 +215,17 @@ theorem allowKept_supply_applies (K : KeccakSep) (A : AllowSep) (hfork : .berlin
   have hsel' : selector (mT b t C CALLER_A to).data ≠ 0x095ea7b3 ∧
       selector (mT b t C CALLER_A to).data ≠ 0x23b872dd := by
     rw [hsel]; decide
-  have := allowKept_call_all K A hfork hsz h7 h8 hsel' (fun h => absurd hdep h) hat w hr he
-  exact ⟨s, he, allowKept_call K A hfork hsz hdep h7 h8 hsel' hat w hr he,
-    supply_call K hfork hsz hdep h7 h8 hat w hr he,
-    supply_call_all K hfork hsz h7 h8 (fun h => absurd hdep h) hat w hr he⟩
+  have K' : SepOn (callKeys (mT b t C CALLER_A to) (sT b t C CALLER_A to)) :=
+    K.toSepOn.mono (fun x hx => by simp [hx])
+  have := allowKept_call_all K hfork hsz h7 h8 hsel' (fun h => absurd hdep h) hat w hr he
+  exact ⟨s, he, allowKept_call K hfork hsz hdep h7 h8 hsel' hat w hr he,
+    supply_call K' hfork hsz hdep h7 h8 hat w hr he,
+    supply_call_all K' hfork hsz h7 h8 (fun h => absurd hdep h) hat w hr he⟩
 
 /-- `paused_call` and `paused_call_all` apply to `paused_witness`. -/
-theorem paused_applies (K : KeccakSep) (hfork : .berlin ≤ fork) (b : BlockEnvironment fork)
-    (t : TransactionEnvironment fork) (C caller : Address) (sp : U256) (ss : Substate) :
+theorem paused_applies (hfork : .berlin ≤ fork) (b : BlockEnvironment fork)
+    (t : TransactionEnvironment fork) (C caller : Address) (sp : U256) (ss : Substate)
+    (K : SepOn (callKeys (mA0 b t C caller sp) (sP C))) :
     ∃ s : Evm fork Nat, s.error = none ∧
       (BalKept C (sP C) s.state ∨
         (callerWord (mA0 b t C caller sp) = ownerOf (sP C) C ∧
@@ -232,9 +238,9 @@ theorem paused_applies (K : KeccakSep) (hfork : .berlin ≤ fork) (b : BlockEnvi
   exact ⟨s, he, paused_call K hfork hsz hdep hp h7 h8 hat w hr he⟩
 
 /-- `listed_call` and `listed_call_all` apply to `listed_witness`. -/
-theorem listed_applies (K : KeccakSep) (hfork : .berlin ≤ fork) (b : BlockEnvironment fork)
+theorem listed_applies (hfork : .berlin ≤ fork) (b : BlockEnvironment fork)
     (t : TransactionEnvironment fork) (C caller : Address) (sp a : U256) (ha : a.toNat < 2 ^ 160)
-    (ss : Substate) :
+    (ss : Substate) (K : SepOn (callKeys (mA0 b t C caller sp) (sL C a))) :
     ∃ s : Evm fork Nat, s.error = none ∧ NoDec C (mapSlot a 2) (sL C a) s.state := by
   obtain ⟨⟨g, evm, hat, w, s, hr, he⟩, hsz, hl, hdep, h7, h8, hsel⟩ :=
     listed_witness hfork b t C caller sp a ss
@@ -246,8 +252,9 @@ theorem listed_applies (K : KeccakSep) (hfork : .berlin ≤ fork) (b : BlockEnvi
   exact ⟨s, he, listed_call K hfork hsz hdep h7 h8 ha hl hsel' hat w hr he⟩
 
 /-- `inv_call_all` (and `inv_call_ns`) apply to `inv_witness`. -/
-theorem inv_applies (K : KeccakSep) (hfork : .berlin ≤ fork) (b : BlockEnvironment fork)
-    (t : TransactionEnvironment fork) (C caller : Address) (sp : U256) (ss : Substate) :
+theorem inv_applies (hfork : .berlin ≤ fork) (b : BlockEnvironment fork)
+    (t : TransactionEnvironment fork) (C caller : Address) (sp : U256) (ss : Substate)
+    (K : SepOn (callKeys (mA b t C caller sp) (sState C []))) :
     ∃ s : Evm fork Nat, s.error = none ∧ Invariant.Inv C s.state := by
   obtain ⟨⟨g, evm, hat, w, s, hr, he⟩, hsz, hst, hI, hdep, h7, h8⟩ :=
     inv_witness hfork b t C caller sp ss

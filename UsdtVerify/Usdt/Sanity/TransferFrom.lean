@@ -8,8 +8,8 @@ import UsdtVerify.Usdt.Sanity.Security
 running `CODE`, from the state `sF` (one account, at `C`; `allowed[f][caller]` and `balances[f]`
 hold 256, every other slot 0), with enough gas, ends with no error under `processRunner`.
 The proof applies `TransferFrom.runFrame_ok` (the Summary's `transferFrom_ok`).
-`transferFrom_bound_applies`: `Security.transferFrom_bound` applies to that run, under
-`KeccakSep`.
+`transferFrom_bound_applies`: `Security.transferFrom_bound` applies to that run, under `SepOn`
+of the call's keys (round 29; through round 28 `KeccakSep`).
 
 No fact about keccak is used: every slot of `C` holds 0 or 256 at the start, and each check
 passes whatever slots the keccak outputs collide with.
@@ -163,9 +163,10 @@ theorem transferFrom_ok_sat (hfork : .berlin ≤ fork) (b : BlockEnvironment for
     by obtain ⟨-, he, -⟩ := hH; simpa using he⟩
 
 /-- `transferFrom_bound` applies to the run of `transferFrom_ok_sat`. -/
-theorem transferFrom_bound_applies (K : Invariant.KeccakSep) (hfork : .berlin ≤ fork)
+theorem transferFrom_bound_applies (hfork : .berlin ≤ fork)
     (b : BlockEnvironment fork) (t : TransactionEnvironment fork) (C caller : Address)
-    (f to : U256) (ss : Substate) :
+    (f to : U256) (ss : Substate)
+    (K : Invariant.SepOn (Invariant.callKeys (mF b t C caller f to) (sF b t C caller f to))) :
     ∃ s : Evm fork Nat, s.error = none ∧
       (storageAt (sF b t C caller f to) C (allowFrom (mF b t C caller f to)
           (fromArg (mF b t C caller f to))) = MAX_UINT ∨

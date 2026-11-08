@@ -97,7 +97,8 @@ theorem inv_static (hst : message.isStatic = true) (hmc : message.code = CODE)
 /-- The invariant over every successful call, static or not.
 
 From Berlin (Glamsterdam included, deprecated or not), a fresh frame of `CODE` at pc 0 with any call data below
-2^256 bytes, any value, any gas, any gas bound and any message runner, under `KeccakSep`, with
+2^256 bytes, any value, any gas, any gas bound and any message runner, under `SepOn` of the
+call's keys (`callKeys`), with
 string slots 7 and 8 of `StrForm`, and:
 - when the frame is static (`hstat`): the code of the message is `CODE`, it runs at an account
   that holds code (`StaticCode`), and the runner meets `StaticKeeps`;
@@ -106,7 +107,7 @@ string slots 7 and 8 of `StrForm`, and:
 No `hacc` (since round 20): when the frame is not static, no account of the contract is assumed;
 when it is static, `StaticCode` for the nonempty code `CODE` implies one.
 If `Inv C state` holds and the interpreter loop ends with no error, then `Inv C s.state` holds. -/
-theorem inv_call_all (K : KeccakSep) (hfork : .berlin ≤ fork)
+theorem inv_call_all (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hstat : message.isStatic = true →
       message.code = CODE ∧ StaticCode state message ∧ StaticKeeps runChild)
     (hsize' : message.data.size < 2 ^ 256)

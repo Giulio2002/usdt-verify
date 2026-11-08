@@ -1354,12 +1354,60 @@ entry; `DESTS` = the 32 destinations).
   header placed `fromExt`, which is in Usdt/Complete/Deprecated/Call.lean; RESULTS placed
   `Gas.expLG` in Evm/Local/).
 
+### Round 29: the audit findings (docs/AUDIT.md), hypotheses restated so they can hold
+
+Finding 1 (critical): the keccak hypotheses are now local.
+- Old: `KeccakSep` (and `AllowSep` for some security theorems), separation for all key words at
+  once; almost certainly false (2^256 expected collisions for some fields), so every theorem that
+  assumed it was, as far as anyone can tell, vacuous.
+- New, in Usdt/Invariant/Supply.lean: `NotBal n` (no address word has `n` as balance slot),
+  `UniqBal x` (no other address word has the balance slot of `x`), `NotFixed n`, `FixedSep`
+  (slots 0..10 are no balance slot), and `SepOn A` for a list `A` of words: `FixedSep`, `UniqBal`
+  of the address words of `A`, the `isBlackListed` slots keyed by `A` are no balance slot and not
+  slot 1, the `allowed` slots keyed by two words of `A` are no balance slot and no fixed slot.
+  `callKeys message S` = [caller, address argument 0, address argument 1, owner of `S`]. In
+  Usdt/Security/Effect.lean: `NotList`, `SecSep A` (`SepOn A`, and the balance and allowance slots
+  keyed by `A` are no `isBlackListed` slot of an address word). Each fact compares one given slot
+  with 2^160 others (or with 11 fixed slots); under the random-function model each fails with
+  probability about 2^-96.
+- How each statement changed: every `K : KeccakSep` became `K : SepOn (callKeys message state)`,
+  and every `K : KeccakSep` with `A : AllowSep` became `K : SecSep (callKeys message state)`, for
+  the call's own message and start state. Sequences: `GoodCall` carries `SepOn (callKeys message S)`
+  for its own call, so `inv_calls` and `inv_goodCall` take no keccak argument; `goodCall_process`
+  and `process_step` take `K` for their message; the security sequence predicates (`NotOwnerK`,
+  `NotOwnerS`, `NoAllowFn y z`, `NoAllowFnS y z`, `NoSupplyFn`, `NoSupplyFnS`) carry it per call.
+  Step-level lemmas take the precise facts they use (`transferOk_inv F hus hur`, `Step`
+  constructors carry `UniqBal` / `NotBal` of the slots they write; `step_inv` and `steps_inv` take
+  `FixedSep`). `inv_tail_iff`, `not_inv_tail` take `FixedSep` and `UniqBal a`.
+- Two conclusions were narrowed, because a global conclusion would need a global hypothesis:
+  `ListSlot` (in `Protected`, so in `nonOwner_*`, `ProtKept`, `KeepsSlots`) now means a slot of
+  `isBlackListed` of an address word (`y < 2^160`; it was any word); and the allowance theorems
+  (`allowKept_call`, `_call_all`, `_seq`, `_seq_all`, `Effect.allowKept`, `EffectD.allowKept`)
+  conclude `AllowKeptAt y z` for given words `y`, `z` under `SecSep (y :: z :: callKeys ..)`
+  (they concluded `AllowKept`, every slot). `AllowKept` stays as the form of the runner
+  assumption `KeepsAllow`. `OwnW` is now `OwnW message`: slots 0, 3, 4, 10 and the one
+  `isBlackListed` slot of the first address argument (it was any `isBlackListed` slot).
+- `exists_breaks` now takes `NotBal 1` only (was `KeccakSep`). It cannot be unconditional: if
+  slot 1 were the balance slot of exactly one address word, every tail would keep `Inv` (argued).
+- New lemmas: `SepOn.mono`, `SepOn.uniqCaller` / `uniqArg` / `uniqArg0` / `uniqOwner` /
+  `uniqOwnerAt` / `listArg` / `allowArg` / `allowFromArg`, `storageAt_creditedFee0`,
+  `storageAt_creditedFeeF0`, `storageAt_allowState_of_ne`, `nb1`, `bal_ne_zero`; Security:
+  `SecSep.mono`, `sepOn_of_global` (`KeccakSep` and `AllowSep` give `SecSep A` for every `A`, so
+  the old forms follow, except the narrowed `Protected`), `KeyBA` (balance and allowance slots
+  keyed by a list) with `kba_*`, `writes_creditedK`, `writes_feeStateK`, `writes_creditedFK`,
+  `writes_feeStateFK`, `Effect.nonOwnerK`, `fixed_not_kba`, `protected_not_kba`, `ownW_notBal`,
+  `ownW_ne_one`, `not_ownW`, `SecSep.allowYZ`, `not_balOrOne`. Removed (they used the global
+  hypotheses): `nb_list`, `nb_allow`, `bal_not_allow`, `bal_not_list`, `bal_not_fixed`,
+  `bal_not_ownW`, `allow_not_ownW`, `allow_ne_one`, `fixed_not_ba`, `protected_not_ba`,
+  `list_mk`, `KeccakSep` → `SepOn` corollary moved to `sepOn_of_global`.
+
 ## Open (not proved)
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
   contract (round 24: concrete runners meet them, `Sanity/Runner.lean`). `transferFrom_bound` has
   no deprecated form.
-- `AllowSep`, like `KeccakSep`, is a hypothesis about keccak, not proved.
+- The keccak hypotheses `SepOn` / `SecSep` of a call's keys (round 29; finitely many facts, each
+  one given slot against 2^160 others) are not proved, and not shown for any particular call.
 - A theorem that neither `KeepsInv` nor `KeepsInvAcc` implies the other (by the definitions only).
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
   transfer (round 12), approve, transferFrom, the ten owner functions (round 13), not deprecated
@@ -1385,8 +1433,8 @@ entry; `DESTS` = the 32 destinations).
   (`inv_dep_destroy_iff`); `exists_breaks` gives a state where a different answer breaks it.
   `KeepsInv` is not proved for any real upgraded contract. Round 24 shows that `stopRunner` and
   `balRunner` meet it, and that `balRunner` meets `HonestBalance`.
-- Non-vacuity (round 24): no witness run is deprecated; `KeccakSep` and `AllowSep` are not
-  discharged.
+- Non-vacuity (round 24): no witness run is deprecated; the keccak hypotheses of the witness calls
+  (`SepOn` / `SecSep` of their keys, since round 29) are not discharged.
 - Exact success conditions (round 25): done for the 32 functions not deprecated and the seven
   deprecated forwarding paths (under `NoFail` and a runner hypothesis giving the answer `A`).
   Round 26: every gas for the 13 writing functions not deprecated (`X_iff_gas`) and for the seven
