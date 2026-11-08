@@ -321,3 +321,86 @@ cannot change (no SELFDESTRUCT or DELEGATECALL path in `CODE`). Reworded in the 
   their hypotheses are never true" sentence is qualified.
 - `README.md`: findings 1, 2, 3, 4, 6, 7 and 8 reworded as sentences about
   what the statements say. No theorem statement was changed.
+
+# Second audit (USDT-31)
+
+An independent read-only reviewer that wrote none of this code ran it after round 31 (commits
+157eebb and c468aaf). It had the same brief as the first audit (vacuity, definitions against the
+bytecode and EthLib, overclaims in the README and docs/RESULTS.md, the trusted base), plus a check
+that every Round 29/30/31 Resolution above holds. It changed no file. Its scratch proofs are not
+committed. It found nothing Critical or High.
+
+## Summary
+
+| # | Severity | Finding | Touches |
+|---|---|---|---|
+| M1 | Medium | `NoFailOn`, `hfail` and the failure disjunct of `X_dep_ok_or_fails` still range over every caller frame, so for a code that reads another account's code they can be false or trivially true for `processRunner` | statements (not changed) |
+| L1 | Low | README: `process_step` when deprecated is said to need only `KeepsInvAt`; it also takes `HonestBalanceAt` (and `SepOn`, `StrForm`, `StaticCode`) | README |
+| L2 | Low | README: a pointer to "What is not covered yet" for deprecated exact hypotheses that cannot hold, with no such item there | README |
+| L3 | Low | Stale `NoFail` / "every caller frame" / "`HonestBalanceAt` for no real code" text in RESULTS, STATUS and a docstring | docs (fixed) |
+| L4 | Low | No file builds a deprecated state; every `processRunner` instance takes the upgraded code as a hypothesis | docs, possible new Sanity theorem |
+| I1 | Info | The "not shown" item (one state where a useful code meets `KeepsInvAt` and `HonestBalanceAt`) is cheap to close with `MIRROR` | possible new Sanity theorem |
+| I2 | Info | The local `lakefile.lean` takes EthLib by path (`../ethlib-usdt-pin5`, at `fd3457dbf`, clean); the published pin was not visible to the reviewer | none |
+
+## M1. The runner-failure hypotheses still cover every caller frame (Medium)
+
+`NoFailOn runChild S` (Evm/Iff.lean) is `∀ caller msg lt e, S msg → runChild caller msg lt ≠
+.error e`. `hfail` in `X_dep_ok_iff_fails` and the existential of `X_dep_ok_or_fails` (from
+`fwd_ok_or_fails`) also range over every caller frame, with any state. Round 30 restricted only
+`hans` to the frame at the CALL (`CallFrom`). EthLib's `TransactionState.getCode` returns a
+`StateError` for a code hash with no entry (State/Tracker.lean, checked), and `EvmError.state`
+aborts. So, argued and not machine-checked by the reviewer: for an upgraded code that CALLs or
+EXTCODESIZEs another account, there is a caller state where `processRunner` returns `.error` on a
+forwarded message. Then `NoFailOn` is false (so `X_dep_ok_iff` and `X_dep_ok_iff_gas` cannot be
+applied), `hfail` forces `¬ A` (against `hans` at the real frame when success is possible), and
+the failure disjunct of `X_dep_ok_or_fails` holds whatever the actual run does. The STOP and
+`MIRROR` instances escape only because those codes read no other account. Suggested fix
+(statements, not done here): add `CallFrom` of the CALL (or `SameView` of the start state) to
+`NoFailOn`, `hfail` and the existential. `fwd_ok_or_fails` already carries `Cl`.
+
+## L1–L4, I1, I2
+
+- L1, L2: README text; reported to the main session for the README.
+- L3, fixed: RESULTS (the `X_dep_ok_iff` hypotheses now say `NoFailOn`; the paragraph on `hans` and
+  `hfail` now says that only `hans` is restricted to the CALL's frame and states M1; "What is not
+  covered" now cites `MIRROR` for `HonestBalanceAt`; `NoFailOn or hfail`), STATUS (Open, exact
+  conditions), Exact/Deprecated.lean module doc.
+- L4 and I1: the reviewer built, in scratch files that are not committed, a concrete Dencun state
+  where slot 10 is deprecated with upgraded address 0x1234 holding `MIRROR`, and discharged every
+  hypothesis of `balanceOf_dep_ok_iff_gas_process_mirror` in it. It also proved `KeepsInvAt` for
+  `processRunner` with `MIRROR`, and built a deprecated destroyBlackFunds state where `KeepsInvAt`
+  and `HonestBalanceAt` hold together. These are reported results of the reviewer's scratch run
+  (exit 0, axioms within `[propext, Classical.choice, Quot.sound]`); they are not in the repository.
+- I2: no change.
+
+## Verdicts on the resolutions
+
+- Finding 1, round 29: holds. `SepOn` / `SecSep` compare one given slot against the 2^160 address
+  slots or the 11 fixed slots; `callKeys` and `sepOn_of_global` are as stated; `exists_breaks` takes
+  only `NotBal 1`.
+- Finding 2, round 29: holds, with a caveat. `KeepsAt`, `SentVia`, `SameView`, `Keeps.at`,
+  `keepsInv_at` are as stated; `processRunner_stop_keepsAll` is conditional on the upgraded code
+  (`hcode`). "The deprecated branch of `process_step` is no longer vacuous" holds for the selectors
+  other than destroyBlackFunds, which also needs `HonestBalanceAt` (see L1, I1).
+- Finding 2, round 30: holds. `honestBalanceAt_process_mirror` has exactly the stated hypotheses.
+- Finding 3, round 29: superseded by round 30; its "not resolved" was correct at the time.
+- Finding 3, round 30: holds for `hans` (`CallFrom` in all seven; the STOP instances exist).
+  `NoFailOn` is still over-broad (M1).
+- Finding 3, round 31, the instance: holds. Both `MIRROR` instances exist as stated; the hypotheses
+  of `balanceOf_dep_ok_iff_gas_process_mirror` were shown jointly satisfiable (scratch, above).
+- Finding 3, round 31, `X_dep_ok_or_fails`: partly. All seven exist with the gas-aware `hans`, and
+  `X_dep_ok_iff_fails` is derived from them, but the failure disjunct is over any caller frame (M1).
+
+## Checked and found sound
+
+- Trusted base: no `sorry`, `admit`, `axiom`, `native_decide`, `bv_decide`, `implemented_by`,
+  `extern`, `unsafe` or `partial` in `UsdtVerify/`; `lake env lean UsdtVerify/Test/Axioms.lean`
+  exit 0, 821 reports, each `[propext, Classical.choice, Quot.sound]` or a subset.
+- Definitions against EthLib: `processRunner` is `processMessage` of `msg.code` from
+  `caller.state` and `caller.substate.child`; `SendsVia`, `atCallState`, `atCallSub` match
+  `callStep_child_r`; `runFrame` turns non-aborting step errors into halts, as `NoAbort` / `StepGA`
+  assume; `MIRROR`'s 87 gas base matches the opcode prices.
+- Statements: `inv_call` and `inv_call_all` match the README; `SameView` (storage and code) suffices
+  for `Inv`; `HonestBalanceAt` compares with the child's end state as documented. Apart from L1–L4
+  the README and RESULTS claims compared match their statements (the README's access-control claim
+  was checked only against the first audit's verdict).

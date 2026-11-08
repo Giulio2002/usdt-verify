@@ -907,7 +907,8 @@ address (totalSupply, balanceOf, allowance, transfer, approve, transferFrom, des
 have `X_dep_ok_iff` and `X_dep_low`. Their hypotheses: the flag set (`hdep`), the code `c` of the
 upgraded address found in the state (and, for `X_dep_ok_iff`, `c.size < 2^256`), the route `r` of the CALL, the
 coldness flags, the gas up to the CALL (`hg`) and after its price (`htail`), and two hypotheses on
-the message runner: it never fails (`NoFail`: it returns a frame for every message), and each
+the message runner: it fails on none of the messages the path sends (`NoFailOn`, since round 29;
+`NoFail`, a frame for every message, through round 28), and each
 message it is given that is the forward along the route ends with no error exactly when a
 condition `A` holds (`hans`; round 30: only the message the CALL sends with the gas it gives, from
 the caller frame at the CALL, whose state and substate are given, `CallFrom`). For destroyBlackFunds, `A` is instead the condition for "the forward
@@ -1019,10 +1020,13 @@ ends with no error and the contract has an account in its end state".
   errors, the run ends in the postcondition or at a failure of the runner on a message that is the
   forward (`SendsVia`); EthLib's `SpecUnder` follows from it (`toUnder`). `Sanity.failRunner_hans`,
   `Sanity.failRunner_hfail`: the runner that fails on every message meets both with `A = False`.
-- The runner hypotheses `hans` and `hfail` quantify over every caller frame and every message that
-  is the forward; the run uses only the caller frame at its CALL. For destroyBlackFunds the
-  condition of `hans` depends on the caller frame (through `incorporateChild`), so it fixes one `A`
-  for all of them.
+- Since round 30, `hans` is asked only of the caller frame at the CALL (`CallFrom`). `NoFailOn`,
+  `hfail` and the failure in the conclusion of `X_dep_ok_or_fails` still range over every caller
+  frame, with any state, and every message that is the forward. For a code that reads another
+  account's code (a CALL or EXTCODESIZE in the upgraded contract), `processRunner` fails with a
+  state error from a caller state where that code is missing, so `NoFailOn` is false there and
+  `hfail` forces `¬ A` (argued in docs/AUDIT.md, second audit, M1; not machine-checked). The STOP
+  and `MIRROR` instances touch no other account.
 
 ## What is trusted
 
@@ -1046,8 +1050,9 @@ ends with no error and the contract has an account in its end state".
 - name/symbol on slot words outside `StrForm`.
 - The invariant over deprecated calls without the runner assumptions `KeepsInvAt` and
   `HonestBalanceAt` (destroyBlackFunds can break it, see above). `KeepsInvAt` is shown for
-  `processRunner` with the upgraded code STOP (round 29); `HonestBalanceAt` for no real upgraded
-  code.
+  `processRunner` with the upgraded code STOP (round 29); `HonestBalanceAt` with the upgraded code
+  `MIRROR` under `hmirror` (round 30). No file states one deprecated state where a useful code meets
+  both.
 - The keccak hypotheses `SepOn` and `SecSep` of a call's keys (finitely many separation facts about
   given slots; not proved, and not shown for any particular call).
 - The security properties for deprecated calls of the six forwarding functions (and, for the
@@ -1060,6 +1065,6 @@ ends with no error and the contract has an account in its end state".
 - Runs that run out of gas below the stated bounds, except at the dispatcher (see above), every
   gas for the exact conditions not deprecated (rounds 25 and 26, `X_low`, `X_mid`, `X_iff_gas`),
   and every gas for the seven deprecated forwards (`X_dep_low`, `X_dep_ok_iff_gas`,
-  `X_dep_ok_iff_fails`), under the runner hypotheses `hans` and `NoFail` or `hfail`.
+  `X_dep_ok_iff_fails`), under the runner hypotheses `hans` and `NoFailOn` or `hfail`.
 - Forks before Berlin. Glamsterdam rests on EthLib's model of that fork at the pin (its prices
   and the order of its checks).

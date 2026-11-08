@@ -1552,7 +1552,8 @@ Finding 3: `X_dep_ok_or_fails` on the gas-aware `hans` (Evm/Iff.lean, Usdt/Exact
 - Non-vacuity (round 24): no witness run is deprecated; the keccak hypotheses of the witness calls
   (`SepOn` / `SecSep` of their keys, since round 29) are not discharged.
 - Exact success conditions (round 25): done for the 32 functions not deprecated and the seven
-  deprecated forwarding paths (under `NoFail` and a runner hypothesis giving the answer `A`).
+  deprecated forwarding paths (under `NoFail`, since round 29 `NoFailOn`, and a runner hypothesis
+  giving the answer `A`).
   Round 26: every gas for the 13 writing functions not deprecated (`X_iff_gas`) and for the seven
   deprecated forwards (`X_dep_ok_iff_gas` with `X_dep_low`; destroyBlackFunds in the second part),
   and an iff for a runner that may fail with any error (`X_dep_ok_iff_fails`, under `hfail`).
@@ -1667,6 +1668,12 @@ Finding 3: `X_dep_ok_or_fails` on the gas-aware `hans` (Evm/Iff.lean, Usdt/Exact
    a fork-generic `callWith`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+- Round 31 (tree of commit 725dd5b, rm -rf .lake/build, EthLib oleans prebuilt,
+  LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`): 135.77 s wall, 340.22 s
+  user, 1796440064 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines, 1399 jobs. Hash
+  check: 11075 bytes, keccak256 b44fb4e9...ea55. `#print axioms`: 821 reports with axioms, 6 with
+  none; none outside [propext, Classical.choice, Quot.sound]. grep of UsdtVerify/ for sorry,
+  admit, axiom declarations, native_decide, bv_decide: none.
 - Round 27 (tree of commit c7647b1, rm -rf .lake/build, EthLib oleans prebuilt,
   LEAN_NUM_THREADS=2): 136.79 s wall, 330.98 s user, 1788444672 bytes max RSS (`/usr/bin/time -l`),
   exit 0, 0 "error:" lines, 0 warnings other than the module-system notes, lake counter [1392/1393].

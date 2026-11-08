@@ -14,7 +14,8 @@ in the state (`hcode`; `c.size < 2^256`, `hszl`, for the theorems that give succ
 `r` of the CALL (`hroute`), any gas bound and any message runner `runChild`.
 
 - `*_dep_ok_iff`: with the gas of the success path up to the CALL and after it (`hg`, `htail`),
-  and a runner that never fails (`NoFail`) and ends each message forwarded along the route with
+  and a runner that fails on none of the messages the path sends (`NoFailOn`) and ends each
+  message forwarded along the route with
   no error exactly when `A` holds (`hans`), the run ends with no error if and only if the checks
   before the forward hold (`ForwardOk`, or `TransferDepGuard`, `ApproveDepGuard`,
   `TransferFromDepGuard`) and `A` holds. For the six forwards other than destroyBlackFunds it is
@@ -22,7 +23,7 @@ in the state (`hcode`; `c.size < 2^256`, `hszl`, for the theorems that give succ
 - `*_dep_low`: with less gas than the path up to the CALL and the CALL's access (`hg`), no run
   ends with no error, whatever the runner.
 - `*_dep_ok_iff_gas` (round 26, the six forwards other than destroyBlackFunds): with `hg` only
-  (no `htail`), a runner that never fails, and `hans` saying that a forwarded message ends with
+  (no `htail`), `NoFailOn`, and `hans` saying that a forwarded message ends with
   no error and with enough gas left (the gas the CALL keeps plus the gas left in the ended frame
   at least the gas of the code after the CALL: 121, 126, 128, 51, 53, 53) exactly when `A` holds,
   the run ends with no error if and only if the checks and `A` hold. Together with `*_dep_low`
@@ -39,7 +40,7 @@ in the state (`hcode`; `c.size < 2^256`, `hszl`, for the theorems that give succ
   stipend bound (`tailStip`: more than 2300 gas left at the second SSTORE). Both are computed over
   the state and substate after the call: the coldness and the original and current words of
   `balances[a]` and slot 1 there. With `destroyBlackFunds_dep_low` this covers every gas, under a
-  runner that never fails.
+  runner that fails on none of the messages the path sends (`NoFailOn`).
 - `*_dep_ok_iff_fails` (round 26, the seven paths): `*_dep_ok_iff_gas` for a runner that may fail
   with any error, in place of `NoFail`: with `hg` only and the same `hans`, and `hfail` (a failure
   of the runner on a message forwarded along the route excludes `A`), the run ends with no error if
