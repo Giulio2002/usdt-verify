@@ -11,6 +11,7 @@ import UsdtVerify.Usdt.Sanity.Calls
 import UsdtVerify.Usdt.Sanity.Runner
 import UsdtVerify.Usdt.Sanity.Process
 import UsdtVerify.Usdt.Sanity.ProcessExact
+import UsdtVerify.Usdt.Sanity.Mirror
 import UsdtVerify.Usdt.Security.Supply
 import UsdtVerify.Usdt.Security.Allowance
 import UsdtVerify.Usdt.Security.Blacklist
@@ -858,3 +859,9 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Sanity.transferFrom_dep_ok_iff_gas_process_stop
 #print axioms UsdtVerify.Sanity.destroyBlackFunds_dep_ok_iff_gas_process_stop
 #print axioms UsdtVerify.Sanity.destroyBlackFunds_dep_ok_iff_process_stop
+-- round 30: HonestBalanceAt for processRunner with a real upgraded code (docs/AUDIT.md, finding 2)
+#print axioms UsdtVerify.delegatedAddress_mirror
+#print axioms UsdtVerify.mirror_spec
+#print axioms UsdtVerify.process_mirror
+#print axioms UsdtVerify.Sanity.loadWord_wordBytes_zero
+#print axioms UsdtVerify.Sanity.honestBalanceAt_process_mirror
