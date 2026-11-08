@@ -311,6 +311,10 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   blacklist, payload size, the SafeMath overflows, the balance), and it is the fee-0 path or
   the fee path. Its hypotheses: Berlin ≤ fork (Glamsterdam included since round 17); until
   round 18 also a frame that is not static and an account for the contract (see below).
+- Round 33 (docs/AUDIT.md, third audit, T5): each of these completeness theorems not deprecated
+  (`ok_X`, the 19 read functions and the 13 writing ones, aliases `X_complete`) states the gas
+  left as `cost ≤ gas ∧ s.gas = gas - cost`. Through round 32 the bound was not stated, so the
+  `Nat` subtraction alone did not rule out a truncated 0.
 - Round 13 adds the same for approve(address,uint256) and transferFrom(address,address,uint256)
   (not deprecated), and for the owner functions pause, unpause, addBlackList, removeBlackList,
   issue, redeem, setParams, deprecate, transferOwnership and destroyBlackFunds (the last not

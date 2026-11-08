@@ -49,9 +49,8 @@ theorem ok_approve (hfork : .berlin ≤ fork)
     message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     68 ≤ message.data.size ∧ s.output = .empty ∧
       ((wordArg message.data 1 = 0 ∧
-        s.gas = gas - (2560 + slotCost c10 + Gas.writeCost fork
-          (originalAt state message.currentTarget (allowArg message))
-          (storageAt state message.currentTarget (allowArg message)) 0 cA) ∧
+        ((2560 + slotCost c10 + Gas.writeCost fork (originalAt state message.currentTarget (allowArg message)) (storageAt state message.currentTarget (allowArg message)) 0 cA) ≤ gas ∧
+          s.gas = gas - (2560 + slotCost c10 + Gas.writeCost fork (originalAt state message.currentTarget (allowArg message)) (storageAt state message.currentTarget (allowArg message)) 0 cA)) ∧
         s.state = writeSlot (readSlot state message.currentTarget 10) message.currentTarget
           (allowArg message) 0 ∧
         s.substate = { storeSub fork (accessSlot substate message.currentTarget 10)
@@ -63,9 +62,8 @@ theorem ok_approve (hfork : .berlin ≤ fork)
             (bitwiseAnd ADDR_MASK (addrArg message.data 0)) 0) }) ∨
       (wordArg message.data 1 ≠ 0 ∧
         storageAt state message.currentTarget (allowArg message) = 0 ∧
-        s.gas = gas - (2753 + slotCost c10 + slotCost cA + Gas.writeCost fork
-          (originalAt state message.currentTarget (allowArg message)) 0
-          (wordArg message.data 1) false) ∧
+        ((2753 + slotCost c10 + slotCost cA + Gas.writeCost fork (originalAt state message.currentTarget (allowArg message)) 0 (wordArg message.data 1) false) ≤ gas ∧
+          s.gas = gas - (2753 + slotCost c10 + slotCost cA + Gas.writeCost fork (originalAt state message.currentTarget (allowArg message)) 0 (wordArg message.data 1) false)) ∧
         s.state = writeSlot (readSlot (readSlot state message.currentTarget 10)
           message.currentTarget (allowArg message)) message.currentTarget (allowArg message)
           (wordArg message.data 1) ∧
@@ -86,14 +84,14 @@ theorem ok_approve (hfork : .berlin ≤ fork)
     · exact (Gas.no_ok_stuck (fun g hg => bad_zero hfork hl hsize' hsel hv
         hdep hz hc10 (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
     obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
-    obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_add_left _ _)
+    obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_add_left _ _)
       (B := (2997 + slotCost c10) + (2560 + slotCost c10 + Gas.writeCost fork
           (originalAt state message.currentTarget (allowArg message))
           (storageAt state message.currentTarget (allowArg message)) 0 cA))
       (fun g hg => spec_zero hfork hstatic hacc hl hsize' hsel hv hdep hz hc10 hcA
         (le_l hg) (le_r hg))
       start within hrun hok
-    exact ⟨hstatic, hacc, hl, ho, .inl ⟨hz, hg, hst, hss⟩⟩
+    exact ⟨hstatic, hacc, hl, ho, .inl ⟨hz, ⟨hcg, hg⟩, hst, hss⟩⟩
   by_cases ha : storageAt state message.currentTarget (allowArg message) ≠ 0
   · exact (no_ok (fun g hg => spec_revert hfork hl hsize' hsel hv hdep hz ha hc10 hcA hg)
       (fun _ e h => halted_true_error e h) start within hrun hok).elim
@@ -103,13 +101,13 @@ theorem ok_approve (hfork : .berlin ≤ fork)
   · exact (Gas.no_ok_stuck (fun g hg => bad_set hfork hl hsize' hsel hv
       hdep hz ha hc10 hcA (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_add_left _ _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_add_left _ _)
     (B := (3190 + slotCost c10 + slotCost cA) + (2753 + slotCost c10 + slotCost cA + Gas.writeCost fork
         (originalAt state message.currentTarget (allowArg message)) 0
         (wordArg message.data 1) false))
     (fun g hg => spec_set hfork hstatic hacc hl hsize' hsel hv hdep hz ha hc10 hcA
       (le_l hg) (le_r hg))
     start within hrun hok
-  exact ⟨hstatic, hacc, hl, ho, .inr ⟨hz, ha, hg, hst, hss⟩⟩
+  exact ⟨hstatic, hacc, hl, ho, .inr ⟨hz, ha, ⟨hcg, hg⟩, hst, hss⟩⟩
 
 end UsdtVerify.Complete

@@ -601,6 +601,12 @@ the gas left, so no subtraction there truncates. Hypotheses like `121 ≤ gas - 
 only become stronger by truncation. The supply statements (`SupplyStep`) are additive in `Nat`,
 and `Inv` is in `Int`, so neither truncates. Suggested fix: add the `okCost ≤ gas` conjunct.
 
+**Resolution (round 33).** Done as suggested. Every non-deprecated `ok_X` in
+Usdt/Complete/ (Read, Getters, Owner, Approve, Transfer, TransferFrom) concludes
+`(cost ≤ gas ∧ s.gas = gas - cost)` where it concluded `s.gas = gas - cost`. The bound comes
+from `ok_exact`, `ok_exact2` and `ok_exact3`. It is one conjunct at the same position, so every
+caller builds unchanged.
+
 ## T6. Smaller README overstatements (Low)
 
 - "In it, every hypothesis of the gas-exact deprecated `balanceOf` theorem holds" leaves out

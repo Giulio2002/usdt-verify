@@ -79,7 +79,8 @@ theorem ok_transfer (hfork : .berlin ≤ fork)
         (sendOf (shortState state message) message (wordArg message.data 1)).toNat < 2 ^ 256 ∧
       s.output = .empty ∧
       ((feeOf (shortState state message) message (wordArg message.data 1) = 0 ∧
-        s.gas = gas - okCost fork state message c0 cB c10 c3 c4 cS cT ∧
+        (okCost fork state message c0 cB c10 c3 c4 cS cT ≤ gas ∧
+          s.gas = gas - okCost fork state message c0 cB c10 c3 c4 cS cT) ∧
         s.state = credited (shortState state message) message (wordArg message.data 1)
           (addrArg message.data 0) ∧
         s.substate = loggedSub fork (shortSubstate substate message) (shortState state message)
@@ -88,7 +89,8 @@ theorem ok_transfer (hfork : .berlin ≤ fork)
         (balO (shortState state message) message (wordArg message.data 1)
           (addrArg message.data 0)).toNat +
           (feeOf (shortState state message) message (wordArg message.data 1)).toNat < 2 ^ 256 ∧
-        s.gas = gas - feeCost fork state message c0 cB c10 c3 c4 cS cT cO ∧
+        (feeCost fork state message c0 cB c10 c3 c4 cS cT cO ≤ gas ∧
+          s.gas = gas - feeCost fork state message c0 cB c10 c3 c4 cS cT cO) ∧
         s.state = feeState (shortState state message) message (wordArg message.data 1)
           (addrArg message.data 0) ∧
         s.substate = feeSub fork (shortSubstate substate message) (shortState state message)
@@ -144,7 +146,7 @@ theorem ok_transfer (hfork : .berlin ≤ fork)
   by_cases hfee : feeOf (shortState state message) message (wordArg message.data 1) = 0
   · have hto' := hto
     rw [sendOf_zero hfee] at hto'
-    obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_add_right _ _)
+    obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_add_right _ _)
       (B := okCost fork state message c0 cB c10 c3 c4 cS cT +
         (PRE_COST + slotCost c0 + slotCost cB + slotCost c10 + (530 + slotCost c3 +
         slotCost c4 + slotCost cS + mulCost (wordArg message.data 1) +
@@ -158,7 +160,7 @@ theorem ok_transfer (hfork : .berlin ≤ fork)
       (fun g hg => spec_ok hfork hstatic hacc hl hsize' hsel hv hp hb hdep hov hfee hbal
         hto' hc0 hcB hc10 hc3 hc4 hcS hcT (le_l (le_r hg)) (le_r (le_r hg)) (le_l hg))
       start within hrun hok
-    exact ⟨ho, .inl ⟨hfee, hg, hst, hss⟩⟩
+    exact ⟨ho, .inl ⟨hfee, ⟨hcg, hg⟩, hst, hss⟩⟩
   by_cases hown : 2 ^ 256 ≤ (balO (shortState state message) message (wordArg message.data 1)
       (addrArg message.data 0)).toNat +
       (feeOf (shortState state message) message (wordArg message.data 1)).toNat
@@ -179,10 +181,10 @@ theorem ok_transfer (hfork : .berlin ≤ fork)
         hbal hto hown hc0 hcB hc10 hc3 hc4 hcS hcT hcO (le_l hg) (le_r hg))
       (fun _ e h => faulted_error e h) start within hrun hok).elim
   have hown := Nat.lt_of_not_le hown
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => spec_fee hfork hstatic hacc hl hsize' hsel hv hp hb hdep hov hfee hfv hbal
       hto hown hc0 hcB hc10 hc3 hc4 hcS hcT hcO hg)
     start within hrun hok
-  exact ⟨ho, .inr ⟨hfee, hown, hg, hst, hss⟩⟩
+  exact ⟨ho, .inr ⟨hfee, hown, ⟨hcg, hg⟩, hst, hss⟩⟩
 
 end UsdtVerify.Complete

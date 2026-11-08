@@ -89,7 +89,8 @@ theorem ok_transferFrom (hfork : .berlin ≤ fork)
         (sendOf (checkState state message) message (valArg message)).toNat < 2 ^ 256 ∧
       s.output = .empty ∧
       ((feeOf (checkState state message) message (valArg message) = 0 ∧
-        s.gas = gas - okCostF fork state message c0 cB c10 cA c3 c4 cF cT ∧
+        (okCostF fork state message c0 cB c10 cA c3 c4 cF cT ≤ gas ∧
+          s.gas = gas - okCostF fork state message c0 cB c10 cA c3 c4 cF cT) ∧
         s.state = creditedF (checkState state message) message (valArg message) (toArg message)
           (fromArg message) ∧
         s.substate = loggedSubF fork (checkSub substate message) (checkState state message)
@@ -98,7 +99,8 @@ theorem ok_transferFrom (hfork : .berlin ≤ fork)
         (balOF (checkState state message) message (valArg message) (toArg message)
           (fromArg message)).toNat +
           (feeOf (checkState state message) message (valArg message)).toNat < 2 ^ 256 ∧
-        s.gas = gas - feeCostF fork state message c0 cB c10 cA c3 c4 cF cT cO ∧
+        (feeCostF fork state message c0 cB c10 cA c3 c4 cF cT cO ≤ gas ∧
+          s.gas = gas - feeCostF fork state message c0 cB c10 cA c3 c4 cF cT cO) ∧
         s.state = feeStateF (checkState state message) message (valArg message) (toArg message)
           (fromArg message) ∧
         s.substate = feeSubF fork (checkSub substate message) (checkState state message) message
@@ -169,11 +171,11 @@ theorem ok_transferFrom (hfork : .berlin ≤ fork)
   by_cases hfee : feeOf (checkState state message) message (valArg message) = 0
   · have hto' := hto
     rw [sendOf_zero hfee] at hto'
-    obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact2
+    obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2
       (fun g h1 h2 => spec_ok hfork hstatic hacc hl hsize' hsel hv hp hb hdep hov hfee
         hallow hbal hto' hc0 hcB hc10 hcA hc3 hc4 hcF hcT h1 h2)
       start within hrun hok
-    exact ⟨ho, .inl ⟨hfee, hg, hst, hss⟩⟩
+    exact ⟨ho, .inl ⟨hfee, ⟨hcg, hg⟩, hst, hss⟩⟩
   by_cases hown : 2 ^ 256 ≤ (balOF (checkState state message) message (valArg message)
       (toArg message) (fromArg message)).toNat +
       (feeOf (checkState state message) message (valArg message)).toNat
@@ -181,10 +183,10 @@ theorem ok_transferFrom (hfork : .berlin ≤ fork)
       hdep hov hallow hfee hfv hbal hto hown hc0 hcB hc10 hcA hc3 hc4 hcF hcT hcO h1 h2)
       (fun _ e h => faulted_error e h) start within hrun hok).elim
   have hown := Nat.lt_of_not_le hown
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => spec_feeF hfork hstatic hacc hl hsize' hsel hv hp hb hdep hov hfee hfv
       hallow hbal hto hown hc0 hcB hc10 hcA hc3 hc4 hcF hcT hcO hg)
     start within hrun hok
-  exact ⟨ho, .inr ⟨hfee, hown, hg, hst, hss⟩⟩
+  exact ⟨ho, .inr ⟨hfee, hown, ⟨hcg, hg⟩, hst, hss⟩⟩
 
 end UsdtVerify.Complete

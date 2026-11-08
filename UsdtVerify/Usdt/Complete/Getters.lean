@@ -41,12 +41,13 @@ theorem ok_decimals (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     s.output = wordBytes (storageAt state message.currentTarget 9) ∧
-      s.gas = gas - (384 + slotCost (coldIn substate message.currentTarget 9)) ∧
+      ((384 + slotCost (coldIn substate message.currentTarget 9)) ≤ gas ∧
+        s.gas = gas - (384 + slotCost (coldIn substate message.currentTarget 9))) ∧
       s.state = (readSlot state message.currentTarget 9) ∧ s.substate = (accessSlot substate message.currentTarget 9) := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => Getters.spec_decimals hfork h4 hsize' hsel hv rfl hg) start within hrun hok
-  exact ⟨ho, hg, hst, hss⟩
+  exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `maximumFee` call is the path of `Getters.spec_maximumFee`. -/
 theorem ok_maximumFee (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
@@ -56,12 +57,13 @@ theorem ok_maximumFee (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     s.output = wordBytes (storageAt state message.currentTarget 4) ∧
-      s.gas = gas - (406 + slotCost (coldIn substate message.currentTarget 4)) ∧
+      ((406 + slotCost (coldIn substate message.currentTarget 4)) ≤ gas ∧
+        s.gas = gas - (406 + slotCost (coldIn substate message.currentTarget 4))) ∧
       s.state = (readSlot state message.currentTarget 4) ∧ s.substate = (accessSlot substate message.currentTarget 4) := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => Getters.spec_maximumFee hfork h4 hsize' hsel hv rfl hg) start within hrun hok
-  exact ⟨ho, hg, hst, hss⟩
+  exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `totalSupplyVar` call is the path of `Getters.spec_totalSupplyVar`. -/
 theorem ok_totalSupplyVar (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
@@ -71,12 +73,13 @@ theorem ok_totalSupplyVar (hfork : .berlin ≤ fork) (hsize' : message.data.size
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     s.output = wordBytes (storageAt state message.currentTarget 1) ∧
-      s.gas = gas - (428 + slotCost (coldIn substate message.currentTarget 1)) ∧
+      ((428 + slotCost (coldIn substate message.currentTarget 1)) ≤ gas ∧
+        s.gas = gas - (428 + slotCost (coldIn substate message.currentTarget 1))) ∧
       s.state = (readSlot state message.currentTarget 1) ∧ s.substate = (accessSlot substate message.currentTarget 1) := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => Getters.spec_totalSupplyVar hfork h4 hsize' hsel hv rfl hg) start within hrun hok
-  exact ⟨ho, hg, hst, hss⟩
+  exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `basisPointsRate` call is the path of `Getters.spec_basisPointsRate`. -/
 theorem ok_basisPointsRate (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
@@ -86,12 +89,13 @@ theorem ok_basisPointsRate (hfork : .berlin ≤ fork) (hsize' : message.data.siz
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     s.output = wordBytes (storageAt state message.currentTarget 3) ∧
-      s.gas = gas - (758 + slotCost (coldIn substate message.currentTarget 3)) ∧
+      ((758 + slotCost (coldIn substate message.currentTarget 3)) ≤ gas ∧
+        s.gas = gas - (758 + slotCost (coldIn substate message.currentTarget 3))) ∧
       s.state = (readSlot state message.currentTarget 3) ∧ s.substate = (accessSlot substate message.currentTarget 3) := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => Getters.spec_basisPointsRate hfork h4 hsize' hsel hv rfl hg) start within hrun hok
-  exact ⟨ho, hg, hst, hss⟩
+  exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `deprecated` call is the path of `Getters.spec_deprecated`. -/
 theorem ok_deprecated (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
@@ -101,12 +105,13 @@ theorem ok_deprecated (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     s.output = wordBytes (if byte20 (storageAt state message.currentTarget 10) = 0 then 0 else 1) ∧
-      s.gas = gas - (350 + slotCost (coldIn substate message.currentTarget 10)) ∧
+      ((350 + slotCost (coldIn substate message.currentTarget 10)) ≤ gas ∧
+        s.gas = gas - (350 + slotCost (coldIn substate message.currentTarget 10))) ∧
       s.state = (readSlot state message.currentTarget 10) ∧ s.substate = (accessSlot substate message.currentTarget 10) := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => Getters.spec_deprecated hfork h4 hsize' hsel hv rfl hg) start within hrun hok
-  exact ⟨ho, hg, hst, hss⟩
+  exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `paused` call is the path of `Getters.spec_paused`. -/
 theorem ok_paused (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
@@ -116,12 +121,13 @@ theorem ok_paused (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 2
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     s.output = wordBytes (if byte20 (storageAt state message.currentTarget 0) = 0 then 0 else 1) ∧
-      s.gas = gas - (614 + slotCost (coldIn substate message.currentTarget 0)) ∧
+      ((614 + slotCost (coldIn substate message.currentTarget 0)) ≤ gas ∧
+        s.gas = gas - (614 + slotCost (coldIn substate message.currentTarget 0))) ∧
       s.state = (readSlot state message.currentTarget 0) ∧ s.substate = (accessSlot substate message.currentTarget 0) := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => Getters.spec_paused hfork h4 hsize' hsel hv rfl hg) start within hrun hok
-  exact ⟨ho, hg, hst, hss⟩
+  exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `upgradedAddress` call is the path of `Getters.spec_upgradedAddress`. -/
 theorem ok_upgradedAddress (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
@@ -131,12 +137,13 @@ theorem ok_upgradedAddress (hfork : .berlin ≤ fork) (hsize' : message.data.siz
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     s.output = wordBytes (bitwiseAnd ADDR_MASK (storageAt state message.currentTarget 10)) ∧
-      s.gas = gas - (388 + slotCost (coldIn substate message.currentTarget 10)) ∧
+      ((388 + slotCost (coldIn substate message.currentTarget 10)) ≤ gas ∧
+        s.gas = gas - (388 + slotCost (coldIn substate message.currentTarget 10))) ∧
       s.state = (readSlot state message.currentTarget 10) ∧ s.substate = (accessSlot substate message.currentTarget 10) := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => Getters.spec_upgradedAddress hfork h4 hsize' hsel hv rfl hg) start within hrun hok
-  exact ⟨ho, hg, hst, hss⟩
+  exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `owner` call is the path of `Getters.spec_owner`. -/
 theorem ok_owner (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
@@ -146,12 +153,13 @@ theorem ok_owner (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 25
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     s.output = wordBytes (ownerOf state message.currentTarget) ∧
-      s.gas = gas - (652 + slotCost (coldIn substate message.currentTarget 0)) ∧
+      ((652 + slotCost (coldIn substate message.currentTarget 0)) ≤ gas ∧
+        s.gas = gas - (652 + slotCost (coldIn substate message.currentTarget 0))) ∧
       s.state = (readSlot state message.currentTarget 0) ∧ s.substate = (accessSlot substate message.currentTarget 0) := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => Getters.spec_owner hfork h4 hsize' hsel hv rfl hg) start within hrun hok
-  exact ⟨ho, hg, hst, hss⟩
+  exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `getOwner` call is the path of `Getters.spec_getOwner`. -/
 theorem ok_getOwner (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
@@ -161,12 +169,13 @@ theorem ok_getOwner (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     s.output = wordBytes (ownerOf state message.currentTarget) ∧
-      s.gas = gas - (638 + slotCost (coldIn substate message.currentTarget 0)) ∧
+      ((638 + slotCost (coldIn substate message.currentTarget 0)) ≤ gas ∧
+        s.gas = gas - (638 + slotCost (coldIn substate message.currentTarget 0))) ∧
       s.state = (readSlot state message.currentTarget 0) ∧ s.substate = (accessSlot substate message.currentTarget 0) := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => Getters.spec_getOwner hfork h4 hsize' hsel hv rfl hg) start within hrun hok
-  exact ⟨ho, hg, hst, hss⟩
+  exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `maxUint` call is the path of `Getters.spec_maxUint`. -/
 theorem ok_maxUint (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
@@ -176,12 +185,12 @@ theorem ok_maxUint (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     s.output = wordBytes (BitVec.ofNat 256 (2 ^ 256 - 1)) ∧
-      s.gas = gas - (824) ∧
+      ((824) ≤ gas ∧ s.gas = gas - (824)) ∧
       s.state = state ∧ s.substate = substate := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => Getters.spec_maxUint h4 hsize' hsel hv hg) start within hrun hok
-  exact ⟨ho, hg, hst, hss⟩
+  exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `balances` call is the path of `GettersMap.spec_balances`. -/
 theorem ok_balances (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
@@ -191,12 +200,13 @@ theorem ok_balances (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     s.output = wordBytes (storageAt state message.currentTarget (mapSlot (addrArg message.data 0) 2)) ∧
-      s.gas = gas - (478 + slotCost (coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 2))) ∧
+      ((478 + slotCost (coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 2))) ≤ gas ∧
+        s.gas = gas - (478 + slotCost (coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 2)))) ∧
       s.state = (readSlot state message.currentTarget (mapSlot (addrArg message.data 0) 2)) ∧ s.substate = (accessSlot substate message.currentTarget (mapSlot (addrArg message.data 0) 2)) := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => GettersMap.spec_balances hfork h4 hsize' hsel hv rfl hg) start within hrun hok
-  exact ⟨ho, hg, hst, hss⟩
+  exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `isBlackListed` call is the path of `GettersMap.spec_isBlackListed`. -/
 theorem ok_isBlackListed (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
@@ -206,12 +216,13 @@ theorem ok_isBlackListed (hfork : .berlin ≤ fork) (hsize' : message.data.size 
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     s.output = wordBytes (if (storageAt state message.currentTarget (mapSlot (addrArg message.data 0) 6)).toNat % 256 = 0 then 0 else 1) ∧
-      s.gas = gas - (933 + slotCost (coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 6))) ∧
+      ((933 + slotCost (coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 6))) ≤ gas ∧
+        s.gas = gas - (933 + slotCost (coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 6)))) ∧
       s.state = (readSlot state message.currentTarget (mapSlot (addrArg message.data 0) 6)) ∧ s.substate = (accessSlot substate message.currentTarget (mapSlot (addrArg message.data 0) 6)) := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => GettersMap.spec_isBlackListed hfork h4 hsize' hsel hv rfl hg) start within hrun hok
-  exact ⟨ho, hg, hst, hss⟩
+  exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `getBlackListStatus` call is the path of `GettersMap.spec_getBlackListStatus`. -/
 theorem ok_getBlackListStatus (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
@@ -221,12 +232,13 @@ theorem ok_getBlackListStatus (hfork : .berlin ≤ fork) (hsize' : message.data.
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     s.output = wordBytes (if (storageAt state message.currentTarget (mapSlot (addrArg message.data 0) 6)).toNat % 256 = 0 then 0 else 1) ∧
-      s.gas = gas - (663 + slotCost (coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 6))) ∧
+      ((663 + slotCost (coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 6))) ≤ gas ∧
+        s.gas = gas - (663 + slotCost (coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 6)))) ∧
       s.state = (readSlot state message.currentTarget (mapSlot (addrArg message.data 0) 6)) ∧ s.substate = (accessSlot substate message.currentTarget (mapSlot (addrArg message.data 0) 6)) := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => GettersMap.spec_getBlackListStatus hfork h4 hsize' hsel hv rfl hg) start within hrun hok
-  exact ⟨ho, hg, hst, hss⟩
+  exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `allowed` call is the path of `GettersMap.spec_allowed`. -/
 theorem ok_allowed (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
@@ -236,12 +248,13 @@ theorem ok_allowed (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     s.output = wordBytes (storageAt state message.currentTarget (GettersMap.allowSlot message.data)) ∧
-      s.gas = gas - (705 + slotCost (coldIn substate message.currentTarget (GettersMap.allowSlot message.data))) ∧
+      ((705 + slotCost (coldIn substate message.currentTarget (GettersMap.allowSlot message.data))) ≤ gas ∧
+        s.gas = gas - (705 + slotCost (coldIn substate message.currentTarget (GettersMap.allowSlot message.data)))) ∧
       s.state = (readSlot state message.currentTarget (GettersMap.allowSlot message.data)) ∧ s.substate = (accessSlot substate message.currentTarget (GettersMap.allowSlot message.data)) := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => GettersMap.spec_allowed hfork h4 hsize' hsel hv rfl hg) start within hrun hok
-  exact ⟨ho, hg, hst, hss⟩
+  exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `allowance` call is the path of `GettersMap.spec_allowance`. -/
 theorem ok_allowance (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
@@ -252,12 +265,13 @@ theorem ok_allowance (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     s.output = wordBytes (storageAt state message.currentTarget (GettersMap.allowSlot message.data)) ∧
-      s.gas = gas - (1156 + slotCost (coldIn substate message.currentTarget 10) + slotCost (coldIn (accessSlot substate message.currentTarget 10) message.currentTarget (GettersMap.allowSlot message.data))) ∧
+      ((1156 + slotCost (coldIn substate message.currentTarget 10) + slotCost (coldIn (accessSlot substate message.currentTarget 10) message.currentTarget (GettersMap.allowSlot message.data))) ≤ gas ∧
+        s.gas = gas - (1156 + slotCost (coldIn substate message.currentTarget 10) + slotCost (coldIn (accessSlot substate message.currentTarget 10) message.currentTarget (GettersMap.allowSlot message.data)))) ∧
       s.state = (readSlot (readSlot state message.currentTarget 10) message.currentTarget (GettersMap.allowSlot message.data)) ∧ s.substate = (accessSlot (accessSlot substate message.currentTarget 10) message.currentTarget (GettersMap.allowSlot message.data)) := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => GettersMap.spec_allowance hfork h4 hsize' hsel hv hdep rfl rfl hg) start within hrun hok
-  exact ⟨ho, hg, hst, hss⟩
+  exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 
 /-- The slot words of a `string` that Solidity writes: empty (low byte 0), short (low byte `2 n`,
@@ -279,38 +293,36 @@ theorem ok_name (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     ((storageAt state message.currentTarget 7).toNat % 256 = 0 ∧ s.output = wordBytes 0x20 ++ wordBytes 0 ∧
-      s.gas = gas - (643 + slotCost (coldIn substate message.currentTarget 7)) ∧
+      ((643 + slotCost (coldIn substate message.currentTarget 7)) ≤ gas ∧
+        s.gas = gas - (643 + slotCost (coldIn substate message.currentTarget 7))) ∧
       s.state = readSlot state message.currentTarget 7 ∧ s.substate = accessSlot substate message.currentTarget 7) ∨
     (∃ n, (storageAt state message.currentTarget 7).toNat % 256 = 2 * n ∧ 1 ≤ n ∧ n ≤ 31 ∧
       s.output = wordBytes 0x20 ++ wordBytes (BitVec.ofNat 256 n) ++
         wordBytes (Strings.topBytes (storageAt state message.currentTarget 7) n) ∧
-      s.gas = gas - (1010 + slotCost (coldIn substate message.currentTarget 7)) ∧
+      ((1010 + slotCost (coldIn substate message.currentTarget 7)) ≤ gas ∧
+        s.gas = gas - (1010 + slotCost (coldIn substate message.currentTarget 7))) ∧
       s.state = readSlot state message.currentTarget 7 ∧ s.substate = accessSlot substate message.currentTarget 7) ∨
     ((storageAt state message.currentTarget 7).toNat % 2 = 1 ∧ 32 ≤ (strN (storageAt state message.currentTarget 7)) ∧
       s.output = wordBytes 0x20 ++ wordBytes (StringsGen.wd (strN (storageAt state message.currentTarget 7))) ++
         StringsGen.strData (fun i => storageAt state message.currentTarget
           (StringsGen.slotJ (keccak (wordBytes 7)) i)) (strN (storageAt state message.currentTarget 7)) ∧
-      s.gas = gas - (62 + 22 * 1 + 34 + (102 + slotCost (coldIn substate message.currentTarget 7)) + 281 +
-          (50 * (((strN (storageAt state message.currentTarget 7)) + 31) / 32 - 1) + 96 +
-            rdGas (accessSlot substate message.currentTarget 7) message.currentTarget
-              (keccak (wordBytes 7)) (((strN (storageAt state message.currentTarget 7)) + 31) / 32) +
-            (mg (128 + 32 * (((strN (storageAt state message.currentTarget 7)) + 31) / 32)) - mg 128)) +
-          retCost (128 + 32 * (((strN (storageAt state message.currentTarget 7)) + 31) / 32)) (strN (storageAt state message.currentTarget 7))) ∧
+      ((62 + 22 * 1 + 34 + (102 + slotCost (coldIn substate message.currentTarget 7)) + 281 + (50 * (((strN (storageAt state message.currentTarget 7)) + 31) / 32 - 1) + 96 + rdGas (accessSlot substate message.currentTarget 7) message.currentTarget (keccak (wordBytes 7)) (((strN (storageAt state message.currentTarget 7)) + 31) / 32) + (mg (128 + 32 * (((strN (storageAt state message.currentTarget 7)) + 31) / 32)) - mg 128)) + retCost (128 + 32 * (((strN (storageAt state message.currentTarget 7)) + 31) / 32)) (strN (storageAt state message.currentTarget 7))) ≤ gas ∧
+        s.gas = gas - (62 + 22 * 1 + 34 + (102 + slotCost (coldIn substate message.currentTarget 7)) + 281 + (50 * (((strN (storageAt state message.currentTarget 7)) + 31) / 32 - 1) + 96 + rdGas (accessSlot substate message.currentTarget 7) message.currentTarget (keccak (wordBytes 7)) (((strN (storageAt state message.currentTarget 7)) + 31) / 32) + (mg (128 + 32 * (((strN (storageAt state message.currentTarget 7)) + 31) / 32)) - mg 128)) + retCost (128 + 32 * (((strN (storageAt state message.currentTarget 7)) + 31) / 32)) (strN (storageAt state message.currentTarget 7)))) ∧
       s.state = StringsGen.rdSt (readSlot state message.currentTarget 7) message.currentTarget (keccak (wordBytes 7))
         (((strN (storageAt state message.currentTarget 7)) + 31) / 32) ∧
       s.substate = StringsGen.rdSs (accessSlot substate message.currentTarget 7) message.currentTarget
         (keccak (wordBytes 7)) (((strN (storageAt state message.currentTarget 7)) + 31) / 32)) := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
   rcases hform with h0 | ⟨n, hn, h1, h31⟩ | ⟨hodd, h32, hN⟩
-  · obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
       (fun g hg => StringsGen.spec_nameEmpty hfork h4 hsize' hsel hv h0 rfl hg) start within hrun hok
-    exact .inl ⟨h0, ho, hg, hst, hss⟩
-  · obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+    exact .inl ⟨h0, ho, ⟨hcg, hg⟩, hst, hss⟩
+  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
       (fun g hg => Strings.spec_name hfork h4 hsize' hsel hv hn h1 h31 rfl hg) start within hrun hok
-    exact .inr (.inl ⟨n, hn, h1, h31, ho, hg, hst, hss⟩)
-  · obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+    exact .inr (.inl ⟨n, hn, h1, h31, ho, ⟨hcg, hg⟩, hst, hss⟩)
+  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
       (fun g hg => StringsGen.spec_nameLong hfork h4 hsize' hsel hv hodd rfl h32 hN rfl hg) start within hrun hok
-    exact .inr (.inr ⟨hodd, h32, ho, hg, hst, hss⟩)
+    exact .inr (.inr ⟨hodd, h32, ho, ⟨hcg, hg⟩, hst, hss⟩)
 
 /-- Every successful `symbol()` call, for a slot word of `StrForm`, is the empty, the short or
 the long path. -/
@@ -321,37 +333,35 @@ theorem ok_symbol (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 2
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     ((storageAt state message.currentTarget 8).toNat % 256 = 0 ∧ s.output = wordBytes 0x20 ++ wordBytes 0 ∧
-      s.gas = gas - (1083 + slotCost (coldIn substate message.currentTarget 8)) ∧
+      ((1083 + slotCost (coldIn substate message.currentTarget 8)) ≤ gas ∧
+        s.gas = gas - (1083 + slotCost (coldIn substate message.currentTarget 8))) ∧
       s.state = readSlot state message.currentTarget 8 ∧ s.substate = accessSlot substate message.currentTarget 8) ∨
     (∃ n, (storageAt state message.currentTarget 8).toNat % 256 = 2 * n ∧ 1 ≤ n ∧ n ≤ 31 ∧
       s.output = wordBytes 0x20 ++ wordBytes (BitVec.ofNat 256 n) ++
         wordBytes (Strings.topBytes (storageAt state message.currentTarget 8) n) ∧
-      s.gas = gas - (1450 + slotCost (coldIn substate message.currentTarget 8)) ∧
+      ((1450 + slotCost (coldIn substate message.currentTarget 8)) ≤ gas ∧
+        s.gas = gas - (1450 + slotCost (coldIn substate message.currentTarget 8))) ∧
       s.state = readSlot state message.currentTarget 8 ∧ s.substate = accessSlot substate message.currentTarget 8) ∨
     ((storageAt state message.currentTarget 8).toNat % 2 = 1 ∧ 32 ≤ (strN (storageAt state message.currentTarget 8)) ∧
       s.output = wordBytes 0x20 ++ wordBytes (StringsGen.wd (strN (storageAt state message.currentTarget 8))) ++
         StringsGen.strData (fun i => storageAt state message.currentTarget
           (StringsGen.slotJ (keccak (wordBytes 8)) i)) (strN (storageAt state message.currentTarget 8)) ∧
-      s.gas = gas - (62 + 22 * 21 + 34 + (102 + slotCost (coldIn substate message.currentTarget 8)) + 281 +
-          (50 * (((strN (storageAt state message.currentTarget 8)) + 31) / 32 - 1) + 96 +
-            rdGas (accessSlot substate message.currentTarget 8) message.currentTarget
-              (keccak (wordBytes 8)) (((strN (storageAt state message.currentTarget 8)) + 31) / 32) +
-            (mg (128 + 32 * (((strN (storageAt state message.currentTarget 8)) + 31) / 32)) - mg 128)) +
-          retCost (128 + 32 * (((strN (storageAt state message.currentTarget 8)) + 31) / 32)) (strN (storageAt state message.currentTarget 8))) ∧
+      ((62 + 22 * 21 + 34 + (102 + slotCost (coldIn substate message.currentTarget 8)) + 281 + (50 * (((strN (storageAt state message.currentTarget 8)) + 31) / 32 - 1) + 96 + rdGas (accessSlot substate message.currentTarget 8) message.currentTarget (keccak (wordBytes 8)) (((strN (storageAt state message.currentTarget 8)) + 31) / 32) + (mg (128 + 32 * (((strN (storageAt state message.currentTarget 8)) + 31) / 32)) - mg 128)) + retCost (128 + 32 * (((strN (storageAt state message.currentTarget 8)) + 31) / 32)) (strN (storageAt state message.currentTarget 8))) ≤ gas ∧
+        s.gas = gas - (62 + 22 * 21 + 34 + (102 + slotCost (coldIn substate message.currentTarget 8)) + 281 + (50 * (((strN (storageAt state message.currentTarget 8)) + 31) / 32 - 1) + 96 + rdGas (accessSlot substate message.currentTarget 8) message.currentTarget (keccak (wordBytes 8)) (((strN (storageAt state message.currentTarget 8)) + 31) / 32) + (mg (128 + 32 * (((strN (storageAt state message.currentTarget 8)) + 31) / 32)) - mg 128)) + retCost (128 + 32 * (((strN (storageAt state message.currentTarget 8)) + 31) / 32)) (strN (storageAt state message.currentTarget 8)))) ∧
       s.state = StringsGen.rdSt (readSlot state message.currentTarget 8) message.currentTarget (keccak (wordBytes 8))
         (((strN (storageAt state message.currentTarget 8)) + 31) / 32) ∧
       s.substate = StringsGen.rdSs (accessSlot substate message.currentTarget 8) message.currentTarget
         (keccak (wordBytes 8)) (((strN (storageAt state message.currentTarget 8)) + 31) / 32)) := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
   rcases hform with h0 | ⟨n, hn, h1, h31⟩ | ⟨hodd, h32, hN⟩
-  · obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
       (fun g hg => StringsGen.spec_symbolEmpty hfork h4 hsize' hsel hv h0 rfl hg) start within hrun hok
-    exact .inl ⟨h0, ho, hg, hst, hss⟩
-  · obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+    exact .inl ⟨h0, ho, ⟨hcg, hg⟩, hst, hss⟩
+  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
       (fun g hg => Strings.spec_symbol hfork h4 hsize' hsel hv hn h1 h31 rfl hg) start within hrun hok
-    exact .inr (.inl ⟨n, hn, h1, h31, ho, hg, hst, hss⟩)
-  · obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+    exact .inr (.inl ⟨n, hn, h1, h31, ho, ⟨hcg, hg⟩, hst, hss⟩)
+  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
       (fun g hg => StringsGen.spec_symbolLong hfork h4 hsize' hsel hv hodd rfl h32 hN rfl hg) start within hrun hok
-    exact .inr (.inr ⟨hodd, h32, ho, hg, hst, hss⟩)
+    exact .inr (.inr ⟨hodd, h32, ho, ⟨hcg, hg⟩, hst, hss⟩)
 
 end UsdtVerify.Complete

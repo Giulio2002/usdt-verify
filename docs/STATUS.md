@@ -1570,6 +1570,13 @@ alone does not give it: `SameView` fixes only storage and code, so `SentVia` all
 where `C` has no account, and `KeepsInvAcc` says nothing there (argued; no counterexample is
 proved, since breaking `Inv` needs a keccak fact such as `NotBal 1`).
 
+T5 (third audit): the gas of the completeness theorems not deprecated, with its bound.
+- Usdt/Complete/Read.lean, Getters.lean, Owner.lean, Approve.lean, Transfer.lean,
+  TransferFrom.lean: every `ok_X` concludes `(cost ≤ gas ∧ s.gas = gas - cost)` in place of
+  `s.gas = gas - cost`, one conjunct at the same place, so no caller changed. The bound is the
+  first component of `ok_exact` / `ok_exact2` / `ok_exact3`, which the proofs used to drop.
+  The deprecated `dep_*_complete` already concluded their gas bound.
+
 ## Open (not proved)
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded

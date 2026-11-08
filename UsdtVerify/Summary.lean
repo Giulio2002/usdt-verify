@@ -532,7 +532,8 @@ See docs/STATUS.md ("Open").
 
 ## Completeness per function — `totalSupply_complete`, `balanceOf_complete`, `transfer_complete`
 Not deprecated, Berlin on: every run of the loop that ends with no error, for any gas, is the success path of the
-specification, with the exact output, gas, state and substate. For transfer, the conclusion
+specification, with the exact output, gas, state and substate. Round 33: the gas is stated as
+`cost ≤ gas ∧ s.gas = gas - cost`, so the subtraction does not truncate. For transfer, the conclusion
 also lists every check the run passed, and the end is the fee-0 path or the fee path.
 
 Round 13, same method: `approve_complete` (not deprecated; `v = 0`, or `v ≠ 0` over an allowance

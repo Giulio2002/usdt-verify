@@ -35,15 +35,15 @@ theorem ok_totalSupply (hfork : .berlin ≤ fork) (hsize' : message.data.size < 
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     s.output = wordBytes (storageAt state message.currentTarget 1) ∧
-      s.gas = gas - (TotalSupply.COST + slotCost (coldIn substate message.currentTarget 10) +
-        slotCost (coldIn substate message.currentTarget 1)) ∧
+      ((TotalSupply.COST + slotCost (coldIn substate message.currentTarget 10) + slotCost (coldIn substate message.currentTarget 1)) ≤ gas ∧
+        s.gas = gas - (TotalSupply.COST + slotCost (coldIn substate message.currentTarget 10) + slotCost (coldIn substate message.currentTarget 1))) ∧
       s.state = readSlot (readSlot state message.currentTarget 10) message.currentTarget 1 ∧
       s.substate = accessSlot (accessSlot substate message.currentTarget 10)
         message.currentTarget 1 := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => TotalSupply.spec hfork h4 hsize' hsel hv hdep rfl rfl hg) start within hrun hok
-  exact ⟨ho, hg, hst, hss⟩
+  exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `balanceOf(a)` call, not deprecated, returns `balances[a]` with the exact
 gas. -/
@@ -56,16 +56,15 @@ theorem ok_balanceOf (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 
     (hok : s.error = none) :
     s.output = wordBytes (storageAt state message.currentTarget
         (BalanceOf.balanceSlot message.data)) ∧
-      s.gas = gas - (BalanceOf.COST + slotCost (coldIn substate message.currentTarget 10) +
-        slotCost (coldIn (accessSlot substate message.currentTarget 10) message.currentTarget
-          (BalanceOf.balanceSlot message.data))) ∧
+      ((BalanceOf.COST + slotCost (coldIn substate message.currentTarget 10) + slotCost (coldIn (accessSlot substate message.currentTarget 10) message.currentTarget (BalanceOf.balanceSlot message.data))) ≤ gas ∧
+        s.gas = gas - (BalanceOf.COST + slotCost (coldIn substate message.currentTarget 10) + slotCost (coldIn (accessSlot substate message.currentTarget 10) message.currentTarget (BalanceOf.balanceSlot message.data)))) ∧
       s.state = readSlot (readSlot state message.currentTarget 10) message.currentTarget
         (BalanceOf.balanceSlot message.data) ∧
       s.substate = accessSlot (accessSlot substate message.currentTarget 10)
         message.currentTarget (BalanceOf.balanceSlot message.data) := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨-, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
     (fun g hg => BalanceOf.spec hfork h4 hsize' hsel hv hdep rfl rfl hg) start within hrun hok
-  exact ⟨ho, hg, hst, hss⟩
+  exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 end UsdtVerify.Complete
