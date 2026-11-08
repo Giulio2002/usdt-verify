@@ -113,6 +113,7 @@ import UsdtVerify.Usdt.Security.Blacklist
 import UsdtVerify.Usdt.Security.Allowance
 import UsdtVerify.Usdt.Security.Supply
 import UsdtVerify.Usdt.Security.Meter
+import UsdtVerify.Usdt.Security.DepMeter
 import UsdtVerify.Usdt.Sanity.Runner
 import UsdtVerify.Usdt.Sanity.Process
 import UsdtVerify.Usdt.Sanity.ProcessExact

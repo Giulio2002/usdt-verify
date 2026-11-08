@@ -318,7 +318,7 @@ from Berlin, with the hypotheses of the Nat form:
   gas of the CALL over `Nat`) and `resumeCall_sgm` (after the child, the caller has the fields of
   the resume over `Nat` but the gas, and its execution gas left and reservoir add up to those of
   the caller and the child).
-- Not covered: the deprecated paths over `StateGasMeter`.
+- Not covered here: the deprecated paths over `StateGasMeter` (round 39, below).
 - Round 38, one step at EXTCODESIZE, GAS and CALL (Evm/CallSim.lean, Evm/StepSim.lean):
   `Meter.step_simX` is `step_sim` at EXTCODESIZE and GAS too, from reservoir 0 (GAS pushes the
   execution gas left, which is the gas of the `toNat` frame). `Meter.step_callX`: at a CALL with
@@ -328,6 +328,32 @@ from Berlin, with the hypotheses of the Nat form:
   the same message from callers related by `toNat`, the caller over `StateGasMeter` with
   reservoir 0 (`callStep_child_sim`). These are steps only. No run with a CALL over
   `StateGasMeter` is related to a run over `Nat` yet.
+
+## The EIP-8037 meter, round 39: the deprecated paths
+
+From Berlin, from a frame `m` of `StateGasMeter` with reservoir 0 whose `toNat` is the fresh frame
+of `CODE`, deprecated, for any gas bound and message runner over `StateGasMeter`:
+
+- Completeness (Usdt/Complete/Deprecated/Meter.lean): `dep_totalSupply_completeS`,
+  `dep_balanceOf_completeS`, `dep_allowance_completeS`, `dep_transfer_completeS`,
+  `dep_approve_completeS`, `dep_transferFrom_completeS`, `dep_destroy_completeS`. Each states the
+  conclusion of its `dep_X_complete` for the caller, message, runner and child over
+  `StateGasMeter`, without the gas left at the end and the bound on the gas after the CALL (for
+  destroyBlackFunds also without `tailCost` and `tailStip`). The gas before the CALL and the gas of
+  the message are exact.
+- Invariant (Usdt/Invariant/DepMeter.lean): `inv_call_depS` under `KeepsInvAtS` and, for
+  destroyBlackFunds, `HonestBalanceAtS`. `inv_call_anyD` adds the case not deprecated at any
+  reservoir. `process_stepDS`: from Paris, a deprecated top-level message with reservoir 0 that
+  `processMessage` over `StateGasMeter` ends is a `GoodCallDS` or an `Untouched` step.
+  `process_stepSD` covers every case.
+- Security (Usdt/Security/DepMeter.lean): `effect_allS` (deprecated or not, reservoir 0 when
+  deprecated), `paused_call_allS`, `nonOwner_call_allS`, `listed_call_allS`,
+  `allowKept_call_allS`, `supply_call_allS`, with the runner assumptions of the `_call_all` forms
+  stated for the runner over `StateGasMeter` (`KeepsAtS`).
+- Route: `RunC` (Evm/RunC.lean), `runC_of_sgm` (Evm/RunCS.lean). The `dep_X_complete` theorems
+  over `Nat` now follow from `dep_X_completeC` over `RunC`, with unchanged statements.
+- Not covered: a reservoir other than 0 when deprecated, the gas left after the CALL, the
+  deprecated sequence forms of the security properties over `StateGasMeter`.
 
 ## Completeness of the dispatcher, for every gas
 

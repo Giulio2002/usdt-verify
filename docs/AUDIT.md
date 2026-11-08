@@ -597,6 +597,26 @@ over both meters, with reservoir 0. Not done: a run of the deprecated paths over
 `StateGasMeter`, so the deprecated cases of `inv_call_any`, `process_stepS`, the `dep_*_complete`
 theorems and the deprecated security properties over `StateGasMeter`.
 
+**Progress (round 39).** Resolved for the deprecated paths from reservoir 0, except the gas left
+after the CALL. Not resolved from a reservoir other than 0 when deprecated.
+- `RunC` (Evm/RunC.lean): a run of the meter `Nat` with an abstract relation for the child and an
+  exit at the frames the step-by-step simulation does not cover. `runC_of_sgm` (Evm/RunCS.lean):
+  from reservoir 0, a run over `StateGasMeter` that ends with no error gives `RunC`, exactly up to
+  the CALL and through `Shadow.shadow_run` after it.
+- The seven `dep_X_complete` are proved from `dep_X_completeC` (over `RunC`) with their
+  statements unchanged. `dep_X_completeS`: the same over `StateGasMeter` from reservoir 0,
+  without the gas after the CALL.
+- `inv_call_depS`, `inv_call_anyD`, `process_stepDS`, `process_stepSD`
+  (Usdt/Invariant/DepMeter.lean): the invariant on the deprecated paths over `StateGasMeter`,
+  under `KeepsInvAtS` and `HonestBalanceAtS` (the runner assumptions for a runner over
+  `StateGasMeter`), from reservoir 0 (`message.reservoir = 0` for `processMessage`).
+- `effect_allS` and `X_call_allS` (Usdt/Security/DepMeter.lean): the five single-call security
+  properties deprecated or not over `StateGasMeter`, reservoir 0 when deprecated, with the runner
+  assumptions stated by `KeepsAtS`.
+- Still open: a reservoir other than 0 when deprecated, the gas left after the CALL over
+  `StateGasMeter`, the deprecated sequence forms of the security properties over
+  `StateGasMeter`.
+
 ## T2. The runner hypotheses range over every block and transaction environment (Medium)
 
 **Evidence.** `SendsVia` (Evm/Route.lean:134) fixes `caller`, `currentTarget`, `target`,

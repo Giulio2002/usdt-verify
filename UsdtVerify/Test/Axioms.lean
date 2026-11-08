@@ -2,6 +2,7 @@ import UsdtVerify.Evm.CallMeter
 import UsdtVerify.Evm.StepSim
 import UsdtVerify.Usdt.Complete.Deprecated.Meter
 import UsdtVerify.Usdt.Invariant.DepMeter
+import UsdtVerify.Usdt.Security.DepMeter
 import UsdtVerify.Usdt.Meter
 import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.MeterOwner
@@ -1143,3 +1144,17 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Complete.inv_callsDS
 #print axioms UsdtVerify.Complete.process_stepDS
 #print axioms UsdtVerify.Complete.process_stepSD
+#print axioms UsdtVerify.Security.KeepsAtS.fwd
+#print axioms UsdtVerify.Security.state_incorporateChildS
+#print axioms UsdtVerify.Security.fwdS_of
+#print axioms UsdtVerify.Security.effect_allS
+#print axioms UsdtVerify.Security.EffectDF.paused
+#print axioms UsdtVerify.Security.EffectDF.protKept
+#print axioms UsdtVerify.Security.EffectDF.listed
+#print axioms UsdtVerify.Security.EffectDF.allowKept
+#print axioms UsdtVerify.Security.EffectDF.supply
+#print axioms UsdtVerify.Security.paused_call_allS
+#print axioms UsdtVerify.Security.nonOwner_call_allS
+#print axioms UsdtVerify.Security.listed_call_allS
+#print axioms UsdtVerify.Security.allowKept_call_allS
+#print axioms UsdtVerify.Security.supply_call_allS

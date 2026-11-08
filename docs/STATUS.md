@@ -1770,6 +1770,44 @@ T1 (third audit), continued. Item 1 of the plan of round 37, at the level of one
   relation for the child and an exit at frames the simulation does not cover, the `dep_*` proofs
   restated over it, and a bridge from a run over `StateGasMeter` at reservoir 0.
 
+### Round 39: the deprecated paths over the EIP-8037 meter (Evm/RunC.lean, Evm/RunCS.lean)
+
+T1 (third audit), continued. Items 2 to 4 of the plan of round 38.
+- Evm/RunC.lean: `Fwd` (a `SimAtX` frame where an SSTORE refills nothing, or a CALL with value 0
+  and code found), `RunC fork Run l s` (a run of the meter `Nat` with an abstract relation `Run`
+  for the child, an exit at frames that are not `Fwd`, an `Ends` after the CALL, and any end with
+  an error), `RunN` (the relation of a runner over `Nat`), `EndsOk`. `RunC.of_runFrame` and
+  `EndsOk.of_runFrame`: every end of the loop over `Nat` gives them. Lemmas over `RunC`:
+  `RunC.stopped`, `RunC.next_of`, `RunC.not_bad`, `low_to_runningC`, `ok_splitC`, `ok_splitCA`,
+  `no_okC`, `RunC.extcodesize`, `RunC.gasOp`, `call_okC` (`CallEndC`), `EndsOk.no_ok`.
+- Evm/Refill.lean: `noRefill_cheapE`, `HoareG.toIE` (a stretch that ends in a revert with gas
+  left refills nothing). `sstoreStep_cases` and `step_sstore` are strengthened: their halt branch
+  also states that the gas is 0.
+- Evm/RunCS.lean: `RunS` (the relation of a runner over `StateGasMeter`, with the child gas
+  free), `resumeCall_withGas`, `runC_of_sgm` (from Berlin and reservoir 0, a run over
+  `StateGasMeter` that ends with no error gives `RunC` with `RunS` from the `toNat` frame to the
+  fields of the end with some gas: step by step up to the CALL, then `Shadow.shadow_run`),
+  `endsOk_of_sgm`.
+- Usdt/Complete/Deprecated/: `fromExt_foundC`, `fromExtC`, `EndsOk.dispatch`, and
+  `dep_X_completeC` for the seven deprecated functions. The seven `dep_X_complete` keep their
+  statements and are now proved from `dep_X_completeC`.
+- Usdt/Complete/Deprecated/Meter.lean: `dep_X_completeS` for the seven, for a run over
+  `StateGasMeter` from reservoir 0, any gas bound and runner. The conclusion is the one over
+  `Nat` without the facts on the gas after the CALL (for destroyBlackFunds also without
+  `tailCost` and `tailStip`). `incorporateChild_toNat`.
+- Usdt/Invariant/DepMeter.lean: `KeepsInvAtC`, `HonestBalanceAtC`, `LocalForwardC`,
+  `dep_X_localC`, `inv_dep_destroyC`; `KeepsInvAtS`, `HonestBalanceAtS` (the runner assumptions
+  for a runner over `StateGasMeter`); `inv_call_depS` (deprecated, reservoir 0),
+  `inv_call_anyD` (deprecated or not), `GoodCallDS`, `CallsDS`, `inv_callsDS`, `process_stepDS`
+  (from Paris, deprecated, `message.reservoir = 0`), `process_stepSD` (every case).
+- Usdt/Security/DepMeter.lean: `FwdAtS`, `KeepsAtS`, `EffectDF`, `effect_allS` (deprecated or not,
+  reservoir 0 when deprecated), and `paused_call_allS`, `nonOwner_call_allS`, `listed_call_allS`,
+  `allowKept_call_allS`, `supply_call_allS` with the runner assumptions stated by `KeepsAtS`.
+- Not done: the deprecated paths over `StateGasMeter` from a reservoir other than 0; the gas left
+  after the CALL over `StateGasMeter`; deprecated sequence forms (`_seq_all`) of the security
+  properties over `StateGasMeter`; `owner_only` for deprecated destroyBlackFunds over
+  `StateGasMeter`.
+
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
   Glamsterdam (third audit, T1; rounds 33 to 36 above). Round 36 covers, not deprecated: the
@@ -1781,6 +1819,11 @@ T1 (third audit), continued. Item 1 of the plan of round 37, at the level of one
   of a run with a refill, and the security properties over `StateGasMeter` when deprecated.
   Round 37: the security properties over `StateGasMeter` not deprecated, single calls and `SeqS`
   sequences, with no hypothesis on the reservoir, on refills or on the gas limit.
+  Round 39: the deprecated paths over `StateGasMeter` from reservoir 0 (completeness without the
+  gas after the CALL, the invariant under `KeepsInvAtS` / `HonestBalanceAtS`, `process_stepDS`,
+  the single-call security properties). Still open there: a reservoir other than 0 when
+  deprecated, the gas left after the CALL, the deprecated sequence forms of the security
+  properties.
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
   contract (round 24: concrete runners meet them, `Sanity/Runner.lean`). `transferFrom_bound` has
@@ -1937,6 +1980,10 @@ T1 (third audit), continued. Item 1 of the plan of round 37, at the level of one
    a fork-generic `callWith`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+Round 39: clean project build (`rm -rf .lake/build`, safe.sh 9G, LEAN_NUM_THREADS not set) 112.63 s
+wall, 1790672896 bytes max RSS (/usr/bin/time -l), exit 0, 0 "error:" lines, 1423 jobs, 1071
+`#print axioms` lines: 1031 [propext, Classical.choice, Quot.sound], 23 [propext, Quot.sound],
+10 [propext], 7 none.
 Round 37: clean project build (`rm -rf .lake/build`, safe.sh 9G, LEAN_NUM_THREADS not set) 110.27 s
 wall, 1793163264 bytes max RSS (/usr/bin/time -l), exit 0, 0 "error:" lines, 1416 jobs, 995
 `#print axioms` lines: 955 [propext, Classical.choice, Quot.sound], 23 [propext, Quot.sound],

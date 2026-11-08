@@ -551,8 +551,14 @@ sequences of calls over `Nat` or `StateGasMeter` (`SeqS`): `nonOwner_seqS`, `pau
 `processMessage` over `StateGasMeter`. `Complete.callStep_child_rS`, `Complete.resumeCall_sgm`
 (Evm/CallMeter.lean): the CALL step and the resume after the child over `StateGasMeter`.
 Round 38: `Meter.step_simX` and `Meter.step_callX` (Evm/StepSim.lean): one step over both meters,
-from reservoir 0, at EXTCODESIZE, GAS and CALL. A run of the deprecated paths over
-`StateGasMeter` is not covered.
+from reservoir 0, at EXTCODESIZE, GAS and CALL.
+Round 39: the deprecated paths over `StateGasMeter` from reservoir 0. `Complete.runC_of_sgm`
+(Evm/RunCS.lean) gives a run of the meter `Nat` with an abstract child (`RunC`). From it:
+`Complete.dep_X_completeS` (the seven deprecated functions, without the gas after the CALL),
+`Complete.inv_call_depS`, `Complete.inv_call_anyD`, `Complete.process_stepDS`,
+`Complete.process_stepSD` (the invariant, under `KeepsInvAtS` and `HonestBalanceAtS`), and
+`Security.effect_allS` with the five `_call_allS` security properties. Not covered: a reservoir
+other than 0 when deprecated, the gas left after the CALL.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas
