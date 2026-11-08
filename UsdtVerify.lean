@@ -7,6 +7,8 @@ import UsdtVerify.Evm.Gas
 import UsdtVerify.Evm.Iff
 import UsdtVerify.Evm.GasRules
 import UsdtVerify.Evm.Meter
+import UsdtVerify.Evm.Refill
+import UsdtVerify.Evm.Shadow
 import UsdtVerify.Evm.Local.Extcodesize
 import UsdtVerify.Evm.Local.Parent
 import UsdtVerify.Evm.Local.Rules
@@ -44,6 +46,8 @@ import UsdtVerify.Usdt.Exact.Owner
 import UsdtVerify.Usdt.Invariant.All
 import UsdtVerify.Usdt.Invariant.Calls
 import UsdtVerify.Usdt.Meter
+import UsdtVerify.Usdt.Refill.Approve
+import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.Invariant.DeprecatedDestroy
 import UsdtVerify.Usdt.Invariant.Seq
 import UsdtVerify.Usdt.Invariant.Static

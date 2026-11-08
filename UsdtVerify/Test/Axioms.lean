@@ -1,4 +1,5 @@
 import UsdtVerify.Usdt.Meter
+import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.Sanity.Strings
 import UsdtVerify.Usdt.Exact.Getters
 import UsdtVerify.Usdt.Sanity.Exact
@@ -931,3 +932,21 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Complete.ok_transfer_sgm
 #print axioms UsdtVerify.Complete.ok_approve_sgm
 #print axioms UsdtVerify.Complete.ok_transferFrom_sgm
+#print axioms UsdtVerify.Refill.sstoreStep_cases
+#print axioms UsdtVerify.Refill.step_store
+#print axioms UsdtVerify.Refill.create_gas
+#print axioms UsdtVerify.Refill.noRefill_cheap
+#print axioms UsdtVerify.Refill.HoareG.toI
+#print axioms UsdtVerify.Refill.sstoreWI
+#print axioms UsdtVerify.Refill.noRefill_low
+#print axioms UsdtVerify.Refill.ends_of_sgmN
+#print axioms UsdtVerify.Refill.sgm_of_reaches
+#print axioms UsdtVerify.Shadow.shadow_step
+#print axioms UsdtVerify.Shadow.shadow_run
+#print axioms UsdtVerify.Shadow.runFrame_of_specI
+#print axioms UsdtVerify.Shadow.ends_of_specI
+#print axioms UsdtVerify.Approve.spec_zeroI
+#print axioms UsdtVerify.Approve.spec_setI
+#print axioms UsdtVerify.Exact.ok_approve_any
+#print axioms UsdtVerify.Exact.approve_ok_sgm
+#print axioms UsdtVerify.Exact.approve_iff_gas_sgm
