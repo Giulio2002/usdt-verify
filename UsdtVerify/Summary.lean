@@ -460,7 +460,8 @@ and symbol under `StrForm`, gas `Exact.strCost`; totalSupply, balanceOf, allowan
 contains `IsOwner`.
 Deprecated (`Usdt/Exact/Deprecated.lean`): for the seven functions that forward
 (`Exact.X_dep_ok_iff`), with the upgraded code `c` and the route `r` of the CALL given, the gas
-of the path (`hg`, `htail`), and a runner that never fails (`Exact.NoFail`) and ends each
+of the path (`hg`, `htail`), and a runner that fails on none of the messages the path sends
+(`Exact.NoFailOn`, round 29; `Exact.NoFail` for `destroyBlackFunds_dep_ok_iff`) and ends each
 forwarded message with no error exactly when `A` holds (for destroyBlackFunds: with no error and
 an account of `C` in its end state), `RunsOk` holds if and only if the checks before the forward
 hold (`ForwardOk`, `TransferDepGuard`, `ApproveDepGuard`, `TransferFromDepGuard`,

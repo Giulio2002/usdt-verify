@@ -901,14 +901,26 @@ ends with no error and the contract has an account in its end state".
   blacklisted); `ApproveDepGuard` (also at least 68 bytes); `TransferFromDepGuard` (also not
   paused, `f` not blacklisted); `DestroyDepGuard` (also `IsOwner`, `a` blacklisted, not static).
   Since round 27 the six other than destroyBlackFunds are derived from `X_dep_ok_iff_fails`
-  (below): with `htail` the gas after the CALL is enough, and under `NoFail` `hfail` holds.
+  (below): with `htail` the gas after the CALL is enough, and under `NoFailOn` `hfail` holds.
+  Since round 29 they (and the six `X_dep_ok_iff_gas`, and `destroyBlackFunds_dep_ok_iff_gas`)
+  take `NoFailOn runChild (SendsVia message ua c r d)`: the runner fails on none of the messages
+  the path sends, in place of `NoFail` (it fails on no message at all). `NoFail.on` gives the new
+  form from the old. `destroyBlackFunds_dep_ok_iff` still takes `NoFail`.
 - `X_dep_low`: if the gas is below the bound of `hg`, `RunsOk` does not hold, for every runner.
-- Caveat (audit, docs/AUDIT.md finding 3): `NoFail` is false for `processRunner`, which fails a
-  message whose value exceeds the caller's balance. `hans` asks one `A` for every caller frame
-  and every gas of the forwarded message (`SendsVia` does not fix the gas). Under
-  `processRunner`, every upgraded code that can both succeed and run out of gas makes `hans`
-  unsatisfiable. These theorems apply to the mock runners of `Sanity/`, not to the
-  interpreter's runner with a real upgraded contract.
+- Audit finding 3 (docs/AUDIT.md), round 29, partly resolved. `NoFail` is false for
+  `processRunner`, which fails a message whose value exceeds the caller's balance; the messages
+  the path sends carry no value, and `NoFailOn` asks only of them. `Sanity/Process.lean`: from
+  Paris, with the upgraded address holding STOP and no precompile, `processRunner` meets
+  `NoFailOn` and the `hans` of `X_dep_ok_iff` with `A = True` (`noFailOn_process_stop`,
+  `hans_process_stop`), and `totalSupply_dep_ok_iff_process_stop` instantiates
+  `totalSupply_dep_ok_iff` with the real runner: the run succeeds iff `ForwardOk`. Not resolved:
+  `hans` still asks one `A` for every caller frame and every gas of the forwarded message
+  (`SendsVia` does not fix the gas). With `htail` this is satisfiable when the callee's success
+  does not depend on its gas (STOP). In `X_dep_ok_iff_gas` and `X_dep_ok_iff_fails` the condition
+  inside `hans` reads the child's gas left, which for `processRunner` depends on the message's gas
+  (for STOP it is that gas), so their `hans` is unsatisfiable for `processRunner` with every
+  upgraded code. Fixing it needs the CALL step (`callWithRS`) and the seven forwarding
+  specifications to expose the message's gas to the callee assumption; not done.
 - `X_dep_ok_iff_gas` (round 26, the six forwards other than destroyBlackFunds): the hypotheses of
   `X_dep_ok_iff` without `htail`, and `hans` with "ends with no error" replaced by "ends with no
   error, and the gas the CALL keeps plus the gas left in the ended frame is at least the gas of

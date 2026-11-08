@@ -1423,6 +1423,20 @@ Finding 2 (high): the runner assumptions are about the calls the code makes.
   `processRunner` with a real code (a contract that answers the local balance would have to read
   it from `C`, e.g. through the getter `balances(address)`; not attempted).
 
+Finding 3 (high), partly: the deprecated exact theorems.
+- `Exact.NoFailOn runChild S` (Evm/Iff.lean): the runner returns a frame for every message of `S`;
+  `NoFail.on`. The six `X_dep_ok_iff`, six `X_dep_ok_iff_gas` and `destroyBlackFunds_dep_ok_iff_gas`
+  take `NoFailOn runChild (SendsVia message (upAddr state message) c r d)` in place of `NoFail`
+  (weaker hypothesis). `destroyBlackFunds_dep_ok_iff` keeps `NoFail` (its proof goes through
+  `runsOk_of_specUnder`).
+- Sanity/Process.lean: `process_stop_sends`, `noFailOn_process_stop`, `hans_process_stop` (A =
+  True), `totalSupply_dep_ok_iff_process_stop` (from Paris, upgraded code STOP, no precompile:
+  `RunsOk` under `processRunner` iff `ForwardOk`).
+- Open: `hans` of `X_dep_ok_iff_gas` / `X_dep_ok_iff_fails` asks one `A` for every gas of the
+  forwarded message, and its condition reads the child's gas, so it is unsatisfiable for
+  `processRunner`. It needs `callWithRS` and the seven `spec_dep*_g` to give the callee
+  assumption `msg.gas`; not done.
+
 ## Open (not proved)
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
@@ -1463,8 +1477,10 @@ Finding 2 (high): the runner assumptions are about the calls the code makes.
   Round 26: every gas for the 13 writing functions not deprecated (`X_iff_gas`) and for the seven
   deprecated forwards (`X_dep_ok_iff_gas` with `X_dep_low`; destroyBlackFunds in the second part),
   and an iff for a runner that may fail with any error (`X_dep_ok_iff_fails`, under `hfail`).
-  These take the runner hypotheses `hans` (and `NoFail` or `hfail`), which quantify over every
-  caller frame; no theorem discharges them for a real upgraded contract.
+  These take the runner hypotheses `hans` (and `NoFailOn`/`NoFail` or `hfail`), which quantify
+  over every caller frame and gas. Round 29: discharged for `processRunner` with the upgraded code
+  STOP for `X_dep_ok_iff` (with `htail`; instance `totalSupply_dep_ok_iff_process_stop`); the `hans`
+  of `X_dep_ok_iff_gas` / `_fails` stays unsatisfiable for `processRunner`.
 
 ## Generic gaps found (for the EthLib program-logic agent)
 1. Missing opcode rules at the pin (kept as LOCAL lemmas, UsdtVerify/Evm/Local/Rules.lean):

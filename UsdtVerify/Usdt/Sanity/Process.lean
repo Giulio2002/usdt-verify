@@ -1,4 +1,5 @@
 import UsdtVerify.Usdt.Sanity.Runner
+import UsdtVerify.Usdt.Exact.Deprecated
 
 /-!
 # Sanity: EthLib's `processRunner` meets the restated runner assumptions (round 29)
@@ -20,6 +21,17 @@ precompile. Then:
   the assumption that `goodCall_process` and `process_step` take for `processRunner`.
 
 Not shown: `HonestBalanceAt` for `processRunner` with a real upgraded code (STOP answers no word).
+
+docs/AUDIT.md, finding 3: the deprecated exact theorems took `NoFail` (the runner fails on no
+message at all), false for `processRunner`. Since round 29 they take `NoFailOn` the messages their
+path sends (`SendsVia`). With the upgraded code STOP:
+
+- `process_stop_sends`: from Paris, every message that the path sends (`SendsVia … STOP_CODE r d`,
+  no precompile) ends under `processRunner` with no error;
+- `noFailOn_process_stop`, `hans_process_stop`: so `processRunner` meets `NoFailOn` and the `hans`
+  of the `X_dep_ok_iff` theorems with `A = True`;
+- `totalSupply_dep_ok_iff_process_stop`: the instance for totalSupply: with the gas of `hg` and
+  `htail`, a deprecated totalSupply() run under `processRunner` succeeds iff `ForwardOk`.
 -/
 
 namespace UsdtVerify.Sanity
@@ -107,5 +119,91 @@ theorem keepsInvAt_process_stop (hparis : .paris ≤ fork) {message : Message fo
     (hnp : Precompiles.isPrecompile fork (upAddr S message).toU256.toNat = false) :
     KeepsInvAt (processRunner fork message.gas) message S :=
   (processRunner_stop_keepsAll hparis hcode hnp).2.2.2.2.2
+
+/-! ## The exact theorems when deprecated (finding 3) -/
+
+theorem precompile_none_of {msg : Message fork} {ua : Address}
+    (hnp : Precompiles.isPrecompile fork ua.toU256.toNat = false)
+    (hca : msg.codeAddress = some ua) : precompileAddress fork msg = none := by
+  simp only [precompileAddress, hca, hnp]; rfl
+
+/-- From Paris, a message that a deprecated path sends to an upgraded address holding STOP (no
+precompile) ends under `processRunner` with no error. -/
+theorem process_stop_sends (hparis : .paris ≤ fork) {bound : Nat} {message : Message fork}
+    {S : State.TransactionState} {ua : Address} {r : Route} {d : ByteArray}
+    (hroute : Routes fork S STOP_CODE r)
+    (hnp : Precompiles.isPrecompile fork ua.toU256.toNat = false)
+    (caller : Evm fork Nat) {msg : Message fork} (lt : msg.gas < bound)
+    (hs : SendsVia message ua STOP_CODE r d msg) :
+    ∃ child, processRunner fork bound caller msg lt = .ok child ∧ child.1.error = none := by
+  rcases r with _ | ⟨dl, c'⟩
+  · obtain ⟨-, -, htg, hca, hmc, -, -, hval, -, -⟩ := hs
+    have hpre := precompile_none_of (fork := fork) hnp hca
+    have hst : startState fork msg caller.state = caller.state := by
+      simp only [startState, show ¬fork < Fork.paris from Nat.not_lt.mpr hparis, ite_false]
+    have hspec := stop (fork := fork) (code := STOP_CODE) (message := msg) (pc := 0)
+      (stack := []) (memory := .empty) (gas := msg.gas) (state := caller.state)
+      (substate := caller.substate.child) (by decide) rfl
+    obtain ⟨stopped, hq, hmap⟩ := processMessage_of_spec (message := msg) (state := caller.state)
+      (substate := caller.substate.child) hspec (fun h => h.2 hval) hpre
+      (by rw [hst]; exact at_startFrame hmc _ _)
+    have hp : processRunner fork bound caller msg lt =
+        processMessage fork msg caller.state caller.substate.child := by
+      simp only [processRunner, htg]
+    rw [← hp] at hmap
+    cases hpm : processRunner fork bound caller msg lt with
+    | error e => rw [hpm] at hmap; cases hmap
+    | ok ended =>
+      rw [hpm] at hmap
+      obtain ⟨-, herr, -⟩ := hq
+      have herr' : stopped.error = none := by simpa using herr
+      rw [rollbackOnError_of_error_eq_none herr'] at hmap
+      have he : ended.1 = stopped := by simpa [Except.map] using hmap
+      exact ⟨ended, rfl, by rw [he]; exact herr'⟩
+  · exact absurd hroute.2.1 (by rw [delegatedAddress_stop]; exact fun h => by cases h)
+
+theorem noFailOn_process_stop (hparis : .paris ≤ fork) {bound : Nat} {message : Message fork}
+    {S : State.TransactionState} {ua : Address} {r : Route} {d : ByteArray}
+    (hroute : Routes fork S STOP_CODE r)
+    (hnp : Precompiles.isPrecompile fork ua.toU256.toNat = false) :
+    Exact.NoFailOn (processRunner fork bound) (SendsVia message ua STOP_CODE r d) := by
+  intro caller msg lt e hs h
+  obtain ⟨child, hc, -⟩ := process_stop_sends hparis hroute hnp caller lt hs
+  rw [hc] at h; cases h
+
+theorem hans_process_stop (hparis : .paris ≤ fork) {bound : Nat} {message : Message fork}
+    {S : State.TransactionState} {ua : Address} {r : Route} {d : ByteArray}
+    (hroute : Routes fork S STOP_CODE r)
+    (hnp : Precompiles.isPrecompile fork ua.toU256.toNat = false) :
+    ∀ caller msg lt child, processRunner fork bound caller msg lt = .ok child →
+      SendsVia message ua STOP_CODE r d msg → (child.1.error = none ↔ True) := by
+  intro caller msg lt child hch hs
+  obtain ⟨child', hc, he⟩ := process_stop_sends hparis hroute hnp caller lt hs
+  rw [hc] at hch; cases hch
+  exact ⟨fun _ => trivial, fun _ => he⟩
+
+/-- **The exact condition of deprecated totalSupply() under `processRunner`.** From Paris, with the
+upgraded address holding STOP (no precompile), the gas of `hg` and `htail`, and the other
+hypotheses of `Exact.totalSupply_dep_ok_iff`: the run succeeds iff `ForwardOk` holds. -/
+theorem totalSupply_dep_ok_iff_process_stop (hparis : .paris ≤ fork) {message : Message fork}
+    {state : State.TransactionState} {substate : Substate} {gas bound : Nat}
+    {evm : Evm fork Nat}
+    (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x18160ddd)
+    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
+    (hcode : state.getCode (state.getAccount (upAddr state message)).codeHash = .ok STOP_CODE)
+    {r : Route} (hroute : Routes fork state STOP_CODE r) {c10 cU : Bool}
+    (hc10 : coldIn substate message.currentTarget 10 = c10)
+    (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
+    (start : At CODE message 0 [] .empty gas state substate evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hnp : Precompiles.isPrecompile fork (upAddr state message).toU256.toNat = false)
+    (hg : preCost fork c10 cU + 100 + callR substate state message r ≤ gas)
+    (htail : 121 ≤ gas - preCost fork c10 cU -
+      (callGas fork gas c10 cU (callR substate state message r)).cost) :
+    Exact.RunsOk fork bound (processRunner fork bound) evm within ↔ ForwardOk message STOP_CODE := by
+  have h := Exact.totalSupply_dep_ok_iff (Nat.le_trans (by decide) hparis) hsize' hsel hdep hcode
+    hroute hc10 hcU start within (by decide) hg htail (hans_process_stop hparis hroute hnp)
+    (noFailOn_process_stop hparis hroute hnp)
+  rw [h, and_true]
 
 end UsdtVerify.Sanity

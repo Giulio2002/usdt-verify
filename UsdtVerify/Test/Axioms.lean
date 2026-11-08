@@ -828,3 +828,10 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Sanity.processRunner_stop_keepsAt
 #print axioms UsdtVerify.Sanity.processRunner_stop_keepsAll
 #print axioms UsdtVerify.Sanity.keepsInvAt_process_stop
+-- round 29: the deprecated exact theorems under the sent messages (docs/AUDIT.md, finding 3)
+#print axioms UsdtVerify.Exact.NoFail.on
+#print axioms UsdtVerify.Sanity.precompile_none_of
+#print axioms UsdtVerify.Sanity.process_stop_sends
+#print axioms UsdtVerify.Sanity.noFailOn_process_stop
+#print axioms UsdtVerify.Sanity.hans_process_stop
+#print axioms UsdtVerify.Sanity.totalSupply_dep_ok_iff_process_stop

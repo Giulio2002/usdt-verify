@@ -169,6 +169,15 @@ open UsdtVerify.Complete (Route Routes SendsVia)
 def NoFail (runChild : MessageRunner fork Nat bound) : Prop :=
   ∀ caller msg lt e, runChild caller msg lt ≠ .error e
 
+/-- The runner returns a frame for every message that satisfies `S` (round 29, docs/AUDIT.md
+finding 3: `NoFail` asks it of every message, which EthLib's `processRunner` does not meet; the
+exact theorems now ask it only of the messages their path sends). -/
+def NoFailOn (runChild : MessageRunner fork Nat bound) (S : Message fork → Prop) : Prop :=
+  ∀ caller msg lt e, S msg → runChild caller msg lt ≠ .error e
+
+theorem NoFail.on {S : Message fork → Prop} (h : NoFail runChild) : NoFailOn runChild S :=
+  fun caller msg lt e _ => h caller msg lt e
+
 /-- The callee assumption: a message forwarded from `M` to `ua` along the route `r` with data `d`
 ends with no error exactly when `A` holds. -/
 def AnsIff (M : Message fork) (ua : EthLib.Base.Address) (c : ByteArray) (r : Route)

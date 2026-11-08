@@ -177,6 +177,15 @@ Prop`, with the conclusion "the checks hold, and `A` holds of the frame and mess
 CALL". Or state `hans` only for the caller frame the path reaches at the CALL, with `msg.gas`
 the EIP-150 gas the theorem already computes (`callGasT …`).
 
+**Resolution (round 29), partial.** `NoFail` is replaced by `NoFailOn` the messages the path sends
+(`SendsVia`, no value) in the six `X_dep_ok_iff`, the six `X_dep_ok_iff_gas` and
+`destroyBlackFunds_dep_ok_iff_gas` (`destroyBlackFunds_dep_ok_iff` keeps `NoFail`).
+`Sanity.totalSupply_dep_ok_iff_process_stop` instantiates `totalSupply_dep_ok_iff` with
+`processRunner` and the upgraded code STOP (from Paris, no precompile): the run succeeds iff
+`ForwardOk`. Not resolved: the `hans` of `X_dep_ok_iff_gas` and `X_dep_ok_iff_fails` still asks
+one `A` for every gas of the forwarded message, so it is unsatisfiable for `processRunner`; a fix
+needs the CALL step and the forwarding specifications to pass `msg.gas` to the callee assumption.
+
 ## 4. `stopRunner` is not "a runner whose upgraded contract only runs STOP" (Medium)
 
 `stopRunner fork bound ua` (`Evm/Runners.lean:57`) is `processRunner` on messages to `ua` whose
