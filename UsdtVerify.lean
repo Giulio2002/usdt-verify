@@ -62,6 +62,7 @@ import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.MeterOwner
 import UsdtVerify.Usdt.MeterGas
 import UsdtVerify.Usdt.Invariant.SeqMeter
+import UsdtVerify.Usdt.Invariant.DepMeter
 import UsdtVerify.Usdt.Invariant.DeprecatedDestroy
 import UsdtVerify.Usdt.Invariant.Seq
 import UsdtVerify.Usdt.Invariant.Static

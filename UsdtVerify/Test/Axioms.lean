@@ -1,6 +1,7 @@
 import UsdtVerify.Evm.CallMeter
 import UsdtVerify.Evm.StepSim
 import UsdtVerify.Usdt.Complete.Deprecated.Meter
+import UsdtVerify.Usdt.Invariant.DepMeter
 import UsdtVerify.Usdt.Meter
 import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.MeterOwner
@@ -1124,3 +1125,21 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Complete.dep_transferFrom_completeS
 #print axioms UsdtVerify.Complete.dep_destroy_completeC
 #print axioms UsdtVerify.Complete.dep_destroy_completeS
+#print axioms UsdtVerify.Complete.dep_totalSupply_localC
+#print axioms UsdtVerify.Complete.dep_balanceOf_localC
+#print axioms UsdtVerify.Complete.dep_allowance_localC
+#print axioms UsdtVerify.Complete.dep_approve_localC
+#print axioms UsdtVerify.Complete.dep_transfer_localC
+#print axioms UsdtVerify.Complete.dep_transferFrom_localC
+#print axioms UsdtVerify.Complete.dep_destroy_localC
+#print axioms UsdtVerify.Complete.inv_of_localC
+#print axioms UsdtVerify.Complete.inv_dep_destroy_iffC
+#print axioms UsdtVerify.Complete.inv_dep_destroyC
+#print axioms UsdtVerify.Complete.keepsInvAtC_of_S
+#print axioms UsdtVerify.Complete.honestBalanceAtC_of_S
+#print axioms UsdtVerify.Complete.inv_call_depS
+#print axioms UsdtVerify.Complete.inv_call_anyD
+#print axioms UsdtVerify.Complete.inv_goodCallDS
+#print axioms UsdtVerify.Complete.inv_callsDS
+#print axioms UsdtVerify.Complete.process_stepDS
+#print axioms UsdtVerify.Complete.process_stepSD
