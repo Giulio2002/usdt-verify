@@ -10,7 +10,7 @@ gas of a new account for a call that moves ether to an account not alive (from G
 reads the recipient and its code, and follows a delegation indicator (from Pectra).
 
 `prepareFirstFrame_call`: for a call (`target = some C`) with no value and no authorization, whose
-recipient has code `c` that is no delegation indicator (or before Pectra), over any lawful meter:
+recipient has code `c` that is no delegation indicator (or before Pectra), over any meter:
 the first frame is the message with the code `c` and the gas the meter holds, the state with the
 read of `C` recorded, the substate as given, no refund, and the meter
 `GasMeter.commit (GasMeter.start gas reservoir)` of the message.

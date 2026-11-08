@@ -11,6 +11,10 @@ EXTCODESIZE, the two blocks, GAS, SUB and CALL (no memory to extend): the run go
 step with the meter of the frame but for its execution gas left, to the CALL at 4891, whose step
 sends the message. The caller frame and the message are those of `callStep_child_rS`: the caller
 has reservoir 0 and the message carries the reservoir of the frame.
+
+Round 45: `fromExtSG` is the same at the six sites of the deprecated forwards (`fromExtC`), with
+any input and output of the CALL in a memory it does not extend; `fromExtS` is its instance at
+4874.
 -/
 
 namespace UsdtVerify.Complete

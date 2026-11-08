@@ -15,9 +15,9 @@ agrees with `S2` by definition), `MIRROR` at `UA` under `H`.
 - `destroy_mirror_callS`: from Paris (Glamsterdam included), in `S3 C H HC a` with `C ≠ UA`, `C` no
   precompile, `H` and `HC` not the empty code hash and `HC ≠ H`, on any chain, the message
   `destroyBlackFunds(a)` from `CALLER_A` to `C` with any gas field `G` from 1000000 to below 2^255
-  and any reservoir field `R`, from any substate, with no authorization: EthLib's
-  `processMessageCall` over `StateGasMeter` gives an output with no error. Its first frame is the
-  one of `FirstFrame.prepareFirstFrame_call`.
+  and any reservoir field `R`, from any substate, with no authorization and no paid writes (the
+  defaults `[]` and `∅`): EthLib's `processMessageCall` over `StateGasMeter` gives an output with
+  no error. (The proof takes the first frame from `FirstFrame.prepareFirstFrame_call`.)
 -/
 
 namespace UsdtVerify.Sanity
@@ -88,7 +88,7 @@ theorem delegatedAddress_CODE : delegatedAddress CODE = none := by
 /-- **The concrete deprecated run as a `processMessage` from any state with its facts.** From
 Paris, with `C` no precompile, the message `M = mDOG b t C a G R`, from a state `S` with the facts
 of `destroy_mirror_runsT`, any substate and any starting meter with at least 1000000 and below
-2^255 execution gas left: `processMessage` over `StateGasMeter` ends with a frame with no error. -/
+2^255 execution gas left (whose held gas is at most `G`): `processMessage` over `StateGasMeter` ends with a frame with no error. -/
 theorem destroy_mirror_processT (hparis : .paris ≤ fork)
     (b : BlockEnvironment fork) (t : TransactionEnvironment fork) (C : Address) (a : U256)
     (ss : Substate) (G R : Nat) {S : State.TransactionState} (hS10 : storageAt S C 10 = W)

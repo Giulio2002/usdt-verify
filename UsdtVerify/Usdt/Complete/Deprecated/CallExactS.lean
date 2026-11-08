@@ -16,8 +16,9 @@ Here that end is followed over `StateGasMeter` from the EXTCODESIZE of the upgra
 - `dep_call_exactS`: from a frame at EXTCODESIZE at any of the six sites (`fromExtSG`), with a
   tail at `q + 1` given as a specification over `StepG` from `T` gas on (`T` below 97,920) to a
   normal halt with `T` less, that keeps the state and the substate, for any output of the child:
-  every run over `StateGasMeter` that ends with no error went through the CALL with the caller
-  and message of `fromExtSG` and a child with no error, `T` execution gas was left after the
+  every run over `StateGasMeter` that ends with no error went through the CALL with a caller and
+  message that have the meters, state, substate and `SendsVia` facts of `fromExtSG`, and a child
+  with no error, `T` execution gas was left after the
   CALL, and the end is the halt of the tail with the meter after the CALL
   (`GasMeter.absorb caller.gas child.gas true`) less `T` execution gas.
 -/

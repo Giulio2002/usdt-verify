@@ -1557,14 +1557,15 @@ T3 (third audit): a deprecated state where destroyBlackFunds reaches the CALL
   `isOwner_S2`, `listed_S2`, `bal_S2`. In `S2 C H a`, `C` and `UA` have the same slots: 10
   (deprecated, upgraded address `UA`), 0 (owner `CALLER_A`), `isBlackListed[a]` 1 and
   `balances[a]` 1. The proofs split on every equality of the keccak slots with 0, 10 and each
-  other, so no keccak value is computed.
+  other, so no keccak value is computed. (Round 45: `S2` also has `_totalSupply` 1.)
 - `process_step_dep_hyps2` (from Paris): the flag, `IsOwner`, `a` blacklisted, `balances[a] ≠ 0`
   at `C`, `UA` holds `MIRROR` with the same `balances[a]`, `KeepsInvAt` and `HonestBalanceAt`.
 - `preCostD_le`, `destroy_gas_1M`, `destroy_mirror_runs` (Paris ≤ fork < Glamsterdam, 1000000
   gas, any substate): `RunsOk` for that call under `processRunner`, from the iff of
   `destroyBlackFunds_dep_ok_iff_gas_process_mirror`. So the run passes the checks and goes
   through the CALL.
-- Not proved: `Inv` in `S2` (it needs keccak separation facts about the balance slots).
+- Not proved: `Inv` in `S2` (it needs keccak separation facts about the balance slots). Round 45:
+  proved under `SepOn [kD a]` after `_totalSupply` 1 was added to `S2` (`inv_S2`).
 
 T4 (third audit): `keepsInvAt_of_acc` (Usdt/Invariant/All.lean): `KeepsInvAcc` and
 `KeepsInvNoAcc` give `KeepsInvAt` (through `keepsInv_of_acc` and `keepsInv_at`). `KeepsInvAcc`
@@ -1982,7 +1983,66 @@ T1 (third audit), three of the items left open in round 43.
 - Not covered here: the split of the gas after the CALL for the six deprecated paths other than
   destroyBlackFunds (`dep_X_completeR` states the sum); the preparation of the first frame
   (`prepareFirstFrame`); `Inv` in `S2`; a top-level `processMessage` form of
-  `destroy_mirror_runsS`.
+  `destroy_mirror_runsS`. (Round 45 covers these but for `prepareFirstFrame` with authorizations;
+  see the round 45 entry.)
+
+### Round 45: the six other deprecated paths exactly over the EIP-8037 meter, `Inv` in `S2`, the concrete run as a message, the first frame of a call (Usdt/Complete/Deprecated/CallS.lean, CallExactS.lean, PathsS.lean, Usdt/Sanity/MirrorState.lean, MirrorStateS.lean, MirrorCallS.lean, Evm/FirstFrame.lean) (READY)
+
+READY for the scope stated in this entry: clean rebuild of fd2e8e7 from an empty build directory, exit 0, 1452 jobs, 3:04 wall; `#print axioms` on each new theorem gives [propext, Classical.choice, Quot.sound] or a subset (UsdtVerify/Test/Axioms.lean); independent read-only review (round 45) PASS WITH FIXES, fixes applied in 6f779e5 (docstrings) and in these docs (the authorizations assessment). The trust
+assumptions of "What is trusted" in docs/RESULTS.md are unchanged.
+
+T1 (third audit), the items left open in round 44.
+- The split of the gas after the CALL for the six deprecated paths other than destroyBlackFunds.
+  `fromExtSG` (CallS.lean): `fromExtS` at the six sites of `fromExtC` (EXTCODESIZE at 3719, 4874,
+  5739, 3213, 4200, 7186; CALL at 3736, 4891, 5756, 3230, 4217, 7203), with any input and output of
+  the CALL in a memory it does not extend; `fromExtS` is now its instance at 4874. `resumeG`
+  (CallExactS.lean): the frame after the CALL at `q` as the frame at `q + 1`. `dep_call_exactS`:
+  from EXTCODESIZE, with a tail at `q + 1` given as a `StepG` specification of `T` gas (below
+  97,920) to a normal halt that keeps the state and substate, every run over `StateGasMeter` that
+  ends with no error went through the CALL with a child with no error, `T ≤` the execution gas
+  left of `GasMeter.absorb caller.gas child.gas true`, and ends with that meter less `T` execution
+  gas. `dep_X_exactR` (PathsS.lean) for totalSupply (121), balanceOf (126), allowance (128),
+  transfer (51), approve (53), transferFrom (53): from Berlin, from a frame with any reservoir, the
+  caller's meter (`m.gas` with reservoir 0 and the gas before the CALL less its price), the message
+  (`SendsVia`, the reservoir of `m`, the gas of `depCallGas`), the meter after the CALL and the
+  exact end meter, as `dep_destroy_exactR` states them for destroyBlackFunds.
+- `Inv` in `S2` (MirrorState.lean). `KD a` has a fifth pair `(1, 1)`: `_totalSupply` is 1 in `S2`
+  (through round 44 slot 1 was not set there, so `Inv` failed unless a keccak slot of `a` is slot
+  1). The earlier lemmas on `S2` keep their statements (the new pair comes last). `inv_S2`:
+  `Inv C (S2 C H a)` under `SepOn [kD a]` (`sumTo_indicator`). `destroy_mirror_inv`: from Paris and
+  before Glamsterdam, under `SepOn (callKeys …)` of the call, `Inv` in `S2`, the run of
+  `destroy_mirror_runs`, and `Inv` at the end of every successful run of that call at any gas bound
+  (`inv_dep_destroy`).
+- A `processMessage` form of the concrete run (MirrorStateS.lean). `mDOG b t C a G R`: the message
+  with gas field `G` and reservoir field `R`. `destroy_mirror_runsT`: the run from any state with
+  slot 10 of `C` equal to `W`, the owner `CALLER_A`, `a` blacklisted, `MIRROR` at `UA` and an
+  account at `C`; `destroy_mirror_runsG` from `S2`; `destroy_mirror_runsS` is now the case
+  `G = R = 0`. `destroy_mirror_processS`: from Paris, `C` no precompile, `processMessage` over
+  `StateGasMeter` in `S2` from any substate and any meter with execution gas left in
+  [1000000, 2^255) and held gas at most `G` ends with a frame with no error.
+- The preparation of the first frame (Evm/FirstFrame.lean, MirrorCallS.lean).
+  `FirstFrame.prepareFirstFrame_call`: for a call with no value and no authorization whose
+  recipient's code is no delegation indicator (or before Pectra), over any meter,
+  `prepareFirstFrame` is `.ok` of the frame with that code, the state with the read of the
+  recipient, the substate as given, refund 0 and the meter `commit (start gas reservoir)`. `S3 C H
+  HC a`: `S2` with `CODE` at `C` under `HC` (in `S2` the code of `C` is empty, so
+  `processMessageCall` would not run USDT there); same storage (`storageAt_S3`, by definition).
+  `destroy_mirror_processT`, `destroy_mirror_callS`: from Paris, in `S3` with `C ≠ UA`, `C` no
+  precompile, `H` and `HC` not the empty code hash, `HC ≠ H`, any chain, gas field in
+  [1000000, 2^255), any reservoir field and substate, no authorization: `processMessageCall` over
+  `StateGasMeter` gives an output with no error.
+- Not done: `prepareFirstFrame` with authorizations. `applyAuthorization` (EthLib,
+  Execution/Transactions/Authorization.lean) recovers each authority by secp256k1 ECDSA public key
+  recovery (`Ecdsa.recover`) over a keccak hash of the RLP of the authorization. For given
+  signatures that recovery is out of reach here (no `native_decide`; the kernel does not evaluate
+  it). A form that takes the result of `recoverAuthority` for each authorization as a hypothesis
+  (authorizations out of scope or not recovered leave the state as is; a recovered authority goes
+  through `authorityAccepts`, `payAuthorization` and `delegate`) is possible but not done: it needs
+  an induction over the list with the state, accesses and meter that `payAuthorization` and
+  `delegate` leave, and that USDT's account and storage are kept (an account with code `CODE`
+  accepts no delegation). The `processMessage` forms take any starting meter (round 41, U1), so
+  they hold for whatever meter the authorizations leave; the link from a transaction with
+  authorizations to that meter, message and state is not stated.
 
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
@@ -2003,7 +2063,8 @@ T1 (third audit), three of the items left open in round 43.
   Round 41: the `processMessage` forms over `StateGasMeter` hold for any starting meter (fourth
   audit, U1), so they cover the meter that `processMessageCall` passes after the authorizations.
   The preparation of the first frame itself (`prepareFirstFrame`, the authorizations) is not
-  verified here. The theorems start from its result.
+  verified here. The theorems start from its result. (Round 45: done for a call with no value and
+  no authorization; with authorizations it is open, see the round 45 entry.)
   Round 41: the deprecated sequence forms of the security properties over `StateGasMeter`
   (`_seq_allS` over `SeqRS`) and `owner_only` for deprecated destroyBlackFunds over it
   (`owner_only_allS`) are done, both from reservoir 0 when deprecated.
@@ -2019,8 +2080,15 @@ T1 (third audit), three of the items left open in round 43.
   (`inv_call_depR`, `process_stepDR`, `effect_allSR`, the `_call_allSR` and `_seq_allSR` forms,
   `owner_only_allSR`), the exact gas after the CALL of deprecated destroyBlackFunds with refills
   (`dep_destroy_exactR`), and a concrete deprecated run over `StateGasMeter` that ends with no
-  error (`destroy_mirror_runsS`), see the round 44 entry above. Still open: the split of the gas
-  after the CALL for the six deprecated paths other than destroyBlackFunds.
+  error (`destroy_mirror_runsS`), see the round 44 entry above. Still open after round 44: the
+  split of the gas after the CALL for the six deprecated paths other than destroyBlackFunds.
+  Round 45 (READY): that split (`dep_X_exactR`), `Inv` in `S2` under `SepOn` of its key
+  (`inv_S2`, `destroy_mirror_inv`), the concrete run through `processMessage` and
+  `processMessageCall` (`destroy_mirror_processS`, `destroy_mirror_callS`, the latter in `S3`), and
+  `prepareFirstFrame` for a call with no value and no authorization
+  (`FirstFrame.prepareFirstFrame_call`), see the round 45 entry above. Still open:
+  `prepareFirstFrame` with authorizations (for given signatures out of reach: ECDSA recovery over
+  keccak; a form with the recovered authorities as hypotheses is possible and not done).
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
   contract (round 24: concrete runners meet them, `Sanity/Runner.lean`). `transferFrom_bound` has
@@ -2177,6 +2245,9 @@ T1 (third audit), three of the items left open in round 43.
    a fork-generic `callWith`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+Round 45: clean project build of the tree of commit fd2e8e7 (the build directory moved aside,
+safe.sh 9G, LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`) 3:04 wall, 478 s
+user, exit 0, 1452 jobs.
 Round 41: clean project build of the tree of commit 8df74c4 (`rm -rf .lake/build`, safe.sh 9G,
 LEAN_NUM_THREADS not set, `lake build UsdtVerify UsdtVerify.Test.Axioms`) 110.29 s wall, 436.43 s
 user, 1787281408 bytes max RSS (/usr/bin/time -l), exit 0, 0 "error:" lines, 1425 jobs. Hash

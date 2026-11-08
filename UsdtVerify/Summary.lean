@@ -624,6 +624,21 @@ hypothesis. `Complete.dep_destroy_exactR`: deprecated destroyBlackFunds, the met
 writes of the tail, refills included. `Sanity.destroy_mirror_runsS`: from Paris, a deprecated
 destroyBlackFunds call in the state `S2` with `MIRROR` ends with no error over `StateGasMeter` under
 `processRunnerM`, from any reservoir and at least 1000000 execution gas.
+Round 45 (READY for this scope; Usdt/Complete/Deprecated/CallS.lean, CallExactS.lean, PathsS.lean,
+Usdt/Sanity/MirrorState.lean, MirrorStateS.lean, MirrorCallS.lean, Evm/FirstFrame.lean):
+`Complete.dep_totalSupply_exactR`, `dep_balanceOf_exactR`, `dep_allowance_exactR`,
+`dep_transfer_exactR`, `dep_approve_exactR`, `dep_transferFrom_exactR`: the six other deprecated
+paths over `StateGasMeter` from any reservoir, with the caller's meter, the meter after the CALL
+(`GasMeter.absorb` of the caller's and the child's meters) and the exact end meter (that meter less
+the tail's gas in execution gas). `Sanity.inv_S2`: `Inv` in `S2` (which now has `_totalSupply` 1)
+under `SepOn` of its key; `Sanity.destroy_mirror_inv`: under `SepOn` of the call's keys, `Inv`
+holds after every successful run of the deprecated destroyBlackFunds call there.
+`Sanity.destroy_mirror_processS`: that call as a `processMessage` over `StateGasMeter`, from any
+meter with execution gas left in [1000000, 2^255), ends with no error.
+`FirstFrame.prepareFirstFrame_call`: EthLib's `prepareFirstFrame` for a call with no value and no
+authorization. `Sanity.destroy_mirror_callS`: in `S3` (`S2` with `CODE` at `C`), EthLib's
+`processMessageCall` of that call over `StateGasMeter` with no authorization gives an output with
+no error. `prepareFirstFrame` with authorizations is not covered.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

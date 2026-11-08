@@ -356,8 +356,8 @@ theorem destroy_mirror_runsS (hparis : .paris ≤ fork)
 message `destroyBlackFunds(a)` from `CALLER_A` to `C` with any gas field `G` and reservoir field
 `R`, from any substate and any starting meter whose execution gas left is at least 1000000 and
 below 2^255 (and whose held gas is at most `G`): EthLib's `processMessage` over `StateGasMeter`
-ends with a frame with no error. The message carries no value, so no value moves; the frame of
-its code is the run of `destroy_mirror_runsG`. -/
+ends with a frame with no error. (The proof runs the frame of its code by
+`destroy_mirror_runsG`.) -/
 theorem destroy_mirror_processS (hparis : .paris ≤ fork)
     (b : BlockEnvironment fork) (t : TransactionEnvironment fork) (C : Address) (a : U256)
     (ss : Substate) (H : Hash32) (hH : H ≠ State.EMPTY_CODE_HASH)

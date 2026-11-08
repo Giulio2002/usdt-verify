@@ -535,6 +535,60 @@ unchanged.
   jobs; `#print axioms` on each new theorem gives [propext, Classical.choice, Quot.sound]
   (UsdtVerify/Test/Axioms.lean); independent read-only review PASS WITH FIXES, fixes applied in 5d949a9 (docstrings).
 
+## The EIP-8037 meter, round 45: the six other deprecated paths exactly, `Inv` in `S2`, the first frame (READY)
+
+Status: READY for the scope stated in this section, after the clean rebuild and the independent
+review recorded in docs/AUDIT.md (T1, round 45). The trust assumptions of "What is trusted" apply
+unchanged.
+
+- The six deprecated paths other than destroyBlackFunds, the exact meter after the CALL and at the
+  end (`dep_totalSupply_exactR`, `dep_balanceOf_exactR`, `dep_allowance_exactR`,
+  `dep_transfer_exactR`, `dep_approve_exactR`, `dep_transferFrom_exactR`,
+  Usdt/Complete/Deprecated/PathsS.lean). From Berlin, from a frame with any reservoir, any gas bound
+  and runner over `StateGasMeter`: every run that ends with no error has the facts of
+  `dep_X_completeR` on the code, the route, the guards, the gas and the depth, and went through a
+  caller whose meter is the meter of the first frame with reservoir 0 and the gas before the CALL
+  less its price, a message of `SendsVia` with the reservoir of the first frame, and a child with no
+  error. The meter after the CALL is `GasMeter.absorb caller.gas child.gas true` (execution gas
+  left plus reservoir is the caller's plus the child's), the gas of the tail (121, 126, 128, 51,
+  53, 53) is at most its execution gas left, and the run ends with the output, state and substate
+  of `dep_X_completeR` and that meter less the tail's gas in execution gas. The run is followed
+  over `StateGasMeter` itself: `fromExtSG` (EXTCODESIZE to the CALL at any of the six sites,
+  Usdt/Complete/Deprecated/CallS.lean), `resumeG` and `dep_call_exactS`
+  (Usdt/Complete/Deprecated/CallExactS.lean).
+- `Inv` in `S2` (Usdt/Sanity/MirrorState.lean). `S2` now also has `_totalSupply` (slot 1) equal to
+  1. Through round 44 slot 1 was not set in `S2`, so `_totalSupply` was 0 while `balances[a]` was
+  not 0, and `Inv` failed there unless a keccak slot of `a` is slot 1 (an observation, not a
+  theorem). `inv_S2`: `Inv C (S2 C H a)` under `SepOn [kD a]`, the keccak separation
+  of the one key of `S2` (assumed, not proved). `destroy_mirror_inv`: from Paris and before
+  Glamsterdam, under `SepOn` of the keys of `destroyBlackFunds(a)` from `CALLER_A`, `Inv` holds in
+  `S2`, that call with 1000000 gas ends with no error under `processRunner`, and every run of it
+  that ends with no error, at any gas bound, ends in a state where `Inv` holds.
+- The concrete run as a message (Usdt/Sanity/MirrorStateS.lean). `destroy_mirror_runsT`: the run
+  of `destroy_mirror_runsS` from any state with the facts it needs and for the message with any gas
+  and reservoir fields (`mDOG`); `destroy_mirror_runsG` from `S2`. `destroy_mirror_processS`: from
+  Paris, with `C` no precompile, EthLib's `processMessage` of that message over `StateGasMeter` in
+  `S2`, from any substate and any starting meter with at least 1000000 and below 2^255 execution
+  gas left, ends with a frame with no error.
+- The first frame (Evm/FirstFrame.lean, Usdt/Sanity/MirrorCallS.lean).
+  `FirstFrame.prepareFirstFrame_call`: for a call with no value and no authorization, whose
+  recipient has code that is no delegation indicator (or before Pectra), over any meter, EthLib's
+  `prepareFirstFrame` gives the message with that code and the gas the meter holds, the state with
+  the read of the recipient recorded, the substate as given, no refund, and the meter
+  `GasMeter.commit (GasMeter.start gas reservoir)`. In `S2` the account of `C` has the empty code
+  hash, so `S3 C H HC a` is `S2` with `CODE` at `C` under the code hash `HC` (the same storage).
+  `destroy_mirror_callS`: from Paris, in `S3` with `C ≠ UA`, `C` no precompile, `H` and `HC` not
+  the empty code hash and `HC ≠ H`, on any chain, `destroyBlackFunds(a)` from `CALLER_A` with a gas
+  field from 1000000 to below 2^255, any reservoir field and substate, and no authorization:
+  EthLib's `processMessageCall` over `StateGasMeter` gives an output with no error.
+- Not covered: `prepareFirstFrame` with authorizations. `applyAuthorization` recovers each
+  authority with secp256k1 ECDSA public key recovery over a keccak hash of the authorization; for
+  given signatures that is out of reach here, and a form that takes the recovered authorities as
+  hypotheses is not done. The `processMessage` theorems of rounds 41 to 44 take any starting meter
+  (fourth audit, U1), so they apply to the meter the authorizations leave, but the link from a
+  transaction with authorizations to that meter, message and state is not stated.
+- Evidence: clean rebuild of fd2e8e7 from an empty build directory, exit 0, 1452 jobs, 3:04 wall; `#print axioms` on each new theorem gives [propext, Classical.choice, Quot.sound] or a subset (UsdtVerify/Test/Axioms.lean); independent read-only review (round 45) PASS WITH FIXES, fixes applied in 6f779e5 (docstrings) and in these docs (the authorizations assessment).
+
 ## Completeness of the dispatcher, for every gas
 
 - `runFrame_ok_dispatch` (`UsdtVerify/Usdt/Complete/Dispatch.lean`, alias `Summary.dispatch_complete`):
@@ -1325,7 +1379,9 @@ ends with no error and the contract has an account in its end state".
   `Sanity.process_step_dep_hyps2` gives a second state `S2`, where the caller is the owner, `a` is
   blacklisted and `balances[a]` is not 0, and `processRunner` meets both there.
   `Sanity.destroy_mirror_runs` (Paris to before Glamsterdam, 1000000 gas): the deprecated
-  destroyBlackFunds call there ends with no error, through the CALL. `Inv` in `S2` is not proved.
+  destroyBlackFunds call there ends with no error, through the CALL. Round 45: `S2` also has
+  `_totalSupply` 1, and `Inv` holds in `S2` and after that call under `SepOn` of its keys
+  (`Sanity.inv_S2`, `Sanity.destroy_mirror_inv`).
 - The keccak hypotheses `SepOn` and `SecSep` of a call's keys (finitely many separation facts about
   given slots; not proved, and not shown for any particular call).
 - The security properties for deprecated calls of the six forwarding functions (and, for the
@@ -1346,9 +1402,9 @@ ends with no error and the contract has an account in its end state".
   CALL); the split of the gas between the execution gas left and the reservoir at a reservoir
   other than 0; the gas of a run with a refill (only a lower bound, `Shadow.gas_ge_any`); the
   security properties. See docs/STATUS.md (rounds 33 to 36).
-  Rounds 37 to 44 (sections above) cover most of these. Still not covered after round 44: the
-  split of the gas after the CALL for the six deprecated paths other than destroyBlackFunds, and
-  the preparation of the first frame (`prepareFirstFrame`).
+  Rounds 37 to 45 (sections above) cover most of these. Still not covered after round 45: the
+  preparation of the first frame (`prepareFirstFrame`) with authorizations (round 45 covers a call
+  with no value and no authorization, `FirstFrame.prepareFirstFrame_call`).
 
 ## The EIP-8037 meter (round 34; UsdtVerify/Evm/Meter.lean, UsdtVerify/Usdt/Meter.lean)
 

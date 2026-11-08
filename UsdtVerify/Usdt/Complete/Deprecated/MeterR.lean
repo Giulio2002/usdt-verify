@@ -18,7 +18,8 @@ two changes:
 
 The split of that sum between execution gas and reservoir is not stated here. For
 destroyBlackFunds, Usdt/Complete/Deprecated/DestroyS.lean (round 44, `dep_destroy_exactR`) states
-the meter after the CALL and the exact end, refills included.
+the meter after the CALL and the exact end, refills included; for the six other paths,
+Usdt/Complete/Deprecated/PathsS.lean (round 45, `dep_X_exactR`) does the same.
 -/
 
 namespace UsdtVerify.Complete

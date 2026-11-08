@@ -692,6 +692,24 @@ Three of the four items left open in round 43 are resolved. Evidence:
   destroyBlackFunds (`dep_X_completeR` states the sum), and the preparation of the first frame
   (`prepareFirstFrame`). The trust assumptions are unchanged.
 
+**Resolution (round 45, READY): the items left open in round 44.**
+- The split of the gas after the CALL for the six other deprecated paths: `dep_X_exactR`
+  (Usdt/Complete/Deprecated/PathsS.lean) for totalSupply, balanceOf, allowance, transfer, approve
+  and transferFrom states the caller's meter, the meter after the CALL
+  (`GasMeter.absorb caller.gas child.gas true`), that the tail's gas is at most its execution gas
+  left, and the exact end meter (that meter less the tail's gas in execution gas), through
+  `fromExtSG`, `resumeG` and `dep_call_exactS`.
+- The preparation of the first frame: `FirstFrame.prepareFirstFrame_call` (Evm/FirstFrame.lean)
+  for a call with no value and no authorization, and `destroy_mirror_callS`
+  (Usdt/Sanity/MirrorCallS.lean), a concrete deprecated destroyBlackFunds through EthLib's
+  `processMessageCall` over `StateGasMeter` in `S3` (`S2` with `CODE` at `C`) that gives an output
+  with no error. With authorizations it is not done: `applyAuthorization` recovers each authority
+  by secp256k1 ECDSA recovery over a keccak hash, out of reach for given signatures; a form with
+  the recovered authorities as hypotheses is possible and open. The `processMessage` forms hold
+  for any starting meter (U1).
+- Evidence: clean rebuild of fd2e8e7 from an empty build directory, exit 0, 1452 jobs, 3:04 wall; `#print axioms` on each new theorem gives [propext, Classical.choice, Quot.sound] or a subset (UsdtVerify/Test/Axioms.lean); independent read-only review (round 45) PASS WITH FIXES, fixes applied in 6f779e5 (docstrings) and in these docs (the authorizations assessment). The trust assumptions are unchanged.
+- Still open under T1: `prepareFirstFrame` with authorizations (see above).
+
 ## T2. The runner hypotheses range over every block and transaction environment (Medium)
 
 **Evidence.** `SendsVia` (Evm/Route.lean:134) fixes `caller`, `currentTarget`, `target`,
@@ -777,6 +795,13 @@ meets `KeepsInvAt` and `HonestBalanceAt`. `destroy_mirror_runs` (Paris ≤ fork 
 `processRunner`. It is derived from `destroyBlackFunds_dep_ok_iff_gas_process_mirror`, so the run
 passes the checks and goes through the CALL. Not done: `Inv` in `S2`, which needs keccak
 separation facts about the balance slots, so `Inv` after the run is not proved either.
+
+**Resolution (round 45).** Through round 44 slot 1 (`_totalSupply`) was not set in `S2`, so `Inv`
+failed there unless a keccak slot of `a` is slot 1. `S2` now has `_totalSupply` 1 (a fifth pair of
+`KD`, after the others, so the earlier lemmas keep their statements). `inv_S2`: `Inv` in `S2` under
+`SepOn [kD a]`. `destroy_mirror_inv` (Paris to before Glamsterdam): under `SepOn` of the call's
+keys, `Inv` holds in `S2`, the call ends with no error, and `Inv` holds after every successful run
+of it. The separation is assumed, not proved.
 
 ## T4. `KeepsInvAcc` does not imply `KeepsInvAt` (Low, README)
 

@@ -346,7 +346,8 @@ theorem sumTo_indicator (k : Nat) : ∀ n, sumTo (fun i => if i = k then (1 : In
 
 /-- **`Inv` in `S2` (round 45).** Under the keccak separation `SepOn [kD a]` of the one key of
 `S2` (the fixed slots 0..10 are no balance slot; the balance slot of `kD a` is that of no other
-address word; the slot of `isBlackListed[kD a]` is no balance slot and not slot 1), the sum of the
+address word; the slot of `isBlackListed[kD a]` is no balance slot and not slot 1; the slot of
+`allowed[kD a][kD a]` is no balance slot and no fixed slot), the sum of the
 balances of `C` in `S2 C H a` is 1 (`balances[kD a]`), which is `_totalSupply`. -/
 theorem inv_S2 (C : Address) (H : Hash32) (a : U256) (hsep : SepOn [kD a]) :
     Invariant.Inv C (S2 C H a) := by
