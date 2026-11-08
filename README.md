@@ -168,7 +168,7 @@ When the contract is deprecated, the six forwarding functions hand the call to t
 - a caller who is not the owner, calling any function other than the six forwards, changes only balances and allowances (`nonOwner_local`),
 - a successful `transfer` or `transferFrom` always starts not paused, with the sender not blacklisted (`transfer_checks_all`, `transferFrom_checks_all`).
 
-When the contract is deprecated, the invariant and the security properties over the EIP-8037 meter also hold from any starting reservoir (`UsdtVerify/Usdt/Invariant/DepMeterR.lean`, `UsdtVerify/Usdt/Security/DepMeterR.lean`), for single calls and sequences. Their runner assumptions are stated for the reservoir the call forwards, and at an empty reservoir they are the earlier ones. `owner_only` needs no reservoir hypothesis. EthLib's own runner meets these assumptions at every reservoir when the upgraded address holds `STOP`, and meets the balance assumption when it holds `MIRROR` (`UsdtVerify/Usdt/Sanity/ProcessMeterR.lean`).
+When the contract is deprecated, the invariant and the security properties over the EIP-8037 meter also hold from any starting reservoir (`UsdtVerify/Usdt/Invariant/DepMeterR.lean`, `UsdtVerify/Usdt/Security/DepMeterR.lean`), for single calls and sequences. Their runner assumptions are stated for the reservoir the call forwards, and at an empty reservoir they are the earlier ones. `owner_only` needs no reservoir hypothesis. Deprecated `destroyBlackFunds` has its exact gas after the forwarded call too, from any reservoir, refills included: the meter after the call and both writes of the tail are stated (`dep_destroy_exactR`). EthLib's own runner meets these assumptions at every reservoir when the upgraded address holds `STOP`, and meets the balance assumption when it holds `MIRROR` (`UsdtVerify/Usdt/Sanity/ProcessMeterR.lean`).
 
 ## What you have to trust
 
@@ -184,7 +184,7 @@ A few general opcode rules are proved locally in `UsdtVerify/Evm/Local/` while t
 
 ## What is not covered
 
-- When deprecated, over the EIP-8037 meter, the gas after the forwarded call is stated only as a sum of execution gas and reservoir, never split, and for deprecated `destroyBlackFunds` it is only a lower bound.
+- When deprecated, over the EIP-8037 meter, the gas after the forwarded call of the six forwards other than `destroyBlackFunds` is stated only as a sum of execution gas and reservoir, never split.
 - No concrete deprecated run over the EIP-8037 meter is built.
 - The preparation of a transaction's first frame, including EIP-7702 authorizations, is not verified. The theorems start from its result.
 

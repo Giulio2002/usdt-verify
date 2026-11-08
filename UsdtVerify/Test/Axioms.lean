@@ -15,6 +15,7 @@ import UsdtVerify.Usdt.Refill.TransferFromS
 import UsdtVerify.Evm.StepSim
 import UsdtVerify.Usdt.Complete.Deprecated.Meter
 import UsdtVerify.Usdt.Complete.Deprecated.MeterR
+import UsdtVerify.Usdt.Complete.Deprecated.DestroyS
 import UsdtVerify.Usdt.Invariant.DepMeter
 import UsdtVerify.Usdt.Security.DepMeter
 import UsdtVerify.Usdt.Security.SeqDepMeter
@@ -1373,3 +1374,19 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Sanity.keepsInvAtSR_process_stop
 #print axioms UsdtVerify.Sanity.keepsAtSR_process_stop
 #print axioms UsdtVerify.Sanity.honestBalanceAtSR_process_mirror
+
+-- Round 44: deprecated destroyBlackFunds over StateGasMeter, the exact gas after the CALL
+#print axioms UsdtVerify.Complete.fwd_splitS
+#print axioms UsdtVerify.Complete.fwd_stepS
+#print axioms UsdtVerify.Complete.step_callS
+#print axioms UsdtVerify.Complete.resumeCall_okS
+#print axioms UsdtVerify.Complete.absorb_sum
+#print axioms UsdtVerify.Complete.runFrame_childS
+#print axioms UsdtVerify.Complete.runFrame_child_fwdS
+#print axioms UsdtVerify.Complete.fromExtS
+#print axioms UsdtVerify.DeprecatedDestroy.zeroToWD
+#print axioms UsdtVerify.DeprecatedDestroy.tailW1D
+#print axioms UsdtVerify.DeprecatedDestroy.tailPostD
+#print axioms UsdtVerify.DeprecatedDestroy.tailD_sgm
+#print axioms UsdtVerify.Complete.resumeD
+#print axioms UsdtVerify.Complete.dep_destroy_exactR
