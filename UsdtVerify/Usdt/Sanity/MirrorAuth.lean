@@ -9,32 +9,39 @@ EthLib's `processMessageCall` over `StateGasMeter` with no authorization. Here t
 set code transaction: it carries a list `auths` of authorizations, which `prepareFirstFrame` applies
 before the message (Evm/Auth.lean).
 
-- `apply_usdt`: an authorization whose recovered authority is `C`, in a state where the code of `C`
-  is `CODE`, is refused: the delegations get only the read and the access of `C`. The same holds
-  for `UA` with `MIRROR` (`apply_code`, with `code_MIRROR`).
+- `apply_usdt`: an authorization in scope whose recovered authority is `C` is refused, in a state
+  where the code of `C` is `CODE`. The delegations get only the read and the access of `C`. For
+  `UA` with `MIRROR` the same follows from `apply_code` with `code_MIRROR`.
 - `apply_fresh`: before Glamsterdam, an authorization in scope with nonce 0 whose recovered
-  authority `x` has no account is accepted: the delegations hold the state that `delegate`
-  leaves, with the access of `x`, and keep the refund and the meter. In that state `x` has nonce
-  1, balance 0 and the hash of `delegationCode auth`. Every other address reads as before, and
-  the code under every other hash is kept.
-- `apply_caller_S3`: its instance in `S3`. Before Glamsterdam, from `S3`, an authorization in scope whose recovered
-  authority is the caller `CALLER_A` (no account in `S3`) with nonce 0 is accepted. The delegations
-  then hold the state that `delegate` leaves, the access of `CALLER_A` and refund 0, and keep the
-  meter. In that state `CALLER_A` has nonce 1, balance 0 and the hash of `delegationCode auth`;
-  every other address reads as in `S3`, and the code under every other hash is kept.
+  authority `x` has no account is accepted. The delegations hold the state that `delegate`
+  leaves and the access of `x`, and keep the refund and the meter. In that state `x` has nonce 1,
+  balance 0 and the hash of `delegationCode auth`. Every other address reads as before, and the
+  code under every other hash is kept.
+- `apply_caller_S3`: its instance for the first authorization of a list, from the delegations
+  `⟨S3, acc, 0, m, pw, ∅⟩`, with authority the caller `CALLER_A`, `CALLER_A ≠ C` and
+  `CALLER_A ≠ UA` (so `CALLER_A` has no account in `S3`). In a real transaction the sender's nonce
+  is raised before `processMessageCall` (`buyGas`), so `S3` is not the state in which a
+  transaction from `CALLER_A` reaches its message; this instance illustrates the lemmas only.
 - `prepareFirstFrame_S3`: in `S3`, for any list `auths` whose authorizations end with `.ok done`,
-  when no authorization sets a code whose hash is `H` or `HC`: `prepareFirstFrame` is `.ok` of the
-  frame with the code `CODE`, the state `done.state` with the read of `C`, the accesses of `done`,
-  the refund of `done` and the meter `commit done.meter`; and `done.state` keeps the account and
-  storage of `C` and `UA` and their codes.
+  and such that no `delegationCode` of the list hashes to `H` or `HC`: `prepareFirstFrame` is
+  `.ok` of the frame with the code `CODE`, the state `done.state` with the read of `C`, the
+  accesses of `done`, the refund of `done` and the meter `commit done.meter`. `done.state` keeps
+  the account, the storage and the code of `C` and of `UA`.
 - `destroy_mirror_call_auths`: from Paris, in `S3` with the hypotheses of `destroy_mirror_callS`,
-  for any list `auths` (whatever authorities the signatures give) such that no authorization sets
-  a code whose hash is `H` or `HC`, any paid writes, and a gas field `G` below 2^255 with at least
-  1000000 and, from Glamsterdam, 227790 more per authorization: `processMessageCall` over
-  `StateGasMeter` gives an output with no error.
+  for any list `auths` (no hypothesis on the authorities the signatures give) such that no
+  `delegationCode` of the list hashes to `H` or `HC`, any paid writes, any reservoir field and
+  substate, and a gas field `G` below 2^255 with at least 1000000 and, from Glamsterdam, 227790
+  more per authorization: `processMessageCall` over `StateGasMeter` gives an output with no error.
 
 The hypothesis on `H` and `HC` is a Keccak-256 hypothesis: `setCode` keeps a code under its hash,
 so an authorization whose `delegationCode` hashed to `HC` would change the code read at `C`.
+
+Not covered: the transaction around the message (`processTransaction`: the checks of a type-4
+transaction, the intrinsic gas, `buyGas`, the sender's nonce, the settlement and the deletions);
+anything about the output beyond "no error" (its refund, gas, state, logs and accesses); a call
+with value or to a recipient with a delegation indicator; forks before Paris; the error path of
+the authorizations in `S3` (the gas hypothesis rules out running out of gas); the recovery of any
+concrete signature.
 -/
 
 namespace UsdtVerify.Sanity
@@ -101,7 +108,8 @@ theorem preResolves_S3 (C : Address) (H HC : Hash32) (a : U256) (hH : H ≠ Stat
   rw [getPreStateAccount_S3]
   exact resolves_S3 C H HC a hH hHC hne hCU x
 
-/-- **An authorization whose authority is USDT's address is refused.** See the module doc. -/
+/-- **An authorization in scope whose authority is USDT's address is refused.** See the module
+doc. -/
 theorem apply_usdt {Meter : Type} [GasMeter Meter] (chainId : Nat) (done : Delegations Meter)
     {auth : Authorization} {C : Address} (hs : authorizationInScope chainId auth = true)
     (hr : recoverAuthority auth = some C)
@@ -150,7 +158,8 @@ theorem getAccountOptional_S3_other (C : Address) (H HC : Hash32) (a : U256) {x 
   simp [SMc, State.TransactionState.ofBlock, State.TransactionState.getAccountOptional,
     State.State.getAccountOptional, Ne.symm hC, Ne.symm hU]
 
-/-- **An authorization from the caller, accepted.** See the module doc. -/
+/-- **The first authorization of a list, from the caller, accepted in `S3`.** See the module doc
+for the hypotheses and why this instance only illustrates the lemmas. -/
 theorem apply_caller_S3 {Meter : Type} [GasMeter Meter] (hf : fork < .glamsterdam)
     (chainId : Nat) (C : Address) (H HC : Hash32) (a : U256) (acc : Std.ExtTreeSet Address)
     (m : Meter) (pw : Std.ExtTreeSet Address) {auth : Authorization}
@@ -171,7 +180,8 @@ theorem prepareFirstFrame_S3 {Meter : Type} [GasMeter Meter] (b : BlockEnvironme
     (hH : H ≠ State.EMPTY_CODE_HASH) (hHC : HC ≠ State.EMPTY_CODE_HASH) (hne : HC ≠ H)
     (hCU : C ≠ UA) (chainId G R : Nat) (auths : List Authorization)
     (pw : Std.ExtTreeSet Address)
-    (hk : ∀ auth ∈ auths, hashOf (delegationCode auth) ≠ HC ∧ hashOf (delegationCode auth) ≠ H)
+    (hk : ∀ auth ∈ auths,
+      hashOf (delegationCode auth) ≠ HC ∧ hashOf (delegationCode auth) ≠ H)
     {done : Delegations Meter}
     (hdone : applyAuthorizations fork chainId (S3 C H HC a) ss.accessedAddresses
       (GasMeter.start G R) pw auths = .ok done) :
@@ -185,8 +195,8 @@ theorem prepareFirstFrame_S3 {Meter : Type} [GasMeter Meter] (b : BlockEnvironme
       done.state.getAccountOptional UA = (S3 C H HC a).getAccountOptional UA ∧
       (∀ key, done.state.getStorage UA key = (S3 C H HC a).getStorage UA key) ∧
       done.state.getCode (done.state.getAccount UA).codeHash = .ok MIRROR := by
-  obtain ⟨haC, hsC, hcC⟩ := fold_keeps (fork := fork) (chainId := chainId) (X := C) code_CODE auths
-    ⟨S3 C H HC a, ss.accessedAddresses, 0, GasMeter.start G R, pw, ∅⟩ done
+  obtain ⟨haC, hsC, hcC⟩ := fold_keeps (fork := fork) (chainId := chainId) (X := C) code_CODE
+    auths ⟨S3 C H HC a, ss.accessedAddresses, 0, GasMeter.start G R, pw, ∅⟩ done
     (hcodeC_S3 C H HC a hCU hHC hne)
     (fun auth h => by rw [getAccount_S3_C C H HC a hCU]; exact (hk auth h).1) hdone
   obtain ⟨haU, hsU, hcU⟩ := fold_keeps (fork := fork) (chainId := chainId) (X := UA) code_MIRROR
@@ -211,7 +221,8 @@ theorem destroy_mirror_call_auths (hparis : .paris ≤ fork)
     (hHC : HC ≠ State.EMPTY_CODE_HASH) (hne : HC ≠ H) (hCU : C ≠ UA)
     (hnp : Precompiles.isPrecompile fork C.toU256.toNat = false) (chainId : Nat)
     (auths : List Authorization) (pw : Std.ExtTreeSet Address)
-    (hk : ∀ auth ∈ auths, hashOf (delegationCode auth) ≠ HC ∧ hashOf (delegationCode auth) ≠ H)
+    (hk : ∀ auth ∈ auths,
+      hashOf (delegationCode auth) ≠ HC ∧ hashOf (delegationCode auth) ≠ H)
     (G R : Nat) (hg : 1000000 + (if fork ≥ .glamsterdam then authMax * auths.length else 0) ≤ G)
     (hg' : G < 2 ^ 255) :
     ∃ out, processMessageCall (Meter := StateGasMeter) chainId (mDOG b t C a G R) (S3 C H HC a) ss
@@ -236,14 +247,12 @@ theorem destroy_mirror_call_auths (hparis : .paris ≤ fork)
       show 1000000 ≤ G
       omega
   have hhi : done.meter.gasLeft < 2 ^ 255 := Nat.lt_of_le_of_lt u hg'
-  obtain ⟨hff, -, hsC, -, -, -, hcU⟩ := prepareFirstFrame_S3 (Meter := StateGasMeter) b t C a ss
-    H HC hH hHC hne hCU chainId G R auths pw hk hdone'
+  obtain ⟨hff, haC, hsC, -, -, -, hcU⟩ := prepareFirstFrame_S3 (Meter := StateGasMeter) b t C a
+    ss H HC hH hHC hne hCU chainId G R auths pw hk hdone'
   obtain ⟨-, hown0, hlist0, -, -, -, -, -, -⟩ := process_step_dep_hyps2 hparis b t C a H hH 0
   have hst : ∀ n, storageAt (done.state.recordAccountRead C) C n = storageAt (S3 C H HC a) C n :=
     fun n => hsC _
   have hacc : hasAccount (done.state.recordAccountRead C) C := by
-    obtain ⟨haC, -⟩ := (prepareFirstFrame_S3 (Meter := StateGasMeter) b t C a ss H HC hH hHC hne
-      hCU chainId G R auths pw hk hdone').2
     simp only [hasAccount, State.TransactionState.getAccountOptional_recordAccountRead, haC]
     exact hasAccount_S3 C H HC a
   have hS10 : storageAt (done.state.recordAccountRead C) C 10 = W := by

@@ -14,6 +14,9 @@ recipient has code `c` that is no delegation indicator (or before Pectra), over 
 the first frame is the message with the code `c` and the gas the meter holds, the state with the
 read of `C` recorded, the substate as given, no refund, and the meter
 `GasMeter.commit (GasMeter.start gas reservoir)` of the message.
+
+Evm/Auth.lean (round 46) states the first frame of such a call with authorizations
+(`Auth.prepareFirstFrame_auths`).
 -/
 
 namespace UsdtVerify.FirstFrame

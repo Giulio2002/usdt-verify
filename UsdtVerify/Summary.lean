@@ -638,7 +638,23 @@ meter with execution gas left in [1000000, 2^255), ends with no error.
 `FirstFrame.prepareFirstFrame_call`: EthLib's `prepareFirstFrame` for a call with no value and no
 authorization. `Sanity.destroy_mirror_callS`: in `S3` (`S2` with `CODE` at `C`), EthLib's
 `processMessageCall` of that call over `StateGasMeter` with no authorization gives an output with
-no error. `prepareFirstFrame` with authorizations is not covered.
+no error. Round 45 did not cover `prepareFirstFrame` with authorizations; round 46 does, below.
+Round 46 (READY for this scope; Evm/Auth.lean, Usdt/Sanity/MirrorAuth.lean): EthLib's
+`applyAuthorization` recovers each authority by ECDSA over a keccak hash, out of reach here, so
+`Auth.apply_out`, `Auth.apply_none`, `Auth.apply_refused`, `Auth.apply_accepted` and
+`Auth.apply_cases` take what `recoverAuthority` returns as a hypothesis. `Auth.delegate_ok` states
+the change of an accepted authority (the hash of `delegationCode`, the nonce plus one, the refund
+12500 before Glamsterdam for an authority with an account). `Auth.fold_keeps`: an address whose
+code is not empty and no delegation indicator keeps its account, storage and code, when no
+`delegationCode` of the list hashes to its code hash. `Auth.prepareFirstFrame_auths`: the first frame
+of a call with no value after authorizations that end with `.ok done`, with the meter
+`GasMeter.commit done.meter`. `Auth.fold_exists`: over `StateGasMeter` the authorizations of any
+list succeed when every code hash resolves, with 227790 execution gas per authorization from
+Glamsterdam. `Sanity.destroy_mirror_call_auths`: from Paris, in `S3`, EthLib's
+`processMessageCall` of the deprecated destroyBlackFunds call over `StateGasMeter` with any list of
+authorizations (no `delegationCode` hashing to the code hashes of `S3`) and enough gas gives an
+output with no error. The type-4 transaction around the message (`processTransaction`) is not
+covered.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

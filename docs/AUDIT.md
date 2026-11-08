@@ -710,6 +710,37 @@ Three of the four items left open in round 43 are resolved. Evidence:
 - Evidence: clean rebuild of fd2e8e7 from an empty build directory, exit 0, 1452 jobs, 3:04 wall; `#print axioms` on each new theorem gives [propext, Classical.choice, Quot.sound] or a subset (UsdtVerify/Test/Axioms.lean); independent read-only review (round 45) PASS WITH FIXES, fixes applied in 6f779e5 (docstrings) and in these docs (the authorizations assessment). The trust assumptions are unchanged.
 - Still open under T1: `prepareFirstFrame` with authorizations (see above).
 
+**Resolution (round 46, READY): `prepareFirstFrame` with authorizations.**
+- With the recovered authorities as hypotheses (Evm/Auth.lean). `apply_out`, `apply_none`,
+  `apply_refused` and `apply_accepted` state what one `applyAuthorization` returns once
+  `recoverAuthority auth` is given (or the authorization is out of scope), and `apply_cases` says
+  every `.ok` result is one of these. `delegate_ok` states the state change of an accepted
+  authority: the code hash of `delegationCode auth`, the nonce plus one, every other address
+  unchanged, and the refund `delegateRefund`. `pay_pre` and `pay_glam` state the meter (unchanged
+  before Glamsterdam, the meter of `chargeAuthorization` from Glamsterdam).
+  `prepareFirstFrame_auths` states the first frame of a call with no value after authorizations
+  that end with `.ok done`: `done.state` with the read of the recipient, the accesses and the
+  refund of `done`, and the meter `GasMeter.commit done.meter`.
+- An address whose code is not empty and no delegation indicator (USDT's `C`, `MIRROR`'s `UA`) is
+  refused as an authority (`accepts_code`, `apply_code`). When no `delegationCode` of the list
+  hashes to its code hash (a keccak hypothesis), its account, storage and code are kept
+  (`fold_keeps`). Over `StateGasMeter`,
+  `fold_exists` shows that the authorizations of any list succeed when every code hash resolves,
+  and from Glamsterdam with 227790 execution gas per authorization; they take at most that much. It holds with no hypothesis
+  on `recoverAuthority`.
+- End to end (Usdt/Sanity/MirrorAuth.lean). `destroy_mirror_call_auths`: from Paris, in `S3`, a
+  deprecated `destroyBlackFunds(a)` from `CALLER_A` to `C` with any list of authorizations (no
+  `delegationCode` hashing to `H` or `HC`), any paid writes, and enough gas goes through
+  `processMessageCall` over `StateGasMeter` to an output with no error. `apply_usdt`: an authorization in
+  scope whose authority is `C` is refused. `apply_caller_S3`: before Glamsterdam, the first
+  authorization of a list from `S3`, with authority the caller and nonce 0, is accepted, and the
+  result is given exactly. In a real transaction `buyGas` raises the sender's nonce first, so that
+  instance only illustrates the lemmas.
+- Evidence: Clean rebuild of fb104c2 from an empty build directory, exit 0, 1454 jobs, 188.85 s wall, 483 s user; `#print axioms` on each new theorem gives [propext, Classical.choice, Quot.sound] or a subset (UsdtVerify/Test/Axioms.lean); independent read-only review (round 46) PASS WITH FIXES, fixes applied in 5e376ee (docstrings, one proof step; incremental build exit 0, 1454 jobs) and in these docs (the scope, the `buyGas` caveat). The trust assumptions are unchanged.
+- Still open under T1: nothing on the authorizations of a message to USDT. The transaction around
+  the message (`processTransaction`) is not stated for a type-4 transaction. The keccak
+  hypothesis on `H` and `HC` is assumed.
+
 ## T2. The runner hypotheses range over every block and transaction environment (Medium)
 
 **Evidence.** `SendsVia` (Evm/Route.lean:134) fixes `caller`, `currentTarget`, `target`,
@@ -953,6 +984,13 @@ gas (replacement sent).
 meter. The old statements remain as `goodCall_processS_start`, `process_value_failsS_start`,
 `process_stepS_start`, `process_stepDS_start`, `process_stepSD_start`, `runOkS_process_start` and
 `process_stepSec_start`.
+
+**Resolution (round 46).** The link from a type-4 message to the starting meter is now stated.
+`Auth.prepareFirstFrame_auths` gives the first frame after the authorizations, with the meter
+`GasMeter.commit done.meter`. `Sanity.destroy_mirror_call_auths` runs a concrete deprecated call to
+USDT through `processMessageCall` over `StateGasMeter`, with any list of authorizations, to an
+output with no error (see T1, round 46). The transaction around the message
+(`processTransaction`) is still not stated for a type-4 transaction.
 
 ## U2. No instance of the runner assumptions over `StateGasMeter` (Low)
 

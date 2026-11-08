@@ -18,6 +18,9 @@ agrees with `S2` by definition), `MIRROR` at `UA` under `H`.
   and any reservoir field `R`, from any substate, with no authorization and no paid writes (the
   defaults `[]` and `∅`): EthLib's `processMessageCall` over `StateGasMeter` gives an output with
   no error. (The proof takes the first frame from `FirstFrame.prepareFirstFrame_call`.)
+
+Usdt/Sanity/MirrorAuth.lean (round 46) runs the same call with a list of EIP-7702 authorizations
+(`destroy_mirror_call_auths`).
 -/
 
 namespace UsdtVerify.Sanity

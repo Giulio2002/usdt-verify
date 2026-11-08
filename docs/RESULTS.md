@@ -483,7 +483,7 @@ unchanged.
   states the sum of execution gas and reservoir at the end, exactly for six paths and as a lower
   bound for destroyBlackFunds, and does not state its split. Each theorem starts from the first
   frame. The preparation of that frame (`prepareFirstFrame`, the authorizations) is not verified
-  here.
+  here. (Round 45 and round 46 verify it, see their sections.)
 - Evidence: clean rebuild of 95aa5ad from an empty build directory, exit 0, 1440 jobs; `#print
   axioms` on each theorem gives [propext, Classical.choice, Quot.sound] (UsdtVerify/Test/Axioms.lean);
   independent read-only review PASS WITH FIXES, fixes in 7f29631.
@@ -587,7 +587,58 @@ unchanged.
   hypotheses is not done. The `processMessage` theorems of rounds 41 to 44 take any starting meter
   (fourth audit, U1), so they apply to the meter the authorizations leave, but the link from a
   transaction with authorizations to that meter, message and state is not stated.
+  (Round 46: done, see the round 46 section.)
 - Evidence: clean rebuild of fd2e8e7 from an empty build directory, exit 0, 1452 jobs, 3:04 wall; `#print axioms` on each new theorem gives [propext, Classical.choice, Quot.sound] or a subset (UsdtVerify/Test/Axioms.lean); independent read-only review (round 45) PASS WITH FIXES, fixes applied in 6f779e5 (docstrings) and in these docs (the authorizations assessment).
+
+## The EIP-8037 meter, round 46: the first frame with EIP-7702 authorizations, a type-4 call to USDT (READY)
+
+Status: READY for the scope stated in this section, after the clean rebuild and the independent
+review recorded in docs/AUDIT.md (T1, round 46). The trust assumptions of "What is trusted" apply
+unchanged.
+
+- Authorizations, with the recovered authorities as hypotheses (Evm/Auth.lean). EthLib recovers
+  the authority of each authorization by secp256k1 ECDSA public key recovery over a keccak hash
+  (`recoverAuthority`), out of reach here for given signatures. `apply_out`, `apply_none`,
+  `apply_refused`, `apply_accepted` state what one `applyAuthorization` returns when the
+  authorization is out of scope, when no authority is recovered, and when the recovered authority
+  `a` is refused or accepted by `authorityAccepts`; `apply_cases` says every `.ok` result is one of
+  these. `delegate_ok`: the accepted authority gets the hash of `delegationCode auth` and its nonce
+  plus one, every other address reads as before, the code under every other hash is kept, and the
+  refund is 12500 before Glamsterdam for an authority with an account and 0 otherwise.
+  `pay_pre`, `pay_glam`: before Glamsterdam nothing is charged. From Glamsterdam the meter is the
+  one `chargeAuthorization` leaves.
+- An address whose code is not empty and no delegation indicator, such as USDT's `C` with `CODE` or
+  `UA` with `MIRROR`, is refused as an authority (`accepts_code`, `apply_code`). When no
+  `delegationCode` in the list hashes to that address's code hash (a keccak hypothesis), the
+  authorizations keep its account, storage and code (`fold_keeps`). Before Glamsterdam they keep the meter
+  (`fold_meter_pre`).
+- `prepareFirstFrame_auths`: for a call with no value whose authorizations end with `.ok done` and
+  whose recipient has in `done.state` a code that is no delegation indicator (or before Pectra),
+  `prepareFirstFrame` gives the message with that code and the gas the meter holds, `done.state`
+  with the read of the recipient, the accessed addresses of `done`, the refund of `done`, and the
+  meter `GasMeter.commit done.meter`.
+- Over `StateGasMeter` (`fold_exists`): from a state where every account's code hash, now and
+  before the transaction, has a code, and from Glamsterdam with at least 227790 execution gas per
+  authorization, the authorizations of any list end with `.ok`. They take at most 227790 times
+  the length of the list in execution gas. This needs no hypothesis on `recoverAuthority`.
+- The concrete call (Usdt/Sanity/MirrorAuth.lean). An authorization in scope whose recovered
+  authority is `C` is refused (`apply_usdt`). Before Glamsterdam, the first authorization of a list
+  from `S3`, in scope, with nonce 0 and authority the caller `CALLER_A` (`CALLER_A ≠ C, UA`), is
+  accepted: `CALLER_A` gets nonce 1 and the delegation code hash, the refund is 0, the meter is
+  kept (`apply_caller_S3`). In a real transaction `buyGas` raises the sender's nonce before
+  `processMessageCall`, so this instance only illustrates the lemmas. `prepareFirstFrame_S3` states the first frame in `S3` after any
+  authorizations that end with `.ok`, with `C` and `UA` kept. `destroy_mirror_call_auths`: from
+  Paris, in `S3` with the hypotheses of `destroy_mirror_callS`, for any list of authorizations no
+  `delegationCode` of which hashes to `H` or `HC`, any paid writes, any reservoir field and
+  substate, and a gas field below 2^255 with at least 1000000 (plus 227790 per authorization from
+  Glamsterdam): EthLib's `processMessageCall` over `StateGasMeter` gives an output with no error.
+- Not covered: the transaction around the message (`processTransaction`: the checks of a type-4
+  transaction, the intrinsic gas, `buyGas` and the sender's nonce, the settlement, the
+  deletions); anything about the output beyond "no error" (its refund, gas, state, logs and
+  accesses); a call with value or to a recipient with a delegation indicator; forks before Paris
+  for the concrete call; the recovery of any concrete signature. The keccak hypothesis on `H` and
+  `HC` is assumed, not proved.
+- Evidence: Clean rebuild of fb104c2 from an empty build directory, exit 0, 1454 jobs, 188.85 s wall, 483 s user; `#print axioms` on each new theorem gives [propext, Classical.choice, Quot.sound] or a subset (UsdtVerify/Test/Axioms.lean); independent read-only review (round 46) PASS WITH FIXES, fixes applied in 5e376ee (docstrings, one proof step; incremental build exit 0, 1454 jobs) and in these docs (the scope, the `buyGas` caveat).
 
 ## Completeness of the dispatcher, for every gas
 
@@ -1402,9 +1453,11 @@ ends with no error and the contract has an account in its end state".
   CALL); the split of the gas between the execution gas left and the reservoir at a reservoir
   other than 0; the gas of a run with a refill (only a lower bound, `Shadow.gas_ge_any`); the
   security properties. See docs/STATUS.md (rounds 33 to 36).
-  Rounds 37 to 45 (sections above) cover most of these. Still not covered after round 45: the
-  preparation of the first frame (`prepareFirstFrame`) with authorizations (round 45 covers a call
-  with no value and no authorization, `FirstFrame.prepareFirstFrame_call`).
+  Rounds 37 to 46 (sections above) cover most of these. Round 45 covers the first frame of a call
+  with no value and no authorization (`FirstFrame.prepareFirstFrame_call`); round 46 covers it
+  with authorizations, with the recovered authorities as hypotheses, and a concrete deprecated call
+  with any list of authorizations (`destroy_mirror_call_auths`). Still not covered after round 46:
+  the type-4 transaction around the message (`processTransaction`).
 
 ## The EIP-8037 meter (round 34; UsdtVerify/Evm/Meter.lean, UsdtVerify/Usdt/Meter.lean)
 

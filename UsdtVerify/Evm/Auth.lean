@@ -17,10 +17,15 @@ One authorization, with `seen done a` the delegations with the read and the acce
 - `delegate_ok`: `delegate` never fails. Its state sets the account of `a` to its account with the
   code hash of `delegationCode auth` and the nonce one more, reads as before at every other
   address, and keeps the code under every other hash. Its refund is `delegateRefund`.
-- `pay_pre`, `pay_glam`: before Glamsterdam `payAuthorization` keeps the delegations; from
-  Glamsterdam it sets the meter of `chargeAuthorization`, records the paid write and the
-  delegation, and keeps the state, the accesses and the refund.
+- `pay_pre`, `pay_glam`, `pay_keeps`: before Glamsterdam `payAuthorization` keeps the delegations.
+  From Glamsterdam it sets the meter of `chargeAuthorization` and records the paid write. It
+  records the delegation when the address of the authorization is not the zero address. It keeps
+  the state, the accesses and the refund.
 - `apply_cases`: every successful `applyAuthorization` is one of the cases above.
+- `accepts_code`, `apply_code`: an authority whose code is not empty and no delegation indicator
+  is refused, so an authorization in scope that recovers it gives `seen done a`.
+- `apply_keeps`: one authorization keeps such an address `X` (its account, storage and code), when
+  it sets no code with the hash of `X`'s code.
 
 The list:
 - `prepareFirstFrame_auths`: for a call with no value whose authorizations end with `.ok done`, and
@@ -29,20 +34,23 @@ The list:
   the read of `C`, the accesses of `done`, the refund of `done` and the meter `commit done.meter`.
   `prepareFirstFrame_auths_error`: an error of the authorizations is the error of
   `prepareFirstFrame`.
-- `fold_keeps`: an address `X` whose code is not empty and no delegation indicator is never an
-  accepted authority. When no authorization of the list sets a code with the hash of `X`'s code,
-  the authorizations keep the account of `X`, its storage and its code.
-- `fold_meter_pre`: before Glamsterdam the authorizations keep the meter.
+- `fold_keeps`: for an address `X` whose code is not empty and no delegation indicator, when no
+  authorization of the list sets a code with the hash of `X`'s code, the authorizations keep the
+  account of `X`, its storage and its code.
+- `apply_meter_pre`, `fold_meter_pre`: before Glamsterdam the authorizations keep the meter.
 
 The meter of EIP-8037 (`StateGasMeter`):
 - `charge_bound`: from Glamsterdam, with at least `authMax` (227790) execution gas left and the
   pre-state code of the authority in the state, `chargeAuthorization` succeeds and takes at most
   `authMax` execution gas.
-- `apply_exists`, `fold_exists`: in a state where every account's code hash, now and before the
-  transaction, has a code (`Resolves`, `PreResolves`), and from Glamsterdam with at least
-  `authMax` execution gas left per authorization, the authorizations end with `.ok d` for some `d`.
-  They keep both facts and take at most `authMax` execution gas each. Any authorities: no
-  hypothesis on `recoverAuthority`.
+- `apply_exists`: in a state where every account's code hash, now and before the transaction, has
+  a code (`Resolves`, `PreResolves`), and from Glamsterdam with at least `authMax` execution gas
+  left, one authorization ends with `.ok d`. `d` keeps both facts, and the authorization takes at
+  most `authMax` execution gas.
+- `fold_exists`: from such a state, and from Glamsterdam with at least `authMax` times the length
+  of the list in execution gas left, the authorizations end with `.ok d`. They take at most
+  `authMax` times the length of the list in execution gas.
+- Neither takes a hypothesis on `recoverAuthority`.
 -/
 
 namespace UsdtVerify.Auth
@@ -148,7 +156,8 @@ theorem pay_pre (hf : fork < .glamsterdam) (done : Delegations Meter) (a : Addre
     (Nat.lt_of_lt_of_le hf h), ite_false]
 
 /-- From Glamsterdam, `payAuthorization` sets the meter that `chargeAuthorization` leaves, records
-the paid write and the delegation, and keeps the rest. -/
+the paid write, records the delegation for an address other than the zero address, and keeps the
+rest. -/
 theorem pay_glam (hf : fork ≥ .glamsterdam) {done : Delegations Meter} {a : Address}
     {auth : Authorization} {m : Meter} (hc : chargeAuthorization done a auth = .ok m) :
     payAuthorization fork done a auth = .ok { done with
@@ -202,7 +211,8 @@ theorem apply_accepted (chainId : Nat) (done : Delegations Meter) {auth : Author
     (hacc : authorityAccepts (done.state.recordAccountRead a) a auth = .ok true)
     {d : Delegations Meter} (hpay : payAuthorization fork (seen done a) a auth = .ok d)
     {st : State.TransactionState} {r : Nat} (hdel : delegate fork d.state a auth = .ok (st, r)) :
-    applyAuthorization fork chainId done auth = .ok { d with state := st, refund := d.refund + r } := by
+    applyAuthorization fork chainId done auth =
+      .ok { d with state := st, refund := d.refund + r } := by
   simp only [applyAuthorization, hs, ite_true, hr, hacc, Except.mapError, bind, Except.bind,
     ite_true, hpay, hdel, pure, Except.pure]
 
@@ -210,8 +220,10 @@ theorem apply_accepted (chainId : Nat) (done : Delegations Meter) {auth : Author
 or accepts it through `payAuthorization` and `delegate`. -/
 theorem apply_cases {chainId : Nat} {done d' : Delegations Meter} {auth : Authorization}
     (h : applyAuthorization fork chainId done auth = .ok d') :
-    d' = done ∨ ∃ a, authorizationInScope chainId auth = true ∧ recoverAuthority auth = some a ∧
-      ((authorityAccepts (done.state.recordAccountRead a) a auth = .ok false ∧ d' = seen done a) ∨
+    d' = done ∨ ∃ a, authorizationInScope chainId auth = true ∧
+      recoverAuthority auth = some a ∧
+      ((authorityAccepts (done.state.recordAccountRead a) a auth = .ok false ∧
+          d' = seen done a) ∨
        (authorityAccepts (done.state.recordAccountRead a) a auth = .ok true ∧
         ∃ d st r, payAuthorization fork (seen done a) a auth = .ok d ∧
           delegate fork d.state a auth = .ok (st, r) ∧
@@ -411,7 +423,8 @@ theorem charge_ok (m : StateGasMeter) {n : Nat} (h : n ≤ m.gasLeft) :
   simp only [h1, ↓reduceIte]
   exact ⟨_, rfl, by simp only; omega, by simp only; omega⟩
 
-theorem ok_bind {ε α β : Type} (x : α) (f : α → Except ε β) : (Except.ok x >>= f) = f x := rfl
+theorem ok_bind {ε α β : Type} (x : α) (f : α → Except ε β) :
+    (Except.ok x >>= f) = f x := rfl
 
 /-- `chargeAuthorization` as three charges in a row. -/
 theorem chargeAuthorization_eq (done : Delegations Meter) (a : Address) (auth : Authorization) :
@@ -434,8 +447,8 @@ in the state, `chargeAuthorization` succeeds and takes at most `authMax` executi
 theorem charge_bound (done : Delegations StateGasMeter) (a : Address) (auth : Authorization)
     (hpre : ∃ c, done.state.getCode (done.state.getPreStateAccount a).codeHash = .ok c)
     (hg : authMax ≤ done.meter.gasLeft) :
-    ∃ m, chargeAuthorization done a auth = .ok m ∧ done.meter.gasLeft - authMax ≤ m.gasLeft ∧
-      m.gasLeft ≤ done.meter.gasLeft := by
+    ∃ m, chargeAuthorization done a auth = .ok m ∧
+      done.meter.gasLeft - authMax ≤ m.gasLeft ∧ m.gasLeft ≤ done.meter.gasLeft := by
   obtain ⟨c, hc⟩ := hpre
   have eA : GasCosts.NEW_ACCOUNT_STATE_GAS = 183600 := rfl
   have eW : GasCosts.ACCOUNT_WRITE = 9000 := rfl
@@ -509,7 +522,8 @@ theorem delegate_res {state st : TransactionState} {a : Address} {auth : Authori
   obtain ⟨st', hd, hself, hsame, hcodes, hnew⟩ := delegate_ok fork state a auth
   rw [hd] at h
   obtain ⟨rfl, -⟩ := Prod.mk.inj (Except.ok.inj h)
-  have hmono : ∀ hash : Hash32, (∃ c, state.getCode hash = .ok c) → ∃ c, st'.getCode hash = .ok c := by
+  have hmono : ∀ hash : Hash32, (∃ c, state.getCode hash = .ok c) →
+      ∃ c, st'.getCode hash = .ok c := by
     intro hash ⟨c, hc⟩
     by_cases hh : hash = hashOf (delegationCode auth)
     · subst hh
@@ -583,8 +597,8 @@ theorem apply_exists (chainId : Nat) (done : Delegations StateGasMeter) (auth : 
 
 /-- **The authorizations over the meter of EIP-8037 succeed.** From a state where every code hash,
 now and before the transaction, has a code, and from Glamsterdam with at least `authMax` execution
-gas left per authorization: the authorizations end with `.ok d`, and take at most `authMax`
-execution gas each. -/
+gas left per authorization: the authorizations end with `.ok d`, and take at most `authMax` times
+the length of the list in execution gas. -/
 theorem fold_exists {chainId : Nat} :
     ∀ (auths : List Authorization) (d0 : Delegations StateGasMeter),
       Resolves d0.state → PreResolves d0.state →
