@@ -23,6 +23,8 @@ reservoir is 0 when `C` is deprecated (no hypothesis on the reservoir otherwise)
   `supply_call_allS`: the `_call_all` theorems over `StateGasMeter`, with the runner assumptions
   stated by `KeepsAtS` for the same relations (`BalKept`, `ProtKept`, `ListedNoDec`, `AllowKept`,
   `SupplyKept` of `C`).
+- `owner_only_allS` (round 41): `owner_only` over `StateGasMeter`, deprecated or not, reservoir 0
+  for deprecated destroyBlackFunds.
 -/
 
 namespace UsdtVerify.Security
@@ -371,6 +373,27 @@ theorem supply_call_allS (K : SepOn (callKeys message state)) (hfork : .berlin �
     (hok : s.error = none) : SupplyStepD message state s.state :=
   (effect_allS hfork hsize' h7 h8 start hres hrun hok).supply K
     fun hd _ _ hf => (hkeeps hd).fwd hf
+
+/-- **Owner functions over the EIP-8037 meter, deprecated or not** (round 41). `owner_only` for a
+run of the loop over `StateGasMeter`, any gas bound and message runner, no assumption on the
+runner, from a frame `m` whose `toNat` is the fresh frame of `CODE`, with reservoir 0 when the
+call is deprecated destroyBlackFunds (any reservoir otherwise, `owner_only_any`): every run of one
+of the ten owner functions that ends with no error is a call by the owner. -/
+theorem owner_only_allS (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
+    (hsel : OwnerFn (selector message.data))
+    (start : At CODE message 0 [] .empty gas state substate (toNat m))
+    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      selector message.data = 0xf3bdc228 → m.gas.reservoir = 0)
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runS m within = .ok s)
+    (hok : s.error = none) : callerWord message = ownerOf state message.currentTarget := by
+  by_cases hd : byte20 (storageAt state message.currentTarget 10) = 0 ∨
+      selector message.data ≠ 0xf3bdc228
+  · exact owner_only_any hfork hsize' hsel hd start hrun hok
+  · obtain ⟨hdep, h⟩ := not_or.mp hd
+    have hs : selector message.data = 0xf3bdc228 := Classical.byContradiction h
+    obtain ⟨_, _, -, -, howner, -⟩ :=
+      dep_destroy_completeS hfork hsize' hs hdep rfl rfl rfl rfl start (hres hdep hs) hrun hok
+    exact howner
 
 end Calls
 

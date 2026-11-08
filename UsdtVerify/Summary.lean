@@ -574,6 +574,12 @@ Round 41 (U2, Usdt/Sanity/ProcessMeter.lean): from Paris, EthLib's runner over `
 `KeepsAtS` for every reflexive relation (`Sanity.keepsAtS_process_stop`) when the upgraded address
 holds STOP, and `HonestBalanceAtS` (`Sanity.honestBalanceAtS_process_mirror`) when it holds
 `MIRROR` whose queried slot holds USDT's `balances[a]` in the start state.
+Round 41 (Usdt/Security/SeqDepMeter.lean): the five security properties over sequences deprecated
+or not whose calls run over `Nat` or over `StateGasMeter` (`SeqRS`, reservoir 0 when deprecated):
+`Security.nonOwner_seq_allS`, `paused_seq_allS`, `listed_seq_allS`, `allowKept_seq_allS`,
+`supply_seq_allS`, and `Security.process_stepSecD` (top-level messages over `StateGasMeter` as
+steps of `SeqRS`). `Security.owner_only_allS` (Usdt/Security/DepMeter.lean): `owner_only` over
+`StateGasMeter`, deprecated or not, reservoir 0 for deprecated destroyBlackFunds.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

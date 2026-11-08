@@ -1826,6 +1826,15 @@ T1 (third audit), continued. Items 2 to 4 of the plan of round 38.
   address holds STOP), `process_mirrorS` and `honestBalanceAtS_process_mirror` (`HonestBalanceAtS`
   when it holds `MIRROR` mirroring USDT's `balances[a]`). Not shown: a concrete deprecated state
   over `StateGasMeter` with a run of USDT that ends with no error.
+- Open items of round 39. Usdt/Security/SeqDepMeter.lean: `RunOkRS` (a call over `StateGasMeter`,
+  reservoir 0 and `KeepsAtS … R` when deprecated), `SeqRS` (steps `RunOkR`, `RunOkRS`,
+  `Untouched`), `SeqR.toRS`, `seqRS_lift`, `EffectD.toF`, and `nonOwner_seq_allS`,
+  `paused_seq_allS`, `listed_seq_allS`, `allowKept_seq_allS`, `supply_seq_allS` with the
+  predicates and runner relations of the `_seq_all` forms. `runOkRS_process`, `process_stepSecD`:
+  from Paris, a top-level message over `StateGasMeter` from any starting meter (reservoir 0 when
+  deprecated) is a `RunOkRS` or an `Untouched` step. Usdt/Security/DepMeter.lean:
+  `owner_only_allS` (`owner_only` over `StateGasMeter`, reservoir 0 for deprecated
+  destroyBlackFunds).
 
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
@@ -1847,6 +1856,10 @@ T1 (third audit), continued. Items 2 to 4 of the plan of round 38.
   audit, U1), so they cover the meter that `processMessageCall` passes after the authorizations.
   The preparation of the first frame itself (`prepareFirstFrame`, the authorizations) is not
   verified here. The theorems start from its result.
+  Round 41: the deprecated sequence forms of the security properties over `StateGasMeter`
+  (`_seq_allS` over `SeqRS`) and `owner_only` for deprecated destroyBlackFunds over it
+  (`owner_only_allS`) are done, both from reservoir 0 when deprecated. Still open: a reservoir
+  other than 0 when deprecated, and the gas left after the CALL.
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
   contract (round 24: concrete runners meet them, `Sanity/Runner.lean`). `transferFrom_bound` has
@@ -2003,6 +2016,13 @@ T1 (third audit), continued. Items 2 to 4 of the plan of round 38.
    a fork-generic `callWith`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+Round 41: clean project build of the tree of commit 8df74c4 (`rm -rf .lake/build`, safe.sh 9G,
+LEAN_NUM_THREADS not set, `lake build UsdtVerify UsdtVerify.Test.Axioms`) 110.29 s wall, 436.43 s
+user, 1787281408 bytes max RSS (/usr/bin/time -l), exit 0, 0 "error:" lines, 1425 jobs. Hash
+check: 11075 bytes, keccak256 b44fb4e9...ea55. 1099 `#print axioms` lines: 1059 [propext,
+Classical.choice, Quot.sound], 23 [propext, Quot.sound], 10 [propext], 7 none. No `sorryAx`,
+`ofReduceBool` or `trustCompiler`. grep of UsdtVerify/ for sorry, admit, axiom declarations,
+native_decide, bv_decide, decide +native: none.
 Round 39: clean project build (`rm -rf .lake/build`, safe.sh 9G, LEAN_NUM_THREADS not set) 112.63 s
 wall, 1790672896 bytes max RSS (/usr/bin/time -l), exit 0, 0 "error:" lines, 1423 jobs, 1071
 `#print axioms` lines: 1031 [propext, Classical.choice, Quot.sound], 23 [propext, Quot.sound],

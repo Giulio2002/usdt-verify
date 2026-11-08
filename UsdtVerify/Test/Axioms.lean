@@ -3,6 +3,7 @@ import UsdtVerify.Evm.StepSim
 import UsdtVerify.Usdt.Complete.Deprecated.Meter
 import UsdtVerify.Usdt.Invariant.DepMeter
 import UsdtVerify.Usdt.Security.DepMeter
+import UsdtVerify.Usdt.Security.SeqDepMeter
 import UsdtVerify.Usdt.Sanity.ProcessMeter
 import UsdtVerify.Usdt.Meter
 import UsdtVerify.Usdt.MeterIff
@@ -1167,6 +1168,19 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Security.listed_call_allS
 #print axioms UsdtVerify.Security.allowKept_call_allS
 #print axioms UsdtVerify.Security.supply_call_allS
+#print axioms UsdtVerify.Security.owner_only_allS
+#print axioms UsdtVerify.Security.EffectD.toF
+#print axioms UsdtVerify.Security.RunOkRS.effect
+#print axioms UsdtVerify.Security.RunOkR.effectF
+#print axioms UsdtVerify.Security.SeqR.toRS
+#print axioms UsdtVerify.Security.seqRS_lift
+#print axioms UsdtVerify.Security.nonOwner_seq_allS
+#print axioms UsdtVerify.Security.paused_seq_allS
+#print axioms UsdtVerify.Security.listed_seq_allS
+#print axioms UsdtVerify.Security.allowKept_seq_allS
+#print axioms UsdtVerify.Security.supply_seq_allS
+#print axioms UsdtVerify.Security.runOkRS_process
+#print axioms UsdtVerify.Security.process_stepSecD
 #print axioms UsdtVerify.Sanity.step_stopS
 #print axioms UsdtVerify.Sanity.process_stopS
 #print axioms UsdtVerify.Sanity.sentVia_process_stopS

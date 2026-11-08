@@ -960,6 +960,11 @@ and the other fields of the caller's meter stay free in the three definitions, a
   over `Nat`. The match holds whenever the step over `StateGasMeter` does not fail.
 - "every top-level message to USDT that EthLib runs with the EIP-8037 meter" (U1).
 
+**Resolution (round 41).** The public README is kept outside this repository. Its Glamsterdam
+sentences are edited by the main session, not by a commit here. Since round 41 the last item is
+covered by U1. Replacement sentences for the changes of U1 to U3
+were sent to the main session.
+
 ## U5. Checked and found sound (Info)
 
 - The meter. Every theorem over `StateGasMeter` uses EthLib's `GasMeter StateGasMeter` instance
@@ -994,3 +999,7 @@ and the other fields of the caller's meter stay free in the three definitions, a
 - T2 to T5. `SendsVia` has the environments and `shouldTransferValue`. `destroy_mirror_runs` and
   `process_step_dep_hyps2` exist. `keepsInvAt_of_acc` exists. Every non-deprecated `ok_X` in
   Usdt/Complete/ has the `cost ≤ gas` conjunct.
+
+**Resolution (round 41).** No change needed. The statements U5 lists are unchanged, except that
+the U1 forms now take any starting meter and the U3 runner assumptions ask reservoir 0 of the
+caller and the message.

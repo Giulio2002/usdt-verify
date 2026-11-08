@@ -382,6 +382,18 @@ of `CODE`, deprecated, for any gas bound and message runner over `StateGasMeter`
   and its slot `balSlot message` holds in the start state the word of USDT's `balances[a]`.
   `process_mirrorS`: a `MIRROR` message run over `StateGasMeter` that ends with no error answers
   the word of its slot, at any reservoir.
+- Sequences deprecated or not over both meters (Usdt/Security/SeqDepMeter.lean). `SeqRS C R Q`
+  has steps over `Nat` (`RunOkR`), steps over `StateGasMeter` (`RunOkRS`: reservoir 0 and a runner
+  meeting `KeepsAtS … R` when deprecated) and `Untouched` steps. `nonOwner_seq_allS`,
+  `paused_seq_allS`, `listed_seq_allS`, `allowKept_seq_allS`, `supply_seq_allS` state the five
+  `_seq_all` properties over it, with the same predicates on each call and the same runner
+  relations. `process_stepSecD`: from Paris, a top-level message over `StateGasMeter` from any
+  starting meter (reservoir 0 when deprecated, `KeepsAtS … R` of `processRunnerM` when
+  deprecated) is a `RunOkRS` or an `Untouched` step.
+- `owner_only_allS` (Usdt/Security/DepMeter.lean): every run over `StateGasMeter` of one of the
+  ten owner functions that ends with no error is a call by the owner, deprecated or not, with no
+  runner assumption, from reservoir 0 for deprecated destroyBlackFunds and any reservoir otherwise.
+- Still not covered: a reservoir other than 0 when deprecated, the gas left after the CALL.
 
 ## Completeness of the dispatcher, for every gas
 
