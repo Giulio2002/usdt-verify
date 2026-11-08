@@ -37,223 +37,209 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
 theorem ok_decimals (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x313ce567)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     s.output = wordBytes (storageAt state message.currentTarget 9) ∧
       ((384 + slotCost (coldIn substate message.currentTarget 9)) ≤ gas ∧
         s.gas = gas - (384 + slotCost (coldIn substate message.currentTarget 9))) ∧
       s.state = (readSlot state message.currentTarget 9) ∧ s.substate = (accessSlot substate message.currentTarget 9) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => Getters.spec_decimals hfork h4 hsize' hsel hv rfl hg) start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+    (fun g hg => Getters.spec_decimals hfork h4 hsize' hsel hv rfl hg) start hrun hok
   exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `maximumFee` call is the path of `Getters.spec_maximumFee`. -/
 theorem ok_maximumFee (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x35390714)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     s.output = wordBytes (storageAt state message.currentTarget 4) ∧
       ((406 + slotCost (coldIn substate message.currentTarget 4)) ≤ gas ∧
         s.gas = gas - (406 + slotCost (coldIn substate message.currentTarget 4))) ∧
       s.state = (readSlot state message.currentTarget 4) ∧ s.substate = (accessSlot substate message.currentTarget 4) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => Getters.spec_maximumFee hfork h4 hsize' hsel hv rfl hg) start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+    (fun g hg => Getters.spec_maximumFee hfork h4 hsize' hsel hv rfl hg) start hrun hok
   exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `totalSupplyVar` call is the path of `Getters.spec_totalSupplyVar`. -/
 theorem ok_totalSupplyVar (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x3eaaf86b)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     s.output = wordBytes (storageAt state message.currentTarget 1) ∧
       ((428 + slotCost (coldIn substate message.currentTarget 1)) ≤ gas ∧
         s.gas = gas - (428 + slotCost (coldIn substate message.currentTarget 1))) ∧
       s.state = (readSlot state message.currentTarget 1) ∧ s.substate = (accessSlot substate message.currentTarget 1) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => Getters.spec_totalSupplyVar hfork h4 hsize' hsel hv rfl hg) start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+    (fun g hg => Getters.spec_totalSupplyVar hfork h4 hsize' hsel hv rfl hg) start hrun hok
   exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `basisPointsRate` call is the path of `Getters.spec_basisPointsRate`. -/
 theorem ok_basisPointsRate (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xdd644f72)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     s.output = wordBytes (storageAt state message.currentTarget 3) ∧
       ((758 + slotCost (coldIn substate message.currentTarget 3)) ≤ gas ∧
         s.gas = gas - (758 + slotCost (coldIn substate message.currentTarget 3))) ∧
       s.state = (readSlot state message.currentTarget 3) ∧ s.substate = (accessSlot substate message.currentTarget 3) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => Getters.spec_basisPointsRate hfork h4 hsize' hsel hv rfl hg) start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+    (fun g hg => Getters.spec_basisPointsRate hfork h4 hsize' hsel hv rfl hg) start hrun hok
   exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `deprecated` call is the path of `Getters.spec_deprecated`. -/
 theorem ok_deprecated (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x0e136b19)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     s.output = wordBytes (if byte20 (storageAt state message.currentTarget 10) = 0 then 0 else 1) ∧
       ((350 + slotCost (coldIn substate message.currentTarget 10)) ≤ gas ∧
         s.gas = gas - (350 + slotCost (coldIn substate message.currentTarget 10))) ∧
       s.state = (readSlot state message.currentTarget 10) ∧ s.substate = (accessSlot substate message.currentTarget 10) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => Getters.spec_deprecated hfork h4 hsize' hsel hv rfl hg) start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+    (fun g hg => Getters.spec_deprecated hfork h4 hsize' hsel hv rfl hg) start hrun hok
   exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `paused` call is the path of `Getters.spec_paused`. -/
 theorem ok_paused (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x5c975abb)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     s.output = wordBytes (if byte20 (storageAt state message.currentTarget 0) = 0 then 0 else 1) ∧
       ((614 + slotCost (coldIn substate message.currentTarget 0)) ≤ gas ∧
         s.gas = gas - (614 + slotCost (coldIn substate message.currentTarget 0))) ∧
       s.state = (readSlot state message.currentTarget 0) ∧ s.substate = (accessSlot substate message.currentTarget 0) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => Getters.spec_paused hfork h4 hsize' hsel hv rfl hg) start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+    (fun g hg => Getters.spec_paused hfork h4 hsize' hsel hv rfl hg) start hrun hok
   exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `upgradedAddress` call is the path of `Getters.spec_upgradedAddress`. -/
 theorem ok_upgradedAddress (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x26976e3f)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     s.output = wordBytes (bitwiseAnd ADDR_MASK (storageAt state message.currentTarget 10)) ∧
       ((388 + slotCost (coldIn substate message.currentTarget 10)) ≤ gas ∧
         s.gas = gas - (388 + slotCost (coldIn substate message.currentTarget 10))) ∧
       s.state = (readSlot state message.currentTarget 10) ∧ s.substate = (accessSlot substate message.currentTarget 10) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => Getters.spec_upgradedAddress hfork h4 hsize' hsel hv rfl hg) start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+    (fun g hg => Getters.spec_upgradedAddress hfork h4 hsize' hsel hv rfl hg) start hrun hok
   exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `owner` call is the path of `Getters.spec_owner`. -/
 theorem ok_owner (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x8da5cb5b)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     s.output = wordBytes (ownerOf state message.currentTarget) ∧
       ((652 + slotCost (coldIn substate message.currentTarget 0)) ≤ gas ∧
         s.gas = gas - (652 + slotCost (coldIn substate message.currentTarget 0))) ∧
       s.state = (readSlot state message.currentTarget 0) ∧ s.substate = (accessSlot substate message.currentTarget 0) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => Getters.spec_owner hfork h4 hsize' hsel hv rfl hg) start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+    (fun g hg => Getters.spec_owner hfork h4 hsize' hsel hv rfl hg) start hrun hok
   exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `getOwner` call is the path of `Getters.spec_getOwner`. -/
 theorem ok_getOwner (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x893d20e8)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     s.output = wordBytes (ownerOf state message.currentTarget) ∧
       ((638 + slotCost (coldIn substate message.currentTarget 0)) ≤ gas ∧
         s.gas = gas - (638 + slotCost (coldIn substate message.currentTarget 0))) ∧
       s.state = (readSlot state message.currentTarget 0) ∧ s.substate = (accessSlot substate message.currentTarget 0) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => Getters.spec_getOwner hfork h4 hsize' hsel hv rfl hg) start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+    (fun g hg => Getters.spec_getOwner hfork h4 hsize' hsel hv rfl hg) start hrun hok
   exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `maxUint` call is the path of `Getters.spec_maxUint`. -/
 theorem ok_maxUint (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xe5b5019a)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     s.output = wordBytes (BitVec.ofNat 256 (2 ^ 256 - 1)) ∧
       ((824) ≤ gas ∧ s.gas = gas - (824)) ∧
       s.state = state ∧ s.substate = substate := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => Getters.spec_maxUint h4 hsize' hsel hv hg) start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+    (fun g hg => Getters.spec_maxUint h4 hsize' hsel hv hg) start hrun hok
   exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `balances` call is the path of `GettersMap.spec_balances`. -/
 theorem ok_balances (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x27e235e3)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     s.output = wordBytes (storageAt state message.currentTarget (mapSlot (addrArg message.data 0) 2)) ∧
       ((478 + slotCost (coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 2))) ≤ gas ∧
         s.gas = gas - (478 + slotCost (coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 2)))) ∧
       s.state = (readSlot state message.currentTarget (mapSlot (addrArg message.data 0) 2)) ∧ s.substate = (accessSlot substate message.currentTarget (mapSlot (addrArg message.data 0) 2)) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => GettersMap.spec_balances hfork h4 hsize' hsel hv rfl hg) start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+    (fun g hg => GettersMap.spec_balances hfork h4 hsize' hsel hv rfl hg) start hrun hok
   exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `isBlackListed` call is the path of `GettersMap.spec_isBlackListed`. -/
 theorem ok_isBlackListed (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0xe47d6060)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     s.output = wordBytes (if (storageAt state message.currentTarget (mapSlot (addrArg message.data 0) 6)).toNat % 256 = 0 then 0 else 1) ∧
       ((933 + slotCost (coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 6))) ≤ gas ∧
         s.gas = gas - (933 + slotCost (coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 6)))) ∧
       s.state = (readSlot state message.currentTarget (mapSlot (addrArg message.data 0) 6)) ∧ s.substate = (accessSlot substate message.currentTarget (mapSlot (addrArg message.data 0) 6)) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => GettersMap.spec_isBlackListed hfork h4 hsize' hsel hv rfl hg) start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+    (fun g hg => GettersMap.spec_isBlackListed hfork h4 hsize' hsel hv rfl hg) start hrun hok
   exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `getBlackListStatus` call is the path of `GettersMap.spec_getBlackListStatus`. -/
 theorem ok_getBlackListStatus (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x59bf1abe)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     s.output = wordBytes (if (storageAt state message.currentTarget (mapSlot (addrArg message.data 0) 6)).toNat % 256 = 0 then 0 else 1) ∧
       ((663 + slotCost (coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 6))) ≤ gas ∧
         s.gas = gas - (663 + slotCost (coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 6)))) ∧
       s.state = (readSlot state message.currentTarget (mapSlot (addrArg message.data 0) 6)) ∧ s.substate = (accessSlot substate message.currentTarget (mapSlot (addrArg message.data 0) 6)) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => GettersMap.spec_getBlackListStatus hfork h4 hsize' hsel hv rfl hg) start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+    (fun g hg => GettersMap.spec_getBlackListStatus hfork h4 hsize' hsel hv rfl hg) start hrun hok
   exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `allowed` call is the path of `GettersMap.spec_allowed`. -/
 theorem ok_allowed (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x5c658165)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     s.output = wordBytes (storageAt state message.currentTarget (GettersMap.allowSlot message.data)) ∧
       ((705 + slotCost (coldIn substate message.currentTarget (GettersMap.allowSlot message.data))) ≤ gas ∧
         s.gas = gas - (705 + slotCost (coldIn substate message.currentTarget (GettersMap.allowSlot message.data)))) ∧
       s.state = (readSlot state message.currentTarget (GettersMap.allowSlot message.data)) ∧ s.substate = (accessSlot substate message.currentTarget (GettersMap.allowSlot message.data)) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => GettersMap.spec_allowed hfork h4 hsize' hsel hv rfl hg) start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+    (fun g hg => GettersMap.spec_allowed hfork h4 hsize' hsel hv rfl hg) start hrun hok
   exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `allowance` call is the path of `GettersMap.spec_allowance`. -/
@@ -261,16 +247,15 @@ theorem ok_allowance (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 
     (hsel : selector message.data = 0xdd62ed3e)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     s.output = wordBytes (storageAt state message.currentTarget (GettersMap.allowSlot message.data)) ∧
       ((1156 + slotCost (coldIn substate message.currentTarget 10) + slotCost (coldIn (accessSlot substate message.currentTarget 10) message.currentTarget (GettersMap.allowSlot message.data))) ≤ gas ∧
         s.gas = gas - (1156 + slotCost (coldIn substate message.currentTarget 10) + slotCost (coldIn (accessSlot substate message.currentTarget 10) message.currentTarget (GettersMap.allowSlot message.data)))) ∧
       s.state = (readSlot (readSlot state message.currentTarget 10) message.currentTarget (GettersMap.allowSlot message.data)) ∧ s.substate = (accessSlot (accessSlot substate message.currentTarget 10) message.currentTarget (GettersMap.allowSlot message.data)) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => GettersMap.spec_allowance hfork h4 hsize' hsel hv hdep rfl rfl hg) start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+    (fun g hg => GettersMap.spec_allowance hfork h4 hsize' hsel hv hdep rfl rfl hg) start hrun hok
   exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 
@@ -289,8 +274,7 @@ the long path. -/
 theorem ok_name (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x06fdde03) (hform : StrForm (storageAt state message.currentTarget 7))
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     ((storageAt state message.currentTarget 7).toNat % 256 = 0 ∧ s.output = wordBytes 0x20 ++ wordBytes 0 ∧
       ((643 + slotCost (coldIn substate message.currentTarget 7)) ≤ gas ∧
@@ -312,16 +296,16 @@ theorem ok_name (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256
         (((strN (storageAt state message.currentTarget 7)) + 31) / 32) ∧
       s.substate = StringsGen.rdSs (accessSlot substate message.currentTarget 7) message.currentTarget
         (keccak (wordBytes 7)) (((strN (storageAt state message.currentTarget 7)) + 31) / 32)) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
   rcases hform with h0 | ⟨n, hn, h1, h31⟩ | ⟨hodd, h32, hN⟩
-  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-      (fun g hg => StringsGen.spec_nameEmpty hfork h4 hsize' hsel hv h0 rfl hg) start within hrun hok
+  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+      (fun g hg => StringsGen.spec_nameEmpty hfork h4 hsize' hsel hv h0 rfl hg) start hrun hok
     exact .inl ⟨h0, ho, ⟨hcg, hg⟩, hst, hss⟩
-  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-      (fun g hg => Strings.spec_name hfork h4 hsize' hsel hv hn h1 h31 rfl hg) start within hrun hok
+  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+      (fun g hg => Strings.spec_name hfork h4 hsize' hsel hv hn h1 h31 rfl hg) start hrun hok
     exact .inr (.inl ⟨n, hn, h1, h31, ho, ⟨hcg, hg⟩, hst, hss⟩)
-  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-      (fun g hg => StringsGen.spec_nameLong hfork h4 hsize' hsel hv hodd rfl h32 hN rfl hg) start within hrun hok
+  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+      (fun g hg => StringsGen.spec_nameLong hfork h4 hsize' hsel hv hodd rfl h32 hN rfl hg) start hrun hok
     exact .inr (.inr ⟨hodd, h32, ho, ⟨hcg, hg⟩, hst, hss⟩)
 
 /-- Every successful `symbol()` call, for a slot word of `StrForm`, is the empty, the short or
@@ -329,8 +313,7 @@ the long path. -/
 theorem ok_symbol (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x95d89b41) (hform : StrForm (storageAt state message.currentTarget 8))
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     ((storageAt state message.currentTarget 8).toNat % 256 = 0 ∧ s.output = wordBytes 0x20 ++ wordBytes 0 ∧
       ((1083 + slotCost (coldIn substate message.currentTarget 8)) ≤ gas ∧
@@ -352,16 +335,16 @@ theorem ok_symbol (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 2
         (((strN (storageAt state message.currentTarget 8)) + 31) / 32) ∧
       s.substate = StringsGen.rdSs (accessSlot substate message.currentTarget 8) message.currentTarget
         (keccak (wordBytes 8)) (((strN (storageAt state message.currentTarget 8)) + 31) / 32)) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
   rcases hform with h0 | ⟨n, hn, h1, h31⟩ | ⟨hodd, h32, hN⟩
-  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-      (fun g hg => StringsGen.spec_symbolEmpty hfork h4 hsize' hsel hv h0 rfl hg) start within hrun hok
+  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+      (fun g hg => StringsGen.spec_symbolEmpty hfork h4 hsize' hsel hv h0 rfl hg) start hrun hok
     exact .inl ⟨h0, ho, ⟨hcg, hg⟩, hst, hss⟩
-  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-      (fun g hg => Strings.spec_symbol hfork h4 hsize' hsel hv hn h1 h31 rfl hg) start within hrun hok
+  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+      (fun g hg => Strings.spec_symbol hfork h4 hsize' hsel hv hn h1 h31 rfl hg) start hrun hok
     exact .inr (.inl ⟨n, hn, h1, h31, ho, ⟨hcg, hg⟩, hst, hss⟩)
-  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-      (fun g hg => StringsGen.spec_symbolLong hfork h4 hsize' hsel hv hodd rfl h32 hN rfl hg) start within hrun hok
+  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+      (fun g hg => StringsGen.spec_symbolLong hfork h4 hsize' hsel hv hodd rfl h32 hN rfl hg) start hrun hok
     exact .inr (.inr ⟨hodd, h32, ho, ⟨hcg, hg⟩, hst, hss⟩)
 
 end UsdtVerify.Complete

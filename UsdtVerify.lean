@@ -6,6 +6,7 @@ import UsdtVerify.Evm.Keeps
 import UsdtVerify.Evm.Gas
 import UsdtVerify.Evm.Iff
 import UsdtVerify.Evm.GasRules
+import UsdtVerify.Evm.Meter
 import UsdtVerify.Evm.Local.Extcodesize
 import UsdtVerify.Evm.Local.Parent
 import UsdtVerify.Evm.Local.Rules

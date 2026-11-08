@@ -16,7 +16,7 @@ bytes) and `Approve.spec_revert` (`v ≠ 0` over a nonzero allowance).
 
 Hypotheses beyond the call: Berlin ≤ fork (Glamsterdam included). A static frame, or a contract
 with no account, is excluded: both success paths reach the SSTORE of the allowance, which is then
-`Gas.Stuck` (`Approve.bad_zero`, `Approve.bad_set`, with `Gas.no_ok_stuck`); so the conclusion
+`Gas.Stuck` (`Approve.bad_zero`, `Approve.bad_set`, with `Gas.no_ok_stuckE`); so the conclusion
 states `message.isStatic = false` and an account of the contract.
 -/
 
@@ -43,8 +43,7 @@ theorem ok_approve (hfork : .berlin ≤ fork)
     (hcA : coldIn (accessSlot substate message.currentTarget 10) message.currentTarget
       (allowArg message) = cA)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     68 ≤ message.data.size ∧ s.output = .empty ∧
@@ -74,40 +73,40 @@ theorem ok_approve (hfork : .berlin ≤ fork)
           logs := substate.logs.push (approvalLog message.currentTarget
             (bitwiseAnd ADDR_MASK message.caller.toU256)
             (bitwiseAnd ADDR_MASK (addrArg message.data 0)) (wordArg message.data 1)) })) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
   by_cases hl : message.data.size < 68
-  · exact (no_ok (fun g hg => spec_payload hfork h4 hl hsel hv hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => spec_payload hfork h4 hl hsel hv hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have hl : 68 ≤ message.data.size := by omega
   by_cases hz : wordArg message.data 1 = 0
   · by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-    · exact (Gas.no_ok_stuck (fun g hg => bad_zero hfork hl hsize' hsel hv
-        hdep hz hc10 (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
+    · exact (Gas.no_ok_stuckE (fun g hg => bad_zero hfork hl hsize' hsel hv
+        hdep hz hc10 (.of_bad (Gas.bad_of_not hgood)) hg) start hrun hok).elim
     obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
-    obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_add_left _ _)
+    obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_add_left _ _)
       (B := (2997 + slotCost c10) + (2560 + slotCost c10 + Gas.writeCost fork
           (originalAt state message.currentTarget (allowArg message))
           (storageAt state message.currentTarget (allowArg message)) 0 cA))
       (fun g hg => spec_zero hfork hstatic hacc hl hsize' hsel hv hdep hz hc10 hcA
         (le_l hg) (le_r hg))
-      start within hrun hok
+      start hrun hok
     exact ⟨hstatic, hacc, hl, ho, .inl ⟨hz, ⟨hcg, hg⟩, hst, hss⟩⟩
   by_cases ha : storageAt state message.currentTarget (allowArg message) ≠ 0
-  · exact (no_ok (fun g hg => spec_revert hfork hl hsize' hsel hv hdep hz ha hc10 hcA hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => spec_revert hfork hl hsize' hsel hv hdep hz ha hc10 hcA hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have ha : storageAt state message.currentTarget (allowArg message) = 0 := by
     simpa using ha
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_set hfork hl hsize' hsel hv
-      hdep hz ha hc10 hcA (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuckE (fun g hg => bad_set hfork hl hsize' hsel hv
+      hdep hz ha hc10 hcA (.of_bad (Gas.bad_of_not hgood)) hg) start hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_add_left _ _)
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_add_left _ _)
     (B := (3190 + slotCost c10 + slotCost cA) + (2753 + slotCost c10 + slotCost cA + Gas.writeCost fork
         (originalAt state message.currentTarget (allowArg message)) 0
         (wordArg message.data 1) false))
     (fun g hg => spec_set hfork hstatic hacc hl hsize' hsel hv hdep hz ha hc10 hcA
       (le_l hg) (le_r hg))
-    start within hrun hok
+    start hrun hok
   exact ⟨hstatic, hacc, hl, ho, .inr ⟨hz, ha, ⟨hcg, hg⟩, hst, hss⟩⟩
 
 end UsdtVerify.Complete

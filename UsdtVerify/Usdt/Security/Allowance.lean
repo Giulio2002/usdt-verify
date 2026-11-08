@@ -126,7 +126,7 @@ theorem transferFrom_bound (K : SepOn (callKeys message state)) (hfork : .berlin
     (storageAt state message.currentTarget (allowFrom message (fromArg message)) = MAX_UINT →
       storageAt s.state message.currentTarget (allowFrom message (fromArg message)) = MAX_UINT) := by
   obtain ⟨-, hacc, -, -, -, -, hallow, -, hbal, hto, -, h⟩ := ok_transferFrom hfork hsize' hsel
-    hdep rfl rfl rfl rfl rfl rfl rfl rfl rfl start within hrun hok
+    hdep rfl rfl rfl rfl rfl rfl rfl rfl rfl start (Gas.Ends.run hrun) hok
   have hA : allowOf (checkState state message) message (fromArg message) =
       storageAt state message.currentTarget (allowFrom message (fromArg message)) := by
     simp only [storageAt_readSlot]

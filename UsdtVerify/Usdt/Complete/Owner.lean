@@ -27,7 +27,7 @@ Hypotheses beyond the call: Berlin ≤ fork (Glamsterdam included); destroyBlack
 The frame may be static and the contract may have no account: once the reverts are excluded,
 each writing path reaches its first SSTORE, which in a static frame or with no account is
 `Gas.Stuck`, so no such run ends with no error, and each conclusion (for transferOwnership, its
-`a ≠ 0` case) states `message.isStatic = false` and an account of the contract (`Gas.no_ok_stuck` with `bad_pause`,
+`a ≠ 0` case) states `message.isStatic = false` and an account of the contract (`Gas.no_ok_stuckE` with `bad_pause`,
 `bad_unpause`, `bad_add`, `bad_remove`, `bad_issue`, `bad_redeem`, `bad_setParams`,
 `bad_deprecate`, `bad_transferOwnership`, `DestroySpec.bad`). For setParams this comes before
 the overflow of `m * 10^d`, which follows the write of slot 3.
@@ -57,8 +57,7 @@ theorem ok_pause (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x8456cb59)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     callerWord message = ownerOf state message.currentTarget ∧
@@ -71,22 +70,22 @@ theorem ok_pause (hfork : .berlin ≤ fork)
             (originalAt state message.currentTarget 0) (storageAt state message.currentTarget 0)
             (withPaused (storageAt state message.currentTarget 0) 1) with
           logs := substate.logs.push (log0 message.currentTarget PAUSE_TOPIC) } := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
   by_cases hown : callerWord message ≠ ownerOf state message.currentTarget
-  · exact (no_ok (fun g hg => spec_pause_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => spec_pause_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have hown := not_ne hown
   by_cases hp : byte20 (storageAt state message.currentTarget 0) ≠ 0
-  · exact (no_ok (fun g hg => spec_pause_paused hfork h4 hsize' hsel hv hown hp hc0 hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => spec_pause_paused hfork h4 hsize' hsel hv hown hp hc0 hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have hp : byte20 (storageAt state message.currentTarget 0) = 0 := by omega
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_pause hfork h4 hsize' hsel hv
-      hown hp hc0 (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuckE (fun g hg => bad_pause hfork h4 hsize' hsel hv
+      hown hp hc0 (.of_bad (Gas.bad_of_not hgood)) hg) start hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2E
     (fun g h1 h2 => spec_pause hfork hstatic hacc h4 hsize' hsel hv hown hp hc0 h1 h2)
-    start within hrun hok
+    start hrun hok
   exact ⟨hstatic, hacc, hown, hp, ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `unpause()` call is the owner's, when paused
@@ -97,8 +96,7 @@ theorem ok_unpause (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x3f4ba83a)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     callerWord message = ownerOf state message.currentTarget ∧
@@ -111,21 +109,21 @@ theorem ok_unpause (hfork : .berlin ≤ fork)
             (originalAt state message.currentTarget 0) (storageAt state message.currentTarget 0)
             (withPaused (storageAt state message.currentTarget 0) 0) with
           logs := substate.logs.push (log0 message.currentTarget UNPAUSE_TOPIC) } := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
   by_cases hown : callerWord message ≠ ownerOf state message.currentTarget
-  · exact (no_ok (fun g hg => spec_unpause_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => spec_unpause_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have hown := not_ne hown
   by_cases hp : byte20 (storageAt state message.currentTarget 0) = 0
-  · exact (no_ok (fun g hg => spec_unpause_notPaused hfork h4 hsize' hsel hv hown hp hc0 hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => spec_unpause_notPaused hfork h4 hsize' hsel hv hown hp hc0 hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_unpause hfork h4 hsize' hsel
-      hv hown hp hc0 (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuckE (fun g hg => bad_unpause hfork h4 hsize' hsel
+      hv hown hp hc0 (.of_bad (Gas.bad_of_not hgood)) hg) start hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2E
     (fun g h1 h2 => spec_unpause hfork hstatic hacc h4 hsize' hsel hv hown hp hc0 h1 h2)
-    start within hrun hok
+    start hrun hok
   exact ⟨hstatic, hacc, hown, hp, ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `addBlackList(a)` call is the owner's
@@ -138,8 +136,7 @@ theorem ok_addBlackList (hfork : .berlin ≤ fork)
     (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
       (listSlot (addrArg message.data 0)) = cB)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     callerWord message = ownerOf state message.currentTarget ∧ s.output = .empty ∧
@@ -147,18 +144,18 @@ theorem ok_addBlackList (hfork : .berlin ≤ fork)
         s.gas = gas - (1567 + slotCost c0 + slotCost cB + listCost fork state message 1)) ∧
       s.state = listState state message 1 ∧
       s.substate = listSub fork substate state message 1 ADDED_TOPIC := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
   by_cases hown : callerWord message ≠ ownerOf state message.currentTarget
-  · exact (no_ok (fun g hg => spec_add_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => spec_add_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have hown := not_ne hown
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_add hfork h4 hsize' hsel hv
-      hown hc0 hcB (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuckE (fun g hg => bad_add hfork h4 hsize' hsel hv
+      hown hc0 hcB (.of_bad (Gas.bad_of_not hgood)) hg) start hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2E
     (fun g h1 h2 => spec_add hfork hstatic hacc h4 hsize' hsel hv hown hc0 hcB h1 h2)
-    start within hrun hok
+    start hrun hok
   exact ⟨hstatic, hacc, hown, ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `removeBlackList(a)` call is the owner's
@@ -171,8 +168,7 @@ theorem ok_removeBlackList (hfork : .berlin ≤ fork)
     (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
       (listSlot (addrArg message.data 0)) = cB)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     callerWord message = ownerOf state message.currentTarget ∧ s.output = .empty ∧
@@ -180,18 +176,18 @@ theorem ok_removeBlackList (hfork : .berlin ≤ fork)
         s.gas = gas - (2095 + slotCost c0 + slotCost cB + listCost fork state message 0)) ∧
       s.state = listState state message 0 ∧
       s.substate = listSub fork substate state message 0 REMOVED_TOPIC := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
   by_cases hown : callerWord message ≠ ownerOf state message.currentTarget
-  · exact (no_ok (fun g hg => spec_remove_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => spec_remove_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have hown := not_ne hown
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_remove hfork h4 hsize' hsel hv
-      hown hc0 hcB (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuckE (fun g hg => bad_remove hfork h4 hsize' hsel hv
+      hown hc0 hcB (.of_bad (Gas.bad_of_not hgood)) hg) start hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2E
     (fun g h1 h2 => spec_remove hfork hstatic hacc h4 hsize' hsel hv hown hc0 hcB h1 h2)
-    start within hrun hok
+    start hrun hok
   exact ⟨hstatic, hacc, hown, ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `issue(a)` call is the owner's, with `0 < a` and no overflow of
@@ -206,8 +202,7 @@ theorem ok_issue (hfork : .berlin ≤ fork)
     (hcO : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget 1)
       message.currentTarget (ownerBal state message.currentTarget) = cO)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     callerWord message = ownerOf state message.currentTarget ∧
@@ -219,30 +214,30 @@ theorem ok_issue (hfork : .berlin ≤ fork)
       ((3024 + slotCost c0 + slotCost c1 + slotCost cO + issueCostO fork state message + issueCostT fork state message) ≤ gas ∧
         s.gas = gas - (3024 + slotCost c0 + slotCost c1 + slotCost cO + issueCostO fork state message + issueCostT fork state message)) ∧
       s.state = issueState state message ∧ s.substate = issueSub fork substate state message := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
   by_cases hown : callerWord message ≠ ownerOf state message.currentTarget
-  · exact (no_ok (fun g hg => spec_issue_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => spec_issue_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have hown := not_ne hown
   by_cases hT : ¬ (0 < (wordArg message.data 0).toNat ∧
       (storageAt state message.currentTarget 1).toNat + (wordArg message.data 0).toNat < 2 ^ 256)
-  · exact (no_ok (fun g hg => spec_issue_req1 hfork h4 hsize' hsel hv hown hT hc0 hc1 hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => spec_issue_req1 hfork h4 hsize' hsel hv hown hT hc0 hc1 hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have hT := Classical.not_not.mp hT
   by_cases hB : ¬ (0 < (wordArg message.data 0).toNat ∧
       (storageAt state message.currentTarget (ownerBal state message.currentTarget)).toNat +
         (wordArg message.data 0).toNat < 2 ^ 256)
-  · exact (no_ok (fun g hg => spec_issue_req2 hfork h4 hsize' hsel hv hown hT hB hc0 hc1 hcO hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => spec_issue_req2 hfork h4 hsize' hsel hv hown hT hB hc0 hc1 hcO hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have hB := Classical.not_not.mp hB
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_issue hfork h4 hsize' hsel hv
-      hown hT hB.2 hc0 hc1 hcO (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuckE (fun g hg => bad_issue hfork h4 hsize' hsel hv
+      hown hT hB.2 hc0 hc1 hcO (.of_bad (Gas.bad_of_not hgood)) hg) start hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2E
     (fun g h1 h2 => spec_issue hfork hstatic hacc h4 hsize' hsel hv hown hT hB.2 hc0 hc1 hcO
       h1 h2)
-    start within hrun hok
+    start hrun hok
   exact ⟨hstatic, hacc, hown, hT.1, hT.2, hB.2, ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `redeem(a)` call is the owner's, with `a ≤ _totalSupply` and
@@ -257,8 +252,7 @@ theorem ok_redeem (hfork : .berlin ≤ fork)
     (hcO : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget 1)
       message.currentTarget (ownerBal state message.currentTarget) = cO)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     callerWord message = ownerOf state message.currentTarget ∧
@@ -269,28 +263,28 @@ theorem ok_redeem (hfork : .berlin ≤ fork)
       ((2614 + slotCost c0 + slotCost c1 + slotCost cO + redeemCostT fork state message + redeemCostO fork state message) ≤ gas ∧
         s.gas = gas - (2614 + slotCost c0 + slotCost c1 + slotCost cO + redeemCostT fork state message + redeemCostO fork state message)) ∧
       s.state = redeemState state message ∧ s.substate = redeemSub fork substate state message := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
   by_cases hown : callerWord message ≠ ownerOf state message.currentTarget
-  · exact (no_ok (fun g hg => spec_redeem_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => spec_redeem_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have hown := not_ne hown
   by_cases hT : (storageAt state message.currentTarget 1).toNat < (wordArg message.data 0).toNat
-  · exact (no_ok (fun g hg => spec_redeem_req1 hfork h4 hsize' hsel hv hown hT hc0 hc1 hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => spec_redeem_req1 hfork h4 hsize' hsel hv hown hT hc0 hc1 hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have hT := Nat.le_of_not_lt hT
   by_cases hB : (storageAt state message.currentTarget (ownerBal state message.currentTarget)).toNat <
       (wordArg message.data 0).toNat
-  · exact (no_ok (fun g hg => spec_redeem_req2 hfork h4 hsize' hsel hv hown hT hB hc0 hc1 hcO hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => spec_redeem_req2 hfork h4 hsize' hsel hv hown hT hB hc0 hc1 hcO hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have hB := Nat.le_of_not_lt hB
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_redeem hfork h4 hsize' hsel hv
-      hown hT hB hc0 hc1 hcO (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuckE (fun g hg => bad_redeem hfork h4 hsize' hsel hv
+      hown hT hB hc0 hc1 hcO (.of_bad (Gas.bad_of_not hgood)) hg) start hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2E
     (fun g h1 h2 => spec_redeem hfork hstatic hacc h4 hsize' hsel hv hown hT hB hc0 hc1 hcO
       h1 h2)
-    start within hrun hok
+    start hrun hok
   exact ⟨hstatic, hacc, hown, hT, hB, ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `setParams(b, m)` call is the owner's, with `b < 20`, `m < 50` and no
@@ -307,8 +301,7 @@ theorem ok_setParams (hfork : .berlin ≤ fork)
     (hc4 : coldIn (accessSlot (accessSlot (accessSlot substate message.currentTarget 0)
       message.currentTarget 3) message.currentTarget 9) message.currentTarget 4 = c4)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     callerWord message = ownerOf state message.currentTarget ∧
@@ -319,32 +312,32 @@ theorem ok_setParams (hfork : .berlin ≤ fork)
       ((2425 + paramsCost fork state message c0 c3 c9 c4) ≤ gas ∧
         s.gas = gas - (2425 + paramsCost fork state message c0 c3 c9 c4)) ∧
       s.state = paramsState state message ∧ s.substate = paramsSub fork substate state message := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
   by_cases hown : callerWord message ≠ ownerOf state message.currentTarget
-  · exact (no_ok (fun g hg => SetParamsSpec.spec_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => SetParamsSpec.spec_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have hown := not_ne hown
   by_cases hb : 20 ≤ (wordArg message.data 0).toNat
-  · exact (no_ok (fun g hg => spec_bpHigh hfork h4 hsize' hsel hv hown hb hc0 hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => spec_bpHigh hfork h4 hsize' hsel hv hown hb hc0 hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have hb := Nat.lt_of_not_le hb
   by_cases hm : 50 ≤ (wordArg message.data 1).toNat
-  · exact (no_ok (fun g hg => spec_feeHigh hfork h4 hsize' hsel hv hown hb hm hc0 hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => spec_feeHigh hfork h4 hsize' hsel hv hown hb hm hc0 hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have hm := Nat.lt_of_not_le hm
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_setParams hfork h4 hsize' hsel
-      hv hown hb hm hc0 (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuckE (fun g hg => bad_setParams hfork h4 hsize' hsel
+      hv hown hb hm hc0 (.of_bad (Gas.bad_of_not hgood)) hg) start hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
   by_cases hov : 2 ^ 256 ≤ (wordArg message.data 1).toNat *
       (exp (0x0a : U256) (storageAt state message.currentTarget 9)).toNat
-  · exact (no_ok (fun g hg => SetParamsSpec.spec_mulOv hfork hstatic hacc h4 hsize' hsel hv
-      hown hb hm hov hc0 hc3 hc9 hg) (fun _ e h => faulted_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => SetParamsSpec.spec_mulOv hfork hstatic hacc h4 hsize' hsel hv
+      hown hb hm hov hc0 hc3 hc9 hg) (fun _ e h => faulted_error e h) start hrun hok).elim
   have hov := Nat.lt_of_not_le hov
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2E
     (fun g h1 h2 => spec_setParams hfork hstatic hacc h4 hsize' hsel hv hown hb hm hov hc0
       hc3 hc9 hc4 h1 h2)
-    start within hrun hok
+    start hrun hok
   exact ⟨hstatic, hacc, hown, hb, hm, hov, ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `deprecate(a)` call is the owner's
@@ -356,26 +349,25 @@ theorem ok_deprecate (hfork : .berlin ≤ fork)
     {c0 c10 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (hc10 : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget 10 = c10)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     callerWord message = ownerOf state message.currentTarget ∧ s.output = .empty ∧
       ((1628 + slotCost c0 + slotCost c10 + depCost fork state message) ≤ gas ∧
         s.gas = gas - (1628 + slotCost c0 + slotCost c10 + depCost fork state message)) ∧
       s.state = depState state message ∧ s.substate = depSub fork substate state message := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
   by_cases hown : callerWord message ≠ ownerOf state message.currentTarget
-  · exact (no_ok (fun g hg => spec_deprecate_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => spec_deprecate_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have hown := not_ne hown
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_deprecate hfork h4 hsize' hsel
-      hv hown hc0 hc10 (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuckE (fun g hg => bad_deprecate hfork h4 hsize' hsel
+      hv hown hc0 hc10 (.of_bad (Gas.bad_of_not hgood)) hg) start hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2E
     (fun g h1 h2 => spec_deprecate hfork hstatic hacc h4 hsize' hsel hv hown hc0 hc10 h1 h2)
-    start within hrun hok
+    start hrun hok
   exact ⟨hstatic, hacc, hown, ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `transferOwnership(a)` call is the owner's: with `a = 0` nothing is written,
@@ -386,8 +378,7 @@ theorem ok_transferOwnership (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf2fde38b)
     {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     callerWord message = ownerOf state message.currentTarget ∧ s.output = .empty ∧
       ((addrArg message.data 0 = 0 ∧ ((947 + slotCost c0) ≤ gas ∧
@@ -403,24 +394,24 @@ theorem ok_transferOwnership (hfork : .berlin ≤ fork)
         s.substate = storeSub fork substate message.currentTarget 0
           (originalAt state message.currentTarget 0) (storageAt state message.currentTarget 0)
           (withAddr (storageAt state message.currentTarget 0) (addrArg message.data 0)))) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
   by_cases hown : callerWord message ≠ ownerOf state message.currentTarget
-  · exact (no_ok (fun g hg => spec_transferOwnership_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => spec_transferOwnership_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have hown := not_ne hown
   by_cases hz : addrArg message.data 0 = 0
-  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
+  · obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
       (fun g hg => spec_transferOwnership_zero hfork h4 hsize' hsel hv hown hz hc0 hg)
-      start within hrun hok
+      start hrun hok
     exact ⟨hown, ho, .inl ⟨hz, ⟨hcg, hg⟩, hst, hss⟩⟩
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => bad_transferOwnership hfork h4
-      hsize' hsel hv hown hz hc0 (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuckE (fun g hg => bad_transferOwnership hfork h4
+      hsize' hsel hv hown hz hc0 (.of_bad (Gas.bad_of_not hgood)) hg) start hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact2E
     (fun g h1 h2 => spec_transferOwnership hfork hstatic hacc h4 hsize' hsel hv hown hz hc0
       h1 h2)
-    start within hrun hok
+    start hrun hok
   exact ⟨hown, ho, .inr ⟨hz, hstatic, hacc, ⟨hcg, hg⟩, hst, hss⟩⟩
 
 /-- Every successful `destroyBlackFunds(a)` call, not deprecated, is the owner's, with `a`
@@ -439,8 +430,7 @@ theorem ok_destroyBlackFunds (hfork : .berlin ≤ fork)
       message.currentTarget (balSlot message) = cB)
     (hc1 : coldIn (readSub substate message) message.currentTarget 1 = c1)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     message.isStatic = false ∧ hasAccount state message.currentTarget ∧
     callerWord message = ownerOf state message.currentTarget ∧
@@ -449,23 +439,23 @@ theorem ok_destroyBlackFunds (hfork : .berlin ≤ fork)
       ((2865 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB + slotCost c1 + costB fork state message + costT fork state message) ≤ gas ∧
         s.gas = gas - (2865 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB + slotCost c1 + costB fork state message + costT fork state message)) ∧
       s.state = destroyState state message ∧ s.substate = destroySub fork substate state message := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
   by_cases hown : callerWord message ≠ ownerOf state message.currentTarget
-  · exact (no_ok (fun g hg => Destroy.spec_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => Destroy.spec_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   have hown := not_ne hown
   by_cases hl : (storageAt state message.currentTarget (listSlot (addrArg message.data 0))).toNat %
       256 = 0
-  · exact (no_ok (fun g hg => Destroy.spec_notListed hfork h4 hsize' hsel hv hown hl hc0 hcL hg)
-      (fun _ e h => halted_true_error e h) start within hrun hok).elim
+  · exact (no_okE (fun g hg => Destroy.spec_notListed hfork h4 hsize' hsel hv hown hl hc0 hcL hg)
+      (fun _ e h => halted_true_error e h) start hrun hok).elim
   by_cases hgood : ¬(message.isStatic = false ∧ hasAccount state message.currentTarget)
-  · exact (Gas.no_ok_stuck (fun g hg => DestroySpec.bad hfork h4 hsize'
-      hsel hv hown hl hdep hc0 hcL hc10 hcB (.of_bad (Gas.bad_of_not hgood)) hg) start within hrun hok).elim
+  · exact (Gas.no_ok_stuckE (fun g hg => DestroySpec.bad hfork h4 hsize'
+      hsel hv hown hl hdep hc0 hcL hc10 hcB (.of_bad (Gas.bad_of_not hgood)) hg) start hrun hok).elim
   obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact3
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact3E
     (fun g h1 h2 h3 => DestroySpec.spec hfork hstatic hacc h4 hsize' hsel hv hown hl hdep hc0
       hcL hc10 hcB hc1 h1 h2 h3)
-    start within hrun hok
+    start hrun hok
   exact ⟨hstatic, hacc, hown, hl, ho, ⟨hcg, hg⟩, hst, hss⟩
 
 end UsdtVerify.Complete

@@ -255,10 +255,11 @@ theorem push_of_readFrameG {byte : UInt8} {op : Op} {cost : Nat} {f : Evm fork N
     (hf : ∀ (a : Evm fork Nat) g, f { a with gas := g } = f a)
     (hword : ∀ evm : Evm fork Nat, evm.code = code → evm.message = message → evm.pc = pc →
       evm.memory = memory → f evm = word)
-    (hgas : cost ≤ gas) (hstack : stack.length < STACK_LIMIT) :
+    (hgas : cost ≤ gas) (hstack : stack.length < STACK_LIMIT)
+    (hsim : simulated op = true := by first | decide | rfl) :
     HoareG fork (At code message pc stack memory gas state substate)
       (At code message (pc + 1) (word :: stack) memory (gas - cost) state substate) := by
-  apply At.ruleG hlt hbyte decoded hrun (runMono_readFrame cost f hf)
+  apply At.ruleG hlt hbyte decoded hrun (runMono_readFrame cost f hf) (hsim := hsim)
   rintro evm ⟨hcode, hj, hm, hpc, hst, hmem, hg, hrun, herr, hout, hs, hss⟩
   rw [readFrame_of_length_lt (by rw [hst]; exact hstack), charge_nat (by rw [hg]; exact hgas)]
   exact ⟨_, rfl, hcode, hj, hm, by simp [hpc], by
@@ -296,10 +297,11 @@ theorem calldatasizeG (hlt : pc < code.size) (hbyte : code[pc] = 0x36) (hgas : 2
 theorem binaryG {byte : UInt8} {op : Op} {cost : Nat} {f : U256 → U256 → U256} {x y : U256}
     {rest : List U256} (hlt : pc < code.size) (hbyte : code[pc] = byte)
     (decoded : Op.ofByte fork byte = some op)
-    (hrun : instruction (Meter := Nat) fork op = some (binaryOp cost f)) (hgas : cost ≤ gas) :
+    (hrun : instruction (Meter := Nat) fork op = some (binaryOp cost f)) (hgas : cost ≤ gas)
+    (hsim : simulated op = true := by first | decide | rfl) :
     HoareG fork (At code message pc (x :: y :: rest) memory gas state substate)
       (At code message (pc + 1) (f x y :: rest) memory (gas - cost) state substate) := by
-  apply At.ruleG hlt hbyte decoded hrun (runMono_binaryOp cost f)
+  apply At.ruleG hlt hbyte decoded hrun (runMono_binaryOp cost f) (hsim := hsim)
   rintro evm ⟨hcode, hj, hm, hpc, hst, hmem, hg, hrun, herr, hout, hs, hss⟩
   rw [binaryOp_cons hst, charge_nat (by rw [hg]; exact hgas)]
   exact ⟨_, rfl, hcode, hj, hm, by simp [hpc], rfl, hmem, by simp [hg], hrun, herr, hout, hs, hss⟩
@@ -308,10 +310,11 @@ theorem binaryG {byte : UInt8} {op : Op} {cost : Nat} {f : U256 → U256 → U25
 theorem unaryG {byte : UInt8} {op : Op} {cost : Nat} {f : U256 → U256} {x : U256}
     {rest : List U256} (hlt : pc < code.size) (hbyte : code[pc] = byte)
     (decoded : Op.ofByte fork byte = some op)
-    (hrun : instruction (Meter := Nat) fork op = some (unaryOp cost f)) (hgas : cost ≤ gas) :
+    (hrun : instruction (Meter := Nat) fork op = some (unaryOp cost f)) (hgas : cost ≤ gas)
+    (hsim : simulated op = true := by first | decide | rfl) :
     HoareG fork (At code message pc (x :: rest) memory gas state substate)
       (At code message (pc + 1) (f x :: rest) memory (gas - cost) state substate) := by
-  apply At.ruleG hlt hbyte decoded hrun (runMono_unaryOp cost f)
+  apply At.ruleG hlt hbyte decoded hrun (runMono_unaryOp cost f) (hsim := hsim)
   rintro evm ⟨hcode, hj, hm, hpc, hst, hmem, hg, hrun, herr, hout, hs, hss⟩
   rw [unaryOp_cons hst, charge_nat (by rw [hg]; exact hgas)]
   exact ⟨_, rfl, hcode, hj, hm, by simp [hpc], rfl, hmem, by simp [hg], hrun, herr, hout, hs, hss⟩

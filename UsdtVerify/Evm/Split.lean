@@ -43,7 +43,7 @@ theorem low_to_running {hi z : Evm fork Nat} (hr : Reaches (StepG fork) hi z) :
     exact ⟨l, within, rfl, hs⟩
   | step hs _ ih =>
     rintro k l rfl within s hrun hok
-    obtain ⟨hstep, hmono⟩ := hs
+    obtain ⟨hstep, -, hmono⟩ := hs
     have hr : l.running = true := hstep.running
     rcases hmono k l rfl with ⟨e, he⟩ | ⟨b, hb, hbr, hbe⟩ | ⟨b, hb, hh⟩
     · by_cases ab : e.aborts = true

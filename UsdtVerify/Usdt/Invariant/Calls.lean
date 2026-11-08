@@ -22,7 +22,7 @@ account (otherwise its first SSTORE is `Gas.Stuck`: Usdt/Complete/Transfer.lean,
 Approve.lean, Owner.lean). The read-only
 paths only record reads.
 
-The value, the call data size and the selector are not hypotheses: `runFrame_ok_dispatch` gives
+The value, the call data size and the selector are not hypotheses: `ends_ok_dispatch` gives
 value 0, at least 4 bytes and a selector of the table for every successful run.
 -/
 
@@ -45,10 +45,9 @@ theorem inv_decimals (hfork : .berlin ≤ fork)
     (hsel : selector message.data = 0x313ce567)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, hst, -⟩ := ok_decimals hfork hsize' hsel start within hrun hok
+  obtain ⟨-, -, hst, -⟩ := ok_decimals hfork hsize' hsel start hrun hok
   rw [hst]; simp only [inv_readSlot]; exact hI
 
 /-- A successful `maximumFee` call keeps `Inv`. -/
@@ -57,10 +56,9 @@ theorem inv_maximumFee (hfork : .berlin ≤ fork)
     (hsel : selector message.data = 0x35390714)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, hst, -⟩ := ok_maximumFee hfork hsize' hsel start within hrun hok
+  obtain ⟨-, -, hst, -⟩ := ok_maximumFee hfork hsize' hsel start hrun hok
   rw [hst]; simp only [inv_readSlot]; exact hI
 
 /-- A successful `totalSupplyVar` call keeps `Inv`. -/
@@ -69,10 +67,9 @@ theorem inv_totalSupplyVar (hfork : .berlin ≤ fork)
     (hsel : selector message.data = 0x3eaaf86b)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, hst, -⟩ := ok_totalSupplyVar hfork hsize' hsel start within hrun hok
+  obtain ⟨-, -, hst, -⟩ := ok_totalSupplyVar hfork hsize' hsel start hrun hok
   rw [hst]; simp only [inv_readSlot]; exact hI
 
 /-- A successful `basisPointsRate` call keeps `Inv`. -/
@@ -81,10 +78,9 @@ theorem inv_basisPointsRate (hfork : .berlin ≤ fork)
     (hsel : selector message.data = 0xdd644f72)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, hst, -⟩ := ok_basisPointsRate hfork hsize' hsel start within hrun hok
+  obtain ⟨-, -, hst, -⟩ := ok_basisPointsRate hfork hsize' hsel start hrun hok
   rw [hst]; simp only [inv_readSlot]; exact hI
 
 /-- A successful `deprecated` call keeps `Inv`. -/
@@ -93,10 +89,9 @@ theorem inv_deprecated (hfork : .berlin ≤ fork)
     (hsel : selector message.data = 0x0e136b19)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, hst, -⟩ := ok_deprecated hfork hsize' hsel start within hrun hok
+  obtain ⟨-, -, hst, -⟩ := ok_deprecated hfork hsize' hsel start hrun hok
   rw [hst]; simp only [inv_readSlot]; exact hI
 
 /-- A successful `paused` call keeps `Inv`. -/
@@ -105,10 +100,9 @@ theorem inv_paused (hfork : .berlin ≤ fork)
     (hsel : selector message.data = 0x5c975abb)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, hst, -⟩ := ok_paused hfork hsize' hsel start within hrun hok
+  obtain ⟨-, -, hst, -⟩ := ok_paused hfork hsize' hsel start hrun hok
   rw [hst]; simp only [inv_readSlot]; exact hI
 
 /-- A successful `upgradedAddress` call keeps `Inv`. -/
@@ -117,10 +111,9 @@ theorem inv_upgradedAddress (hfork : .berlin ≤ fork)
     (hsel : selector message.data = 0x26976e3f)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, hst, -⟩ := ok_upgradedAddress hfork hsize' hsel start within hrun hok
+  obtain ⟨-, -, hst, -⟩ := ok_upgradedAddress hfork hsize' hsel start hrun hok
   rw [hst]; simp only [inv_readSlot]; exact hI
 
 /-- A successful `owner` call keeps `Inv`. -/
@@ -129,10 +122,9 @@ theorem inv_owner (hfork : .berlin ≤ fork)
     (hsel : selector message.data = 0x8da5cb5b)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, hst, -⟩ := ok_owner hfork hsize' hsel start within hrun hok
+  obtain ⟨-, -, hst, -⟩ := ok_owner hfork hsize' hsel start hrun hok
   rw [hst]; simp only [inv_readSlot]; exact hI
 
 /-- A successful `getOwner` call keeps `Inv`. -/
@@ -141,10 +133,9 @@ theorem inv_getOwner (hfork : .berlin ≤ fork)
     (hsel : selector message.data = 0x893d20e8)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, hst, -⟩ := ok_getOwner hfork hsize' hsel start within hrun hok
+  obtain ⟨-, -, hst, -⟩ := ok_getOwner hfork hsize' hsel start hrun hok
   rw [hst]; simp only [inv_readSlot]; exact hI
 
 /-- A successful `balances` call keeps `Inv`. -/
@@ -153,10 +144,9 @@ theorem inv_balances (hfork : .berlin ≤ fork)
     (hsel : selector message.data = 0x27e235e3)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, hst, -⟩ := ok_balances hfork hsize' hsel start within hrun hok
+  obtain ⟨-, -, hst, -⟩ := ok_balances hfork hsize' hsel start hrun hok
   rw [hst]; simp only [inv_readSlot]; exact hI
 
 /-- A successful `isBlackListed` call keeps `Inv`. -/
@@ -165,10 +155,9 @@ theorem inv_isBlackListed (hfork : .berlin ≤ fork)
     (hsel : selector message.data = 0xe47d6060)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, hst, -⟩ := ok_isBlackListed hfork hsize' hsel start within hrun hok
+  obtain ⟨-, -, hst, -⟩ := ok_isBlackListed hfork hsize' hsel start hrun hok
   rw [hst]; simp only [inv_readSlot]; exact hI
 
 /-- A successful `getBlackListStatus` call keeps `Inv`. -/
@@ -177,10 +166,9 @@ theorem inv_getBlackListStatus (hfork : .berlin ≤ fork)
     (hsel : selector message.data = 0x59bf1abe)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, hst, -⟩ := ok_getBlackListStatus hfork hsize' hsel start within hrun hok
+  obtain ⟨-, -, hst, -⟩ := ok_getBlackListStatus hfork hsize' hsel start hrun hok
   rw [hst]; simp only [inv_readSlot]; exact hI
 
 /-- A successful `allowed` call keeps `Inv`. -/
@@ -189,10 +177,9 @@ theorem inv_allowed (hfork : .berlin ≤ fork)
     (hsel : selector message.data = 0x5c658165)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, hst, -⟩ := ok_allowed hfork hsize' hsel start within hrun hok
+  obtain ⟨-, -, hst, -⟩ := ok_allowed hfork hsize' hsel start hrun hok
   rw [hst]; simp only [inv_readSlot]; exact hI
 
 /-- A successful `allowance` call keeps `Inv`. -/
@@ -202,10 +189,9 @@ theorem inv_allowance (hfork : .berlin ≤ fork)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, hst, -⟩ := ok_allowance hfork hsize' hsel hdep start within hrun hok
+  obtain ⟨-, -, hst, -⟩ := ok_allowance hfork hsize' hsel hdep start hrun hok
   rw [hst]; simp only [inv_readSlot]; exact hI
 
 /-- A successful `totalSupply` call keeps `Inv`. -/
@@ -215,10 +201,9 @@ theorem inv_totalSupply (hfork : .berlin ≤ fork)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, hst, -⟩ := ok_totalSupply hfork hsize' hsel hdep start within hrun hok
+  obtain ⟨-, -, hst, -⟩ := ok_totalSupply hfork hsize' hsel hdep start hrun hok
   rw [hst]; simp only [inv_readSlot]; exact hI
 
 /-- A successful `balanceOf` call keeps `Inv`. -/
@@ -228,10 +213,9 @@ theorem inv_balanceOf (hfork : .berlin ≤ fork)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, hst, -⟩ := ok_balanceOf hfork hsize' hsel hdep start within hrun hok
+  obtain ⟨-, -, hst, -⟩ := ok_balanceOf hfork hsize' hsel hdep start hrun hok
   rw [hst]; simp only [inv_readSlot]; exact hI
 
 /-- A successful `maxUint` call keeps `Inv`. -/
@@ -240,10 +224,9 @@ theorem inv_maxUint (hfork : .berlin ≤ fork)
     (hsel : selector message.data = 0xe5b5019a)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, hst, -⟩ := ok_maxUint hfork hsize' hsel start within hrun hok
+  obtain ⟨-, -, hst, -⟩ := ok_maxUint hfork hsize' hsel start hrun hok
   rw [hst]; exact hI
 
 /-- A successful `name` call keeps `Inv`. -/
@@ -253,10 +236,9 @@ theorem inv_name (hfork : .berlin ≤ fork)
     (hform : StrForm (storageAt state message.currentTarget 7))
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  rcases ok_name hfork hsize' hsel hform start within hrun hok with
+  rcases ok_name hfork hsize' hsel hform start hrun hok with
     ⟨-, -, -, hst, -⟩ | ⟨-, -, -, -, -, -, hst, -⟩ | ⟨-, -, -, -, hst, -⟩ <;>
   · rw [hst]; simp only [inv_readSlot, inv_rdSt]; exact hI
 
@@ -267,10 +249,9 @@ theorem inv_symbol (hfork : .berlin ≤ fork)
     (hform : StrForm (storageAt state message.currentTarget 8))
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  rcases ok_symbol hfork hsize' hsel hform start within hrun hok with
+  rcases ok_symbol hfork hsize' hsel hform start hrun hok with
     ⟨-, -, -, hst, -⟩ | ⟨-, -, -, -, -, -, hst, -⟩ | ⟨-, -, -, -, hst, -⟩ <;>
   · rw [hst]; simp only [inv_readSlot, inv_rdSt]; exact hI
 
@@ -281,11 +262,10 @@ theorem inv_transfer (K : SepOn (callKeys message state)) (hfork : .berlin ≤ f
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨-, hacc, -, -, -, -, hfv, hbal, hto, -, h⟩ := ok_transfer hfork hsize' hsel hdep
-    rfl rfl rfl rfl rfl rfl rfl rfl start within hrun hok
+    rfl rfl rfl rfl rfl rfl rfl rfl start hrun hok
   rcases h with ⟨hfee, -, hst, -⟩ | ⟨-, hown, -, hst, -⟩
   · rw [hst]; rw [sendOf_zero hfee] at hto; exact steps_inv K.fixed (reach_transfer_ok K hacc hbal hto) hI
   · rw [hst]; exact steps_inv K.fixed (reach_transfer_fee K hacc hfv hbal hto hown) hI
@@ -297,11 +277,10 @@ theorem inv_transferFrom (K : SepOn (callKeys message state)) (hfork : .berlin �
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨-, hacc, -, -, -, -, -, hfv, hbal, hto, -, h⟩ := ok_transferFrom hfork hsize'
-    hsel hdep rfl rfl rfl rfl rfl rfl rfl rfl rfl start within hrun hok
+    hsel hdep rfl rfl rfl rfl rfl rfl rfl rfl rfl start hrun hok
   rcases h with ⟨hfee, -, hst, -⟩ | ⟨-, hown, -, hst, -⟩
   · rw [hst]; rw [sendOf_zero hfee] at hto
     exact steps_inv K.fixed (reach_transferFrom_ok K hacc hbal hto) hI
@@ -314,10 +293,9 @@ theorem inv_approve (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fo
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, hacc, -, -, h⟩ := ok_approve hfork hsize' hsel hdep rfl rfl start within
+  obtain ⟨-, hacc, -, -, h⟩ := ok_approve hfork hsize' hsel hdep rfl rfl start 
     hrun hok
   rcases h with ⟨-, -, hst, -⟩ | ⟨-, -, -, hst, -⟩
   · rw [hst]; exact steps_inv K.fixed (reach_approve_zero K hacc) hI
@@ -329,10 +307,9 @@ theorem inv_pause (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork
     (hsel : selector message.data = 0x8456cb59)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, hacc, -, -, -, -, hst, -⟩ := ok_pause hfork hsize' hsel rfl start within hrun hok
+  obtain ⟨-, hacc, -, -, -, -, hst, -⟩ := ok_pause hfork hsize' hsel rfl start hrun hok
   rw [hst]; exact steps_inv K.fixed (reach_pause hacc 1) hI
 
 /-- A successful `unpause` call keeps `Inv`. -/
@@ -341,10 +318,9 @@ theorem inv_unpause (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fo
     (hsel : selector message.data = 0x3f4ba83a)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, hacc, -, -, -, -, hst, -⟩ := ok_unpause hfork hsize' hsel rfl start within hrun
+  obtain ⟨-, hacc, -, -, -, -, hst, -⟩ := ok_unpause hfork hsize' hsel rfl start hrun
     hok
   rw [hst]; exact steps_inv K.fixed (reach_pause hacc 0) hI
 
@@ -354,11 +330,10 @@ theorem inv_addBlackList (K : SepOn (callKeys message state)) (hfork : .berlin �
     (hsel : selector message.data = 0x0ecb93c0)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨-, hacc, -, -, -, hst, -⟩ := ok_addBlackList hfork hsize' hsel rfl rfl start
-    within hrun hok
+    hrun hok
   rw [hst]; exact steps_inv K.fixed (reach_list K hacc 1) hI
 
 /-- A successful `removeBlackList` call keeps `Inv`. -/
@@ -367,11 +342,10 @@ theorem inv_removeBlackList (K : SepOn (callKeys message state)) (hfork : .berli
     (hsel : selector message.data = 0xe4997dc5)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨-, hacc, -, -, -, hst, -⟩ := ok_removeBlackList hfork hsize' hsel rfl rfl start
-    within hrun hok
+    hrun hok
   rw [hst]; exact steps_inv K.fixed (reach_list K hacc 0) hI
 
 /-- A successful `issue` call keeps `Inv`. -/
@@ -380,11 +354,10 @@ theorem inv_issue (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork
     (hsel : selector message.data = 0xcc872b66)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨-, hacc, -, h0, hT, hB, -, -, hst, -⟩ := ok_issue hfork hsize' hsel rfl rfl rfl
-    start within hrun hok
+    start hrun hok
   rw [hst]; exact steps_inv K.fixed (reach_issue K hacc ⟨h0, hT⟩ hB) hI
 
 /-- A successful `redeem` call keeps `Inv`. -/
@@ -393,11 +366,10 @@ theorem inv_redeem (K : SepOn (callKeys message state)) (hfork : .berlin ≤ for
     (hsel : selector message.data = 0xdb006a75)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨-, hacc, -, hT, hB, -, -, hst, -⟩ := ok_redeem hfork hsize' hsel rfl rfl rfl
-    start within hrun hok
+    start hrun hok
   rw [hst]; exact steps_inv K.fixed (reach_redeem K hacc hT hB) hI
 
 /-- A successful `setParams` call keeps `Inv`. -/
@@ -406,11 +378,10 @@ theorem inv_setParams (K : SepOn (callKeys message state)) (hfork : .berlin ≤ 
     (hsel : selector message.data = 0xc0324c77)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨-, hacc, -, -, -, -, -, -, hst, -⟩ := ok_setParams hfork hsize' hsel rfl rfl rfl
-    rfl start within hrun hok
+    rfl start hrun hok
   rw [hst]; exact steps_inv K.fixed (reach_setParams hacc) hI
 
 /-- A successful `deprecate` call keeps `Inv`. -/
@@ -419,10 +390,9 @@ theorem inv_deprecate (K : SepOn (callKeys message state)) (hfork : .berlin ≤ 
     (hsel : selector message.data = 0x0753c30c)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, hacc, -, -, -, hst, -⟩ := ok_deprecate hfork hsize' hsel rfl rfl start within
+  obtain ⟨-, hacc, -, -, -, hst, -⟩ := ok_deprecate hfork hsize' hsel rfl rfl start 
     hrun hok
   rw [hst]; exact steps_inv K.fixed (reach_deprecate hacc) hI
 
@@ -432,10 +402,9 @@ theorem inv_transferOwnership (K : SepOn (callKeys message state)) (hfork : .ber
     (hsel : selector message.data = 0xf2fde38b)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, h⟩ := ok_transferOwnership hfork hsize' hsel rfl start within hrun
+  obtain ⟨-, -, h⟩ := ok_transferOwnership hfork hsize' hsel rfl start hrun
     hok
   rcases h with ⟨-, -, hst, -⟩ | ⟨-, -, hacc, -, hst, -⟩
   · rw [hst]; simp only [inv_readSlot]; exact hI
@@ -448,11 +417,10 @@ theorem inv_destroyBlackFunds (K : SepOn (callKeys message state)) (hfork : .ber
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨-, hacc, -, -, -, -, hst, -⟩ := ok_destroyBlackFunds hfork hsize' hsel hdep rfl
-    rfl rfl rfl rfl start within hrun hok
+    rfl rfl rfl rfl start hrun hok
   rw [hst]; exact steps_inv K.fixed (reach_destroy K hacc) hI
 
 
@@ -471,43 +439,42 @@ theorem inv_call (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (h8 : StrForm (storageAt state message.currentTarget 8))
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨-, -, i, hi⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
+  obtain ⟨-, -, i, hi⟩ := ends_ok_dispatch hfork hsize' start hrun hok
   match i, hi with
-  | ⟨0, _⟩, hi => exact inv_name hfork hsize' (hi.trans rfl) h7 hI start within hrun hok
-  | ⟨1, _⟩, hi => exact inv_deprecate K hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨2, _⟩, hi => exact inv_approve K hfork hsize' (hi.trans rfl) hdep hI start within hrun hok
-  | ⟨3, _⟩, hi => exact inv_deprecated hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨4, _⟩, hi => exact inv_addBlackList K hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨5, _⟩, hi => exact inv_totalSupply hfork hsize' (hi.trans rfl) hdep hI start within hrun hok
-  | ⟨6, _⟩, hi => exact inv_transferFrom K hfork hsize' (hi.trans rfl) hdep hI start within hrun hok
-  | ⟨7, _⟩, hi => exact inv_upgradedAddress hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨8, _⟩, hi => exact inv_balances hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨9, _⟩, hi => exact inv_decimals hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨10, _⟩, hi => exact inv_maximumFee hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨11, _⟩, hi => exact inv_totalSupplyVar hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨12, _⟩, hi => exact inv_unpause K hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨13, _⟩, hi => exact inv_getBlackListStatus hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨14, _⟩, hi => exact inv_allowed hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨15, _⟩, hi => exact inv_paused hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨16, _⟩, hi => exact inv_balanceOf hfork hsize' (hi.trans rfl) hdep hI start within hrun hok
-  | ⟨17, _⟩, hi => exact inv_pause K hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨18, _⟩, hi => exact inv_getOwner hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨19, _⟩, hi => exact inv_owner hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨20, _⟩, hi => exact inv_symbol hfork hsize' (hi.trans rfl) h8 hI start within hrun hok
-  | ⟨21, _⟩, hi => exact inv_transfer K hfork hsize' (hi.trans rfl) hdep hI start within hrun hok
-  | ⟨22, _⟩, hi => exact inv_setParams K hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨23, _⟩, hi => exact inv_issue K hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨24, _⟩, hi => exact inv_redeem K hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨25, _⟩, hi => exact inv_allowance hfork hsize' (hi.trans rfl) hdep hI start within hrun hok
-  | ⟨26, _⟩, hi => exact inv_basisPointsRate hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨27, _⟩, hi => exact inv_isBlackListed hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨28, _⟩, hi => exact inv_removeBlackList K hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨29, _⟩, hi => exact inv_maxUint hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨30, _⟩, hi => exact inv_transferOwnership K hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨31, _⟩, hi => exact inv_destroyBlackFunds K hfork hsize' (hi.trans rfl) hdep hI start within hrun hok
+  | ⟨0, _⟩, hi => exact inv_name hfork hsize' (hi.trans rfl) h7 hI start hrun hok
+  | ⟨1, _⟩, hi => exact inv_deprecate K hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨2, _⟩, hi => exact inv_approve K hfork hsize' (hi.trans rfl) hdep hI start hrun hok
+  | ⟨3, _⟩, hi => exact inv_deprecated hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨4, _⟩, hi => exact inv_addBlackList K hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨5, _⟩, hi => exact inv_totalSupply hfork hsize' (hi.trans rfl) hdep hI start hrun hok
+  | ⟨6, _⟩, hi => exact inv_transferFrom K hfork hsize' (hi.trans rfl) hdep hI start hrun hok
+  | ⟨7, _⟩, hi => exact inv_upgradedAddress hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨8, _⟩, hi => exact inv_balances hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨9, _⟩, hi => exact inv_decimals hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨10, _⟩, hi => exact inv_maximumFee hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨11, _⟩, hi => exact inv_totalSupplyVar hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨12, _⟩, hi => exact inv_unpause K hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨13, _⟩, hi => exact inv_getBlackListStatus hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨14, _⟩, hi => exact inv_allowed hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨15, _⟩, hi => exact inv_paused hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨16, _⟩, hi => exact inv_balanceOf hfork hsize' (hi.trans rfl) hdep hI start hrun hok
+  | ⟨17, _⟩, hi => exact inv_pause K hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨18, _⟩, hi => exact inv_getOwner hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨19, _⟩, hi => exact inv_owner hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨20, _⟩, hi => exact inv_symbol hfork hsize' (hi.trans rfl) h8 hI start hrun hok
+  | ⟨21, _⟩, hi => exact inv_transfer K hfork hsize' (hi.trans rfl) hdep hI start hrun hok
+  | ⟨22, _⟩, hi => exact inv_setParams K hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨23, _⟩, hi => exact inv_issue K hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨24, _⟩, hi => exact inv_redeem K hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨25, _⟩, hi => exact inv_allowance hfork hsize' (hi.trans rfl) hdep hI start hrun hok
+  | ⟨26, _⟩, hi => exact inv_basisPointsRate hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨27, _⟩, hi => exact inv_isBlackListed hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨28, _⟩, hi => exact inv_removeBlackList K hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨29, _⟩, hi => exact inv_maxUint hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨30, _⟩, hi => exact inv_transferOwnership K hfork hsize' (hi.trans rfl) hI start hrun hok
+  | ⟨31, _⟩, hi => exact inv_destroyBlackFunds K hfork hsize' (hi.trans rfl) hdep hI start hrun hok
   | ⟨n + 32, h⟩, _ => exact absurd h (by omega)
 
 end UsdtVerify.Complete

@@ -82,7 +82,7 @@ theorem transferFrom_comp (s : Evm fork Nat)
     (hs : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : TransferFromGuard state message := by
   obtain ⟨hst, hacc, hl, hp, hb, hov, hallow, hfv, hbal, hto, -, h⟩ :=
-    ok_transferFrom hfork hsize' hsel hdep hc0 hcB hc10 hcA hc3 hc4 hcF hcT hcO start within hs
+    ok_transferFrom hfork hsize' hsel hdep hc0 hcB hc10 hcA hc3 hc4 hcF hcT hcO start (Ends.run hs)
       hok
   refine ⟨callOk_of_run hfork hsize' start within s hs hok, ⟨hst, hacc⟩, hl, hp, hb, hov, hallow,
     hfv, hbal, hto, fun hfee => ?_⟩

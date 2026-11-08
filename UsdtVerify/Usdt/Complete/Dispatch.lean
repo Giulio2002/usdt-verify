@@ -56,6 +56,27 @@ theorem halted_true_error {out : ByteArray} {g : Nat} {st : State.TransactionSta
   rw [h.2.1]; simp
 
 /-- From Berlin, a fresh frame of `CODE` at pc 0, with any gas, and call data of size below
+`2^256`: if a loop of steps from it ends with no error (`Ends`), then the call data has at least
+4 bytes, its selector is the key of some entry `i` of the table, and the call value is 0. -/
+theorem ends_ok_dispatch (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
+    {gas : Nat} {evm : Evm fork Nat}
+    (start : At CODE message 0 [] .empty gas state substate evm) {s : Evm fork Nat}
+    (hrun : Ends fork evm s) (hok : s.error = none) :
+    4 ≤ message.data.size ∧ message.value = 0 ∧
+      ∃ i : Fin 32, selector message.data = ENTRIES[i].1.toNat := by
+  rcases selector_cases message.data with hs | ⟨hs, hunk⟩ | ⟨hs, i, hi⟩
+  · exact absurd hok (SpecG.not_okE (Fallback.spec_short hfork hs (gas := gas + 46) (by omega))
+      halted_true_error (at_sh start 46) hrun)
+  · exact absurd hok (SpecG.not_okE (Fallback.spec_unknown hfork hs hsize' hunk (gas := gas + 773)
+      (by omega)) halted_true_error (at_sh start 773) hrun)
+  · refine ⟨hs, ?_, i, hi⟩
+    by_cases hv : message.value = 0
+    · exact hv
+    exact absurd hok (SpecG.not_okE (Nonpayable.spec hfork hs hsize' i hi hv
+      (gas := gas + (87 + 22 * (i.val + 1))) (by omega)) halted_true_error
+      (at_sh start _) hrun)
+
+/-- From Berlin, a fresh frame of `CODE` at pc 0, with any gas, and call data of size below
 `2^256`: if the loop of the interpreter ends with no error, for any gas bound and any message
 runner, then the call data has at least 4 bytes, its selector is the key of some entry `i` of the
 table, and the call value is 0. -/
@@ -66,17 +87,7 @@ theorem runFrame_ok_dispatch (hfork : .berlin ≤ fork) (hsize' : message.data.s
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     4 ≤ message.data.size ∧ message.value = 0 ∧
-      ∃ i : Fin 32, selector message.data = ENTRIES[i].1.toNat := by
-  rcases selector_cases message.data with hs | ⟨hs, hunk⟩ | ⟨hs, i, hi⟩
-  · exact absurd hok (SpecG.not_ok (Fallback.spec_short hfork hs (gas := gas + 46) (by omega))
-      halted_true_error (at_sh start 46) within hrun)
-  · exact absurd hok (SpecG.not_ok (Fallback.spec_unknown hfork hs hsize' hunk (gas := gas + 773)
-      (by omega)) halted_true_error (at_sh start 773) within hrun)
-  · refine ⟨hs, ?_, i, hi⟩
-    by_cases hv : message.value = 0
-    · exact hv
-    exact absurd hok (SpecG.not_ok (Nonpayable.spec hfork hs hsize' i hi hv
-      (gas := gas + (87 + 22 * (i.val + 1))) (by omega)) halted_true_error
-      (at_sh start _) within hrun)
+      ∃ i : Fin 32, selector message.data = ENTRIES[i].1.toNat :=
+  ends_ok_dispatch hfork hsize' start (Ends.run hrun) hok
 
 end UsdtVerify.Complete

@@ -27,6 +27,28 @@ variable {fork : Fork} {code : ByteArray} {message : Message fork} {pc : Nat}
   {substate : Substate} {bound : Nat} {runChild : MessageRunner fork Nat bound}
   {evm s : Evm fork Nat}
 
+/-- A loop that ends with no error (`Ends`) ends as a specification to a normal halt states, with
+the exact gas. -/
+theorem ok_exactE {B cost : Nat} (hB : cost ≤ B) {out : ByteArray}
+    {st' : State.TransactionState} {ss' : Substate}
+    (h : ∀ g, B ≤ g → SpecG fork (At code message pc stack memory g state substate)
+      (Halted false out (g - cost) st' ss'))
+    {gas : Nat} (start : At code message pc stack memory gas state substate evm)
+    (hrun : Ends fork evm s) (hok : s.error = none) :
+    cost ≤ gas ∧ s.running = false ∧ s.output = out ∧ s.gas = gas - cost ∧ s.state = st' ∧
+      s.substate = ss' := by
+  obtain ⟨hr, ho, hg, hst, hss⟩ := SpecG.haltedE (h (gas + B) (by omega)) start hrun hok
+  exact ⟨by omega, hr, ho, by omega, hst, hss⟩
+
+/-- No loop that ends with no error (`Ends`) from a frame where a specification to an error
+holds. -/
+theorem no_okE {B : Nat} {Q : Nat → Evm fork Nat → Prop}
+    (h : ∀ g, B ≤ g → SpecG fork (At code message pc stack memory g state substate) (Q g))
+    (herr : ∀ g e, Q g e → e.error ≠ none)
+    {gas : Nat} (start : At code message pc stack memory gas state substate evm)
+    (hrun : Ends fork evm s) (hok : s.error = none) : False :=
+  SpecG.not_okE (h (gas + B) (by omega)) (herr (gas + B)) (at_sh start B) hrun hok
+
 /-- A successful run ends as a specification to a normal halt states, with the exact gas. -/
 theorem ok_exact {B cost : Nat} (hB : cost ≤ B) {out : ByteArray}
     {st' : State.TransactionState} {ss' : Substate}
@@ -37,10 +59,8 @@ theorem ok_exact {B cost : Nat} (hB : cost ≤ B) {out : ByteArray}
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) :
     cost ≤ gas ∧ s.running = false ∧ s.output = out ∧ s.gas = gas - cost ∧ s.state = st' ∧
-      s.substate = ss' := by
-  obtain ⟨hr, ho, hg, hst, hss⟩ :=
-    SpecG.halted (h (gas + B) (by omega)) start within hrun hok
-  exact ⟨by omega, hr, ho, by omega, hst, hss⟩
+      s.substate = ss' :=
+  ok_exactE hB h start (Ends.run hrun) hok
 
 /-- No successful run from a frame where a specification to an error holds. -/
 theorem no_ok {B : Nat} {Q : Nat → Evm fork Nat → Prop}
@@ -50,7 +70,7 @@ theorem no_ok {B : Nat} {Q : Nat → Evm fork Nat → Prop}
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : False :=
-  SpecG.not_ok (h (gas + B) (by omega)) (herr (gas + B)) (at_sh start B) within hrun hok
+  no_okE h herr start (Ends.run hrun) hok
 
 theorem le_l {a b g : Nat} (h : a + b ≤ g) : a ≤ g := Nat.le_trans (Nat.le_add_right a b) h
 
@@ -97,5 +117,37 @@ theorem ok_exact3 {B1 B2 cost : Nat} {out : ByteArray}
     cost ≤ gas ∧ s.running = false ∧ s.output = out ∧ s.gas = gas - cost ∧ s.state = st' ∧
       s.substate = ss' :=
   ok_exact2 (B1 := B1 + B2) (fun g h1 h2 => h g (le_l h1) (le_r h1) h2) start within hrun hok
+
+/-- `no_okE` for a specification with two gas bounds. -/
+theorem no_ok2E {B1 B2 : Nat} {Q : Nat → Evm fork Nat → Prop}
+    (h : ∀ g, B1 ≤ g → B2 ≤ g → SpecG fork (At code message pc stack memory g state substate) (Q g))
+    (herr : ∀ g e, Q g e → e.error ≠ none)
+    {gas : Nat} (start : At code message pc stack memory gas state substate evm)
+    (hrun : Ends fork evm s) (hok : s.error = none) : False :=
+  no_okE (B := B1 + B2) (fun g hg => h g (le_l hg) (le_r hg)) herr start hrun hok
+
+/-- `ok_exactE` for a specification with two gas bounds, the second one the cost. -/
+theorem ok_exact2E {B1 cost : Nat} {out : ByteArray}
+    {st' : State.TransactionState} {ss' : Substate}
+    (h : ∀ g, B1 ≤ g → cost ≤ g → SpecG fork (At code message pc stack memory g state substate)
+      (Halted false out (g - cost) st' ss'))
+    {gas : Nat} (start : At code message pc stack memory gas state substate evm)
+    (hrun : Ends fork evm s) (hok : s.error = none) :
+    cost ≤ gas ∧ s.running = false ∧ s.output = out ∧ s.gas = gas - cost ∧ s.state = st' ∧
+      s.substate = ss' :=
+  ok_exactE (B := B1 + cost) (Nat.le_add_left _ _) (fun g hg => h g (le_l hg) (le_r hg))
+    start hrun hok
+
+/-- `ok_exactE` for a specification with three gas bounds, the third one the cost. -/
+theorem ok_exact3E {B1 B2 cost : Nat} {out : ByteArray}
+    {st' : State.TransactionState} {ss' : Substate}
+    (h : ∀ g, B1 ≤ g → B2 ≤ g → cost ≤ g →
+      SpecG fork (At code message pc stack memory g state substate)
+        (Halted false out (g - cost) st' ss'))
+    {gas : Nat} (start : At code message pc stack memory gas state substate evm)
+    (hrun : Ends fork evm s) (hok : s.error = none) :
+    cost ≤ gas ∧ s.running = false ∧ s.output = out ∧ s.gas = gas - cost ∧ s.state = st' ∧
+      s.substate = ss' :=
+  ok_exact2E (B1 := B1 + B2) (fun g h1 h2 => h g (le_l h1) (le_r h1) h2) start hrun hok
 
 end UsdtVerify.Complete

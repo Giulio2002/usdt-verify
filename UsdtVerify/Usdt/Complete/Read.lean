@@ -11,7 +11,7 @@ gas bound and any message runner. If the selector is that of the function, byte 
 (the `deprecated` flag) is 0, and the loop of the interpreter ends with no error, then the run is
 the path of `TotalSupply.spec` / `BalanceOf.spec`: the output, the exact gas left, the state and
 the substate are those of the specification (each read priced cold or warm as the substate
-says). The call value and the size of the call data come from `runFrame_ok_dispatch`.
+says). The call value and the size of the call data come from `ends_ok_dispatch`.
 -/
 
 namespace UsdtVerify.Complete
@@ -31,8 +31,7 @@ theorem ok_totalSupply (hfork : .berlin ≤ fork) (hsize' : message.data.size < 
     (hsel : selector message.data = 0x18160ddd)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     s.output = wordBytes (storageAt state message.currentTarget 1) ∧
       ((TotalSupply.COST + slotCost (coldIn substate message.currentTarget 10) + slotCost (coldIn substate message.currentTarget 1)) ≤ gas ∧
@@ -40,9 +39,9 @@ theorem ok_totalSupply (hfork : .berlin ≤ fork) (hsize' : message.data.size < 
       s.state = readSlot (readSlot state message.currentTarget 10) message.currentTarget 1 ∧
       s.substate = accessSlot (accessSlot substate message.currentTarget 10)
         message.currentTarget 1 := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => TotalSupply.spec hfork h4 hsize' hsel hv hdep rfl rfl hg) start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+    (fun g hg => TotalSupply.spec hfork h4 hsize' hsel hv hdep rfl rfl hg) start hrun hok
   exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 /-- Every successful `balanceOf(a)` call, not deprecated, returns `balances[a]` with the exact
@@ -51,8 +50,7 @@ theorem ok_balanceOf (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 
     (hsel : selector message.data = 0x70a08231)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hrun : Ends fork evm s)
     (hok : s.error = none) :
     s.output = wordBytes (storageAt state message.currentTarget
         (BalanceOf.balanceSlot message.data)) ∧
@@ -62,9 +60,9 @@ theorem ok_balanceOf (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 
         (BalanceOf.balanceSlot message.data) ∧
       s.substate = accessSlot (accessSlot substate message.currentTarget 10)
         message.currentTarget (BalanceOf.balanceSlot message.data) := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exact (Nat.le_refl _)
-    (fun g hg => BalanceOf.spec hfork h4 hsize' hsel hv hdep rfl rfl hg) start within hrun hok
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' start hrun hok
+  obtain ⟨hcg, -, ho, hg, hst, hss⟩ := ok_exactE (Nat.le_refl _)
+    (fun g hg => BalanceOf.spec hfork h4 hsize' hsel hv hdep rfl rfl hg) start hrun hok
   exact ⟨ho, ⟨hcg, hg⟩, hst, hss⟩
 
 end UsdtVerify.Complete

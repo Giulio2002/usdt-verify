@@ -39,15 +39,49 @@ open EthLib.Execution.Evm.Logic
 
 variable {fork : Fork}
 
-/-- A running frame from which the step fails, also with any less gas. -/
+/-- A running frame at a `simulated` opcode from which the step fails, also with any less gas. -/
 def Stuck (z : Evm fork Nat) : Prop :=
-  z.running = true ∧ ∀ k l, z = sh k l →
+  z.running = true ∧ SimAt z ∧ ∀ k l, z = sh k l →
     (∃ e, step fork l = .error e) ∨
       ∃ b, step fork l = .ok (.next b) ∧ b.running = false ∧ b.error ≠ none
 
 section Loop
 
 variable {bound : Nat} {runChild : MessageRunner fork Nat bound}
+
+/-- Along a chain of `StepG` from `sh k l` to a `Stuck` frame, no loop from `l` ends with no error
+(`Ends`). -/
+theorem not_ok_of_reachesE {hi z : Evm fork Nat} (hr : Reaches (StepG fork) hi z)
+    (hz : Stuck z) :
+    ∀ (k : Nat) (l : Evm fork Nat), hi = sh k l → ∀ {s : Evm fork Nat}, Ends fork l s →
+      s.error ≠ none := by
+  induction hr with
+  | refl =>
+    rintro k l rfl s hend
+    have hr : l.running = true := by simpa using hz.1
+    have hsim : SimAt l := hz.2.1
+    rcases hz.2.2 k l rfl with ⟨e, he⟩ | ⟨b, hb, hbr, hbe⟩
+    · rw [(hend.error hr hsim he).2]
+      simp [exceptionalHalt]
+    · rw [(hend.next hr hsim hb).stopped hbr]
+      exact hbe
+  | step hs _ ih =>
+    rintro k l rfl s hend
+    obtain ⟨hstep, hsim, hmono⟩ := hs
+    have hr : l.running = true := hstep.running
+    rcases hmono k l rfl with ⟨e, he⟩ | ⟨b, hb, hbr, hbe⟩ | ⟨b, hb, hh⟩
+    · rw [(hend.error hr hsim he).2]
+      simp [exceptionalHalt]
+    · rw [(hend.next hr hsim hb).stopped hbr]
+      exact hbe
+    · cases hstep with
+      | next _ hn =>
+        rw [hh] at hn
+        cases hn
+        exact ih hz k b rfl (hend.next hr hsim hb)
+      | halt _ hn _ =>
+        rw [hh] at hn
+        cases hn
 
 /-- Along a chain of `StepG` from `sh k l` to a `Stuck` frame, the loop run from `l` does not end
 with no error. -/
@@ -56,48 +90,30 @@ theorem not_ok_of_reaches {hi z : Evm fork Nat} (hr : Reaches (StepG fork) hi z)
     ∀ (k : Nat) (l : Evm fork Nat), hi = sh k l →
       ∀ (within : GasMeter.gasHeld l.gas ≤ bound) {s : Evm fork Nat},
         Evm.runFrame (step fork) (step_decreases fork) bound runChild l within = .ok s →
-        s.error ≠ none := by
-  induction hr with
-  | refl =>
-    rintro k l rfl within s hrun
-    have hr : l.running = true := by simpa using hz.1
-    rcases hz.2 k l rfl with ⟨e, he⟩ | ⟨b, hb, hbr, hbe⟩
-    · by_cases ab : e.aborts = true
-      · rw [runFrame_of_step_eq_abort hr he ab] at hrun
-        cases hrun
-      · rw [runFrame_of_step_eq_error hr he (by simpa using ab)] at hrun
-        cases hrun
-        simp [exceptionalHalt]
-    · rw [runFrame_of_step_eq_next hr hb, runFrame_stopped hbr] at hrun
-      cases hrun
-      exact hbe
-  | step hs _ ih =>
-    rintro k l rfl within s hrun
-    obtain ⟨hstep, hmono⟩ := hs
-    have hr : l.running = true := hstep.running
-    rcases hmono k l rfl with ⟨e, he⟩ | ⟨b, hb, hbr, hbe⟩ | ⟨b, hb, hh⟩
-    · by_cases ab : e.aborts = true
-      · rw [runFrame_of_step_eq_abort hr he ab] at hrun
-        cases hrun
-      · rw [runFrame_of_step_eq_error hr he (by simpa using ab)] at hrun
-        cases hrun
-        simp [exceptionalHalt]
-    · rw [runFrame_of_step_eq_next hr hb, runFrame_stopped hbr] at hrun
-      cases hrun
-      exact hbe
-    · rw [runFrame_of_step_eq_next hr hb] at hrun
-      cases hstep with
-      | next _ hn =>
-        rw [hh] at hn
-        cases hn
-        exact ih hz k b rfl _ hrun
-      | halt _ hn _ =>
-        rw [hh] at hn
-        cases hn
+        s.error ≠ none :=
+  fun k l h _ _ hrun => not_ok_of_reachesE hr hz k l h (Ends.run hrun)
 
 variable {code : ByteArray} {message : Message fork} {pc : Nat} {stack : List U256}
   {memory : ByteArray} {state : State.TransactionState} {substate : Substate}
   {evm s : Evm fork Nat}
+
+/-- No loop that ends with no error (`Ends`) from a frame where, with any gas from `B` on, the
+frames reach a `Stuck` frame along `StepG`. -/
+theorem no_ok_stuckE {B : Nat}
+    (h : ∀ g, B ≤ g → HoareG fork (At code message pc stack memory g state substate) Stuck)
+    {gas : Nat} (start : At code message pc stack memory gas state substate evm)
+    (hrun : Ends fork evm s) (hok : s.error = none) : False := by
+  obtain ⟨z, hr, hz⟩ := h (gas + B) (by omega) _ (at_sh start B)
+  exact not_ok_of_reachesE hr hz B evm rfl hrun hok
+
+/-- No loop that ends with no error (`Ends`) from a frame that, with its own gas, reaches a
+`Stuck` frame along `StepG`. -/
+theorem no_ok_stuck_atE {gas : Nat}
+    (h : HoareG fork (At code message pc stack memory gas state substate) Stuck)
+    (start : At code message pc stack memory gas state substate evm)
+    (hrun : Ends fork evm s) (hok : s.error = none) : False := by
+  obtain ⟨z, hr, hz⟩ := h evm start
+  exact not_ok_of_reachesE hr hz 0 evm (by simp [sh]) hrun hok
 
 /-- No successful run from a frame where, with any gas from `B` on, the frames reach a `Stuck`
 frame along `StepG`. -/
@@ -106,9 +122,8 @@ theorem no_ok_stuck {B : Nat}
     {gas : Nat} (start : At code message pc stack memory gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
-    (hok : s.error = none) : False := by
-  obtain ⟨z, hr, hz⟩ := h (gas + B) (by omega) _ (at_sh start B)
-  exact not_ok_of_reaches hr hz B evm rfl within hrun hok
+    (hok : s.error = none) : False :=
+  no_ok_stuckE h start (Ends.run hrun) hok
 
 /-- No successful run from a frame that, with its own gas, reaches a `Stuck` frame along
 `StepG`. -/
@@ -117,9 +132,8 @@ theorem no_ok_stuck_at {gas : Nat}
     (start : At code message pc stack memory gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
-    (hok : s.error = none) : False := by
-  obtain ⟨z, hr, hz⟩ := h evm start
-  exact not_ok_of_reaches hr hz 0 evm (by simp [sh]) within hrun hok
+    (hok : s.error = none) : False :=
+  no_ok_stuck_atE h start (Ends.run hrun) hok
 
 end Loop
 
@@ -187,7 +201,12 @@ theorem sstore_stuck {key new : U256} {rest : List U256} {gas : Nat}
     HoareG fork (At code message pc (key :: new :: rest) memory gas state substate) Stuck := by
   intro evm hat
   obtain ⟨hcode, -, hm, hpc, -, -, -, hrun, -, -, hs, -⟩ := hat
-  refine ⟨evm, .refl _, hrun, ?_⟩
+  refine ⟨evm, .refl _, hrun, ?_, ?_⟩
+  · have hlt' : evm.pc < evm.code.size := by rw [hpc, hcode]; exact hlt
+    refine simAt_of hlt' ?_ instruction_sstore rfl
+    have : evm.code[evm.pc] = (0x55 : UInt8) := by simp only [hcode, hpc, hbyte]
+    rw [this]
+    exact ofByte_of_decode (op := .sstore) rfl (Fork.frontier_le _)
   rintro k l rfl
   have hcode' : l.code = code := hcode
   have hpc' : l.pc = pc := hpc
@@ -246,7 +265,12 @@ theorem sstore_low_stuck (hist : Fork.istanbul ≤ fork) {key new : U256} {rest 
     HoareG fork (At code message pc (key :: new :: rest) memory gas state substate) Stuck := by
   intro evm hat
   obtain ⟨hcode, -, -, hpc, -, -, hg, hrun, -, -, -, -⟩ := hat
-  refine ⟨evm, .refl _, hrun, ?_⟩
+  refine ⟨evm, .refl _, hrun, ?_, ?_⟩
+  · have hlt' : evm.pc < evm.code.size := by rw [hpc, hcode]; exact hlt
+    refine simAt_of hlt' ?_ instruction_sstore rfl
+    have : evm.code[evm.pc] = (0x55 : UInt8) := by simp only [hcode, hpc, hbyte]
+    rw [this]
+    exact ofByte_of_decode (op := .sstore) rfl (Fork.frontier_le _)
   rintro k l rfl
   have hcode' : l.code = code := hcode
   have hpc' : l.pc = pc := hpc

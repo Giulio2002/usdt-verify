@@ -231,17 +231,17 @@ theorem owner_only (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : callerWord message = ownerOf state message.currentTarget := by
   rcases hsel with h | h | h | h | h | h | h | h | h | h
-  · exact (ok_deprecate hfork hsize' h rfl rfl start within hrun hok).2.2.1
-  · exact (ok_addBlackList hfork hsize' h rfl rfl start within hrun hok).2.2.1
-  · exact (ok_unpause hfork hsize' h rfl start within hrun hok).2.2.1
-  · exact (ok_pause hfork hsize' h rfl start within hrun hok).2.2.1
-  · exact (ok_setParams hfork hsize' h rfl rfl rfl rfl start within hrun hok).2.2.1
-  · exact (ok_issue hfork hsize' h rfl rfl rfl start within hrun hok).2.2.1
-  · exact (ok_redeem hfork hsize' h rfl rfl rfl start within hrun hok).2.2.1
-  · exact (ok_removeBlackList hfork hsize' h rfl rfl start within hrun hok).2.2.1
-  · exact (ok_transferOwnership hfork hsize' h rfl start within hrun hok).1
+  · exact (ok_deprecate hfork hsize' h rfl rfl start (Gas.Ends.run hrun) hok).2.2.1
+  · exact (ok_addBlackList hfork hsize' h rfl rfl start (Gas.Ends.run hrun) hok).2.2.1
+  · exact (ok_unpause hfork hsize' h rfl start (Gas.Ends.run hrun) hok).2.2.1
+  · exact (ok_pause hfork hsize' h rfl start (Gas.Ends.run hrun) hok).2.2.1
+  · exact (ok_setParams hfork hsize' h rfl rfl rfl rfl start (Gas.Ends.run hrun) hok).2.2.1
+  · exact (ok_issue hfork hsize' h rfl rfl rfl start (Gas.Ends.run hrun) hok).2.2.1
+  · exact (ok_redeem hfork hsize' h rfl rfl rfl start (Gas.Ends.run hrun) hok).2.2.1
+  · exact (ok_removeBlackList hfork hsize' h rfl rfl start (Gas.Ends.run hrun) hok).2.2.1
+  · exact (ok_transferOwnership hfork hsize' h rfl start (Gas.Ends.run hrun) hok).1
   · by_cases hdep : byte20 (storageAt state message.currentTarget 10) = 0
-    · exact (ok_destroyBlackFunds hfork hsize' h hdep rfl rfl rfl rfl rfl start within hrun
+    · exact (ok_destroyBlackFunds hfork hsize' h hdep rfl rfl rfl rfl rfl start (Gas.Ends.run hrun)
         hok).2.2.1
     · obtain ⟨_, _, -, -, howner, -⟩ :=
         dep_destroy_complete hfork hsize' h hdep rfl rfl rfl rfl start within hrun hok

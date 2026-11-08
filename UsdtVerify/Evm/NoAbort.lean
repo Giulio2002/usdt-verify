@@ -166,7 +166,7 @@ theorem At.ruleGA {code : ByteArray} {message : Message fork} {pc : Nat} {stack 
     (hlt : pc < code.size) (hbyte : code[pc] = byte) (decoded : Op.ofByte fork byte = some op)
     (hrun : instruction fork op = some run) (hm : RunMono run) (hna : ∀ a, NoAbort (run a))
     (h : ∀ evm, At code message pc stack memory gas state substate evm →
-      ∃ after, run evm = .ok after ∧ post after) :
+      ∃ after, run evm = .ok after ∧ post after) (hsim : simulated op = true := by first | decide | rfl) :
     HoareGA fork (At code message pc stack memory gas state substate) post := by
   apply Triple.of_step
   intro evm hp
@@ -175,7 +175,7 @@ theorem At.ruleGA {code : ByteArray} {message : Message fork} {pc : Nat} {stack 
     ?_⟩, hpost⟩
   · obtain ⟨hcode, -, -, hpc, -⟩ := hp
     subst hcode hpc
-    exact gasMono_of_run hlt (by rw [hbyte]; exact decoded) hrun hm
+    exact gasMono_of_run hlt (by rw [hbyte]; exact decoded) hrun hm hsim
   · obtain ⟨hcode, -, -, hpc, -⟩ := hp
     rintro k l rfl
     change l.code = code at hcode
@@ -204,7 +204,7 @@ theorem no_error_of_reaches {hi z : Evm fork Nat} (hr : Reaches (StepGA fork) hi
     cases h
   | step hs _ ih =>
     rintro k l rfl within e h
-    obtain ⟨⟨hstep, hmono⟩, hna⟩ := hs
+    obtain ⟨⟨hstep, -, hmono⟩, hna⟩ := hs
     have hr : l.running = true := hstep.running
     rcases hmono k l rfl with ⟨e', he⟩ | ⟨b, hb, hbr, -⟩ | ⟨b, hb, hh⟩
     · rw [runFrame_of_step_eq_error hr he (hna k l rfl e' he)] at h

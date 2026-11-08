@@ -126,7 +126,7 @@ theorem transfer_checks_all (hfork : .berlin ≤ fork) (hsize' : message.data.si
       (storageAt state message.currentTarget (Transfer.blackSlot message)).toNat % 256 = 0 := by
   by_cases hdep : byte20 (storageAt state message.currentTarget 10) = 0
   · obtain ⟨-, -, -, hpause, hblack, -⟩ := ok_transfer hfork hsize' hsel hdep rfl rfl rfl rfl rfl
-      rfl rfl rfl start within hrun hok
+      rfl rfl rfl start (Gas.Ends.run hrun) hok
     exact ⟨hpause, hblack⟩
   · obtain ⟨_, _, -, -, hpause, hblack, -⟩ :=
       dep_transfer_complete hfork hsize' hsel hdep rfl rfl rfl rfl start within hrun hok
@@ -145,7 +145,7 @@ theorem transferFrom_checks_all (hfork : .berlin ≤ fork) (hsize' : message.dat
         (TransferFrom.blackFrom (TransferFrom.fromArg message))).toNat % 256 = 0 := by
   by_cases hdep : byte20 (storageAt state message.currentTarget 10) = 0
   · obtain ⟨-, -, -, hpause, hblack, -⟩ := ok_transferFrom hfork hsize' hsel hdep rfl rfl rfl rfl
-      rfl rfl rfl rfl rfl start within hrun hok
+      rfl rfl rfl rfl rfl start (Gas.Ends.run hrun) hok
     exact ⟨hpause, hblack⟩
   · obtain ⟨_, _, -, -, hpause, hblack, -⟩ :=
       dep_transferFrom_complete hfork hsize' hsel hdep rfl rfl rfl rfl start within hrun hok

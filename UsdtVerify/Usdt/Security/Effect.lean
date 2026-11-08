@@ -477,12 +477,12 @@ theorem effect_local (hfork : .berlin ≤ fork)
       Effect message state s.state := fun hst h => .same (fun n => by rw [hst]; exact h n)
   match i, hi with
   | ⟨0, _⟩, hi =>
-    rcases ok_name hfork hsize' (hi.trans rfl) h7 start within hrun hok with
+    rcases ok_name hfork hsize' (hi.trans rfl) h7 start (Ends.run hrun) hok with
       ⟨-, -, -, hst, -⟩ | ⟨-, -, -, -, -, -, hst, -⟩ | ⟨-, -, -, -, hst, -⟩ <;>
     exact rd hst (fun n => by simp only [storageAt_readSlot, storageAt_rdSt])
   | ⟨1, _⟩, hi =>
     obtain ⟨-, hacc, howner, -, -, hst, -⟩ := ok_deprecate hfork hsize' (hi.trans rfl) rfl rfl
-      start within hrun hok
+      start (Ends.run hrun) hok
     refine .ownerW howner ?_
     rw [hst]
     refine Writes.wr (Writes.wr (Writes.read _ _) ?_ (.inr (.inr (.inr (.inl rfl)))) _) ?_
@@ -491,8 +491,7 @@ theorem effect_local (hfork : .berlin ≤ fork)
     · wchain
   | ⟨2, _⟩, hi =>
     obtain ⟨-, hacc, -, -, h⟩ := ok_approve hfork hsize' (hi.trans rfl)
-      (flag_of hdep (.inl (.inl (hi.trans rfl)))) rfl rfl start within
-      hrun hok
+      (flag_of hdep (.inl (.inl (hi.trans rfl)))) rfl rfl start (Ends.run hrun) hok
     refine .approve (hi.trans rfl) ?_
     rcases h with ⟨-, -, hst, -⟩ | ⟨-, -, -, hst, -⟩ <;> rw [hst]
     · exact Writes.wr (W := (· = allowArg message)) (Writes.read _ _) (hasAccount_readSlot hacc)
@@ -500,84 +499,84 @@ theorem effect_local (hfork : .berlin ≤ fork)
     · exact Writes.wr (W := (· = allowArg message)) ((Writes.read _ _).rd _ _)
         (hasAccount_readSlot (hasAccount_readSlot hacc)) rfl _
   | ⟨3, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_deprecated hfork hsize' (hi.trans rfl) start within hrun hok
+    obtain ⟨-, -, hst, -⟩ := ok_deprecated hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨4, _⟩, hi =>
     obtain ⟨-, hacc, howner, -, -, hst, -⟩ := ok_addBlackList hfork hsize' (hi.trans rfl) rfl rfl
-      start within hrun hok
+      start (Ends.run hrun) hok
     refine .ownerW howner ?_
     rw [hst]
     exact Writes.wr (Writes.read _ _) (hasAccount_readSlot hacc)
       (.inr (.inr (.inr (.inr rfl)))) _
   | ⟨5, _⟩, hi =>
     obtain ⟨-, -, hst, -⟩ := ok_totalSupply hfork hsize' (hi.trans rfl)
-      (flag_of hdep (.inl (.inr (.inl (hi.trans rfl))))) start within hrun hok
+      (flag_of hdep (.inl (.inr (.inl (hi.trans rfl))))) start (Ends.run hrun) hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨6, _⟩, hi =>
     obtain ⟨-, hacc, -, hpause, hblack, -, hallow, hfv, hbal, hto, -, h⟩ := ok_transferFrom hfork
-      hsize' (hi.trans rfl) (flag_of hdep (.inl (.inr (.inr (.inl (hi.trans rfl)))))) rfl rfl rfl rfl rfl rfl rfl rfl rfl start within hrun hok
+      hsize' (hi.trans rfl) (flag_of hdep (.inl (.inr (.inr (.inl (hi.trans rfl)))))) rfl rfl rfl rfl rfl rfl rfl rfl rfl start (Ends.run hrun) hok
     rcases h with ⟨hfee, -, hst, -⟩ | ⟨-, hown, -, hst, -⟩
     · rw [sendOf_zero hfee] at hto
       exact .fromOk (hi.trans rfl) hacc hpause hblack hallow hbal hto hst
     · exact .fromFee (hi.trans rfl) hacc hpause hblack hallow hfv hbal hto hown hst
   | ⟨7, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_upgradedAddress hfork hsize' (hi.trans rfl) start within hrun hok
+    obtain ⟨-, -, hst, -⟩ := ok_upgradedAddress hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨8, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_balances hfork hsize' (hi.trans rfl) start within hrun hok
+    obtain ⟨-, -, hst, -⟩ := ok_balances hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨9, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_decimals hfork hsize' (hi.trans rfl) start within hrun hok
+    obtain ⟨-, -, hst, -⟩ := ok_decimals hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨10, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_maximumFee hfork hsize' (hi.trans rfl) start within hrun hok
+    obtain ⟨-, -, hst, -⟩ := ok_maximumFee hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨11, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_totalSupplyVar hfork hsize' (hi.trans rfl) start within hrun hok
+    obtain ⟨-, -, hst, -⟩ := ok_totalSupplyVar hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨12, _⟩, hi =>
     obtain ⟨-, hacc, howner, -, -, -, hst, -⟩ := ok_unpause hfork hsize' (hi.trans rfl) rfl start
-      within hrun hok
+      (Ends.run hrun) hok
     rw [hst]
     exact .ownerW howner (Writes.write hacc (.inl rfl) _)
   | ⟨13, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_getBlackListStatus hfork hsize' (hi.trans rfl) start within hrun hok
+    obtain ⟨-, -, hst, -⟩ := ok_getBlackListStatus hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨14, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_allowed hfork hsize' (hi.trans rfl) start within hrun hok
+    obtain ⟨-, -, hst, -⟩ := ok_allowed hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨15, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_paused hfork hsize' (hi.trans rfl) start within hrun hok
+    obtain ⟨-, -, hst, -⟩ := ok_paused hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨16, _⟩, hi =>
     obtain ⟨-, -, hst, -⟩ := ok_balanceOf hfork hsize' (hi.trans rfl)
-      (flag_of hdep (.inl (.inr (.inr (.inr (.inl (hi.trans rfl))))))) start within hrun hok
+      (flag_of hdep (.inl (.inr (.inr (.inr (.inl (hi.trans rfl))))))) start (Ends.run hrun) hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨17, _⟩, hi =>
     obtain ⟨-, hacc, howner, -, -, -, hst, -⟩ := ok_pause hfork hsize' (hi.trans rfl) rfl start
-      within hrun hok
+      (Ends.run hrun) hok
     rw [hst]
     exact .ownerW howner (Writes.write hacc (.inl rfl) _)
   | ⟨18, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_getOwner hfork hsize' (hi.trans rfl) start within hrun hok
+    obtain ⟨-, -, hst, -⟩ := ok_getOwner hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨19, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_owner hfork hsize' (hi.trans rfl) start within hrun hok
+    obtain ⟨-, -, hst, -⟩ := ok_owner hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨20, _⟩, hi =>
-    rcases ok_symbol hfork hsize' (hi.trans rfl) h8 start within hrun hok with
+    rcases ok_symbol hfork hsize' (hi.trans rfl) h8 start (Ends.run hrun) hok with
       ⟨-, -, -, hst, -⟩ | ⟨-, -, -, -, -, -, hst, -⟩ | ⟨-, -, -, -, hst, -⟩ <;>
     exact rd hst (fun n => by simp only [storageAt_readSlot, storageAt_rdSt])
   | ⟨21, _⟩, hi =>
     obtain ⟨-, hacc, -, hpause, hblack, -, hfv, hbal, hto, -, h⟩ := ok_transfer hfork hsize'
-      (hi.trans rfl) (flag_of hdep (.inl (.inr (.inr (.inr (.inr (.inl (hi.trans rfl)))))))) rfl rfl rfl rfl rfl rfl rfl rfl start within hrun hok
+      (hi.trans rfl) (flag_of hdep (.inl (.inr (.inr (.inr (.inr (.inl (hi.trans rfl)))))))) rfl rfl rfl rfl rfl rfl rfl rfl start (Ends.run hrun) hok
     rcases h with ⟨hfee, -, hst, -⟩ | ⟨-, hown, -, hst, -⟩
     · rw [sendOf_zero hfee] at hto
       exact .transferOk (hi.trans rfl) hacc hpause hblack hbal hto hst
     · exact .transferFee (hi.trans rfl) hacc hpause hblack hfv hbal hto hown hst
   | ⟨22, _⟩, hi =>
     obtain ⟨-, hacc, howner, -, -, -, -, -, hst, -⟩ := ok_setParams hfork hsize' (hi.trans rfl)
-      rfl rfl rfl rfl start within hrun hok
+      rfl rfl rfl rfl start (Ends.run hrun) hok
     refine .ownerW howner ?_
     rw [hst]
     refine ((Writes.wr ((Writes.wr (Writes.read _ _) ?_ (.inr (.inl rfl)) _).rd _ _) ?_
@@ -586,42 +585,41 @@ theorem effect_local (hfork : .berlin ≤ fork)
     · wchain
   | ⟨23, _⟩, hi =>
     obtain ⟨-, hacc, howner, -, hT, hB, -, -, hst, -⟩ := ok_issue hfork hsize' (hi.trans rfl) rfl
-      rfl rfl start within hrun hok
+      rfl rfl start (Ends.run hrun) hok
     exact .issue (hi.trans rfl) howner hacc hT hB hst
   | ⟨24, _⟩, hi =>
     obtain ⟨-, hacc, howner, hT, hB, -, -, hst, -⟩ := ok_redeem hfork hsize' (hi.trans rfl) rfl
-      rfl rfl start within hrun hok
+      rfl rfl start (Ends.run hrun) hok
     exact .redeem (hi.trans rfl) howner hacc hT hB hst
   | ⟨25, _⟩, hi =>
     obtain ⟨-, -, hst, -⟩ := ok_allowance hfork hsize' (hi.trans rfl)
-      (flag_of hdep (.inl (.inr (.inr (.inr (.inr (.inr (hi.trans rfl)))))))) start within hrun hok
+      (flag_of hdep (.inl (.inr (.inr (.inr (.inr (.inr (hi.trans rfl)))))))) start (Ends.run hrun) hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨26, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_basisPointsRate hfork hsize' (hi.trans rfl) start within hrun hok
+    obtain ⟨-, -, hst, -⟩ := ok_basisPointsRate hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨27, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_isBlackListed hfork hsize' (hi.trans rfl) start within hrun hok
+    obtain ⟨-, -, hst, -⟩ := ok_isBlackListed hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
     exact rd hst (fun n => by simp only [storageAt_readSlot])
   | ⟨28, _⟩, hi =>
     obtain ⟨-, hacc, howner, -, -, hst, -⟩ := ok_removeBlackList hfork hsize' (hi.trans rfl) rfl
-      rfl start within hrun hok
+      rfl start (Ends.run hrun) hok
     refine .ownerW howner ?_
     rw [hst]
     exact Writes.wr (Writes.read _ _) (hasAccount_readSlot hacc)
       (.inr (.inr (.inr (.inr rfl)))) _
   | ⟨29, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_maxUint hfork hsize' (hi.trans rfl) start within hrun hok
+    obtain ⟨-, -, hst, -⟩ := ok_maxUint hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
     exact rd hst (fun _ => rfl)
   | ⟨30, _⟩, hi =>
-    obtain ⟨howner, -, h⟩ := ok_transferOwnership hfork hsize' (hi.trans rfl) rfl start within
-      hrun hok
+    obtain ⟨howner, -, h⟩ := ok_transferOwnership hfork hsize' (hi.trans rfl) rfl start (Ends.run hrun) hok
     rcases h with ⟨-, -, hst, -⟩ | ⟨-, -, hacc, -, hst, -⟩
     · exact rd hst (fun n => by simp only [storageAt_readSlot])
     · rw [hst]
       exact .ownerW howner (Writes.write hacc (.inl rfl) _)
   | ⟨31, _⟩, hi =>
     obtain ⟨-, hacc, howner, hlisted, -, -, hst, -⟩ := ok_destroyBlackFunds hfork hsize'
-      (hi.trans rfl) (flag_of hdep (.inr (hi.trans rfl))) rfl rfl rfl rfl rfl start within hrun hok
+      (hi.trans rfl) (flag_of hdep (.inr (hi.trans rfl))) rfl rfl rfl rfl rfl start (Ends.run hrun) hok
     exact .destroy (hi.trans rfl) howner hacc hlisted hst
   | ⟨n + 32, h⟩, _ => exact absurd h (by omega)
 

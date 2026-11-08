@@ -402,41 +402,41 @@ theorem inv_call_ns (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fo
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   by_cases hdep : byte20 (storageAt state message.currentTarget 10) = 0
-  · exact inv_call K hfork hsize' hdep h7 h8 hI start within hrun hok
+  · exact inv_call K hfork hsize' hdep h7 h8 hI start (Ends.run hrun) hok
   have hk := hkeeps hdep
   obtain ⟨_, -, i, hi⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
   match i, hi with
-  | ⟨0, _⟩, hi => exact inv_name hfork hsize' (hi.trans rfl) h7 hI start within hrun hok
-  | ⟨1, _⟩, hi => exact inv_deprecate K hfork hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨0, _⟩, hi => exact inv_name hfork hsize' (hi.trans rfl) h7 hI start (Ends.run hrun) hok
+  | ⟨1, _⟩, hi => exact inv_deprecate K hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
   | ⟨2, _⟩, hi => exact inv_of_local hk hI (dep_approve_local hfork hsize' (hi.trans rfl) hdep start within hrun hok)
-  | ⟨3, _⟩, hi => exact inv_deprecated hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨4, _⟩, hi => exact inv_addBlackList K hfork hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨3, _⟩, hi => exact inv_deprecated hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
+  | ⟨4, _⟩, hi => exact inv_addBlackList K hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
   | ⟨5, _⟩, hi => exact inv_of_local hk hI (dep_totalSupply_local hfork hsize' (hi.trans rfl) hdep start within hrun hok)
   | ⟨6, _⟩, hi => exact inv_of_local hk hI (dep_transferFrom_local hfork hsize' (hi.trans rfl) hdep start within hrun hok)
-  | ⟨7, _⟩, hi => exact inv_upgradedAddress hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨8, _⟩, hi => exact inv_balances hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨9, _⟩, hi => exact inv_decimals hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨10, _⟩, hi => exact inv_maximumFee hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨11, _⟩, hi => exact inv_totalSupplyVar hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨12, _⟩, hi => exact inv_unpause K hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨13, _⟩, hi => exact inv_getBlackListStatus hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨14, _⟩, hi => exact inv_allowed hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨15, _⟩, hi => exact inv_paused hfork hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨7, _⟩, hi => exact inv_upgradedAddress hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
+  | ⟨8, _⟩, hi => exact inv_balances hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
+  | ⟨9, _⟩, hi => exact inv_decimals hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
+  | ⟨10, _⟩, hi => exact inv_maximumFee hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
+  | ⟨11, _⟩, hi => exact inv_totalSupplyVar hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
+  | ⟨12, _⟩, hi => exact inv_unpause K hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
+  | ⟨13, _⟩, hi => exact inv_getBlackListStatus hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
+  | ⟨14, _⟩, hi => exact inv_allowed hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
+  | ⟨15, _⟩, hi => exact inv_paused hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
   | ⟨16, _⟩, hi => exact inv_of_local hk hI (dep_balanceOf_local hfork hsize' (hi.trans rfl) hdep start within hrun hok)
-  | ⟨17, _⟩, hi => exact inv_pause K hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨18, _⟩, hi => exact inv_getOwner hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨19, _⟩, hi => exact inv_owner hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨20, _⟩, hi => exact inv_symbol hfork hsize' (hi.trans rfl) h8 hI start within hrun hok
+  | ⟨17, _⟩, hi => exact inv_pause K hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
+  | ⟨18, _⟩, hi => exact inv_getOwner hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
+  | ⟨19, _⟩, hi => exact inv_owner hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
+  | ⟨20, _⟩, hi => exact inv_symbol hfork hsize' (hi.trans rfl) h8 hI start (Ends.run hrun) hok
   | ⟨21, _⟩, hi => exact inv_of_local hk hI (dep_transfer_local hfork hsize' (hi.trans rfl) hdep start within hrun hok)
-  | ⟨22, _⟩, hi => exact inv_setParams K hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨23, _⟩, hi => exact inv_issue K hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨24, _⟩, hi => exact inv_redeem K hfork hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨22, _⟩, hi => exact inv_setParams K hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
+  | ⟨23, _⟩, hi => exact inv_issue K hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
+  | ⟨24, _⟩, hi => exact inv_redeem K hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
   | ⟨25, _⟩, hi => exact inv_of_local hk hI (dep_allowance_local hfork hsize' (hi.trans rfl) hdep start within hrun hok)
-  | ⟨26, _⟩, hi => exact inv_basisPointsRate hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨27, _⟩, hi => exact inv_isBlackListed hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨28, _⟩, hi => exact inv_removeBlackList K hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨29, _⟩, hi => exact inv_maxUint hfork hsize' (hi.trans rfl) hI start within hrun hok
-  | ⟨30, _⟩, hi => exact inv_transferOwnership K hfork hsize' (hi.trans rfl) hI start within hrun hok
+  | ⟨26, _⟩, hi => exact inv_basisPointsRate hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
+  | ⟨27, _⟩, hi => exact inv_isBlackListed hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
+  | ⟨28, _⟩, hi => exact inv_removeBlackList K hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
+  | ⟨29, _⟩, hi => exact inv_maxUint hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
+  | ⟨30, _⟩, hi => exact inv_transferOwnership K hfork hsize' (hi.trans rfl) hI start (Ends.run hrun) hok
   | ⟨31, _⟩, hi => exact inv_dep_destroy K hfork hsize' (hi.trans rfl) hdep hk (hhonest hdep (hi.trans rfl)) hI start within hrun hok
   | ⟨n + 32, h⟩, _ => exact absurd h (by omega)
 

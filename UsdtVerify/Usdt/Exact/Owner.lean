@@ -54,7 +54,7 @@ include hsel hc0
 theorem pause_comp (s : Evm fork Nat)
     (hs : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : PauseGuard state message :=
-  let ⟨hst, hacc, hown, hp, _⟩ := ok_pause hfork hsize' hsel hc0 start within hs hok
+  let ⟨hst, hacc, hown, hp, _⟩ := ok_pause hfork hsize' hsel hc0 start (Ends.run hs) hok
   ⟨callOk_of_run hfork hsize' start within s hs hok, ⟨hst, hacc⟩, hown, hp⟩
 
 /-- `pause()` succeeds exactly when `PauseGuard` holds, with the gas of its success path. -/
@@ -98,7 +98,7 @@ include hsel hc0
 theorem unpause_comp (s : Evm fork Nat)
     (hs : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : UnpauseGuard state message :=
-  let ⟨hst, hacc, hown, hp, _⟩ := ok_unpause hfork hsize' hsel hc0 start within hs hok
+  let ⟨hst, hacc, hown, hp, _⟩ := ok_unpause hfork hsize' hsel hc0 start (Ends.run hs) hok
   ⟨callOk_of_run hfork hsize' start within s hs hok, ⟨hst, hacc⟩, hown, hp⟩
 
 /-- `unpause()` succeeds exactly when `UnpauseGuard` holds, with the gas of its success path. -/
@@ -146,7 +146,7 @@ include hc0 hcB
 theorem addBlackList_comp (hsel : selector message.data = 0x0ecb93c0) (s : Evm fork Nat)
     (hs : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : OwnerWriteGuard state message :=
-  let ⟨hst, hacc, hown, _⟩ := ok_addBlackList hfork hsize' hsel hc0 hcB start within hs hok
+  let ⟨hst, hacc, hown, _⟩ := ok_addBlackList hfork hsize' hsel hc0 hcB start (Ends.run hs) hok
   ⟨callOk_of_run hfork hsize' start within s hs hok, ⟨hst, hacc⟩, hown⟩
 
 /-- `addBlackList(a)` succeeds exactly when `OwnerWriteGuard` holds, with the gas of its success
@@ -187,7 +187,7 @@ theorem addBlackList_iff_gas (hsel : selector message.data = 0x0ecb93c0) :
 theorem removeBlackList_comp (hsel : selector message.data = 0xe4997dc5) (s : Evm fork Nat)
     (hs : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : OwnerWriteGuard state message :=
-  let ⟨hst, hacc, hown, _⟩ := ok_removeBlackList hfork hsize' hsel hc0 hcB start within hs hok
+  let ⟨hst, hacc, hown, _⟩ := ok_removeBlackList hfork hsize' hsel hc0 hcB start (Ends.run hs) hok
   ⟨callOk_of_run hfork hsize' start within s hs hok, ⟨hst, hacc⟩, hown⟩
 
 /-- `removeBlackList(a)` succeeds exactly when `OwnerWriteGuard` holds, with the gas of its success
@@ -240,7 +240,7 @@ theorem issue_comp (hsel : selector message.data = 0xcc872b66) (s : Evm fork Nat
     (hs : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : IssueGuard state message :=
   let ⟨hst, hacc, hown, h0, hT, hB, _⟩ :=
-    ok_issue hfork hsize' hsel hc0 hc1 hcO start within hs hok
+    ok_issue hfork hsize' hsel hc0 hc1 hcO start (Ends.run hs) hok
   ⟨callOk_of_run hfork hsize' start within s hs hok, ⟨hst, hacc⟩, hown, h0, hT, hB⟩
 
 /-- `issue(a)` succeeds exactly when `IssueGuard` holds, with the gas of its success path. -/
@@ -291,7 +291,7 @@ theorem redeem_comp (hsel : selector message.data = 0xdb006a75) (s : Evm fork Na
     (hs : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : RedeemGuard state message :=
   let ⟨hst, hacc, hown, hT, hB, _⟩ :=
-    ok_redeem hfork hsize' hsel hc0 hc1 hcO start within hs hok
+    ok_redeem hfork hsize' hsel hc0 hc1 hcO start (Ends.run hs) hok
   ⟨callOk_of_run hfork hsize' start within s hs hok, ⟨hst, hacc⟩, hown, hT, hB⟩
 
 /-- `redeem(a)` succeeds exactly when `RedeemGuard` holds, with the gas of its success path. -/
@@ -357,7 +357,7 @@ theorem setParams_comp (s : Evm fork Nat)
     (hs : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : SetParamsGuard state message :=
   let ⟨hst, hacc, hown, hb, hm, hov, _⟩ :=
-    ok_setParams hfork hsize' hsel hc0 hc3 hc9 hc4 start within hs hok
+    ok_setParams hfork hsize' hsel hc0 hc3 hc9 hc4 start (Ends.run hs) hok
   ⟨callOk_of_run hfork hsize' start within s hs hok, ⟨hst, hacc⟩, hown, hb, hm, hov⟩
 
 /-- `setParams(b, m)` succeeds exactly when `SetParamsGuard` holds, with the gas of its success
@@ -423,7 +423,7 @@ include hsel hc0 hc10
 theorem deprecate_comp (s : Evm fork Nat)
     (hs : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : OwnerWriteGuard state message :=
-  let ⟨hst, hacc, hown, _⟩ := ok_deprecate hfork hsize' hsel hc0 hc10 start within hs hok
+  let ⟨hst, hacc, hown, _⟩ := ok_deprecate hfork hsize' hsel hc0 hc10 start (Ends.run hs) hok
   ⟨callOk_of_run hfork hsize' start within s hs hok, ⟨hst, hacc⟩, hown⟩
 
 /-- `deprecate(a)` succeeds exactly when `OwnerWriteGuard` holds, with the gas of its success
@@ -481,7 +481,7 @@ include hsel hc0
 theorem transferOwnership_comp (s : Evm fork Nat)
     (hs : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : TransferOwnershipGuard state message := by
-  obtain ⟨hown, -, h⟩ := ok_transferOwnership hfork hsize' hsel hc0 start within hs hok
+  obtain ⟨hown, -, h⟩ := ok_transferOwnership hfork hsize' hsel hc0 start (Ends.run hs) hok
   refine ⟨callOk_of_run hfork hsize' start within s hs hok, hown, fun hz => ?_⟩
   rcases h with ⟨h0, -⟩ | ⟨-, hst, hacc, -⟩
   · exact absurd h0 hz
@@ -569,7 +569,7 @@ theorem destroyBlackFunds_comp (s : Evm fork Nat)
     (hs : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : DestroyBlackFundsGuard state message :=
   let ⟨hst, hacc, hown, hl, _⟩ :=
-    ok_destroyBlackFunds hfork hsize' hsel hdep hc0 hcL hc10 hcB hc1 start within hs hok
+    ok_destroyBlackFunds hfork hsize' hsel hdep hc0 hcL hc10 hcB hc1 start (Ends.run hs) hok
   ⟨callOk_of_run hfork hsize' start within s hs hok, ⟨hst, hacc⟩, hown, hl⟩
 
 /-- `destroyBlackFunds(a)`, not deprecated, succeeds exactly when `DestroyBlackFundsGuard` holds,

@@ -62,7 +62,7 @@ include hfork hsize' start hsel hdep hc10 hcA
 theorem approve_comp (s : Evm fork Nat)
     (hs : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : ApproveGuard state message := by
-  obtain ⟨hst, hacc, hl, -, h⟩ := ok_approve hfork hsize' hsel hdep hc10 hcA start within hs hok
+  obtain ⟨hst, hacc, hl, -, h⟩ := ok_approve hfork hsize' hsel hdep hc10 hcA start (Ends.run hs) hok
   refine ⟨callOk_of_run hfork hsize' start within s hs hok, ⟨hst, hacc⟩, hl, fun hz => ?_⟩
   rcases h with ⟨h0, -⟩ | ⟨-, ha, -⟩
   · exact absurd h0 hz
