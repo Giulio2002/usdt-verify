@@ -148,7 +148,7 @@ theorem dep_totalSupply_complete (hfork : .berlin ≤ fork)
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
   obtain ⟨hg0, z, w, hz, hrunz⟩ := dep_totalSupply_split hfork hsize' hsel hdep start within hrun hok
-  obtain ⟨c, hcode⟩ := fromExt_found hfork (by decide) hz w hrunz hok
+  obtain ⟨c, hcode⟩ := fromExt_found (by decide) hz w hrunz hok
   obtain ⟨r, hroute, hw, hgc, hdepth, hCE⟩ :=
     fromExt (U := upWord (storageAt state message.currentTarget 10))
     (rest := [0x64, 0x18160ddd, upWord (storageAt state message.currentTarget 10), 0, 0x031d,
@@ -197,10 +197,10 @@ theorem dep_totalSupply_complete (hfork : .berlin ≤ fork)
         (size_outMem child.1.output) (mload_outMem child.1.output)
         (x := BitVec.ofNat 256 (selector message.data)) (gas := g) (by omega)) hat wa hruna hok
     refine ⟨caller, msg, lt, child, hch, he, hfwd, hmg, hcs, hcss, ?_, hr, ho, ?_, hst, hss⟩
-    · simp only [Bool.false_eq_true, ↓reduceIte, Nat.add_zero] at h121
+    · simp only [Nat.add_zero] at h121
       omega
     · rw [hgs]
-      simp only [Bool.false_eq_true, ↓reduceIte, Nat.add_zero]
+      simp only [Nat.add_zero]
   · have hz : child.1.error.isNone = false := by
       cases h : child.1.error
       · exact absurd h he

@@ -3,6 +3,9 @@ import UsdtVerify.Usdt.Spec.Transfer
 /-!
 # transferFrom(address,address,uint256): the specifications from pc 0
 
+Proves what a call of transferFrom does from pc 0, not deprecated: the reverts, the success
+paths with a fee of 0 and above 0, and the failed SafeMath asserts.
+
 The blocks are in Usdt/Proofs/TransferFrom.lean and Usdt/Proofs/Fee.lean.
 
 The parts below keep their own headers:
@@ -382,7 +385,7 @@ theorem shortRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.
         1 := by
       simp only [lessThan, h100, BitVec.toNat_ofNat,
         Nat.mod_eq_of_lt (show message.data.size < 2 ^ 256 by omega)]
-      rw [if_pos hshort]
+      rw [ite_eq_left hshort]
     rw [hlt]
     decide
   step pushR 1 (0 : U256)

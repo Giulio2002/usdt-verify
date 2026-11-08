@@ -7,7 +7,7 @@ import UsdtVerify.Usdt.Sanity.Calls
 from which the interpreter loop, with the interpreter's own runner `processRunner`, ends with no
 error. It gives the hypotheses `start`, `within`, `hrun`, `hok` of every theorem below.
 
-Three witnesses, at every fork from Berlin, for every block, transaction, contract address `C`
+Four witnesses, at every fork from Berlin, for every block, transaction, contract address `C`
 and substate, list the other hypotheses that are not about keccak:
 
 - `transfer_witness`: `transfer(to, 1)` by `CALLER_A` from `sT` (Transfer.lean). Not deprecated,
@@ -161,16 +161,11 @@ theorem listed_witness (hfork : .berlin ≤ fork) (b : BlockEnvironment fork)
 
 /-! ## The invariant -/
 
-theorem sumTo_zero (n : Nat) : sumTo (fun _ => 0) n = 0 := by
-  induction n with
-  | zero => rfl
-  | succ n ih => simp [sumTo, ih]
-
 /-- `Inv` holds in the state with every slot 0. -/
 theorem inv_empty (C : Address) : Invariant.Inv C (sState C []) := by
   unfold Invariant.Inv sumBal tot
   rw [sumTo_congr (g := fun _ => 0) _ (fun i _ => by simp [bal, storageAt_sState_nil]),
-    sumTo_zero, storageAt_sState_nil]
+    DepInv.sumTo_zero, storageAt_sState_nil]
   rfl
 
 /-- **Witness**: `approve(s, 1)` by any caller from the state with every slot 0, where `Inv`

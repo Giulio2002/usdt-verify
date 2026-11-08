@@ -27,16 +27,16 @@ theorem memoryReadBytes_write_rev {memory a b : ByteArray} {s : Nat}
   rw [byteAt_memoryReadBytes (by omega), byteAt_memoryWrite (by omega),
     byteAt_memoryWrite (by omega), byteAt_append]
   by_cases hi : i < a.size
-  · rw [if_pos (show i < a.size + b.size by omega), if_pos (show s ≤ s + i ∧ s + i < s + a.size
-      from ⟨by omega, by omega⟩), if_pos hi]
+  · rw [ite_eq_left (show i < a.size + b.size by omega), ite_eq_left (show s ≤ s + i ∧ s + i < s + a.size
+      from ⟨by omega, by omega⟩), ite_eq_left hi]
     congr 1
     omega
   · by_cases hj : i < a.size + b.size
-    · rw [if_pos hj, if_neg (show ¬(s ≤ s + i ∧ s + i < s + a.size) by omega),
-        if_pos (show s + a.size ≤ s + i ∧ s + i < s + a.size + b.size from ⟨by omega, by omega⟩),
-        if_neg hi]
+    · rw [ite_eq_left hj, ite_eq_right (show ¬(s ≤ s + i ∧ s + i < s + a.size) by omega),
+        ite_eq_left (show s + a.size ≤ s + i ∧ s + i < s + a.size + b.size from ⟨by omega, by omega⟩),
+        ite_eq_right hi]
       congr 1
       omega
-    · rw [if_neg hj, if_neg hi, byteAt_of_size_le (by omega)]
+    · rw [ite_eq_right hj, ite_eq_right hi, byteAt_of_size_le (by omega)]
 
 end UsdtVerify

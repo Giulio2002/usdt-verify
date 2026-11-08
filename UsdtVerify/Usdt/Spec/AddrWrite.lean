@@ -236,7 +236,7 @@ theorem spec_deprecate (hfork : .berlin ≤ fork)
     (by gas_ok)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   refine ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, ?_⟩
-  rw [hss, mkey_addrArg0]
+  rw [hss, mkey_addrArg]
 
 /-- `deprecate(a)` by the owner, when the `SSTORE` cannot complete (`NoWrite`: a static frame, no
 account for `C`, or at most 2300 gas left there): the run reaches the `SSTORE` of slot 10 (`Stuck`).

@@ -123,7 +123,7 @@ theorem dep_balanceOf_complete (hfork : .berlin ≤ fork)
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
   obtain ⟨hg0, z, w, hz, hrunz⟩ := dep_balanceOf_split hfork hsize' hsel hdep start within hrun hok
-  obtain ⟨c, hcode⟩ := fromExt_found hfork (by decide) hz w hrunz hok
+  obtain ⟨c, hcode⟩ := fromExt_found (by decide) hz w hrunz hok
   obtain ⟨r, hroute, hw, hgc, hdepth, hCE⟩ := fromExt (U := upWord (storageAt state message.currentTarget 10))
     (rest := [0x84, 0x70a08231, upWord (storageAt state message.currentTarget 10), 0,
       addrArg message.data 0, 0x05e7, BitVec.ofNat 256 (selector message.data)])

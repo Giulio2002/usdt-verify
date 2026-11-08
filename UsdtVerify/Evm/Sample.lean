@@ -177,10 +177,6 @@ theorem wordArg_data1 (hs : sel.size = 4) (a : U256) : wordArg (data1 sel a) 0 =
   have := loadWord_append_wordBytes sel a
   rwa [hs] at this
 
-theorem wordArg_data2_0 (hs : sel.size = 4) (a b : U256) : wordArg (data2 sel a b) 0 = a := by
-  have := loadWord_append_wordBytes_append sel (wordBytes b) a
-  rwa [hs] at this
-
 theorem wordArg_data2_1 (hs : sel.size = 4) (a b : U256) : wordArg (data2 sel a b) 1 = b := by
   have := loadWord_append_wordBytes (sel ++ wordBytes a) b
   rwa [ByteArray.size_append, hs, size_wordBytes] at this

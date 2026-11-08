@@ -4,6 +4,9 @@ import UsdtVerify.Usdt.Code
 /-!
 # Helpers for stepping through `CODE`
 
+Tactics that close the side goals about `CODE` (its bytes, its PUSH data, its jump
+destinations), and the opcode rules with those goals closed.
+
 - `pushData_CODE`: the data of a PUSH at `pc`, read through `codeByte`.
 - `code_fact`: closes `pc < CODE.size`, `CODE[pc] = b` and `pushData CODE pc n = w`.
 - `valid_dest`: closes `isValidJumpDest (validJumpDestinations CODE) d = true`.
@@ -29,7 +32,7 @@ macro "code_fact" : tactic => `(tactic| first
   | (rw [size_CODE]; decide))
 
 macro "valid_dest" : tactic =>
-  `(tactic| exact valid_CODE (by decide) (by decide +kernel) (by decide))
+  `(tactic| exact valid_CODE (by decide +kernel) (by decide))
 /-- PUSH1 of the byte `b`. -/
 macro "push1R " b:term : term =>
   `(Gas.push1G (byte := $b) (by code_fact) (by code_fact) (by code_fact) (by gas_ok) (by stk_ok))

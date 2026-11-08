@@ -866,7 +866,7 @@ theorem spec_depD (hfork : .berlin ≤ fork)
     have hacc : hasAccount (incorporateChild fork caller child).state message.currentTarget := by
       rw [state_incorporateChild]; exact hkeep caller msg child hcal hfwd he
     obtain ⟨after, hreach, hrun, hq⟩ := tailD (fork := fork) (message := message)
-      hfork (mkey_addrArg0 message.data) hstatic hacc
+      hfork (mkey_addrArg message.data 0) hstatic hacc
       (size_outMemOf hB child.output) (mload_outMemOf hB (by rw [memoryExtend_zero]; exact ptr_memD message) child.output)
       (x := BitVec.ofNat 256 (selector message.data)) rfl rfl
       (gas := gas - preCostD fork c0 cL c10 cU - ((callGasD fork gas c0 cL c10 cU (callRD substate state message r)).cost + 0) + child.gas)
@@ -993,7 +993,7 @@ theorem spec_depD_g (hfork : .berlin ≤ fork)
   have hacc : hasAccount (incorporateChild fork caller child).state message.currentTarget := by
     rw [state_incorporateChild]; exact hacc0
   obtain ⟨after, hreach, hrun, hq⟩ := tailD_g (fork := fork) (message := message)
-    hfork (mkey_addrArg0 message.data) hstatic hacc
+    hfork (mkey_addrArg message.data 0) hstatic hacc
     (size_outMemOf hB child.output) (mload_outMemOf hB (by rw [memoryExtend_zero]; exact ptr_memD message) child.output)
     (x := BitVec.ofNat 256 (selector message.data)) rfl rfl
     (gas := gas - preCostD fork c0 cL c10 cU - ((callGasD fork gas c0 cL c10 cU (callRD substate state message r)).cost + 0) + child.gas)

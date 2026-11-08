@@ -4,6 +4,9 @@ import UsdtVerify.Usdt.Spec.Transfer
 /-!
 # setParams(uint256,uint256): the specifications from pc 0
 
+Proves what a call of setParams does from pc 0: the success path, the reverts, and the failed
+assert on the overflow of `m * 10^d`.
+
 The parts below keep their own headers:
 
 - setParams(uint256, uint256): the specifications from pc 0

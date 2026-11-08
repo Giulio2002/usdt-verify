@@ -365,10 +365,6 @@ def SEL_T : ByteArray := ⟨#[0x6e, 0x18, 0x98, 0x0a]⟩
 
 theorem sel_T : (wordBytes (selWord 0x6e18980a)).extract 0 4 = SEL_T := by decide +kernel
 
-/-- An address argument is already masked: its masks change nothing. -/
-theorem mkey_addrArg (d : ByteArray) (i : Nat) : mkey (addrArg d i) = addrArg d i := by
-  simp only [mkey, addrArg, mask_mask]
-
 /-- The call data that `transfer` forwards when deprecated:
 `transferByLegacy(msg.sender, _to, _value)`, i.e. the selector 0x6e18980a, then the caller, `_to`
 (argument word 0 masked to 160 bits) and `_value` (argument word 1) as words. -/
@@ -383,7 +379,7 @@ abbrev memT (message : Message fork) : ByteArray :=
 
 theorem data_memT (message : Message fork) :
     memoryReadBytes (memoryExtend (memT message) 0) 96 100 = dataT message := by
-  rw [memoryExtend_zero, memT, data_W4 (size_MEMK _ _), sel_T, mkey_addrArg]
+  rw [memoryExtend_zero, memT, data_W4 (size_MEMK _ _), sel_T, TransferOk.mkey_addrArg]
 
 /-- The gas of the path from pc 0 to the CALL, for `transfer`. -/
 abbrev preCostT (fork : Fork) (c0 cB c10 cU : Bool) : Nat :=
@@ -857,7 +853,7 @@ abbrev memA (message : Message fork) : ByteArray :=
 
 theorem data_memA (message : Message fork) :
     memoryReadBytes (memoryExtend (memA message) 0) 96 100 = dataA message := by
-  rw [memoryExtend_zero, memA, data_W4 size_MEM0, sel_A, mkey_addrArg]
+  rw [memoryExtend_zero, memA, data_W4 size_MEM0, sel_A, TransferOk.mkey_addrArg]
 
 /-- The gas of the path from pc 0 to the CALL, for `approve`. -/
 abbrev preCostA (fork : Fork) (c10 cU : Bool) : Nat := 724 + slotCost c10 + extCost fork cU

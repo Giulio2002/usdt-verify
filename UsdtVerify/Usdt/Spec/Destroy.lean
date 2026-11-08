@@ -5,6 +5,9 @@ import UsdtVerify.Usdt.Spec.Issue
 /-!
 # destroyBlackFunds(address): the specifications from pc 0
 
+Proves what a call of destroyBlackFunds does from pc 0, not deprecated: the reverts and the
+success path.
+
 The parts below keep their own headers:
 
 - destroyBlackFunds(address): the reverts
@@ -235,7 +238,7 @@ theorem toGetter (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
         (MEMB message) (gas - (1086 + slotCost c0 + slotCost cL)) (preState state message)
         (preSub substate message)) := by
   have hexp : exponentBytes (0 : U256) = 0 := by decide
-  have hk := mkey_addrArg0 message.data
+  have hk := mkey_addrArg message.data 0
   simp only [preState, preSub, MEMB, listSlot, hk] at hl hcL ⊢
   refine (toBody hsize hsize' hsel hv (by omega)).seq ?_
   step ownerOk hfork (by decide) (by simp) hc0 hown (by gas_ok)
@@ -577,8 +580,8 @@ theorem spec (hfork : .berlin ≤ fork)
         (destroyState state message) (destroySub fork substate state message)) := by
   simp only [costB, costT, dirty, balSlot, state1] at hstip2 hg ⊢
   have hkey : BalanceOf.key (addrArg message.data 0) = addrArg message.data 0 :=
-    mkey_addrArg0 message.data
-  have hk := mkey_addrArg0 message.data
+    mkey_addrArg message.data 0
+  have hk := mkey_addrArg message.data 0
   have hacc1 : hasAccount (readState state message) message.currentTarget :=
     hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
   have hM1 : (MEMB message).size = 96 := size_mapMem size_MEM0 _ _
@@ -626,7 +629,7 @@ theorem bad (hfork : .berlin ≤ fork)
     (hg : 1462 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB ≤ gas) :
     Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
   have hkey : BalanceOf.key (addrArg message.data 0) = addrArg message.data 0 :=
-    mkey_addrArg0 message.data
+    mkey_addrArg message.data 0
   have hM1 : (MEMB message).size = 96 := size_mapMem size_MEM0 _ _
   refine Triple.seq (toGetter hfork hsize hsize' hsel hv hown hl hc0 hcL (by omega)) ?_
   step depCheck hfork (Or.inr (Or.inl ⟨rfl, rfl⟩)) (by simp)
@@ -666,10 +669,10 @@ theorem low2 (hfork : .berlin ≤ fork)
     (hlow : gas < 3796 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB +
       costB fork state message + slotCost c1) :
     Gas.HoareG fork (At CODE message 0 [] .empty gas state substate) Gas.Stuck := by
-  simp only [costB, dirty, balSlot, state1] at hg hlow
+  simp only [costB, dirty, balSlot] at hg hlow
   have hkey : BalanceOf.key (addrArg message.data 0) = addrArg message.data 0 :=
-    mkey_addrArg0 message.data
-  have hk := mkey_addrArg0 message.data
+    mkey_addrArg message.data 0
+  have hk := mkey_addrArg message.data 0
   have hacc1 : hasAccount (readState state message) message.currentTarget :=
     hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc)))
   have hM1 : (MEMB message).size = 96 := size_mapMem size_MEM0 _ _

@@ -291,9 +291,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Gas.runMono_dupN
 #print axioms UsdtVerify.Complete.selector_cases
 #print axioms UsdtVerify.Gas.branchTableG
-#print axioms UsdtVerify.Complete.nonpayableG
-#print axioms UsdtVerify.Complete.spec_unknownG
-#print axioms UsdtVerify.Complete.spec_shortG
 #print axioms UsdtVerify.Complete.runFrame_ok_dispatch
 #print axioms UsdtVerify.Gas.runMono_pop
 #print axioms UsdtVerify.Gas.runMono_jump
@@ -315,7 +312,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Complete.no_ok
 #print axioms UsdtVerify.Complete.ok_totalSupply
 #print axioms UsdtVerify.Complete.ok_balanceOf
-#print axioms UsdtVerify.TransferFee.spec_fee
 #print axioms UsdtVerify.Complete.ok_transfer
 #print axioms UsdtVerify.Approve.spec_payload
 #print axioms UsdtVerify.Complete.ok_approve
@@ -621,7 +617,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Exact.transferFrom_ok_iff
 #print axioms UsdtVerify.Exact.transferFrom_low
 #print axioms UsdtVerify.Exact.runsOk_of_specUnder
-#print axioms UsdtVerify.Exact.fwd_ok_iff
 #print axioms UsdtVerify.Exact.routes_unique
 #print axioms UsdtVerify.Exact.totalSupply_dep_ok_iff
 #print axioms UsdtVerify.Exact.totalSupply_dep_low
@@ -671,7 +666,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Exact.transfer_iff_gas
 #print axioms UsdtVerify.Exact.transferFrom_mid
 #print axioms UsdtVerify.Exact.transferFrom_iff_gas
-#print axioms UsdtVerify.Exact.fwd_ok_iffQ
 #print axioms UsdtVerify.Exact.totalSupply_dep_ok_iff_gas
 #print axioms UsdtVerify.Exact.balanceOf_dep_ok_iff_gas
 #print axioms UsdtVerify.Exact.allowance_dep_ok_iff_gas
@@ -721,3 +715,59 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Exact.destroyBlackFunds_dep_ok_iff_fails
 #print axioms UsdtVerify.Sanity.failRunner_hans
 #print axioms UsdtVerify.Sanity.failRunner_hfail
+
+/-! Round 27: the `spec_*` from pc 0 that only their `runFrame_*` form printed, the helper lemmas
+that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrames.lean`. -/
+
+#print axioms UsdtVerify.TotalSupply.spec
+#print axioms UsdtVerify.BalanceOf.spec
+#print axioms UsdtVerify.Transfer.spec_paused
+#print axioms UsdtVerify.Transfer.spec_blacklisted
+#print axioms UsdtVerify.Transfer.spec_short
+#print axioms UsdtVerify.Approve.spec_revert
+#print axioms UsdtVerify.Summary.ownerWord_eq
+#print axioms UsdtVerify.Summary.ownerWordF_eq
+#print axioms UsdtVerify.Summary.toNat_add_of_lt'
+#print axioms UsdtVerify.Summary.toNat_sub_of_le'
+#print axioms UsdtVerify.Summary.storageAt_allowState_of_ne
+#print axioms UsdtVerify.Summary.logs_allowSub
+#print axioms UsdtVerify.AddrWriteSpec.runFrame_deprecate_notOwner
+#print axioms UsdtVerify.AddrWriteSpec.runFrame_transferOwnership_notOwner
+#print axioms UsdtVerify.AddrWriteSpec.runFrame_transferOwnership_zero
+#print axioms UsdtVerify.BlackListSpec.runFrame_add_notOwner
+#print axioms UsdtVerify.BlackListSpec.runFrame_remove
+#print axioms UsdtVerify.BlackListSpec.runFrame_remove_notOwner
+#print axioms UsdtVerify.Deprecated.runFrame_depNoCode
+#print axioms UsdtVerify.DeprecatedBalance.runFrame_depBNoCode
+#print axioms UsdtVerify.DeprecatedTransfer.runFrame_depANoCode
+#print axioms UsdtVerify.DeprecatedTransfer.runFrame_depTNoCode
+#print axioms UsdtVerify.DeprecatedTransferFrom.runFrame_depFNoCode
+#print axioms UsdtVerify.Destroy.runFrame_notOwner
+#print axioms UsdtVerify.Getters.runFrame_basisPointsRate
+#print axioms UsdtVerify.Getters.runFrame_decimals
+#print axioms UsdtVerify.Getters.runFrame_deprecated
+#print axioms UsdtVerify.Getters.runFrame_flag
+#print axioms UsdtVerify.Getters.runFrame_getOwner
+#print axioms UsdtVerify.Getters.runFrame_maximumFee
+#print axioms UsdtVerify.Getters.runFrame_maxUint
+#print axioms UsdtVerify.Getters.runFrame_owner
+#print axioms UsdtVerify.Getters.runFrame_totalSupplyVar
+#print axioms UsdtVerify.Getters.runFrame_upgradedAddress
+#print axioms UsdtVerify.GettersMap.runFrame_allowed
+#print axioms UsdtVerify.GettersMap.runFrame_balances
+#print axioms UsdtVerify.GettersMap.runFrame_getBlackListStatus
+#print axioms UsdtVerify.GettersMap.runFrame_isBlackListed
+#print axioms UsdtVerify.IssueSpec.runFrame_issue_notOwner
+#print axioms UsdtVerify.IssueSpec.runFrame_issue_req1
+#print axioms UsdtVerify.IssueSpec.runFrame_issue_req2
+#print axioms UsdtVerify.IssueSpec.runFrame_redeem_notOwner
+#print axioms UsdtVerify.IssueSpec.runFrame_redeem_req1
+#print axioms UsdtVerify.IssueSpec.runFrame_redeem_req2
+#print axioms UsdtVerify.PauseSpec.runFrame_pause_notOwner
+#print axioms UsdtVerify.PauseSpec.runFrame_pause_paused
+#print axioms UsdtVerify.PauseSpec.runFrame_unpause
+#print axioms UsdtVerify.PauseSpec.runFrame_unpause_notOwner
+#print axioms UsdtVerify.PauseSpec.runFrame_unpause_notPaused
+#print axioms UsdtVerify.SetParamsSpec.runFrame_bpHigh
+#print axioms UsdtVerify.SetParamsSpec.runFrame_feeHigh
+#print axioms UsdtVerify.SetParamsSpec.runFrame_notOwner

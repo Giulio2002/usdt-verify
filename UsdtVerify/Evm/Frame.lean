@@ -73,16 +73,6 @@ theorem NoDec.write_add {k m d : U256} (hacc : hasAccount S C)
     omega
   · exact NoDec.write_ne hacc hk _
 
-/-- A write of `old + d` after a read of the same slot (the order of the code). -/
-theorem NoDec.read_write_add {k m d : U256} (hacc : hasAccount S C)
-    (h : (storageAt S C m).toNat + d.toNat < 2 ^ 256) :
-    NoDec C k S (writeSlot (readSlot S C m) C m (add (storageAt S C m) d)) := by
-  have h' : (storageAt (readSlot S C m) C m).toNat + d.toNat < 2 ^ 256 := by
-    rw [storageAt_readSlot]; exact h
-  have := NoDec.write_add (k := k) (hasAccount_readSlot hacc) h'
-  rw [storageAt_readSlot] at this
-  exact (NoDec.read C m).trans this
-
 theorem NoDec.rd {k : U256} (h : NoDec C k S S') (c : Address) (m : U256) :
     NoDec C k S (readSlot S' c m) := h.trans (NoDec.read c m)
 

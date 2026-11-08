@@ -8,8 +8,8 @@ GENERIC GAP. Nothing here is specific to USDT; each rule holds for every code.
 
 They belong in EthLib's program logic and are kept here only until it has them.
 
-- EXP with its price from Spurious Dragon worked out (a corollary of EthLib's `exp`).
-- The opcodes LT, GT, DIV, AND, OR, SUB, MUL, NOT: their entries of the instruction table.
+The opcodes LT, GT, DIV, AND, OR, SUB, MUL, NOT: their entries of the instruction table.
+(EXP with its price from Spurious Dragon worked out is `Gas.expLG`, over `StepG`.)
 
 The proofs follow the rules of `Logic/Rules.lean` line for line.
 
@@ -69,26 +69,5 @@ theorem instruction_not :
   Logic.instruction_of_stackOnlyStep rfl
 
 end Table
-
-variable {code : ByteArray} {message : Message fork} {pc : Nat} {stack : List U256}
-  {memory : ByteArray} {gas : Nat} {state : State.TransactionState} {substate : Substate}
-
-/-- From Spurious Dragon, EXP costs 10 and 50 per byte of the exponent, by EIP-160.
-
-A corollary of EthLib's `exp`, with the price of the fork worked out. -/
-theorem exp (hfork : .spuriousDragon ≤ fork) {base exponent : U256} {rest : List U256}
-    (hlt : pc < code.size) (hbyte : code[pc] = 0x0a)
-    (hgas : 10 + 50 * exponentBytes exponent ≤ gas) :
-    Hoare fork (At code message pc (base :: exponent :: rest) memory gas state substate)
-      (At code message (pc + 1) (Evm.exp base exponent :: rest) memory
-        (gas - (10 + 50 * exponentBytes exponent)) state substate) := by
-  have price : OPCODE_EXP_BASE + (gasSchedule fork).OPCODE_EXP_PER_BYTE *
-      exponentBytes exponent = 10 + 50 * exponentBytes exponent := by
-    simp [OPCODE_EXP_BASE, gasSchedule, hfork]
-  have h := Logic.exp (fork := fork) (code := code) (message := message) (memory := memory)
-    (state := state) (substate := substate) (base := base) (exponent := exponent) (rest := rest)
-    hlt hbyte (by rw [price]; exact hgas)
-  rw [price] at h
-  exact h
 
 end UsdtVerify.Local

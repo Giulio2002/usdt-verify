@@ -2,13 +2,15 @@ import UsdtVerify.Usdt.Proofs.Pause
 import UsdtVerify.Usdt.Proofs.Transfer
 
 /-!
-# Blocks shared by the admin functions (round 7)
+# Blocks shared by the admin functions
+
+Proves the Hoare triples of the code blocks that the owner functions share.
 
 - `hashTail7`: the mapping-lookup tail of `TransferOk.hashTail` at its other copies.
 - `entry1`: the entry of a function with one address argument (value check, argument word 0
   masked to 160 bits, jump to the body).
-- `setLow`, `lowByte_setLow`: the word that the blacklist functions write, with its low byte.
-- `logAddr`: a log of one topic whose data is one address word, then the jump back and STOP.
+- `setLow`, `lowByte_setLow`, `bit_setLow`: the word that the blacklist functions write, with its
+  low byte and its other bits.
 -/
 
 namespace UsdtVerify.Admin
@@ -122,10 +124,6 @@ theorem entry1 {e r b : Nat} (hp : (e, r, b) ∈ ENTRY1) (hv : message.value = 0
     step jumpR
     exact restate (by decide) (congrArg (addrArg message.data 0 :: · :: [x]) (by decide)) rfl
       (by gas_ok) rfl rfl
-
-/-- The key word of an address argument is the argument. -/
-theorem mkey_addrArg0 (data : ByteArray) : mkey (addrArg data 0) = addrArg data 0 := by
-  simp only [mkey, addrArg, mask_mask]
 
 /-! ## The word of a blacklist flag -/
 

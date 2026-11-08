@@ -111,7 +111,7 @@ theorem dep_transfer_split (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.dat
         (shortState state message) (shortSubstate substate message) z' ∧
       Evm.runFrame (step fork) (step_decreases fork) bound runChild z' w = .ok s :=
   ok_split (Nat.le_refl _)
-    (fun g hg => prefixG_transfer hfork hsize hsize' hsel hv hnp hnb hdep hc0 hcB hc10 hg)
+    (fun _ hg => prefixG_transfer hfork hsize hsize' hsel hv hnp hnb hdep hc0 hcB hc10 hg)
     start within hrun hok
 
 /-- Every successful deprecated `transfer(to, value)` run, for any gas and any runner: not
@@ -168,7 +168,7 @@ theorem dep_transfer_complete (hfork : .berlin ≤ fork)
     omega
   obtain ⟨hg0, z, w, hz, hrunz⟩ :=
     dep_transfer_split hfork h4 hsize' hsel hv hp hb hdep hc0 hcB hc10 start within hrun hok
-  obtain ⟨c, hcode⟩ := fromExt_found hfork (by decide) hz w hrunz hok
+  obtain ⟨c, hcode⟩ := fromExt_found (by decide) hz w hrunz hok
   obtain ⟨r, hroute, hw, hgc, hdepth, hCE⟩ := fromExt (U := upWord (storageAt state message.currentTarget 10))
     (rest := [0xc4, 0x6e18980a, upWord (storageAt state message.currentTarget 10),
       wordArg message.data 1, addrArg message.data 0, 0x078a,
@@ -338,7 +338,7 @@ theorem dep_approve_complete (hfork : .berlin ≤ fork)
   have hl : 68 ≤ message.data.size := by omega
   obtain ⟨hg0, z, w, hz, hrunz⟩ := ok_split (Nat.le_refl _)
     (fun g hg => prefixG_approve hfork hl hsize' hsel hv hdep hc10 hg) start within hrun hok
-  obtain ⟨c, hcode⟩ := fromExt_found hfork (by decide) hz w hrunz hok
+  obtain ⟨c, hcode⟩ := fromExt_found (by decide) hz w hrunz hok
   obtain ⟨r, hroute, hw, hgc, hdepth, hCE⟩ := fromExt (U := upWord (storageAt state message.currentTarget 10))
     (rest := [0xc4, 0xaee92d33, upWord (storageAt state message.currentTarget 10), 0x40,
       wordArg message.data 1, addrArg message.data 0, 0x02a2,
@@ -503,7 +503,7 @@ theorem dep_transferFrom_complete (hfork : .berlin ≤ fork)
   obtain ⟨hg0, z, w, hz, hrunz⟩ := ok_split (Nat.le_refl _)
     (fun g hg => prefixG_transferFrom hfork h4 hsize' hsel hv hp hb hdep hc0 hcB hc10 hg)
     start within hrun hok
-  obtain ⟨c, hcode⟩ := fromExt_found hfork (by decide) hz w hrunz hok
+  obtain ⟨c, hcode⟩ := fromExt_found (by decide) hz w hrunz hok
   obtain ⟨r, hroute, hw, hgc, hdepth, hCE⟩ := fromExt (U := upWord (storageAt state message.currentTarget 10))
     (rest := [0xe4, 0x8b477adb, upWord (storageAt state message.currentTarget 10), valArg message,
       toArg message, fromArg message, 0x0392, BitVec.ofNat 256 (selector message.data)])

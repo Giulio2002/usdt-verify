@@ -5,8 +5,14 @@ import EthLib.Execution.Proofs.State.Tracker
 /-!
 # Storage, stated over slots
 
+Defines the word in a storage slot, the reads and accesses of a slot, the slot of a mapping entry
+and byte 20 of a word, and proves that a read keeps every word and an access keeps other slots
+as cold as they were.
+
 - `storageAt state target n`: the word in slot `n` of the account `target`.
-- `deprecatedByte w`: byte 20 of a word, from the least significant end (bits 160 to 167).
+- `coldIn`, `readSlot`, `accessSlot`: whether a slot is cold; the state and substate after SLOAD.
+- `mapSlot key base`: the slot of `key` in a mapping at base slot `base`.
+- `byte20 w`: byte 20 of a word, from the least significant end (bits 160 to 167).
 -/
 
 namespace UsdtVerify

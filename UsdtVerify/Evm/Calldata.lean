@@ -4,8 +4,12 @@ import EthLib.Base.Proofs.BigEndian
 /-!
 # Call data, stated over its bytes
 
+Defines the selector and the argument words of the call data, and proves that the word the
+dispatcher computes from the call data is the selector.
+
 - `selector data`: the number of the first four bytes of the call data, big-endian.
 - `selector_word`: the word that the dispatcher computes from the call data is that number.
+- `wordArg data i`, `addrArg data i`: argument word `i`, and its low 160 bits (`ADDR_MASK`).
 -/
 
 namespace UsdtVerify

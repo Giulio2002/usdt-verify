@@ -89,7 +89,7 @@ theorem dep_allowance_complete (hfork : .berlin ≤ fork)
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
   obtain ⟨hg0, z, w, hz, hrunz⟩ := ok_split (Nat.le_refl _)
     (fun g hg => prefixG_allowance hfork h4 hsize' hsel hv hdep hc10 hg) start within hrun hok
-  obtain ⟨c, hcode⟩ := fromExt_found hfork (by decide) hz w hrunz hok
+  obtain ⟨c, hcode⟩ := fromExt_found (by decide) hz w hrunz hok
   obtain ⟨r, hroute, hw, hgc, hdepth, hCE⟩ := fromExt (U := upWord (storageAt state message.currentTarget 10))
     (rest := [0xa4, 0xdd62ed3e, upWord (storageAt state message.currentTarget 10), 0,
       addrArg message.data 1, addrArg message.data 0, BitVec.ofNat 256 2132,

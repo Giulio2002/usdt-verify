@@ -5,6 +5,9 @@ import EthLib.Base.Proofs.U256
 /-!
 # Storage writes, stated over slots
 
+Defines the state and substate after an SSTORE, and proves how reads and writes of slots
+compose.
+
 GENERIC: nothing here is about a particular contract.
 
 - `writeSlot state target n v`: the state after SSTORE of `v` in slot `n` of `target` (the read

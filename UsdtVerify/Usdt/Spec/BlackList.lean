@@ -116,7 +116,7 @@ theorem listTail (hfork : .berlin ≤ fork) {s p q : Nat} {v t : U256}
         state substate)
       (Halted false .empty (gas - (1314 + slotCost c0 + slotCost cB + listCost fork state message v))
         (listState state message v) (listSub fork substate state message v t)) := by
-  have hm := mkey_addrArg0 message.data
+  have hm := mkey_addrArg message.data 0
   simp only [listCost] at hg ⊢
   have hsq : s + 87 = p := by rcases hp with ⟨rfl, rfl, -⟩ | ⟨rfl, rfl, -⟩ <;> rfl
   have hpq : p + 89 = q := by rcases hp with ⟨-, rfl, rfl, -⟩ | ⟨-, rfl, rfl, -⟩ <;> rfl

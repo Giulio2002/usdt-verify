@@ -4,6 +4,9 @@ import UsdtVerify.Usdt.Spec.Destroy
 /-!
 # The getters: the specifications from pc 0
 
+Proves what a call of each getter does from pc 0: it returns the word of its slot, or of its
+mapping entry.
+
 The parts below keep their own headers:
 
 - The getters without arguments
@@ -697,7 +700,7 @@ theorem spec_getBlackListStatus (hfork : .berlin ≤ fork) (hsize : 4 ≤ messag
         (readSlot state message.currentTarget (mapSlot (addrArg message.data 0) 6))
         (accessSlot substate message.currentTarget (mapSlot (addrArg message.data 0) 6))) := by
   have hexp : exponentBytes (0 : U256) = 0 := by decide
-  have hk := mkey_addrArg0 message.data
+  have hk := mkey_addrArg message.data 0
   refine Gas.SpecG.seq ((toEntry (t := 14) (e := 1222) (by decide) hsize hsize' hsel (by omega)).seq
     (entry1m (r := 1277) (b := 4523) (by decide) hv (by omega))) ?_
   step jumpdestR
@@ -738,9 +741,6 @@ theorem spec_getBlackListStatus (hfork : .berlin ≤ fork) (hsize : 4 ≤ messag
   rw [ho, isZero4_low]
 
 /-! ## allowed(a0, a1), allowance(a0, a1) -/
-
-theorem mkey_addrArg (data : ByteArray) (i : Nat) : mkey (addrArg data i) = addrArg data i := by
-  simp only [mkey, addrArg, mask_mask]
 
 /-- The slot of `allowed[a0][a1]`: `keccak(a1 ++ keccak(a0 ++ 5))`. -/
 abbrev allowSlot (data : ByteArray) : U256 :=

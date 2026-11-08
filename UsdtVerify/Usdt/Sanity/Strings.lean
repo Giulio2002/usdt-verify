@@ -50,7 +50,7 @@ theorem inv_mainnet (K : KeccakSep) (C : Address) : Invariant.Inv C (sM C) := by
   unfold Invariant.Inv sumBal tot
   have hb : ∀ x : U256, storageAt (sM C) C (mapSlot x 2) = 0 := fun x =>
     sM_other C (fun h => K.fixed x 7 (by decide) h.symm) (fun h => K.fixed x 8 (by decide) h.symm)
-  rw [sumTo_congr (g := fun _ => 0) _ (fun i _ => by simp only [bal, hb]; rfl), sumTo_zero,
+  rw [sumTo_congr (g := fun _ => 0) _ (fun i _ => by simp only [bal, hb]; rfl), DepInv.sumTo_zero,
     sM_other C (by decide) (by decide)]
   rfl
 

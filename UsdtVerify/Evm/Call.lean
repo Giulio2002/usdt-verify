@@ -2,7 +2,7 @@ import UsdtVerify.Evm.Split
 import UsdtVerify.Evm.Route
 
 /-!
-# The deprecated paths from EXTCODESIZE on, for any gas and any runner
+# EXTCODESIZE, GAS, SUB and CALL for any gas and any runner
 
 The deprecated paths do EXTCODESIZE of the upgraded address, a JUMPI on the size (no code:
 revert), GAS, SUB and CALL. GAS and CALL are not `RunMono`, so the gas-shift argument does not go
@@ -28,8 +28,8 @@ step fail or halt, `callStep_missing`), an access to `d` (`accCost`: 100 warm, 2
 cold from Glamsterdam; `routeCost`, in the extra price of the CALL), and the read and access of `d`
 in the state and substate (`routeState`, `routeSub`; these, and `callStep_child_r`, are in
 Evm/Route.lean). `callStep_low_r`, `callStep_deep_r`, `callStep_child_r` cover both routes
-(`callStep_low`, `callStep_deep` are their `none` case); `call_ok`, `CallEnd` and `fromExt` take
-the route. The message of a delegated CALL keeps the upgraded address as its current target and
+(`callStep_low`, `callStep_deep` are their `none` case); `call_ok` and `CallEnd` (and `fromExt`, in
+Usdt/Complete/Deprecated/Call.lean) take the route. The message of a delegated CALL keeps the upgraded address as its current target and
 runs the code of `d` with the precompiles disabled.
 -/
 
@@ -183,7 +183,7 @@ theorem callStep_low_r (hfork : .berlin ≤ fork)
     · refine .inl ⟨.outOfGas, ?_⟩
       simp [callStep, popCallOperands, popCallValue, CallKind.sendsValue, popWord, Stack.pop, bind,
         Except.bind, pure, Except.pure, accessAddress, hfork, checkGas, hG, callValueCost, hcb', hM,
-        hk, GasMeter.gasLeft, recordAccountRead, throw, throwThe, MonadExceptOf.throw]
+        hk, GasMeter.gasLeft, throw, throwThe, MonadExceptOf.throw]
     · refine .inr ?_
       rcases r with _ | ⟨d, dCode⟩
       · simp only [routeCost] at hdc
@@ -198,7 +198,7 @@ theorem callStep_low_r (hfork : .berlin ≤ fork)
       have hk2 : gas < cb + M + dc := by omega
       simp [hab, callStep, popCallOperands, popCallValue, CallKind.sendsValue, popWord, Stack.pop,
         bind, Except.bind, pure, Except.pure, accessAddress, hfork, checkGas, hG, accessDelegation,
-        accountCode, recordAccountRead, hgc, hga, hal, hcode, hdel', Except.mapError, callValueCost,
+        accountCode, recordAccountRead, hgc, hga, hcode, hdel', Except.mapError, callValueCost,
         keepReads, GasMeter.gasLeft, hcb', hdc', hM, hk, hk2, exceptionalHalt, throw, throwThe,
         MonadExceptOf.throw]
   · refine .inr ?_
@@ -215,7 +215,7 @@ theorem callStep_low_r (hfork : .berlin ≤ fork)
       simp [hab, callStep, popCallOperands, popCallValue, CallKind.sendsValue, popWord, Stack.pop,
         bind, Except.bind, pure, Except.pure, accessAddress, hfork, checkGas, hG, accessDelegation,
         accountCode, recordAccountRead, hgc, hga, hal, hcode, hdel', htw, hsd, Except.mapError,
-        callExtraGas, callNewAccountCost, callNewAccountStateGas, callValueCost,
+        callExtraGas, callNewAccountCost, callValueCost,
         payCall, messageCallGas, chargeGas, GasMeter.charge, keepReads, GasMeter.gasLeft, hcb', hM,
         h1, h2, exceptionalHalt]
     · obtain ⟨hpec, hdel, hdcode⟩ := hroute
@@ -228,7 +228,7 @@ theorem callStep_low_r (hfork : .berlin ≤ fork)
       simp [hab, callStep, popCallOperands, popCallValue, CallKind.sendsValue, popWord, Stack.pop,
         bind, Except.bind, pure, Except.pure, accessAddress, hfork, checkGas, hG, accessDelegation,
         accountCode, recordAccountRead, hgc, hga, hal, hcode, hdel', hdcode, htw, hsd,
-        Except.mapError, callExtraGas, callNewAccountCost, callNewAccountStateGas, callValueCost,
+        Except.mapError, callExtraGas, callNewAccountCost, callValueCost,
         payCall, messageCallGas, chargeGas, GasMeter.charge, keepReads, GasMeter.gasLeft, hcb', hdc',
         hM, h1, h2, exceptionalHalt]
 
@@ -314,8 +314,8 @@ theorem callStep_deep_r (hfork : .berlin ≤ fork)
       accountCode, recordAccountRead, hgc, hga, hal, hcode, hdel', htw, hsd, Except.mapError,
       callExtraGas, callNewAccountCost, callNewAccountStateGas, callValueCost,
       payCall, messageCallGas, chargeGas, GasMeter.charge, finishCall, genericCall, keepReads,
-      GasMeter.gasLeft, GasMeter.drain, GasMeter.reservoir, hcb', hM, hgas, Nat.not_lt.mpr hgas,
-      hmin, hmin2, hk1, hdeep, chargeStateGas, GasMeter.chargeState,
+      GasMeter.gasLeft, GasMeter.drain, hcb', hM, hgas, Nat.not_lt.mpr hgas,
+      hmin, hmin2, hdeep, chargeStateGas, GasMeter.chargeState,
       skipCall, refillStateGas, GasMeter.refill, GasMeter.credit, pushWord, Stack.push, hlen,
       advance, Functor.map, Except.map]
   · by_cases hG : fork ≥ .glamsterdam <;>
@@ -324,7 +324,7 @@ theorem callStep_deep_r (hfork : .berlin ≤ fork)
       accountCode, recordAccountRead, hgc, hga, hal, hcode, hdel', hdcode d dCode rfl, htw, hsd,
       Except.mapError, callExtraGas, callNewAccountCost, callNewAccountStateGas, callValueCost,
       payCall, messageCallGas, chargeGas, GasMeter.charge, finishCall, genericCall, keepReads,
-      GasMeter.gasLeft, GasMeter.drain, GasMeter.reservoir, hcb', hdc' d dCode rfl, hM, hgas,
+      GasMeter.gasLeft, GasMeter.drain, hcb', hdc' d dCode rfl, hM, hgas,
       Nat.not_lt.mpr hgas, hmin, hmin2, hk1, hk2, hdeep, chargeStateGas, GasMeter.chargeState,
       skipCall, refillStateGas, GasMeter.refill, GasMeter.credit, pushWord, Stack.push, hlen,
       advance, Functor.map, Except.map]
@@ -376,7 +376,7 @@ theorem callStep_missing (hfork : .berlin ≤ fork)
     · refine .inl ⟨.outOfGas, ?_⟩
       simp [callStep, popCallOperands, popCallValue, CallKind.sendsValue, popWord, Stack.pop, bind,
         Except.bind, pure, Except.pure, accessAddress, hfork, checkGas, hG, callValueCost, hk1,
-        GasMeter.gasLeft, recordAccountRead, throw, throwThe, MonadExceptOf.throw]
+        GasMeter.gasLeft, throw, throwThe, MonadExceptOf.throw]
     · by_cases hk2 : gas < callBaseCost fork (!decide (toAddressMasked a ∈ substate.accessedAddresses)) +
           (extendMemory memory.size [(i, isz), (o, osz)]).cost +
           accountAccessCost fork
@@ -517,6 +517,6 @@ theorem extcodesizeStep_notFound {evm : Evm fork Nat} {word : U256} {rest : List
       ((evm.state.recordAccountRead (toAddressMasked word)).getCode
         (evm.state.getAccount (toAddressMasked word)).codeHash) = Except.error e := missing
   rcases hc : GasMeter.charge _ _ with _ | _ <;>
-    simp [Except.map, accountCode, recorded, recorded']
+    simp [accountCode, recorded']
 
 end UsdtVerify.Complete

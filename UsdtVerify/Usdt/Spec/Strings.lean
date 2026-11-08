@@ -4,6 +4,9 @@ import EthLib.Execution.Proofs.Evm.PowMod
 /-!
 # name() and symbol(): the specifications from pc 0
 
+Proves what a call of name() or symbol() does from pc 0, for every form of string Solidity
+stores: the short form, the empty string and the long form.
+
 The parts below keep their own headers:
 
 - name() and symbol(): the string getters

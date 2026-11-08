@@ -7,6 +7,9 @@ import EthLib.Execution.Proofs.Evm.Logic.Log
 /-!
 # transfer(address,uint256): the blocks
 
+Proves the Hoare triples of the blocks of transfer, and its success path from 9883 with a fee
+of 0.
+
 The specifications that compose these blocks are in Usdt/Spec/Transfer.lean.
 
 The parts below keep their own headers:
@@ -174,7 +177,7 @@ theorem isZero3_byte0 {w : U256} (h : w.toNat % 256 ≠ 0) :
       Nat.and_two_pow_sub_one_eq_mod] at this
     exact h this
   unfold isZero
-  rw [if_neg hne]
+  rw [ite_eq_right hne]
   decide
 
 /-- The memory after a lookup in a mapping at base `b`: the key word at 0 and `b` at 32. -/
@@ -379,7 +382,7 @@ theorem shortRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.
   · have h68 : (add (0x40 : U256) (0x04 : U256)).toNat = 68 := by decide
     have hlt : lessThan (BitVec.ofNat 256 message.data.size) (add (0x40 : U256) (0x04 : U256)) = 1 := by
       simp only [lessThan, h68, BitVec.toNat_ofNat, Nat.mod_eq_of_lt (show message.data.size < 2 ^ 256 by omega)]
-      rw [if_pos hshort]
+      rw [ite_eq_left hshort]
     rw [hlt]
     decide
   step pushR 1 (0 : U256)
@@ -434,7 +437,7 @@ theorem payloadOk (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 
       0 := by
     have h68 : (add (0x40 : U256) (0x04 : U256)).toNat = 68 := by decide
     simp only [lessThan, h68, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hsz]
-    rw [if_neg (by omega)]
+    rw [ite_eq_right (by omega)]
   step jumpdestR
   step pushR 1 (0 : U256)
   step dupR 0
@@ -529,7 +532,7 @@ theorem capBlock (hfork : .berlin ≤ fork) {f0 v a : U256} {rest : List U256}
   step pushR 2 (0x26f1 : U256)
   by_cases hcap : f0.toNat > (storageAt state message.currentTarget 4).toNat
   · simp only [capCost, capped, hcap, ite_true] at hg ⊢
-    step jumpi0R (by simp only [greaterThan]; rw [if_pos hcap]; decide)
+    step jumpi0R (by simp only [greaterThan]; rw [ite_eq_left hcap]; decide)
     step pushR 1 (0x04 : U256)
     step Gas.sloadG hfork (cold := false) (by code_fact) (by code_fact)
       (coldIn_accessSlot_self _ _ _) (by gas_ok)
@@ -539,7 +542,7 @@ theorem capBlock (hfork : .berlin ≤ fork) {f0 v a : U256} {rest : List U256}
     exact restate (by decide) rfl rfl (by gas_ok) (readSlot_readSlot _ _ _)
       (accessSlot_accessSlot _ _ _)
   · simp only [capCost, capped, hcap, ite_false] at hg ⊢
-    step jumpiR (by simp only [greaterThan]; rw [if_neg hcap]; decide)
+    step jumpiR (by simp only [greaterThan]; rw [ite_eq_right hcap]; decide)
     exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
 
 /-- At 9969, the code calls `sub(_value, fee)`. -/
@@ -580,6 +583,10 @@ theorem ptr_mapMem {M : ByteArray} (hM : M.size = 96)
 
 /-- The key word of a mapping lookup: the word masked twice to 160 bits. -/
 abbrev mkey (x : U256) : U256 := bitwiseAnd ADDR_MASK (bitwiseAnd ADDR_MASK x)
+
+/-- The key word of an address argument is the argument: it is already masked. -/
+theorem mkey_addrArg (data : ByteArray) (i : Nat) : mkey (addrArg data i) = addrArg data i := by
+  simp only [mkey, addrArg, mask_mask]
 
 /-- The positions of the copies of the lookup tail used here: four in `transfer`, four in
 `approve`, nine in `transferFrom`, two in the owner's credit of `transfer`. -/
@@ -1150,7 +1157,7 @@ theorem bodyLow2 (hfork : .berlin ≤ fork)
   simp only [readCost, debitCost, rawFee, feeOf, balS, balT, debited, reads3] at hstip1 hg hlow hfee hbal hto ⊢
   have hacc3 : hasAccount (reads3 state message) message.currentTarget :=
     hasAccount_readSlot (hasAccount_readSlot (hasAccount_readSlot hacc))
-  simp only [debited, reads3, balS] at hacc3
+  simp only [reads3] at hacc3
   step payloadOk hlong hsz (by simp) (by gas_ok)
   step feeCall hfork (by simp) hc3 (by gas_ok)
   step mulBlock (by simp) (by valid_dest) hov (by gas_ok)

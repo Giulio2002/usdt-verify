@@ -34,7 +34,7 @@ theorem byteAt_CODE (i : Nat) : EthLib.Base.byteAt CODE i = codeByte i := by
   rw [CODE_eq, byteAt_ofNat]
 
 /-- A position that the walk from 0 reaches, holding JUMPDEST, is a valid jump destination. -/
-theorem valid_CODE {d : Nat} (ht : d < CODE_SIZE) (hw : walk CODE_NAT CODE_SIZE CODE_SIZE 0 d = true)
+theorem valid_CODE {d : Nat} (hw : walk CODE_NAT CODE_SIZE CODE_SIZE 0 d = true)
     (hb : codeByte d = 0x5b) : isValidJumpDest (validJumpDestinations CODE) d = true := by
   rw [CODE_eq]
   exact valid_of_walk hw hb

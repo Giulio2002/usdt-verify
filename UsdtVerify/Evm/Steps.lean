@@ -5,7 +5,10 @@ import EthLib.Execution.Proofs.Evm.Logic.Steps
 /-!
 # Helpers for stepping through any code
 
-- `repc`, `restate` (and `repcH`, `restateH` over `Step`): a frame is also a frame at an equal
+Tactics and small rules used to step through any code: equal frames, the price of SLOAD, and the
+side goals of gas and stack room.
+
+- `repc`, `restate` (and `repcH` over `Step`): a frame is also a frame at an equal
   program counter, or with equal parts.
 - `slotCost`: the price of SLOAD from Berlin.
 - `gas_ok`, `stk_ok`: close gas and stack-room side goals; `step r`: run one rule at the head of
@@ -42,13 +45,6 @@ theorem repcH {code : ByteArray} {message : Message fork} {pc pc' : Nat} {s : Li
     {m : ByteArray} {g : Nat} {st : State.TransactionState} {ss : Substate} (h : pc = pc') :
     Hoare fork (At code message pc s m g st ss) (At code message pc' s m g st ss) :=
   Gas.HoareG.toHoare (repc h)
-
-/-- `restate` over `Step`. -/
-theorem restateH {code : ByteArray} {message : Message fork} {pc pc' : Nat} {s s' : List U256}
-    {m m' : ByteArray} {g g' : Nat} {st st' : State.TransactionState} {ss ss' : Substate}
-    (hpc : pc = pc') (hs : s = s') (hm : m = m') (hg : g = g') (hst : st = st') (hss : ss = ss') :
-    Hoare fork (At code message pc s m g st ss) (At code message pc' s' m' g' st' ss') :=
-  Gas.HoareG.toHoare (restate hpc hs hm hg hst hss)
 
 /-- The price of SLOAD from Berlin, by EIP-2929: 2100 for a cold slot and 100 for a warm one. -/
 abbrev slotCost (cold : Bool) : Nat := if cold then 2100 else 100

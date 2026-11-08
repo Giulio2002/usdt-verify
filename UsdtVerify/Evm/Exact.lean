@@ -3,6 +3,9 @@ import UsdtVerify.Evm.Steps
 /-!
 # From a specification over `StepG` to the end of every successful run
 
+Proves that a specification over `StepG`, held for every gas from a bound on, fixes the end of
+every run of the interpreter loop that ends with no error, whatever the gas.
+
 - `ok_exact`: a specification to a normal halt that pays `cost`, proved for every gas from a bound
   `B ≥ cost` on. A run of the interpreter loop from the same frame with any gas that ends with no
   error ends in that halt: `cost ≤ gas`, the output, gas `gas - cost`, the state and the substate

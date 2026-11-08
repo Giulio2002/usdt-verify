@@ -3,6 +3,9 @@ import UsdtVerify.Usdt.Proofs.Approve
 /-!
 # approve(address,uint256): the specifications from pc 0
 
+Proves what a call of approve does from pc 0: the success paths and the revert over a nonzero
+allowance.
+
 The parts below keep their own headers:
 
 - approve(address,uint256): the specifications
@@ -468,7 +471,7 @@ theorem payloadRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : res
   · have h68 : (add (0x40 : U256) (0x04 : U256)).toNat = 68 := by decide
     have hlt : lessThan (BitVec.ofNat 256 message.data.size) (add (0x40 : U256) (0x04 : U256)) = 1 := by
       simp only [lessThan, h68, BitVec.toNat_ofNat, Nat.mod_eq_of_lt (show message.data.size < 2 ^ 256 by omega)]
-      rw [if_pos hshort]
+      rw [ite_eq_left hshort]
     rw [hlt]
     decide
   step pushR 1 (0 : U256)

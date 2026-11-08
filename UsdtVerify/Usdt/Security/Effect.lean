@@ -331,11 +331,6 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
   {substate : Substate} {bound : Nat} {runChild : MessageRunner fork Nat bound}
   {evm s : Evm fork Nat} {gas : Nat}
 
-/-- The getters: the end state only records reads. -/
-theorem same_reads {S' : State.TransactionState}
-    (h : ∀ n, storageAt S' message.currentTarget n = storageAt state message.currentTarget n) :
-    Effect message state S' := .same h
-
 /-- The six functions that forward the call when deprecated: approve, totalSupply,
 transferFrom, balanceOf, transfer, allowance. -/
 def FwdFn (x : Nat) : Prop :=

@@ -1311,6 +1311,49 @@ entry; `DESTS` = the 32 destinations).
   on any message, and the run ends at a failure on the forwarded one; the Summary gloss of
   `tailCost`; `answerRunnerAt_ans_gasD` needs an account of `C` in `S`).
 
+### Round 27: code quality (no main statement weakened)
+- Reachability check (a Lean script over the environment: the declarations of `Summary.lean`, the
+  names of `Test/Axioms.lean` and the names in RESULTS.md as roots, closure over the constants of
+  types and values): 13 unused lemmas removed (`NoDec.read_write_add`, `Gas.fails_error`,
+  `Gas.rel_error`, `Gas.repcG`, `Writes.congr_left`, `Local.exp`, `wordArg_data2_0`, `restateH`,
+  `Gas.hasAccount_readSlot_iff`, `TransferFee.ownerKey_eq`, `Security.same_reads`,
+  `TransferOk.mkey_addrArg` of Spec/Transfer, `TransferOk.recipientSlot_addrArg`). Left unused on
+  purpose: `Invariant.Steps.trans`, the `@[simp]` rfl lemmas `Gas.*_sh` and the two coercions of
+  Evm/Gas.lean (a `dsimp` or coercion use leaves no constant in the proof term).
+- Duplicates (a script grouping theorems by statement, up to reducible defeq): the copies over
+  `StepG` in Complete/Dispatch.lean (`preludeG`, `dispatchG`, `revert406G`, `spec_unknownG`,
+  `spec_shortG`, `valueRevertG`, `nonpayableG` and ten step macros) were the same statements as
+  `prelude`, `dispatch` (Map.lean) and `Fallback.*`, `Nonpayable.*` (Spec/Dispatch.lean), already
+  over `StepG`; `runFrame_ok_dispatch` now uses those. `mkey_addrArg` (three copies) is one lemma,
+  `TransferOk.mkey_addrArg data i` in Proofs/Transfer.lean (`Admin.mkey_addrArg0` folded in);
+  `Sanity.sumTo_zero` merged into `DepInv.sumTo_zero`. Left: the equal definitions `Untouched` /
+  `SameStore`, `BlackList.listSlot` / `TransferFrom.blackFrom`, `TransferOk.mkey` / `BalanceOf.key`
+  (main statements use them by name).
+- Exact/Deprecated.lean: the six `X_dep_ok_iff` other than destroyBlackFunds are derived from
+  `X_dep_ok_iff_fails` (same statements); `Exact.fwd_ok_iff` and `Exact.fwd_ok_iffQ` (Evm/Iff.lean),
+  then unused, removed.
+- Build warnings of our files: 56 unused simp arguments, 24 deprecated `if_pos`/`if_neg`, three
+  unused binders (`valid_CODE` no longer takes `ht`, `fromExt_found` no longer takes `hfork`:
+  both stronger). Only the module-system notes about EthLib imports remain.
+- Names: the Summary aliases `*_depNoCode` are now `*_dep_noCode`; LAYOUT.md states the naming
+  scheme. Headers: a lead sentence on what the file proves where it lacked one; stale lists fixed
+  (Evm/Storage, Evm/Calldata, Proofs/Common); Evm/Call.lean titled as generic; Code/Bytes.lean has
+  a header, written by `scripts/gen_code.py`. LAYOUT.md lists every file. `scripts/__pycache__`
+  untracked.
+- Test/Axioms.lean: one duplicate line dropped; added the six `spec_*` from pc 0 printed only
+  through their `runFrame_*` form, the six helper lemmas of Summary.lean and the 40 `runFrame_*`
+  of Spec/RunFrames.lean (708 entries).
+- Build cost: no file is slow or large (slowest Spec/Strings 14 s, Proofs/TransferFrom 12 s, from
+  lake's per-module times; whole build 1.79 GB max RSS), so no file was split.
+- Lines: Lean files +362 / -633 (net -271; without Test/Axioms.lean +306 / -627, net -321).
+- `lake build UsdtVerify` after each code commit: exit 0, 0 "error:" lines.
+- Independent accuracy check of LAYOUT, RESULTS, STATUS and the changed headers: seven items fixed
+  (the `G` suffix marks a `StepG` twin only where a `Step` form exists; Summary aliases only the
+  per-function theorems; Admin's header named a `logAddr` that never existed; Common's header
+  placed `MEM0`, which is in Map.lean; Sanity/Security has four witnesses, not three; Evm/Call's
+  header placed `fromExt`, which is in Usdt/Complete/Deprecated/Call.lean; RESULTS placed
+  `Gas.expLG` in Evm/Local/).
+
 ## Open (not proved)
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
@@ -1357,7 +1400,9 @@ entry; `DESTS` = the 32 destinations).
    CALLVALUE, CALLDATASIZE (a generic "read a frame value" rule), instruction-table lemmas for
    LT/GT/DIV/AND/OR/SUB/MUL/NOT, JUMPI on a condition *proved* 0, and EXP with its EIP-160 price
    worked out (a corollary of EthLib's `exp`, whose price is `gasSchedule fork`).
-   POP/DUPn/SWAPn/EXP now come from EthLib (#1223).
+   POP/DUPn/SWAPn/EXP now come from EthLib (#1223). Round 27: the `Step` form `Local.exp` was
+   unused and is removed; the EXP rule with its price worked out is `Gas.expLG` (over `StepG`,
+   Evm/GasRules.lean).
 2. (UPSTREAMED in #1238, local copy removed) Long code: a `#[...]` literal does not scale. Solved locally, generically
    (UsdtVerify/Generic/NatCode.lean): store code as ONE big-endian Nat literal; byte i is
    `n >>> (8*(size-1-i))` (Meta and kernel shift big numerals with GMP; `/ 256^k` does NOT work,
@@ -1453,6 +1498,13 @@ entry; `DESTS` = the 32 destinations).
    a fork-generic `callWith`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+- Round 27 (tree of commit c7647b1, rm -rf .lake/build, EthLib oleans prebuilt,
+  LEAN_NUM_THREADS=2): 136.79 s wall, 330.98 s user, 1788444672 bytes max RSS (`/usr/bin/time -l`),
+  exit 0, 0 "error:" lines, 0 warnings other than the module-system notes, lake counter [1392/1393].
+  Hash check: 11075 bytes, keccak256 b44fb4e9...ea55. `#print axioms`: 692 [propext,
+  Classical.choice, Quot.sound], 6 [propext, Quot.sound], 7 [propext], 3 with no axioms (708).
+  grep of UsdtVerify/ for sorry, admit, axiom declarations, native_decide, bv_decide,
+  decide +native, maxHeartbeats, maxRecDepth: none.
 - Round 26, second part (tree of commit 4413e35, rm -rf .lake/build, EthLib oleans prebuilt,
   LEAN_NUM_THREADS=2): 135.76 s wall, 334.81 s user, 1774419968 bytes max RSS (`/usr/bin/time -l`),
   exit 0, 0 "error:" lines, 1393 jobs. `#print axioms`: 648 [propext, Classical.choice,

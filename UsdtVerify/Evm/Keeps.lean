@@ -12,7 +12,7 @@ For any code and any message runner `runChild`:
   state `X` to a state `Y` with `R X Y`. It is an assumption on the runner (on what the code at
   `ua`, and whatever it calls, does), in the style of `KeepsInv`.
 
-`Writes.congr_left`, `NoDec.congr_left`: both relations depend on the storage of `C` only.
+`NoDec.congr_left`: the relation depends on the storage of `C` only.
 -/
 
 namespace UsdtVerify
@@ -48,10 +48,6 @@ theorem Keeps.mono {R R' : State.TransactionState → State.TransactionState →
   fun caller msg lt child hch hmc hmt he => hR _ _ (hk caller msg lt child hch hmc hmt he)
 
 variable {W : U256 → Prop} {S X Y : State.TransactionState}
-
-theorem Writes.congr_left (hX : ∀ n, storageAt X C n = storageAt S C n)
-    (h : Writes C W X Y) : Writes C W S Y :=
-  fun n hn => (h n hn).trans (hX n)
 
 theorem NoDec.congr_left {k : U256} (hX : ∀ n, storageAt X C n = storageAt S C n)
     (h : NoDec C k X Y) : NoDec C k S Y := by

@@ -818,6 +818,8 @@ ends with no error and the contract has an account in its end state".
   totalSupply, balanceOf, allowance; `TransferDepGuard` (also not paused, the caller not
   blacklisted); `ApproveDepGuard` (also at least 68 bytes); `TransferFromDepGuard` (also not
   paused, `f` not blacklisted); `DestroyDepGuard` (also `IsOwner`, `a` blacklisted, not static).
+  Since round 27 the six other than destroyBlackFunds are derived from `X_dep_ok_iff_fails`
+  (below): with `htail` the gas after the CALL is enough, and under `NoFail` `hfail` holds.
 - `X_dep_low`: if the gas is below the bound of `hg`, `RunsOk` does not hold, for every runner.
 - `X_dep_ok_iff_gas` (round 26, the six forwards other than destroyBlackFunds): the hypotheses of
   `X_dep_ok_iff` without `htail`, and `hans` with "ends with no error" replaced by "ends with no
@@ -879,10 +881,10 @@ ends with no error and the contract has an account in its end state".
 - The bytecode file is the deployed code. The interpreted hash check ties `CODE` to the file,
   and `data/SOURCE.md` ties the file to the chain.
 - A few generic rules are proved locally in this repository, and EthLib's model is not
-  modified. These rules are EXP with its price worked out, some instruction table
-  entries, EXTCODESIZE at every fork from Berlin (`Local.extcodesize`; EthLib's rule stops
-  before Glamsterdam), and that every message keeps the block of the state
-  (`UsdtVerify/Evm/Local/`). STOP and GAS come from EthLib. The CALL step lemmas at every fork
+  modified. These rules are some instruction table entries, EXTCODESIZE at every fork from
+  Berlin (`Local.extcodesize`; EthLib's rule stops before Glamsterdam), and that every message
+  keeps the block of the state (`UsdtVerify/Evm/Local/`), and EXP with its price worked out
+  (`Gas.expLG`, `UsdtVerify/Evm/GasRules.lean`). STOP and GAS come from EthLib. The CALL step lemmas at every fork
   (`callStep_child_r`, `callWithRS`, `callWithR`, `callStep_low_r`, `callStep_deep_r`, `callStep_missing`) are
   computed from EthLib's `callStep`. They are proved from EthLib's semantics, not assumed.
 

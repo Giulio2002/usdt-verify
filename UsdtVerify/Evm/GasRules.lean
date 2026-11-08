@@ -35,11 +35,6 @@ theorem rel_map_charge {k g c : Nat} {F : Nat → Evm fork Nat}
     simp only [h', ↓reduceIte, Except.map]
     rw [show g + k - c = (g - c) + k by omega, hF]
 
-theorem fails_error {e : EvmError} : Fails (fork := fork) (.error e) := .inl ⟨e, rfl⟩
-
-theorem rel_error {k : Nat} {e : EvmError} {hi : Except EvmError (Evm fork Nat)} :
-    Rel k (.error e) hi := .inl fails_error
-
 /-- A result that is an error for every outcome of the charge. -/
 theorem error_of_charge {r : Except EvmError (Evm fork Nat)} {g c : Nat}
     (h : ∀ g', GasMeter.charge g c = .ok g' → ∃ e, r = .error e)
@@ -53,7 +48,7 @@ theorem runMono_binaryOp (cost : Nat) (f : U256 → U256 → U256) :
   intro a k
   rcases hs : a.stack with ⟨_ | ⟨x, _ | ⟨y, rest⟩⟩, hp⟩
   · refine .inl (.inl ⟨.stackUnderflow, ?_⟩)
-    simp [binaryOp, popWord, Stack.pop, hs, bind, Except.bind, pure, Except.pure]
+    simp [binaryOp, popWord, Stack.pop, hs, bind, Except.bind]
   · refine .inl (.inl ⟨.stackUnderflow, ?_⟩)
     simp [binaryOp, popWord, Stack.pop, hs, bind, Except.bind, pure, Except.pure]
   · have h : a.stack.val = x :: y :: rest := by rw [hs]
@@ -65,7 +60,7 @@ theorem runMono_unaryOp (cost : Nat) (f : U256 → U256) :
   intro a k
   rcases hs : a.stack with ⟨_ | ⟨x, rest⟩, hp⟩
   · refine .inl (.inl ⟨.stackUnderflow, ?_⟩)
-    simp [unaryOp, popWord, Stack.pop, hs, bind, Except.bind, pure, Except.pure]
+    simp [unaryOp, popWord, Stack.pop, hs, bind, Except.bind]
   · have h : a.stack.val = x :: rest := by rw [hs]
     rw [unaryOp_cons h, unaryOp_cons (evm := sh k a) h]
     exact rel_map_charge (fun _ => rfl)
@@ -74,7 +69,7 @@ theorem runMono_calldataload : RunMono (fork := fork) calldataloadStep := by
   intro a k
   rcases hs : a.stack with ⟨_ | ⟨x, rest⟩, hp⟩
   · refine .inl (.inl ⟨.stackUnderflow, ?_⟩)
-    simp [calldataloadStep, popWord, Stack.pop, hs, bind, Except.bind, pure, Except.pure]
+    simp [calldataloadStep, popWord, Stack.pop, hs, bind, Except.bind]
   · have h : a.stack.val = x :: rest := by rw [hs]
     rw [calldataloadStep_cons h, calldataloadStep_cons (evm := sh k a) h]
     exact rel_map_charge (fun _ => rfl)
@@ -83,7 +78,7 @@ theorem runMono_mstore : RunMono (fork := fork) mstoreStep := by
   intro a k
   rcases hs : a.stack with ⟨_ | ⟨x, _ | ⟨y, rest⟩⟩, hp⟩
   · refine .inl (.inl ⟨.stackUnderflow, ?_⟩)
-    simp [mstoreStep, popWord, Stack.pop, hs, bind, Except.bind, pure, Except.pure]
+    simp [mstoreStep, popWord, Stack.pop, hs, bind, Except.bind]
   · refine .inl (.inl ⟨.stackUnderflow, ?_⟩)
     simp [mstoreStep, popWord, Stack.pop, hs, bind, Except.bind, pure, Except.pure]
   · have h : a.stack.val = x :: y :: rest := by rw [hs]
@@ -184,7 +179,7 @@ theorem runMono_jumpi : RunMono (fork := fork) jumpiStep := by
   intro a k
   rcases hs : a.stack with ⟨_ | ⟨d, _ | ⟨c, rest⟩⟩, hp⟩
   · refine .inl (.inl ⟨.stackUnderflow, ?_⟩)
-    simp [jumpiStep, popWord, Stack.pop, hs, bind, Except.bind, pure, Except.pure]
+    simp [jumpiStep, popWord, Stack.pop, hs, bind, Except.bind]
   · refine .inl (.inl ⟨.stackUnderflow, ?_⟩)
     simp [jumpiStep, popWord, Stack.pop, hs, bind, Except.bind, pure, Except.pure]
   · simp only [jumpiStep, popWord, Stack.pop, hs, chargeGas, bind, Except.bind, pure,
@@ -479,13 +474,6 @@ theorem reshapeG {pc : Nat} {s s' : List U256} {m m' : ByteArray} {g g' : Nat}
   subst hs hm hg
   exact Triple.of_imp fun _ h => h
 
-/-- `repc` over `StepG`. -/
-theorem repcG {pc pc' : Nat} {s : List U256} {m : ByteArray} {g : Nat}
-    {st : State.TransactionState} {ss : Substate} (h : pc = pc') :
-    HoareG fork (At code message pc s m g st ss) (At code message pc' s m g st ss) := by
-  subst h
-  exact Triple.of_imp fun _ h => h
-
 /-- `Hoare.gas_eq` over `StepG`. -/
 theorem HoareG.gas_eq {P : Evm fork Nat → Prop} {pc : Nat} {s : List U256} {m : ByteArray}
     {g g' : Nat} {st : State.TransactionState} {ss : Substate}
@@ -502,7 +490,7 @@ section
 ## More rules of opcodes over `StepG`
 
 POP, JUMP, MLOAD, KECCAK256, EXP, RETURN, STOP, SLOAD, SSTORE and LOG0..LOG4 are `RunMono`;
-their rules are EthLib's (and the local `Local.exp`), restated over `StepG`; SSTORE at every fork
+their rules are EthLib's, restated over `StepG`; SSTORE at every fork
 from Berlin (`sstoreG_any`, `sstoreWG`, price `writeCost`).
 -/
 
@@ -520,7 +508,7 @@ theorem runMono_pop : RunMono (fork := fork) popStep := by
   intro a k
   rcases hs : a.stack with ⟨_ | ⟨x, rest⟩, hp⟩
   · refine .inl (.inl ⟨.stackUnderflow, ?_⟩)
-    simp [popStep, popWord, Stack.pop, hs, bind, Except.bind, pure, Except.pure]
+    simp [popStep, popWord, Stack.pop, hs, bind, Except.bind]
   · have h : a.stack.val = x :: rest := by rw [hs]
     rw [popStep_cons h, popStep_cons (evm := sh k a) h]
     exact rel_map_charge (fun _ => rfl)
@@ -529,7 +517,7 @@ theorem runMono_exp : RunMono (fork := fork) (expStep fork) := by
   intro a k
   rcases hs : a.stack with ⟨_ | ⟨x, _ | ⟨y, rest⟩⟩, hp⟩
   · refine .inl (.inl ⟨.stackUnderflow, ?_⟩)
-    simp [expStep, popWord, Stack.pop, hs, bind, Except.bind, pure, Except.pure]
+    simp [expStep, popWord, Stack.pop, hs, bind, Except.bind]
   · refine .inl (.inl ⟨.stackUnderflow, ?_⟩)
     simp [expStep, popWord, Stack.pop, hs, bind, Except.bind, pure, Except.pure]
   · have h : a.stack.val = x :: y :: rest := by rw [hs]
@@ -540,7 +528,7 @@ theorem runMono_mload : RunMono (fork := fork) mloadStep := by
   intro a k
   rcases hs : a.stack with ⟨_ | ⟨x, rest⟩, hp⟩
   · refine .inl (.inl ⟨.stackUnderflow, ?_⟩)
-    simp [mloadStep, popWord, Stack.pop, hs, bind, Except.bind, pure, Except.pure]
+    simp [mloadStep, popWord, Stack.pop, hs, bind, Except.bind]
   · have h : a.stack.val = x :: rest := by rw [hs]
     rw [mloadStep_cons h, mloadStep_cons (evm := sh k a) h]
     exact rel_map_charge (fun _ => rfl)
@@ -549,7 +537,7 @@ theorem runMono_keccak256 : RunMono (fork := fork) keccak256Step := by
   intro a k
   rcases hs : a.stack with ⟨_ | ⟨x, _ | ⟨y, rest⟩⟩, hp⟩
   · refine .inl (.inl ⟨.stackUnderflow, ?_⟩)
-    simp [keccak256Step, popWord, Stack.pop, hs, bind, Except.bind, pure, Except.pure]
+    simp [keccak256Step, popWord, Stack.pop, hs, bind, Except.bind]
   · refine .inl (.inl ⟨.stackUnderflow, ?_⟩)
     simp [keccak256Step, popWord, Stack.pop, hs, bind, Except.bind, pure, Except.pure]
   · have h : a.stack.val = x :: y :: rest := by rw [hs]
@@ -560,8 +548,7 @@ theorem runMono_return : RunMono (fork := fork) returnStep := by
   intro a k
   rcases hs : a.stack with ⟨_ | ⟨x, _ | ⟨y, rest⟩⟩, hp⟩
   · refine .inl (.inl ⟨.stackUnderflow, ?_⟩)
-    simp [returnStep, haltWithOutput, popWord, Stack.pop, hs, bind, Except.bind, pure,
-      Except.pure]
+    simp [returnStep, haltWithOutput, popWord, Stack.pop, hs, bind, Except.bind]
   · refine .inl (.inl ⟨.stackUnderflow, ?_⟩)
     simp [returnStep, haltWithOutput, popWord, Stack.pop, hs, bind, Except.bind, pure,
       Except.pure]
@@ -578,7 +565,7 @@ theorem runMono_jump : RunMono (fork := fork) jumpStep := by
   intro a k
   rcases hs : a.stack with ⟨_ | ⟨d, rest⟩, hp⟩
   · refine .inl (.inl ⟨.stackUnderflow, ?_⟩)
-    simp [jumpStep, popWord, Stack.pop, hs, bind, Except.bind, pure, Except.pure]
+    simp [jumpStep, popWord, Stack.pop, hs, bind, Except.bind]
   · simp only [jumpStep, popWord, Stack.pop, hs, chargeGas, bind, Except.bind, pure,
       Except.pure, sh, GasMeter.charge]
     by_cases hg : a.gas < OPCODE_JUMP
@@ -594,7 +581,7 @@ theorem runMono_sload : RunMono (fork := fork) sloadStep := by
   intro a k
   rcases hs : a.stack with ⟨_ | ⟨x, rest⟩, hp⟩
   · refine .inl (.inl ⟨.stackUnderflow, ?_⟩)
-    simp [sloadStep, popWord, Stack.pop, hs, bind, Except.bind, pure, Except.pure]
+    simp [sloadStep, popWord, Stack.pop, hs, bind, Except.bind]
   · have h : a.stack.val = x :: rest := by rw [hs]
     rw [sloadStep_cons h, sloadStep_cons (evm := sh k a) h]
     simp only [accessStorageKey]
@@ -662,7 +649,7 @@ theorem chargeGas_sh {b : Evm fork Nat} {c k : Nat} (h : ¬ b.gas < c) :
     chargeGas b c = .ok { b with gas := b.gas - c } ∧
       chargeGas (sh k b) c = .ok (sh k { b with gas := b.gas - c }) := by
   have h' : ¬ b.gas + k < c := by omega
-  simp only [chargeGas, GasMeter.charge, bind, Except.bind, gas_sh, h, h', ↓reduceIte, pure,
+  simp only [chargeGas, GasMeter.charge, bind, Except.bind, h, h', ↓reduceIte, pure,
     Except.pure, sh]
   refine ⟨by first | trivial | rfl, ?_⟩
   congr 2
@@ -672,7 +659,7 @@ theorem chargeStateGas_sh {b : Evm fork Nat} {c k : Nat} (h : ¬ b.gas < c) :
     chargeStateGas b c = .ok { b with gas := b.gas - c } ∧
       chargeStateGas (sh k b) c = .ok (sh k { b with gas := b.gas - c }) := by
   have h' : ¬ b.gas + k < c := by omega
-  simp only [chargeStateGas, GasMeter.chargeState, bind, Except.bind, gas_sh, h, h', ↓reduceIte,
+  simp only [chargeStateGas, GasMeter.chargeState, bind, Except.bind, h, h', ↓reduceIte,
     pure, Except.pure, sh]
   refine ⟨by first | trivial | rfl, ?_⟩
   congr 2
@@ -780,7 +767,8 @@ theorem expG {base exponent : U256} {rest : List U256} (hlt : pc < code.size)
   rw [expStep_of_cons hst, charge_nat (by rw [hg]; exact hgas)]
   exact ⟨_, rfl, hcode, hj, hm, by simp [hpc], rfl, hmem, by simp [hg], hrun, herr, hout, hs, hss⟩
 
-/-- The local `Local.exp` (price from Spurious Dragon) over `StepG`. -/
+/-- `expG` with the price from Spurious Dragon worked out (EIP-160: 10, and 50 per byte of the
+exponent). -/
 theorem expLG (hfork : .spuriousDragon ≤ fork) {base exponent : U256} {rest : List U256}
     (hlt : pc < code.size) (hbyte : code[pc] = 0x0a)
     (hgas : 10 + 50 * exponentBytes exponent ≤ gas) :

@@ -3,6 +3,9 @@ import UsdtVerify.Usdt.Proofs.Transfer
 /-!
 # transferFrom(address,address,uint256): the blocks
 
+Proves the Hoare triples of the blocks of transferFrom, and its success path from 8648 with a
+fee of 0.
+
 The specifications that compose these blocks are in Usdt/Spec/TransferFrom.lean.
 
 The parts below keep their own headers:
@@ -231,7 +234,7 @@ theorem payload (hlong : 100 ≤ message.data.size) (hsz : message.data.size < 2
       0 := by
     have h100 : (add (0x60 : U256) (0x04 : U256)).toNat = 100 := by decide
     simp only [lessThan, h100, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hsz]
-    rw [if_neg (by omega)]
+    rw [ite_eq_right (by omega)]
   step jumpdestR
   step pushR 1 (0 : U256)
   step dupR 0
@@ -371,7 +374,7 @@ theorem capBlock (hfork : .berlin ≤ fork) {f0 A v t f : U256} {rest : List U25
   step pushR 2 (0x2282 : U256)
   by_cases hcap : f0.toNat > (storageAt state message.currentTarget 4).toNat
   · simp only [capCost, capped, hcap, ite_true] at hg ⊢
-    step jumpi0R (by simp only [greaterThan]; rw [if_pos hcap]; decide)
+    step jumpi0R (by simp only [greaterThan]; rw [ite_eq_left hcap]; decide)
     step pushR 1 (0x04 : U256)
     step Gas.sloadG hfork (cold := false) (by code_fact) (by code_fact)
       (coldIn_accessSlot_self _ _ _) (by gas_ok)
@@ -381,7 +384,7 @@ theorem capBlock (hfork : .berlin ≤ fork) {f0 A v t f : U256} {rest : List U25
     exact restate (by decide) rfl rfl (by gas_ok) (readSlot_readSlot _ _ _)
       (accessSlot_accessSlot _ _ _)
   · simp only [capCost, capped, hcap, ite_false] at hg ⊢
-    step jumpiR (by simp only [greaterThan]; rw [if_neg hcap]; decide)
+    step jumpiR (by simp only [greaterThan]; rw [ite_eq_right hcap]; decide)
     exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
 
 /-- The word `MAX_UINT = 2^256 - 1`. -/
@@ -1019,7 +1022,7 @@ theorem body (hfork : .berlin ≤ fork)
     rw [originalAt_writeSlot hacc4, originalAt_readSlot, horig]
   have hT := slotCost_ge cT
   simp only [allowCostF, debitCostF, creditCostF, rawFee, feeOf, allowOf, balFrom, balTo,
-    creditedF, debitedF, allowedF, readsF, loggedSubF, creditedSubF, debitedSubF, allowedSubF,
+    creditedF, debitedF, allowedF, readsF, loggedSubF, allowedSubF,
     accessF] at hstip hg hfee hbal hto hallow hcF hcT hacc4 hacc5 horig horig2 ⊢
   step allowRead hfork (by simp) hcA (by gas_ok) hM
   step feeCall hfork (by simp) hc3 (by gas_ok)
@@ -1118,7 +1121,7 @@ theorem bodyLow2F (hfork : .berlin ≤ fork)
     simp only [originalAt_readSlot]
   have hT := slotCost_ge cT
   simp only [allowCostF, debitCostF, creditCostF, rawFee, feeOf, allowOf, balFrom, balTo,
-    creditedF, debitedF, allowedF, readsF, loggedSubF, creditedSubF, debitedSubF, allowedSubF,
+    debitedF, allowedF, readsF, allowedSubF,
     accessF] at hlow hg hfee hbal hto hallow hcF hcT hacc4 horig ⊢
   step allowRead hfork (by simp) hcA (by gas_ok) hM
   step feeCall hfork (by simp) hc3 (by gas_ok)

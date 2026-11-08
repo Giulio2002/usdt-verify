@@ -238,7 +238,7 @@ theorem ptr_memF (message : Message fork) :
 theorem data_memFD (message : Message fork) :
     memoryReadBytes (memoryExtend (memFD message) 0) 96 132 = dataF message := by
   rw [memoryExtend_zero, memFD, data_W5 (size_memF message), sel_F]
-  simp only [fromArg, toArg, DeprecatedTransfer.mkey_addrArg]
+  simp only [fromArg, toArg, TransferOk.mkey_addrArg]
 
 /-- The gas of the path from pc 0 to the CALL, for `transferFrom`. -/
 abbrev preCostF (fork : Fork) (c0 cB c10 cU : Bool) : Nat :=

@@ -85,7 +85,7 @@ theorem subG {p q : Nat} (hp : (p = 3735 ∧ q = 3736) ∨ (p = 4890 ∧ q = 489
 
 /-- At the EXTCODESIZE of the upgraded address (any of the six pcs), a run of the loop that ends
 with no error found the code of the address in the state. -/
-theorem fromExt_found (hfork : .berlin ≤ fork) {p : Nat}
+theorem fromExt_found {p : Nat}
     (hp : p = 3719 ∨ p = 4874 ∨ p = 5739 ∨ p = 3213 ∨ p = 4200 ∨ p = 7186)
     {U : U256} {rest : List U256} {M : ByteArray} {st : State.TransactionState} {ss : Substate}
     {G : Nat} {evm s : Evm fork Nat}

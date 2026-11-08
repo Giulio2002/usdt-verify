@@ -152,7 +152,7 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork)
   obtain ⟨hg0, z, w, hz, hrunz⟩ := ok_split (Nat.le_refl _)
     (fun g hg => prefixG_destroy hfork h4 hsize' hsel hv hown hl hdep hc0 hcL hc10 hg)
     start within hrun hok
-  obtain ⟨c, hcode⟩ := fromExt_found hfork (by decide) hz w hrunz hok
+  obtain ⟨c, hcode⟩ := fromExt_found (by decide) hz w hrunz hok
   obtain ⟨r, hroute, hw, hgc, hdepth, hCE⟩ := fromExt (U := upWord (storageAt state message.currentTarget 10))
     (rest := [0x84, 0x70a08231, upWord (storageAt state message.currentTarget 10), 0,
       addrArg message.data 0, 0x1f48, 0, addrArg message.data 0, 0x09b6,
@@ -204,12 +204,12 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork)
     obtain ⟨hstatic, hacc⟩ := Classical.not_not.mp hgood
     obtain ⟨hcost, hr, ho, hgs, hst, hss⟩ := ok_exact2
       (fun g h1 _ => tailD (fork := fork) (message := message)
-        hfork (mkey_addrArg0 message.data) hstatic hacc
+        hfork (mkey_addrArg message.data 0) hstatic hacc
         (size_outMemOf hB child.1.output)
         (mload_outMemOf hB (by rw [memoryExtend_zero]; exact ptr_memD message) child.1.output)
         (x := BitVec.ofNat 256 (selector message.data)) rfl rfl (gas := g) h1) hat wa hruna hok
     have hstip := Nat.le_of_not_lt fun hlt => no_ok_stuck_at
-      (tailMidD (x := BitVec.ofNat 256 (selector message.data)) hfork (mkey_addrArg0 message.data)
+      (tailMidD (x := BitVec.ofNat 256 (selector message.data)) hfork (mkey_addrArg message.data 0)
         hstatic hacc (size_outMemOf hB child.1.output)
         (mload_outMemOf hB (by rw [memoryExtend_zero]; exact ptr_memD message) child.1.output)
         rfl rfl hcost hlt) hat wa hruna hok

@@ -290,10 +290,6 @@ theorem sstoreNoWrite {key new : U256} {rest : List U256} {gas : Nat}
   · exact sstore_stuck hlt hbyte (.inr h)
   · exact sstore_low_stuck hist hlt hbyte h
 
-/-- A read of a slot keeps the account. -/
-theorem hasAccount_readSlot_iff {state : State.TransactionState} {C T : Address} {n : U256} :
-    hasAccount (readSlot state C n) T ↔ hasAccount state T := Iff.rfl
-
 /-- Not (not static and `P`): static, or not `P`. -/
 theorem bad_of_not {b : Bool} {P : Prop} (h : ¬(b = false ∧ P)) : b = true ∨ ¬P := by
   cases b <;> simp_all

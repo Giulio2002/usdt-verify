@@ -3,6 +3,9 @@ import UsdtVerify.Usdt.Proofs.TransferFrom
 /-!
 # transfer and transferFrom with a fee above 0: the blocks
 
+Proves the Hoare triples of the blocks that credit the owner with the fee, in transfer and
+transferFrom, and the success path of transfer from 9883 with a fee above 0.
+
 The parts below keep their own headers:
 
 - transfer(address,uint256): the blocks of the owner's credit, for a fee above 0
@@ -105,14 +108,6 @@ abbrev ownerKey (w0 : U256) : U256 := bitwiseAnd ADDR_MASK (div w0 (exp (0x0100 
 
 /-- The slot of `balances[owner]` for the word `w0` of slot 0. -/
 abbrev ownerSlot (w0 : U256) : U256 := mapSlot (mkey (ownerKey w0)) 2
-
-/-- The owner word is the low 160 bits of slot 0. -/
-theorem ownerKey_eq (w0 : U256) : ownerKey w0 = bitwiseAnd ADDR_MASK w0 := by
-  have he : exp (0x0100 : U256) (0 : U256) = 1 := by decide +kernel
-  have hd : div w0 1 = w0 := by
-    apply BitVec.eq_of_toNat_eq
-    simp [div]
-  rw [ownerKey, he, hd]
 
 /-- At 10298, the code reads `owner` (slot 0, warm) and `balances[owner]`, and calls
 `add(balance, fee)`. -/
@@ -539,7 +534,7 @@ theorem ownerPart (hfork : .berlin ≤ fork)
           (add (balOf st message.currentTarget) fee) false))
         (readSlot (ownedB st message.currentTarget fee) message.currentTarget 0)
         (feeSubB fork ss st message o fee send a)) := by
-  simp only [ownerSlotOf, balOf, ownedB, feeSubB, ownerLoggedB, ownedSubB] at hcO ho hown hg ⊢
+  simp only [ownerSlotOf, balOf, ownedB, feeSubB] at hcO ho hown hg ⊢
   step ownerCall (cO := cO) hfork rfl (by simp) hc0 (by rw [coldIn_accessSlot_of_warm hc0]; exact hcO)
     (by gas_ok) hM
   step addBlock (by simp) (by valid_dest) hown (by gas_ok)
@@ -607,7 +602,7 @@ theorem feeHead (hfork : .berlin ≤ fork)
       (recipientSlot a)) message.currentTarget :=
     hasAccount_readSlot (hasAccount_writeSlot hacc3)
   simp only [readCost, debitCost, creditCostFee, rawFee, feeOf, balS, balT, debited, reads3,
-    sendOf, creditedFee, creditedSubFee, debitedSub, access3, memA] at hg hfee hfv hbal hto
+    sendOf] at hg hfee hfv hbal hto
   simp only [readCost, debitCost, creditCostFee, rawFee, feeOf, balS, balT, debited, reads3,
     sendOf, creditedFee, creditedSubFee, debitedSub, access3, memA] at hacc4 ⊢
   step payloadOk hlong hsz (by simp) (by gas_ok)

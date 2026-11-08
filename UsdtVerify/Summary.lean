@@ -175,7 +175,7 @@ when the runner aborts.
   frame returns `wordBytes (loadWord o 0 32)`. `*_dep_fails`: a failing callee ⇒ REVERT, no output.
 - `totalSupply_dep_process` / `balanceOf_dep_process`: the same with the interpreter's own runner
   `processRunner`, for any code of the route with a `Spec` (EthLib's `meets_of_spec`, `RunsAs`).
-- `totalSupply_depNoCode` / `balanceOf_depNoCode`: empty code at `ua` ⇒ REVERT before any call.
+- `totalSupply_dep_noCode` / `balanceOf_dep_noCode`: empty code at `ua` ⇒ REVERT before any call.
 
 ## Deprecated: transfer, approve, transferFrom forward to `upgradedAddress` (no output range)
 With byte 20 of slot 10 set and `ua` holding a code `c` as above. The hypotheses are bundled in
@@ -196,7 +196,7 @@ StandardToken, which are not reached).
   substate from `incorporateChild` of the callee's frame. `*_dep_fails`: REVERT, no output.
 - `*_dep_process`: the interpreter's own runner `processRunner`, for any code of the route with a `Spec`
   whose stopped frames have no error (`meets_of_spec`, `RunsAs`) ⇒ STOP with no error, or abort.
-- `*_depNoCode`: empty code at `ua` ⇒ REVERT before any call.
+- `*_dep_noCode`: empty code at `ua` ⇒ REVERT before any call.
 What the upgraded contract does with the forwarded call (the balances it changes) is the callee's
 business: nothing is assumed or proved about it beyond the callee assumption.
 
@@ -292,7 +292,7 @@ Every `spec_*` of rounds 7 and 8 from pc 0 has a `runFrame_*` wrapper in the sam
   `balances[a]` (whatever it held) becomes 0. `destroyBlackFunds_dep_answers` (a callee answering
   `o`, ≥ 32 bytes: STOP, state `tailState S C a (first word of o)` for some `S`),
   `destroyBlackFunds_dep_fails`, `runFrame_destroyBlackFunds_dep_process` (EthLib's runner,
-  upgraded code with a `Spec`), `destroyBlackFunds_depNoCode` (empty code: REVERT before any
+  upgraded code with a `Spec`), `destroyBlackFunds_dep_noCode` (empty code: REVERT before any
   call, gas `1497 +` slots 0, `isBlackListed[a]`, 10 `+` address).
 
 ## Getters (Usdt/Spec/Getters.lean)
@@ -335,7 +335,7 @@ at 0x60. If that call ends with no error the frame returns the word at 0x60 afte
 callee's output; otherwise it reverts with no output. `*_answers`: a callee that answers `o`
 (≥ 32 bytes) ⇒ the run returns the first word of `o`. `*_fails` ⇒ REVERT, no output.
 `runFrame_allowance_dep_process`: the interpreter's own runner, for upgraded code with a `Spec`.
-`allowance_depNoCode`: empty code at `ua` ⇒ REVERT before any call (gas `1184 + slot 10 +
+`allowance_dep_noCode`: empty code at `ua` ⇒ REVERT before any call (gas `1184 + slot 10 +
 address`).
 
 ## A call that names no function — `fallback_unknown`, `fallback_short`
@@ -627,27 +627,27 @@ alias totalSupply_dep := Deprecated.spec_dep
 alias totalSupply_dep_answers := Deprecated.spec_dep_answers
 alias totalSupply_dep_fails := Deprecated.spec_dep_fails
 alias totalSupply_dep_process := Deprecated.runFrame_dep_process
-alias totalSupply_depNoCode := Deprecated.spec_depNoCode
+alias totalSupply_dep_noCode := Deprecated.spec_depNoCode
 alias balanceOf_dep := DeprecatedBalance.spec_depB
 alias balanceOf_dep_answers := DeprecatedBalance.spec_depB_answers
 alias balanceOf_dep_fails := DeprecatedBalance.spec_depB_fails
 alias balanceOf_dep_process := DeprecatedBalance.runFrame_depB_process
-alias balanceOf_depNoCode := DeprecatedBalance.spec_depBNoCode
+alias balanceOf_dep_noCode := DeprecatedBalance.spec_depBNoCode
 alias transfer_dep := DeprecatedTransfer.spec_depT
 alias transfer_dep_succeeds := DeprecatedTransfer.spec_depT_succeeds
 alias transfer_dep_fails := DeprecatedTransfer.spec_depT_fails
 alias transfer_dep_process := DeprecatedTransfer.runFrame_depT_process
-alias transfer_depNoCode := DeprecatedTransfer.spec_depTNoCode
+alias transfer_dep_noCode := DeprecatedTransfer.spec_depTNoCode
 alias approve_dep := DeprecatedTransfer.spec_depA
 alias approve_dep_succeeds := DeprecatedTransfer.spec_depA_succeeds
 alias approve_dep_fails := DeprecatedTransfer.spec_depA_fails
 alias approve_dep_process := DeprecatedTransfer.runFrame_depA_process
-alias approve_depNoCode := DeprecatedTransfer.spec_depANoCode
+alias approve_dep_noCode := DeprecatedTransfer.spec_depANoCode
 alias transferFrom_dep := DeprecatedTransferFrom.spec_depF
 alias transferFrom_dep_succeeds := DeprecatedTransferFrom.spec_depF_succeeds
 alias transferFrom_dep_fails := DeprecatedTransferFrom.spec_depF_fails
 alias transferFrom_dep_process := DeprecatedTransferFrom.runFrame_depF_process
-alias transferFrom_depNoCode := DeprecatedTransferFrom.spec_depFNoCode
+alias transferFrom_dep_noCode := DeprecatedTransferFrom.spec_depFNoCode
 alias nonpayable := Nonpayable.spec
 alias runFrame_nonpayable := Nonpayable.runFrame_spec
 alias pause := PauseSpec.spec_pause
@@ -713,8 +713,8 @@ alias allowance_dep := DeprecatedAllowance.spec_depAl
 alias allowance_dep_answers := DeprecatedAllowance.spec_depAl_answers
 alias allowance_dep_fails := DeprecatedAllowance.spec_depAl_fails
 alias runFrame_allowance_dep_process := DeprecatedAllowance.runFrame_depAl_process
-alias allowance_depNoCode := DeprecatedAllowance.spec_depAlNoCode
-alias runFrame_allowance_depNoCode := DeprecatedAllowance.runFrame_depAlNoCode
+alias allowance_dep_noCode := DeprecatedAllowance.spec_depAlNoCode
+alias runFrame_allowance_dep_noCode := DeprecatedAllowance.runFrame_depAlNoCode
 alias fallback_unknown := Fallback.spec_unknown
 alias fallback_short := Fallback.spec_short
 alias runFrame_fallback_unknown := Fallback.runFrame_unknown
@@ -723,8 +723,8 @@ alias destroyBlackFunds_dep := DeprecatedDestroy.spec_depD
 alias destroyBlackFunds_dep_answers := DeprecatedDestroy.spec_depD_answers
 alias destroyBlackFunds_dep_fails := DeprecatedDestroy.spec_depD_fails
 alias runFrame_destroyBlackFunds_dep_process := DeprecatedDestroy.runFrame_depD_process
-alias destroyBlackFunds_depNoCode := DeprecatedDestroy.spec_depDNoCode
-alias runFrame_destroyBlackFunds_depNoCode := DeprecatedDestroy.runFrame_depDNoCode
+alias destroyBlackFunds_dep_noCode := DeprecatedDestroy.spec_depDNoCode
+alias runFrame_destroyBlackFunds_dep_noCode := DeprecatedDestroy.runFrame_depDNoCode
 alias name_empty := StringsGen.spec_nameEmpty
 alias symbol_empty := StringsGen.spec_symbolEmpty
 alias name_long := StringsGen.spec_nameLong

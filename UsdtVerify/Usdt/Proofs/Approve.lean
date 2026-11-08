@@ -86,7 +86,7 @@ theorem payload {p d : Nat} (hp : (p = 2931 ∧ d = 2955) ∨ (p = 8206 ∧ d = 
       0 := by
     have h68 : (add (0x40 : U256) (0x04 : U256)).toNat = 68 := by decide
     simp only [lessThan, h68, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hsz]
-    rw [if_neg (by omega)]
+    rw [ite_eq_right (by omega)]
   rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
   all_goals
     step jumpdestR

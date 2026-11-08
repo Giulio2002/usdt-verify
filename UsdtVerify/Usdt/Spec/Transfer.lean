@@ -5,6 +5,9 @@ import EthLib.Execution.Proofs.Evm.Logic.Fault
 /-!
 # transfer(address,uint256): the specifications from pc 0
 
+Proves what a call of transfer does from pc 0, not deprecated: the reverts, the success paths
+with a fee of 0 and above 0, and the failed SafeMath asserts.
+
 The blocks are in Usdt/Proofs/Transfer.lean and Usdt/Proofs/Fee.lean.
 
 The parts below keep their own headers:
@@ -276,15 +279,6 @@ open Transfer SafeMath
 variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
   {substate : Substate}
 
-/-- The key word of the recipient is the recipient: argument word 0 is already masked. -/
-theorem mkey_addrArg (data : ByteArray) : mkey (addrArg data 0) = addrArg data 0 := by
-  simp only [mkey, addrArg, mask_mask]
-
-/-- The recipient's slot is the slot that `balanceOf(to)` reads. -/
-theorem recipientSlot_addrArg (data : ByteArray) :
-    recipientSlot (addrArg data 0) = BalanceOf.balanceSlot data := by
-  simp only [recipientSlot, mkey_addrArg]
-
 theorem ptr_MEMK (k b : U256) : loadWord (memoryReadBytes (MEMK k b) 64 32) 0 32 = 0x60 :=
   ptr_mapMem size_MEM0 mload_MEM0 k b
 
@@ -510,7 +504,7 @@ theorem addFault {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20
       simp only [add, BitVec.toNat_add]
       rw [Nat.mod_eq_sub_mod hov, Nat.mod_eq_of_lt (by omega)]
     simp only [lessThan, this]
-    rw [if_pos (by omega)]
+    rw [ite_eq_left (by omega)]
   step jumpdestR
   step pushR 1 (0 : U256)
   step dupR 0

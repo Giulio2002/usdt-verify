@@ -163,7 +163,7 @@ theorem transferFrom_bound (K : KeccakSep) (hfork : .berlin ≤ fork)
       rw [hdeb, IssueSpec.toNat_sub' hbal] at hN
       rw [hbf] at hN hbal
       omega
-    · rw [hkeep, hal, if_neg hne]
+    · rw [hkeep, hal, ite_eq_right hne]
       have hv : (valArg message).toNat ≤
           (storageAt state message.currentTarget (allowFrom message (fromArg message))).toNat := by
         rcases hallow with e | hv
@@ -171,7 +171,7 @@ theorem transferFrom_bound (K : KeccakSep) (hfork : .berlin ≤ fork)
         · exact hv
       rw [IssueSpec.toNat_sub' hv]
       omega
-    · rw [hkeep, hal, if_pos he, he]
+    · rw [hkeep, hal, ite_eq_left he, he]
   have hacc'' : hasAccount (debitedF (checkState state message) message (valArg message)
       (fromArg message)) message.currentTarget := by wchain
   rcases h with ⟨hfee, -, hst, -⟩ | ⟨-, hown, -, hst, -⟩

@@ -5,8 +5,15 @@ import EthLib.Execution.Proofs.Evm.Machine.Memory
 /-!
 # Blocks shared by several functions of USDT
 
-- `MEM0`: the memory after the prelude, and its facts.
-- `ret`: the block that returns one word, at 797 (totalSupply) and at 1511 (balanceOf).
+Proves the Hoare triples of the code blocks that several functions share: the returns of one
+word and the deprecation check, with the memory after the prelude and the tests of a flag byte.
+
+- `size_MEM0`, `mload_MEM0`, `read_after`: facts about `MEM0` (Map.lean), the memory after the
+  prelude.
+- `ret`, `retB`, `retA`: the blocks that return one word, one boolean, one address (at the pcs
+  `RET_PCS`, `BOOL_PCS`, `ADDR_PCS`).
+- `flag_eq`, `isZero3_flag`, `isZero3_flag_ne`, `isZero_flag_ne`: the tests of byte 20 of a word.
+- `depCheck`: the deprecation check of totalSupply, balanceOf and allowance.
 -/
 
 namespace UsdtVerify
@@ -290,7 +297,7 @@ theorem isZero3_flag {w : U256} (h : byte20 w ≠ 0) :
     rw [BitVec.toNat_ofNat, Nat.mod_eq_of_lt (by omega)] at this
     exact h this
   unfold isZero
-  rw [if_neg hne]
+  rw [ite_eq_right hne]
   decide
 
 /-- A clear flag makes the triple ISZERO of its test word nonzero. -/
