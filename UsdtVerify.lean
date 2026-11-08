@@ -48,6 +48,8 @@ import UsdtVerify.Usdt.Invariant.Calls
 import UsdtVerify.Usdt.Meter
 import UsdtVerify.Usdt.Refill.Approve
 import UsdtVerify.Usdt.Refill.Transfer
+import UsdtVerify.Usdt.Refill.Fee
+import UsdtVerify.Usdt.Refill.TransferFrom
 import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.Invariant.DeprecatedDestroy
 import UsdtVerify.Usdt.Invariant.Seq

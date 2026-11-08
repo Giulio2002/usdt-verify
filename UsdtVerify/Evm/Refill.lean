@@ -632,25 +632,27 @@ theorem writeCost_le_glam (hg : fork ≥ .glamsterdam) (o c w : U256) (cold : Bo
     STORAGE_WRITE]
   cases cold <;> simp only [Bool.false_eq_true, ↓reduceIte] <;> split <;> omega
 
-/-- **A stretch with one write.** A triple over `StepG` between two `At` frames, whose second
-state is the first one with slot `n` of `T` written to `w`, is one over `StepI` when the write
-refills nothing, `T` has an account, and the stretch pays the price of the write and at most
-80,000 more. -/
-theorem HoareG.toIW {code code' : ByteArray} {message message' : Message fork} {pc pc' : Nat}
+/-- **A stretch with one write over a state that reads the same.** A triple over `StepG` between
+two `At` frames, whose second state is `st₁` with slot `n` of `T` written to `w`, where `st₁` reads
+as the first state `st` (now: `getStorage`), is one over `StepI` when the write refills nothing,
+`T` has an account in `st₁`, and the stretch pays the price of the write and at most 80,000
+more. -/
+theorem HoareG.toIW' {code code' : ByteArray} {message message' : Message fork} {pc pc' : Nat}
     {stack stack' : List U256} {memory memory' : ByteArray} {g d : Nat}
-    {st : State.TransactionState} {ss ss' : Substate} {T : EthLib.Base.Address} {n w : U256}
+    {st st₁ : State.TransactionState} {ss ss' : Substate} {T : EthLib.Base.Address} {n w : U256}
     {cold : Bool}
     (h : HoareG fork (At code message pc stack memory g st ss)
       (At code' message' pc' stack' memory'
         (g - (d + writeCost fork (originalAt st T n) (storageAt st T n) w cold))
-        (writeSlot st T n w) ss'))
-    (hd : d ≤ 80000) (hacc : hasAccount st T)
+        (writeSlot st₁ T n w) ss'))
+    (hS : ∀ a k, st₁.getStorage a k = st.getStorage a k)
+    (hd : d ≤ 80000) (hacc : hasAccount st₁ T)
     (hle : d + writeCost fork (originalAt st T n) (storageAt st T n) w cold ≤ g)
     (hnr : sstoreStateRefill fork (originalAt st T n) (storageAt st T n) w = 0) :
     HoareI fork (At code message pc stack memory g st ss)
       (At code' message' pc' stack' memory'
         (g - (d + writeCost fork (originalAt st T n) (storageAt st T n) w cold))
-        (writeSlot st T n w) ss') := by
+        (writeSlot st₁ T n w) ss') := by
   by_cases hglam : fork ≥ .glamsterdam
   · intro c hp
     obtain ⟨e, hr, hq⟩ := h c hp
@@ -665,10 +667,10 @@ theorem HoareG.toIW {code code' : ByteArray} {message message' : Message fork} {
         e.state.getStorage a k = c.state.getStorage a k := by
       intro a k hne
       rw [hes, hcs, State.TransactionState.getStorage_setStorage_of_ne (setStorage_writeSlot hacc)
-        hne]
+        hne, ← hS a k]
       rfl
     have hwc := writeCost_le_glam hglam (originalAt st T n) (storageAt st T n) w cold
-    have hS : STORAGE_SET_STATE_GAS = 97920 := rfl
+    have hS' : STORAGE_SET_STATE_GAS = 97920 := rfl
     have hsg : sstoreStateGas fork (originalAt st T n) (storageAt st T n) w ≤ 97920 := by
       unfold sstoreStateGas; split <;> simp [STORAGE_SET_STATE_GAS, STATE_BYTES_PER_STORAGE_SET, CPSB]
     refine ⟨e, reaches_liftI hr fun y y1 hcy hy hye =>
@@ -688,6 +690,27 @@ theorem HoareG.toIW {code code' : ByteArray} {message message' : Message fork} {
         exact ite_eq_right_iff.mpr fun h => absurd ⟨h.2.1, h.2.2.1, h.2.2.2⟩ hn
       omega
   · exact HoareG.toI_lt (Nat.lt_of_not_le hglam) h
+
+/-- **A stretch with one write.** A triple over `StepG` between two `At` frames, whose second
+state is the first one with slot `n` of `T` written to `w`, is one over `StepI` when the write
+refills nothing, `T` has an account, and the stretch pays the price of the write and at most
+80,000 more. -/
+theorem HoareG.toIW {code code' : ByteArray} {message message' : Message fork} {pc pc' : Nat}
+    {stack stack' : List U256} {memory memory' : ByteArray} {g d : Nat}
+    {st : State.TransactionState} {ss ss' : Substate} {T : EthLib.Base.Address} {n w : U256}
+    {cold : Bool}
+    (h : HoareG fork (At code message pc stack memory g st ss)
+      (At code' message' pc' stack' memory'
+        (g - (d + writeCost fork (originalAt st T n) (storageAt st T n) w cold))
+        (writeSlot st T n w) ss'))
+    (hd : d ≤ 80000) (hacc : hasAccount st T)
+    (hle : d + writeCost fork (originalAt st T n) (storageAt st T n) w cold ≤ g)
+    (hnr : sstoreStateRefill fork (originalAt st T n) (storageAt st T n) w = 0) :
+    HoareI fork (At code message pc stack memory g st ss)
+      (At code' message' pc' stack' memory'
+        (g - (d + writeCost fork (originalAt st T n) (storageAt st T n) w cold))
+        (writeSlot st T n w) ss') :=
+  HoareG.toIW' h (fun _ _ => rfl) hd hacc hle hnr
 
 /-- **The frames of a run that refill nothing.** If a `StepI` chain goes from `sh k lo` to a
 stopped frame, then every running frame that `lo` reaches along `Step` refills nothing. The run
