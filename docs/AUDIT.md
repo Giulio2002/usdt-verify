@@ -780,3 +780,193 @@ statement was involved.
   hypotheses are jointly satisfiable, and its success side holds (T3).
 - Measurement caveat (Info): the 1.8 GB in the README is the `max RSS` from `/usr/bin/time -l`,
   the largest single process, not the sum over parallel jobs.
+
+# Fourth audit (USDT-40)
+
+A fourth independent reviewer, who wrote none of this code, audited the EIP-8037 work of rounds
+33 to 39 (head `81d7cd1`): Evm/{Meter, Refill, Shadow, ProcessMeter, CallMeter, CallSim, StepSim,
+RunC, RunCS}.lean, Usdt/Meter*.lean, Usdt/Refill/, Usdt/Invariant/{SeqMeter, DepMeter}.lean,
+Usdt/Security/{Meter, DepMeter}.lean, Usdt/Complete/Deprecated/Meter.lean, the T2 to T5 fixes, and
+the Glamsterdam sentences of the public README. Each claim was compared with the Lean statement
+(`#check`, `#print axioms`) and with EthLib at `fd3457dbf` (the pin of `lakefile.lean`). Scratch
+files lived outside the repository and are not committed. No theorem statement or README sentence
+was changed; README replacements were sent to the main session. Every Lean command ran under
+`safe.sh -m 9G`. `lake build`: exit 0, 1423 jobs, `CODE` 11075 bytes, keccak256
+`b44fb4e9…ea55`, 1064 `depends on axioms` lines and 7 `does not depend` lines, none with `sorryAx`.
+
+## Summary
+
+| # | Severity | Finding | Touches |
+|---|---|---|---|
+| U1 | Medium | The `processMessage` theorems over `StateGasMeter` use the default start meter. At Glamsterdam, `processTransaction` passes the meter left by the authorizations, which differs whenever an authorization pays state gas, so type-4 transactions to USDT are not covered | statements, README |
+| U2 | Low | No instance of `KeepsInvAtS`, `KeepsAtS` or `HonestBalanceAtS` for EthLib's runner, and no concrete run over `StateGasMeter`. The reviewer proved the first two for `processRunnerM` with STOP | Sanity, README |
+| U3 | Low | The `…AtS` runner hypotheses leave the reservoir of the forwarded message and the caller's meter free, although the CALL from reservoir 0 sends reservoir 0 | statements (optional) |
+| U4 | Low | README: smaller overstatements in the Glamsterdam paragraph | README |
+| U5 | Info | Checked and found sound (below) | none |
+
+## U1. The `processMessage` forms use a meter that `processTransaction` does not always use (Medium)
+
+**Evidence.** `goodCall_processS`, `process_value_failsS`, `process_stepS`
+(Usdt/Invariant/SeqMeter.lean), `process_stepDS`, `process_stepSD` (Usdt/Invariant/DepMeter.lean),
+`runOkS_process` and `process_stepSec` (Usdt/Security/Meter.lean) take
+`hproc : processMessage fork message state substate = .ok ended`. `#check` shows the elaborated
+term `processMessage fork message state substate (GasMeter.start message.gas message.reservoir) ⋯`.
+EthLib's `processMessageCall` (Transactions/Process.lean:337) calls
+`processMessage fork first.message first.state first.substate first.meter first.held`, where
+`first.meter` comes from `prepareFirstFrame` (Process.lean:275-312). At Glamsterdam that function
+applies the authorizations, whose `chargeAuthorization` (Transactions/Authorization.lean:172-182)
+charges `NEW_ACCOUNT_STATE_GAS` and `AUTH_BASE_STATE_GAS` with `chargeState`, and then calls
+`GasMeter.commit`. From reservoir 0 the charge spills, and the commit moves the spill to
+`committed`. From a reservoir above 0 it lowers `reservoir` below `grant`. Either way the meter is
+not `start (gasHeld meter) reservoir`. Machine-checked in scratch (exit 0, axioms
+`[propext, Quot.sound]`):
+
+```lean
+theorem commit_ne_start (g a : Nat) (ha : 0 < a) (hag : a ≤ g) (m : StateGasMeter)
+    (h : StateGasMeter.chargeState (StateGasMeter.start g 0) a = .ok m) :
+    StateGasMeter.commit m ≠
+      StateGasMeter.start (StateGasMeter.gasHeld (StateGasMeter.commit m))
+        (StateGasMeter.commit m).reservoir
+```
+
+**Consequence.** For a Glamsterdam transaction to USDT whose authorization list pays any state gas
+(the usual case for an authorization that sets a delegation), the `processMessage` term that EthLib
+evaluates is not the one in `hproc`, and none of the seven theorems applies to it. The README
+sentence "every top-level message to USDT that EthLib runs with the EIP-8037 meter, from Paris on,
+is a step that keeps the invariant" is wider than the statements. Before Glamsterdam no
+authorization touches the meter, so the `Nat` forms are not affected. The substance is very likely
+true: the start meter differs only in `committed`, `grant` and `baseline`, which matter only for a
+rollback, and the step `shadow_ends` already allows any meter. It is not proved.
+
+**Suggested fix.** State the seven theorems for `processMessage fork message state substate meter
+held` with any `meter : StateGasMeter` and `held`, and `GasMeter.reservoir meter = 0` in place of
+`message.reservoir = 0` for the deprecated forms. This needs `processMessage_map_valM` and
+`at_startFrameS` for a given start meter (the frame's `toNat` is the fresh frame of `CODE` with gas
+`meter.gasLeft`). Until then, the README should say that the top-level results are for a message
+whose frame starts with a fresh meter, which excludes transactions whose authorizations pay state
+gas (replacement sent).
+
+## U2. No instance of the runner assumptions over `StateGasMeter` (Low)
+
+**Evidence.** No file in Usdt/Sanity/ mentions `StateGasMeter`. `KeepsInvAtS`, `HonestBalanceAtS`
+and `KeepsAtS` appear only in Invariant/DepMeter.lean, Security/DepMeter.lean, Summary.lean and
+Test/Axioms.lean. So the repository shows no instance of any of them, for EthLib's runner or any
+other, and no concrete run over `StateGasMeter` where an `_sgm`, `_any` or `S` theorem applies.
+
+**Reviewer's instances (scratch, exit 0, axioms `[propext, Classical.choice, Quot.sound]`).** The
+proof of `Sanity.process_stop` carries over to `processRunnerM` with a direct computation of the
+one STOP step:
+
+```lean
+theorem step_stopS (f : Evm fork StateGasMeter) (hc : f.code = Sanity.STOP_CODE) (hpc : f.pc = 0) :
+    step fork f = .ok (.next (advance { f with running := false })) := by
+  have h : f.pc < f.code.size := by rw [hc, hpc]; decide
+  have hd : Op.ofByte fork f.code[f.pc] = some .stop := by simp only [hc, hpc]; rfl
+  rw [step_of_instruction h hd (by rfl)]; rfl
+
+theorem process_stopS (hparis : .paris ≤ fork) {bound : Nat} (caller : Evm fork StateGasMeter)
+    {msg : Message fork} (lt : msg.gas < bound) (hcode : msg.code = Sanity.STOP_CODE)
+    {ua : Address} (ht : msg.target = some ua) (hv : msg.value = 0)
+    (hpre : precompileAddress fork msg = none)
+    {child : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ msg.gas }}
+    (hch : ProcessMeter.processRunnerM fork bound caller msg lt = .ok child) :
+    child.1.error = none ∧ child.1.state = caller.state
+  -- runFrame_of_step_eq_next, runFrame_of_running_eq_false, processMessage_map_valM
+
+theorem keepsInvAtS_process_stop (hparis : .paris ≤ fork) {bound : Nat}
+    {message : Message fork} {S : State.TransactionState}
+    (hcode : S.getCode (S.getAccount (upAddr S message)).codeHash = .ok Sanity.STOP_CODE)
+    (hnp : Precompiles.isPrecompile fork (upAddr S message).toU256.toNat = false) :
+    KeepsInvAtS (ProcessMeter.processRunnerM (Meter := StateGasMeter) fork bound) message S
+
+theorem keepsAtS_process_stop … {R} (hR : ∀ X, R X X) :
+    Security.KeepsAtS (ProcessMeter.processRunnerM (Meter := StateGasMeter) fork bound) message S
+      (upAddr S message) R
+```
+
+So `KeepsInvAtS` and every `KeepsAtS` of Security/DepMeter.lean (all five relations are reflexive
+in the `Nat` instances) can hold for EthLib's runner. `HonestBalanceAtS` with real code (the
+`MIRROR` contract over `StateGasMeter`) was not attempted. The other new hypotheses are decidable
+facts of the start state or of the frame: `hres` holds for the frame of `processMessage` when
+`message.reservoir = 0`, which `allocateGas` gives for a gas limit of at most 2^24, and `hnr`,
+`hnrD`, `hnrA` and the owner forms hold whenever the written word is not 0 or the slot was not 0
+at the start of the transaction. None of them was found to be vacuous.
+
+**Suggested fix.** Add the two theorems above to Usdt/Sanity/ (for example Sanity/ProcessMeter.lean)
+and, if possible, an `HonestBalanceAtS` instance with `MIRROR`.
+
+## U3. The `…AtS` hypotheses leave the message reservoir and the caller meter free (Low)
+
+**Evidence.** `KeepsInvAtS`, `HonestBalanceAtS` and `KeepsAtS` constrain the caller only through
+`SentVia … (toNat caller) msg`, and `SendsVia` does not mention `msg.reservoir`. Scratch (exit 0):
+
+```lean
+theorem sentVia_reservoir (h : SentVia message S ua caller msg) (r : Nat) :
+    SentVia message S ua caller { msg with reservoir := r } := h
+```
+
+At the CALL the theorems actually use, the frame has reservoir 0 and the message carries it
+(`callStep_child_rS`: `msg.reservoir = evm.gas.reservoir`, `CallCorr`: `caller.gas.reservoir = 0`).
+Under `processRunnerM` a child with a reservoir can succeed where the same child from reservoir 0
+runs out of gas, and an upgraded code that branches on `GAS` can then reach a different state. The
+hypotheses therefore ask the property of runs that the deprecated paths of USDT never make. This
+is the T2 pattern for one more field. It does not affect the STOP instances of U2.
+
+**Suggested fix.** Add `msg.reservoir = 0` (and, if wanted, `caller.gas.reservoir = 0`) to the
+three definitions, carried by `RunS` from `CallCorr`. Otherwise say in the README that the gas and
+the reservoir of the forwarded message are free.
+
+## U4. Smaller README overstatements in the Glamsterdam paragraph (Low)
+
+- "`UsdtVerify/Usdt/Meter.lean` carries the completeness theorems outside the deprecated mode …
+  over to that meter". That file states `ok_transfer_sgm`, `ok_approve_sgm`, `ok_transferFrom_sgm`
+  and `inv_call_sgm`. The other `ok_X` apply through `ends_of_sgm` but are not stated. The exact
+  conditions for the 13 writing functions are in MeterIff.lean and MeterOwner.lean.
+- "is not 0 at the call". `sstoreStateRefill` compares the word just before the write
+  (`getStorage` at the SSTORE). For `approve` that is the word at the call. For the second write of
+  `transferFrom`, `issue`, `redeem` and `destroyBlackFunds` it is the word after the first write.
+- "it succeeds exactly when … unless the call writes 0 over such an allowance". The theorem
+  assumes that case away (`hnr`). It does not say that such a call fails.
+- "(`UsdtVerify/Usdt/Security/Meter.lean`)" for the single-call security properties at any
+  reservoir. That file has only the `processMessage` steps. The single-call `_any` theorems are in
+  Security/Access.lean, Pause.lean, Blacklist.lean, Allowance.lean and Supply.lean.
+- "the steps at `EXTCODESIZE`, `GAS` and `CALL` match those of the one-counter meter". At CALL,
+  `step_callX` is one-sided in its first case (`StepBadS`): when the step over `StateGasMeter` fails
+  (too little execution gas, or a delegate whose code is missing), nothing is said about the step
+  over `Nat`. The match holds whenever the step over `StateGasMeter` does not fail.
+- "every top-level message to USDT that EthLib runs with the EIP-8037 meter" (U1).
+
+## U5. Checked and found sound (Info)
+
+- The meter. Every theorem over `StateGasMeter` uses EthLib's `GasMeter StateGasMeter` instance
+  (Evm/Machine/Frame.lean:179-193), and the repository declares no meter instance of its own.
+  `processTransaction` runs `runTransaction StateGasMeter` for `glamsterdam ≤ fork < hegota`
+  (Process.lean:435-439). `processRunnerM` is EthLib's `processRunner` for any meter.
+- `allocateGas_reservoir` matches EthLib: `allocateGas` (Transactions/Settlement.lean:145-150) sets
+  the reservoir to `evmGas - min (TX_MAX_GAS_LIMIT - intrinsic) evmGas`, with
+  `TX_MAX_GAS_LIMIT = 16777216`, so a gas limit of at most 2^24 gives 0. EthLib's validity
+  (Proofs/Transactions/Validity.lean:163-165) lifts the 2^24 cap at Glamsterdam, so a reservoir
+  above 0 is reachable, and the README limits the claim correctly. `prepareFirstFrame` has no
+  refill, so the first frame's meter keeps reservoir 0.
+- The refill. `sstoreStateRefill` (Instructions/Storage.lean:148-149) is `STORAGE_SET_STATE_GAS`
+  (64 × 1530 = 97,920) when `fork ≥ glamsterdam`, `original = 0`, `current ≠ 0` and `new = 0`,
+  and 0 otherwise. `getStorageOriginal` is the word before the transaction (0 for an account the
+  transaction created). `NoRefill`, `hnr`, `hnrD`, `hnrA` and the owner hypotheses are this
+  quantity at 0, so the README's characterization holds (up to U4).
+- `step_sim` and `sim_sstoreStep`. At reservoir 0, `StateGasMeter.chargeState` fails exactly when
+  the `Nat` charge fails and takes the same amount from the execution gas (the rest goes to
+  `spill`, which no theorem reads). The 2300 check reads `gasLeft` on both meters. A refill of 0 is
+  the identity. GAS pushes `gasLeft` on both meters.
+- "Any reservoir" claims. `inv_call_any`, `ok_X_any`, the security `_any` theorems,
+  `process_stepS` and `X_gas_any` have no hypothesis on the reservoir. They go through
+  `shadow_run`, whose `budget` gives the `Nat` run enough gas for every refill. The deprecated
+  forms take reservoir 0 explicitly, as the README says.
+- `Nat` truncation. `gas_eq_any`, `gas_ge_any`, `X_gas_any` and `resumeCall_sgm` are additive.
+  `X_ok_sgm` assumes `max cost stip ≤ gas`. `ok_X_sgm` keep the T5 conjunct `cost ≤ gas`.
+  `dep_X_completeS` keep `preCost + 100 + routeCost ≤ gas`. No gas statement truncates.
+- No hypothesis of a new theorem was found to imply `False` (U2). `RunC.out` and `RunC.bad` relate
+  any frames, but every consumer pairs `RunC` with `hok` and `EndsOk`, and the statements of
+  `dep_X_completeS` are as strong as their prose says.
+- T2 to T5. `SendsVia` has the environments and `shouldTransferValue`. `destroy_mirror_runs` and
+  `process_step_dep_hyps2` exist. `keepsInvAt_of_acc` exists. Every non-deprecated `ok_X` in
+  Usdt/Complete/ has the `cost ≤ gas` conjunct.
