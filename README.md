@@ -10,7 +10,7 @@ This is a work in progress. The sections below say exactly what is proved, what 
 
 ### 1. The bytecode
 
-The runtime code was read from mainnet with one `eth_getCode` call at block 26362952. It is 11,075 bytes long. The hex is in `data/usdt.runtime.hex`, and `data/SOURCE.md` records where it came from.
+The runtime code was read from mainnet with one `eth_getCode` call at tag `latest`, just after `eth_blockNumber` returned 26362952. It is 11,075 bytes long. The hex is in `data/usdt.runtime.hex`, and `data/SOURCE.md` records where it came from.
 
 A build-time test in `UsdtVerify/Test/Hash.lean` checks that the Lean constant holding the code equals that file. It also checks that EthLib's keccak256 of the code equals the hash computed by an independent Python implementation. This test is run by the Lean interpreter at build time. It is a test, not a kernel-checked theorem.
 
@@ -51,7 +51,7 @@ The proofs step through the code one block at a time with EthLib's opcode rules.
 
 Most theorems are also stated for EthLib's real interpreter loop `runFrame`, for every gas bound and every message runner.
 
-When USDT is deprecated, it forwards each call to an upgraded contract. Those paths are proved for any callee that meets a stated assumption, through EthLib's abstraction for called code. Nothing is assumed about what the upgraded contract actually does.
+When USDT is deprecated, it forwards each call to an upgraded contract. Those paths are proved for any message runner that meets a stated assumption, through EthLib's abstraction for called code. The assumptions are about the runner on every message from USDT to the upgraded address, not about the upgraded contract's code. Several of them cannot hold for EthLib's own runner (see "What is not covered yet").
 
 ## Layout
 
@@ -111,7 +111,7 @@ All of this holds from the Berlin fork onwards, Glamsterdam included. At Glamste
 - Read-only paths do not write storage, so they keep it too.
 - Any finite sequence of these steps keeps the invariant, and each path's end state is shown to be one such step.
 
-These theorems assume a hypothesis called `KeccakSep`, which is stated and not proved. It says that distinct addresses get distinct balance slots, and that balance slots and slot 1 never collide with the fixed slots 0 to 10 or with the slots of the other mappings. Since the slots are keccak outputs, this is a claim about the hash function.
+These theorems assume a hypothesis called `KeccakSep`, which is stated and not proved. It says that distinct addresses get distinct balance slots, and that balance slots and slot 1 never collide with the fixed slots 0 to 10 or with the slots of the other mappings. Since the slots are keccak outputs, this is a claim about the hash function. As written it quantifies over all 2^256 keys (all 2^160 addresses for distinctness), and by counting it is almost certainly false for the real keccak. For example, about 2^63 pairs of addresses are expected to share a balance slot, even though nobody can find one. Until it is restated over the slots a call actually touches, the theorems that assume it give no guarantee for the real hash function. See `docs/AUDIT.md`.
 
 The main theorem is `inv_call` in `UsdtVerify/Usdt/Invariant/Calls.lean`. From Berlin, Glamsterdam included, take any call to USDT, with any call data, any value and any gas. If the invariant holds before and the call ends without an error, the invariant holds after. Its hypotheses are `KeccakSep`, the contract not being deprecated, and the name and symbol slots being in a form Solidity writes. It needs no hypothesis about static frames or the contract's account: on every writing path, a static frame or a missing account makes the first storage write fail, which is proved path by path.
 
@@ -120,7 +120,7 @@ The main theorem is `inv_call` in `UsdtVerify/Usdt/Invariant/Calls.lean`. From B
 In deprecated mode the invariant can break. `destroyBlackFunds` asks the upgraded contract for the balance of the address, sets the local balance to 0, and lowers the local total supply by the answer. `UsdtVerify/Usdt/Invariant/DeprecatedDestroy.lean` proves:
 
 - after that call, the invariant holds exactly when the upgraded contract's answer equals the local balance (`inv_tail_iff`, `depD_inv`), and this covers callees that call back into USDT,
-- a concrete state where the invariant holds before and fails after, with an answer of 1 for a local balance of 0 (`exists_breaks`),
+- assuming `KeccakSep`, a concrete state where the invariant holds before and fails after, with an answer of 1 for a local balance of 0 (`exists_breaks`),
 - the same failure for a whole run, for any callee that answers a different balance and leaves USDT's storage alone (`depD_breaks`).
 
 So in deprecated mode the supply invariant depends on the upgraded contract answering honestly.
@@ -129,7 +129,7 @@ So in deprecated mode the supply invariant depends on the upgraded contract answ
 
 `inv_call_all` in `UsdtVerify/Usdt/Invariant/Static.lean` drops the "not deprecated" hypothesis. For any successful call to USDT, with any call data, value and gas, the invariant holds after if it held before. When the contract is deprecated it needs these named assumptions:
 
-- `KeepsInv`: every message USDT sends to the upgraded contract that starts with the invariant and ends without an error ends with the invariant. It says nothing about USDT's account. This covers an upgraded contract that calls back into USDT. An earlier form that also tracked the account is kept as `KeepsInvAcc`. Neither form implies the other.
+- `KeepsInv`: every message from USDT to the upgraded address that the runner ends without an error, from any caller frame and with any code, ends with the invariant if it started with it. It says nothing about USDT's account. This covers an upgraded contract that calls back into USDT. An earlier form that also tracked the account is kept as `KeepsInvAcc`. Neither form implies the other.
 - `HonestBalance`, only for `destroyBlackFunds`: the balance the upgraded contract reports equals the local balance.
 
 The six other forwarding functions write nothing locally after the forwarded call, which is also proved.
@@ -138,7 +138,7 @@ The six other forwarding functions write nothing locally after the forwarded cal
 
 ### Sequences of calls
 
-`inv_calls` in `UsdtVerify/Usdt/Invariant/Seq.lean` lifts the invariant to any finite sequence of steps. A step is either a successful call that meets the hypotheses of `inv_call_all`, each with its own fork, message and runner, or a step that leaves every storage word of USDT unchanged. `goodCall_process` shows that a successful top-level message to USDT with no value, from Paris, is such a call. A failed call is proved to leave every storage word unchanged after the rollback (`untouched_process_failed`), using a general lemma proved here from EthLib's semantics: every step keeps the parent block of the state. A top-level call to USDT with a nonzero value always fails (`process_value_fails`). So `process_step` shows that every top-level message to USDT, from Paris, is one of the two kinds of step, with no assumption about failed calls.
+`inv_calls` in `UsdtVerify/Usdt/Invariant/Seq.lean` lifts the invariant to any finite sequence of steps. A step is either a successful call that meets the hypotheses of `inv_call_all`, each with its own fork, message and runner, or a step that leaves every storage word of USDT unchanged. `goodCall_process` shows that a successful top-level message to USDT with no value, from Paris, is such a call. A failed call is proved to leave every storage word unchanged after the rollback (`untouched_process_failed`), using a general lemma proved here from EthLib's semantics: every step keeps the parent block of the state. A top-level call to USDT with a nonzero value always fails (`process_value_fails`). So `process_step` shows that every top-level message to USDT, from Paris, is one of the two kinds of step, with no assumption about failed calls. When the contract is deprecated, its hypothesis `KeepsInv` for EthLib's runner cannot hold (see "What is not covered yet"), so in practice it covers the non-deprecated contract. Messages that reach USDT through another contract, and the rollback of an outer frame, are not shown to be such steps.
 
 ## Exact success conditions
 
@@ -148,7 +148,7 @@ The six other forwarding functions write nothing locally after the forwarded cal
 - Every writing function, when not deprecated, has a theorem `X_ok_iff`. Given gas at least the cost of its success path, and more than 2300 gas left at each storage write as EIP-2200 requires, the call succeeds exactly when its condition holds. For `transfer` the condition is: at least 68 bytes of call data, no ether, not paused, sender not blacklisted, no overflow in the fee product, fee at most the amount, amount at most the sender's balance, no overflow at the recipient, a frame that is not static and an existing account. The owner functions add that the caller is the owner, plus each function's own checks.
 - When the cost depends on the path, for example a fee of 0 or above 0, it is stated as an `if`.
 - That gap is closed by `X_iff_gas` for all 13 writing functions when not deprecated: for every amount of gas, the call succeeds exactly when its condition holds and the gas is at least an exact threshold. The threshold is the larger of the success cost and the gas needed to keep more than 2300 at each storage write. A storage write with 2300 or less left is proved to fail, from Istanbul.
-- The seven deprecated paths have `X_dep_ok_iff`. Given enough gas and a runner that never fails and ends each forwarded call without an error exactly when some condition `A` holds, the call succeeds exactly when the checks before the forward pass and `A` holds. With too little gas they fail for every runner. For the six forwards other than `destroyBlackFunds`, `X_dep_ok_iff_gas` covers every amount of gas: the condition `A` now includes that the gas left after the forwarded call pays for the short tail of the function. Runners that may fail are covered too, for all seven forwards (`X_dep_ok_iff_fails`): if a runner failure on the forwarded call rules out `A`, the call succeeds exactly when the checks before the forward pass and `A` holds, for every gas. `answerRunnerAt` meets the answer hypothesis of deprecated `destroyBlackFunds`. Deprecated `destroyBlackFunds` is covered for every gas too (`destroyBlackFunds_dep_ok_iff_gas`): after the forwarded call, the gas left must pay for its two storage writes, priced in the state the call left, and keep more than 2300 at each.
+- The seven deprecated paths have `X_dep_ok_iff`. These theorems are about an abstract runner. Their runner hypotheses ask one condition `A` for every caller frame and every gas of the forwarded message, and EthLib's own runner meets them for no upgraded code that can run out of gas. Given enough gas and a runner that never fails and ends each forwarded call without an error exactly when some condition `A` holds, the call succeeds exactly when the checks before the forward pass and `A` holds. With too little gas they fail for every runner. For the six forwards other than `destroyBlackFunds`, `X_dep_ok_iff_gas` covers every amount of gas: the condition `A` now includes that the gas left after the forwarded call pays for the short tail of the function. Runners that may fail are covered too, for all seven forwards (`X_dep_ok_iff_fails`): if a runner failure on the forwarded call rules out `A`, the call succeeds exactly when the checks before the forward pass and `A` holds, for every gas. `answerRunnerAt` meets the answer hypothesis of deprecated `destroyBlackFunds`. Deprecated `destroyBlackFunds` is covered for every gas too (`destroyBlackFunds_dep_ok_iff_gas`): after the forwarded call, the gas left must pay for its two storage writes, priced in the state the call left, and keep more than 2300 at each.
 
 ## Security properties
 
@@ -181,8 +181,8 @@ A few general opcode rules are proved locally in `UsdtVerify/Evm/Local/` while t
 ## What is not covered yet
 
 - Forks before Berlin.
-- `KeccakSep` and `AllowSep` are hypotheses about keccak, not theorems.
-- `KeepsInv`, `HonestBalance` and the `Keeps*` assumptions are not shown to hold for any real upgraded contract. They say what the upgraded contract must do. `UsdtVerify/Usdt/Sanity/Runner.lean` shows they can all hold at once: a runner whose upgraded contract only runs `STOP` meets every runner assumption except `HonestBalance`, and a runner that answers each address's local balance meets all of them. `UsdtVerify/Usdt/Sanity/` also gives, for every fork from Berlin, a concrete state and call where the success theorems of `transfer`, `approve`, `issue`, `redeem` and `destroyBlackFunds` apply and the run succeeds, so their hypotheses can all hold. The same is shown for `transferFrom`, the five security theorems and `inv_call_all`, except for the keccak hypotheses `KeccakSep` and `AllowSep`, which no concrete run can discharge. These examples are not deprecated, so for them the runner assumptions hold because the contract is not deprecated. The runners above show those assumptions can hold when it is. Finally, the mainnet slot words for "Tether USD" and "USDT" are proved to be in the form `name` and `symbol` need (`strForm_name`, `strForm_symbol`), and `inv_call_all` is shown to apply to a state holding them.
+- `KeccakSep` and `AllowSep` are hypotheses about keccak, not theorems. As written they quantify over all keys and are almost certainly false for the real keccak, so the invariant and security theorems that assume them give no guarantee yet for the real hash function. Restating them over the slots a call actually touches is the next step. See `docs/AUDIT.md`.
+- `KeepsInv`, `HonestBalance` and the `Keeps*` assumptions are not shown to hold for any real upgraded contract. They quantify over every caller frame and every message from USDT to the upgraded address, including its code, so they are false for EthLib's own runner `processRunner`, whatever the upgraded contract is. This is machine-checked in the audit for `KeepsInv` when the upgraded address is USDT itself. `UsdtVerify/Usdt/Sanity/Runner.lean` shows they can all hold at once for mock runners: one that runs EthLib's runner on messages whose code is `STOP` and fails every other message to the upgraded address meets every runner assumption except `HonestBalance`, and one that answers each address's local balance without running any code meets all of them. `UsdtVerify/Usdt/Sanity/` also gives, for every fork from Berlin, a concrete state and call where the success theorems of `transfer`, `approve`, `issue`, `redeem` and `destroyBlackFunds` apply and the run succeeds, so their hypotheses can all hold. The same is shown for `transferFrom`, the five security theorems and `inv_call_all`, except for the keccak hypotheses `KeccakSep` and `AllowSep`, which no concrete run can discharge. These examples are not deprecated, so for them the runner assumptions hold because the contract is not deprecated. The runners above show those assumptions can hold when it is. Finally, the mainnet slot words for "Tether USD" and "USDT" are proved to be in the form `name` and `symbol` need (`strForm_name`, `strForm_symbol`), and `inv_call_all` is shown to apply to a state holding them.
 - Slot words for `name` and `symbol` in a form Solidity never writes.
 - The individual path specs still state exact gas bounds. Completeness and the invariant hold for any gas.
 
@@ -199,7 +199,7 @@ lake exe cache get
 lake build
 ```
 
-EthLib is fetched as a dependency at the commit pinned in `lakefile.lean`. Building EthLib from source takes a long time and several GB of memory. Once EthLib is built, this project builds from clean in about 140 seconds with two threads and needs about 1.8 GB.
+EthLib is fetched as a dependency at the git commit pinned in `lakefile.lean` (`fd3457dbf`). Building EthLib from source takes a long time and several GB of memory. Once EthLib is built, this project builds from clean in about 140 seconds with two threads and needs about 1.8 GB.
 
 ## Credits
 

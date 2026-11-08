@@ -252,6 +252,12 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
     - a balance slot is none of the fixed slots 0 to 10, and no slot of `isBlackListed` or
       `allowed`;
     - slot 1 is no slot of `isBlackListed` or `allowed`.
+  - Caveat (audit, docs/AUDIT.md finding 1): `KeccakSep` is a closed statement about the concrete
+    keccak, and as written it quantifies over all 2^256 key words (2^160 for `inj`). By counting,
+    it is almost certainly false. `fixed` expects about 11 hits, `list` and `allow` about 2^256
+    collisions, and `inj` about 2^63 collisions among the 2^160 balance slots. The same holds for
+    `AllowSep`. The theorems that assume them give no guarantee for the real keccak until the
+    hypothesis is restated over the slots a run touches.
   - Under it, and when the contract is not deprecated, the end state of each proved success
     path keeps `Inv`, with the same no-wrap hypotheses that the path's specification already
     makes. The paths are transfer and transferFrom (with fee 0 and with a fee), approve, pause,
@@ -602,6 +608,14 @@ Keeps… runChild C (upAddr state message)`, so it is used only when deprecated;
 - `KeepsAllow`: every slot of `allowed` of `C` keeps its word.
 - `KeepsSupply`: slot 1 of `C` keeps its word.
 
+Caveat (audit, docs/AUDIT.md finding 2): these assumptions, like `KeepsInv` and `HonestBalance`,
+quantify over every caller frame and every message from `C` to `ua`, the message's code
+included. They are false for EthLib's own runner `processRunner`, whatever the upgraded
+contract is: a message whose code writes `C`'s slot 1, directly when `ua = C` or through a CALL
+into `C`, breaks each of them. The `ua = C` case of `KeepsInv` was machine-checked during the
+audit. So with the real runner, the deprecated case of these theorems, and of
+`goodCall_process` / `process_step`, has a premise that cannot hold.
+
 One call, deprecated or not:
 - `nonOwner_call_all` (`KeccakSep`, `AllowSep`, `KeepsSlots`): if the caller is not the owner,
   every `Protected` slot keeps its word. (When not deprecated, `nonOwner_call` also gives that
@@ -664,8 +678,10 @@ state"; it is part of each call's predicate `Q` here (in round 22 it was kept fr
 ## Non-vacuity: the assumptions can hold together (round 24)
 
 `UsdtVerify/Usdt/Sanity/`. These theorems show that the hypotheses of the main theorems can all
-hold at once, so the main theorems do not hold only because their hypotheses are never true.
-They do not prove `KeccakSep` or `AllowSep`, which are statements about keccak.
+hold at once, for some runner, state, message and gas. They do not prove `KeccakSep` or
+`AllowSep`, which are statements about keccak and almost certainly false as written (see the
+caveat above and docs/AUDIT.md). Their runners are not `processRunner`, which meets none of the
+`Keeps*` assumptions.
 
 Runner assumptions (`Sanity/Runner.lean`, `Evm/Runners.lean`):
 - `keepsAll_of_same`: if every message from `C` to `ua` that the runner ends with no error
@@ -821,6 +837,12 @@ ends with no error and the contract has an account in its end state".
   Since round 27 the six other than destroyBlackFunds are derived from `X_dep_ok_iff_fails`
   (below): with `htail` the gas after the CALL is enough, and under `NoFail` `hfail` holds.
 - `X_dep_low`: if the gas is below the bound of `hg`, `RunsOk` does not hold, for every runner.
+- Caveat (audit, docs/AUDIT.md finding 3): `NoFail` is false for `processRunner`, which fails a
+  message whose value exceeds the caller's balance. `hans` asks one `A` for every caller frame
+  and every gas of the forwarded message (`SendsVia` does not fix the gas). Under
+  `processRunner`, every upgraded code that can both succeed and run out of gas makes `hans`
+  unsatisfiable. These theorems apply to the mock runners of `Sanity/`, not to the
+  interpreter's runner with a real upgraded contract.
 - `X_dep_ok_iff_gas` (round 26, the six forwards other than destroyBlackFunds): the hypotheses of
   `X_dep_ok_iff` without `htail`, and `hans` with "ends with no error" replaced by "ends with no
   error, and the gas the CALL keeps plus the gas left in the ended frame is at least the gas of
