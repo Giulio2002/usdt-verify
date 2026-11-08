@@ -857,3 +857,4 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Sanity.approve_dep_ok_iff_gas_process_stop
 #print axioms UsdtVerify.Sanity.transferFrom_dep_ok_iff_gas_process_stop
 #print axioms UsdtVerify.Sanity.destroyBlackFunds_dep_ok_iff_gas_process_stop
+#print axioms UsdtVerify.Sanity.destroyBlackFunds_dep_ok_iff_process_stop

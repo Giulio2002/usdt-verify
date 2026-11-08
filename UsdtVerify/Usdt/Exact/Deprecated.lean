@@ -50,7 +50,8 @@ in the state (`hcode`; `c.size < 2^256`, `hszl`, for the theorems that give succ
   every gas, so no runner whose outcome depends on the gas (EthLib's `processRunner` with any
   code that can run out of gas) could meet the `_gas` and `_fails` forms. Now `A` can be a
   condition on that gas. `destroyBlackFunds_dep_ok_iff` is derived from
-  `destroyBlackFunds_dep_ok_iff_fails` (`tail_le_max`). `*_dep_ok_or_fails` keep the old `hans`.
+  `destroyBlackFunds_dep_ok_iff_fails` (`tail_le_max`) and takes `NoFailOn`. `*_dep_ok_or_fails`
+  keep the old `hans`.
   Sanity/ProcessExact.lean instantiates the seven paths with `processRunner` and STOP.
 - destroyBlackFunds: `A` is the answer "the forwarded message ends with no error and the contract
   has an account in its end state", and the checks are `DestroyDepGuard`.
@@ -974,7 +975,8 @@ theorem destroyBlackFunds_dep_ok_iff_fails (hszl : c.size < 2 ^ 256)
 /-- `destroyBlackFunds(a)` when deprecated succeeds exactly when `DestroyDepGuard` holds and the
 forwarded `balanceOf(a)` ends with no error in a state where the contract has an account (`A`, by
 `hans`). Round 30: derived from `destroyBlackFunds_dep_ok_iff_fails` (with `htail`, the tail has
-its gas: `tail_le_max`). -/
+its gas: `tail_le_max`), and the runner need not fail on no message at all (`NoFail`), only on
+none of the messages the path sends (`NoFailOn`). -/
 theorem destroyBlackFunds_dep_ok_iff (hszl : c.size < 2 ^ 256)
     (hg : preCostD fork c0 cL c10 cU + 100 + callRD substate state message r ≤ gas)
     (htail : TAIL_MAX fork ≤ gas - preCostD fork c0 cL c10 cU -
@@ -986,7 +988,7 @@ theorem destroyBlackFunds_dep_ok_iff (hszl : c.size < 2 ^ 256)
         (atCallState (callStateD state message) (upAddr state message) r message.currentTarget)
         (atCallSub (callSubD substate state message) (upAddr state message) r) caller msg →
         (child.1.error = none ∧ hasAccount child.1.state message.currentTarget ↔ A))
-    (hnf : NoFail runChild) :
+    (hnf : NoFailOn runChild (SendsVia message (upAddr state message) c r (dataB message))) :
     RunsOk fork bound runChild evm within ↔ DestroyDepGuard state message c ∧ A :=
   destroyBlackFunds_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc0 hcL hc10 hcU start
     within hszl hg
@@ -996,7 +998,7 @@ theorem destroyBlackFunds_dep_ok_iff (hszl : c.size < 2 ^ 256)
           ((hans caller msg lt child hch hfwd hcl).2 hA).2,
           Nat.le_trans (tail_le_max hfork _ _ _ _ _ _)
             (Nat.le_trans htail (Nat.le_add_right _ _))⟩⟩)
-    fun _ _ _ e h _ => absurd h (hnf _ _ _ e)
+    fun _ _ _ e h hs => absurd h (hnf _ _ _ e hs)
 
 /-- `destroyBlackFunds(a)` when deprecated, with the gas of the path up to the CALL (`hg`) and no
 bound on the gas after it: the run succeeds exactly when `DestroyDepGuard` holds and `A` holds,

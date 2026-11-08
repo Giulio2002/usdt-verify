@@ -22,7 +22,7 @@ Here the upgraded address holds the one byte STOP (`STOP_CODE`) and is no precom
   `T ≤ K + g` on the gas `g` the CALL gives; `hans_destroy_process_stop`,
   `hans_destroy_gas_process_stop`: the same for destroyBlackFunds, with `A` stated over the
   state and substate of the caller frame at the CALL;
-- `X_dep_ok_iff_process_stop` (the seven forwards; `destroyBlackFunds` from round 30 step 2) and
+- `X_dep_ok_iff_process_stop` (the seven forwards) and
   `X_dep_ok_iff_gas_process_stop` (the seven): the instances. With the gas of `hg` (and `htail`
   for the first form), a deprecated run under `processRunner` succeeds iff the checks hold (and,
   in the gas-exact form, the gas the CALL gives covers the code after it).
@@ -546,5 +546,35 @@ theorem destroyBlackFunds_dep_ok_iff_gas_process_stop (hparis : .paris ≤ fork)
     hroute hc0 hcL hc10 hcU start within (by decide) hg
     (hans_destroy_gas_process_stop hparis hroute hnp _ _ _ _ _)
     (noFailOn_process_stop hparis hroute hnp)
+
+/-- **Deprecated destroyBlackFunds under `processRunner`.** From Paris, with the upgraded address
+holding STOP (no precompile), the gas of `hg` and `htail`, and the other hypotheses of
+`Exact.destroyBlackFunds_dep_ok_iff`: the run succeeds iff `DestroyDepGuard` holds and the state
+of the caller frame at the CALL has an account of the contract. -/
+theorem destroyBlackFunds_dep_ok_iff_process_stop (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    {gas bound : Nat} {evm : Evm fork Nat}
+    (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
+    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
+    (hcode : state.getCode (state.getAccount (upAddr state message)).codeHash = .ok STOP_CODE)
+    {r : Route} (hroute : Routes fork state STOP_CODE r) {c0 cL c10 cU : Bool}
+    (hc0 : coldIn substate message.currentTarget 0 = c0)
+    (hcL : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
+      (listSlot (addrArg message.data 0)) = cL)
+    (hc10 : coldIn (preSub substate message) message.currentTarget 10 = c10)
+    (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
+    (start : At CODE message 0 [] .empty gas state substate evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hnp : Precompiles.isPrecompile fork (upAddr state message).toU256.toNat = false)
+    (hg : preCostD fork c0 cL c10 cU + 100 + callRD substate state message r ≤ gas)
+    (htail : TAIL_MAX fork ≤ gas - preCostD fork c0 cL c10 cU -
+      (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).cost) :
+    RunsOk fork bound (processRunner fork bound) evm within ↔
+      DestroyDepGuard state message STOP_CODE ∧
+        hasAccount (atCallState (callStateD state message) (upAddr state message) r
+          message.currentTarget) message.currentTarget :=
+  Exact.destroyBlackFunds_dep_ok_iff (Nat.le_trans (by decide) hparis) hsize' hsel hdep hcode
+    hroute hc0 hcL hc10 hcU start within (by decide) hg htail
+    (hans_destroy_process_stop hparis hroute hnp _) (noFailOn_process_stop hparis hroute hnp)
 
 end UsdtVerify.Sanity
