@@ -140,6 +140,7 @@ import UsdtVerify.Usdt.Sanity.Runner
 import UsdtVerify.Usdt.Sanity.Process
 import UsdtVerify.Usdt.Sanity.ProcessMeter
 import UsdtVerify.Usdt.Sanity.ProcessMeterR
+import UsdtVerify.Usdt.Sanity.MirrorStateS
 import UsdtVerify.Usdt.Sanity.ProcessExact
 import UsdtVerify.Usdt.Sanity.Mirror
 import UsdtVerify.Evm.Mirror

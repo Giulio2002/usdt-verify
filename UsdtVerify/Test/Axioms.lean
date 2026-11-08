@@ -21,6 +21,7 @@ import UsdtVerify.Usdt.Security.DepMeter
 import UsdtVerify.Usdt.Security.SeqDepMeter
 import UsdtVerify.Usdt.Sanity.ProcessMeter
 import UsdtVerify.Usdt.Sanity.ProcessMeterR
+import UsdtVerify.Usdt.Sanity.MirrorStateS
 import UsdtVerify.Usdt.Meter
 import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.MeterOwner
@@ -1390,3 +1391,10 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.DeprecatedDestroy.tailD_sgm
 #print axioms UsdtVerify.Complete.resumeD
 #print axioms UsdtVerify.Complete.dep_destroy_exactR
+
+-- Round 44: a successful deprecated run over StateGasMeter with MIRROR
+#print axioms UsdtVerify.Sanity.extCost_le
+#print axioms UsdtVerify.Sanity.absorb_gasLeft_ge
+#print axioms UsdtVerify.Sanity.callGas_bounds
+#print axioms UsdtVerify.Sanity.process_mirrorS_ok
+#print axioms UsdtVerify.Sanity.destroy_mirror_runsS
