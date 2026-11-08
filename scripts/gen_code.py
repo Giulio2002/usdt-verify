@@ -1,4 +1,4 @@
-"""Write UsdtVerify/Code/Bytes.lean, the runtime bytecode as one hexadecimal natural number."""
+"""Write UsdtVerify/Usdt/Code/Bytes.lean, the runtime bytecode as one hexadecimal natural number."""
 import sys
 
 hexs = open(sys.argv[1]).read().strip().lower()

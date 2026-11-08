@@ -53,6 +53,18 @@ Most theorems are also stated for EthLib's real interpreter loop `runFrame`, for
 
 When USDT is deprecated, it forwards each call to an upgraded contract. Those paths are proved for any callee that meets a stated assumption, through EthLib's abstraction for called code. Nothing is assumed about what the upgraded contract actually does.
 
+## Layout
+
+- `UsdtVerify/Evm/` holds general EVM lemmas that are not about USDT, such as storage reads and writes, gas rules and call steps.
+- `UsdtVerify/Usdt/Code.lean` and `UsdtVerify/Usdt/Map.lean` hold the bytecode, the dispatcher table and the storage layout.
+- `UsdtVerify/Usdt/Spec/` says what each function does, one file per function.
+- `UsdtVerify/Usdt/Proofs/` holds the block by block proofs, one file per function.
+- `UsdtVerify/Usdt/Complete/` holds the completeness theorems.
+- `UsdtVerify/Usdt/Invariant/` holds the supply invariant.
+- `UsdtVerify/Summary.lean` indexes the main theorems.
+
+`docs/LAYOUT.md` describes each folder and maps the old paths to the new ones.
+
 ## What is proved
 
 All of this holds from the Berlin fork onwards, Glamsterdam included. At Glamsterdam a storage write also pays the new state gas, EXTCODESIZE costs the account access plus 100 (EIP-8038), and CALL checks its gas before charging. The prices in the theorems take the fork, and before Glamsterdam they reduce to the earlier ones. Every theorem has explicit hypotheses, such as enough gas and a call value of 0. The index of all theorems is `UsdtVerify/Summary.lean`, and `docs/RESULTS.md` gives the full statements in prose.
@@ -89,7 +101,7 @@ All of this holds from the Berlin fork onwards, Glamsterdam included. At Glamste
 
 ## The supply invariant
 
-`UsdtVerify/Invariant.lean` defines the invariant: the sum of `balances[a]` over all 2^160 addresses equals `_totalSupply` (slot 1).
+`UsdtVerify/Usdt/Invariant/Supply.lean` defines the invariant: the sum of `balances[a]` over all 2^160 addresses equals `_totalSupply` (slot 1).
 
 - Every writing success path keeps it, for every function above: transfer and transferFrom with and without a fee, approve, pause, unpause, transferOwnership, addBlackList, removeBlackList, setParams, deprecate, issue, redeem and destroyBlackFunds.
 - For destroyBlackFunds, the invariant itself shows that the destroyed balance is at most the total supply, so the unchecked subtraction cannot wrap.
@@ -98,11 +110,11 @@ All of this holds from the Berlin fork onwards, Glamsterdam included. At Glamste
 
 These theorems assume a hypothesis called `KeccakSep`, which is stated and not proved. It says that distinct addresses get distinct balance slots, and that balance slots and slot 1 never collide with the fixed slots 0 to 10 or with the slots of the other mappings. Since the slots are keccak outputs, this is a claim about the hash function.
 
-The main theorem is `inv_call` in `UsdtVerify/Complete/Inv.lean`. From Berlin, Glamsterdam included, take any call to USDT, with any call data, any value and any gas. If the invariant holds before and the call ends without an error, the invariant holds after. Its hypotheses are `KeccakSep`, the contract not being deprecated, and the name and symbol slots being in a form Solidity writes. It needs no hypothesis about static frames or the contract's account: on every writing path, a static frame or a missing account makes the first storage write fail, which is proved path by path.
+The main theorem is `inv_call` in `UsdtVerify/Usdt/Invariant/Calls.lean`. From Berlin, Glamsterdam included, take any call to USDT, with any call data, any value and any gas. If the invariant holds before and the call ends without an error, the invariant holds after. Its hypotheses are `KeccakSep`, the contract not being deprecated, and the name and symbol slots being in a form Solidity writes. It needs no hypothesis about static frames or the contract's account: on every writing path, a static frame or a missing account makes the first storage write fail, which is proved path by path.
 
 ### When the contract is deprecated
 
-In deprecated mode the invariant can break. `destroyBlackFunds` asks the upgraded contract for the balance of the address, sets the local balance to 0, and lowers the local total supply by the answer. `UsdtVerify/Complete/DepInv.lean` proves:
+In deprecated mode the invariant can break. `destroyBlackFunds` asks the upgraded contract for the balance of the address, sets the local balance to 0, and lowers the local total supply by the answer. `UsdtVerify/Usdt/Invariant/DeprecatedDestroy.lean` proves:
 
 - after that call, the invariant holds exactly when the upgraded contract's answer equals the local balance (`inv_tail_iff`, `depD_inv`), and this covers callees that call back into USDT,
 - a concrete state where the invariant holds before and fails after, with an answer of 1 for a local balance of 0 (`exists_breaks`),
@@ -112,7 +124,7 @@ So in deprecated mode the supply invariant depends on the upgraded contract answ
 
 ### Every call, deprecated or not
 
-`inv_call_all` in `UsdtVerify/Complete/Static.lean` drops the "not deprecated" hypothesis. For any successful call to USDT, with any call data, value and gas, the invariant holds after if it held before. When the contract is deprecated it needs these named assumptions:
+`inv_call_all` in `UsdtVerify/Usdt/Invariant/Static.lean` drops the "not deprecated" hypothesis. For any successful call to USDT, with any call data, value and gas, the invariant holds after if it held before. When the contract is deprecated it needs these named assumptions:
 
 - `KeepsInv`: every message USDT sends to the upgraded contract that starts with the invariant and ends without an error ends with the invariant. It says nothing about USDT's account. This covers an upgraded contract that calls back into USDT. An earlier form that also tracked the account is kept as `KeepsInvAcc`. Neither form implies the other.
 - `HonestBalance`, only for `destroyBlackFunds`: the balance the upgraded contract reports equals the local balance.
@@ -123,7 +135,7 @@ The six other forwarding functions write nothing locally after the forwarded cal
 
 ### Sequences of calls
 
-`inv_calls` in `UsdtVerify/Complete/Seq.lean` lifts the invariant to any finite sequence of steps. A step is either a successful call that meets the hypotheses of `inv_call_all`, each with its own fork, message and runner, or a step that leaves every storage word of USDT unchanged. `goodCall_process` shows that a successful top-level message to USDT with no value, from Paris, is such a call. A failed call is proved to leave every storage word unchanged after the rollback (`untouched_process_failed`), using a general lemma proved here from EthLib's semantics: every step keeps the parent block of the state. A top-level call to USDT with a nonzero value always fails (`process_value_fails`). So `process_step` shows that every top-level message to USDT, from Paris, is one of the two kinds of step, with no assumption about failed calls.
+`inv_calls` in `UsdtVerify/Usdt/Invariant/Seq.lean` lifts the invariant to any finite sequence of steps. A step is either a successful call that meets the hypotheses of `inv_call_all`, each with its own fork, message and runner, or a step that leaves every storage word of USDT unchanged. `goodCall_process` shows that a successful top-level message to USDT with no value, from Paris, is such a call. A failed call is proved to leave every storage word unchanged after the rollback (`untouched_process_failed`), using a general lemma proved here from EthLib's semantics: every step keeps the parent block of the state. A top-level call to USDT with a nonzero value always fails (`process_value_fails`). So `process_step` shows that every top-level message to USDT, from Paris, is one of the two kinds of step, with no assumption about failed calls.
 
 ## What you have to trust
 
@@ -133,7 +145,7 @@ The six other forwarding functions write nothing locally after the forwarded cal
 
 Every main theorem uses only the standard axioms `propext`, `Classical.choice` and `Quot.sound`. There is no `sorry` and no new axiom. Neither `native_decide` nor `bv_decide` is used. `decide +kernel` is used, and the kernel checks it.
 
-A few general opcode rules are proved locally in `UsdtVerify/Local/` while they make their way into EthLib. They are proved from EthLib's semantics, not assumed.
+A few general opcode rules are proved locally in `UsdtVerify/Evm/Local/` while they make their way into EthLib. They are proved from EthLib's semantics, not assumed.
 
 ## What is not covered yet
 
@@ -156,7 +168,7 @@ lake exe cache get
 lake build
 ```
 
-EthLib is fetched as a dependency at the commit pinned in `lakefile.lean`. Building EthLib from source takes a long time and several GB of memory. Once EthLib is built, this project builds from clean in about 127 seconds with two threads and needs about 1.4 GB.
+EthLib is fetched as a dependency at the commit pinned in `lakefile.lean`. Building EthLib from source takes a long time and several GB of memory. Once EthLib is built, this project builds from clean in about 115 seconds with two threads and needs about 1.8 GB.
 
 ## Credits
 

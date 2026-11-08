@@ -1,44 +1,34 @@
 import Batteries.Tactic.Alias
-import UsdtVerify.Complete.Dispatch
-import UsdtVerify.Complete.Read
-import UsdtVerify.Complete.Transfer
-import UsdtVerify.Complete.Approve
-import UsdtVerify.Complete.TransferFrom
-import UsdtVerify.Complete.Owner
-import UsdtVerify.Complete.Getters
-import UsdtVerify.Complete.DepTransfer
-import UsdtVerify.Complete.DepAllowance
-import UsdtVerify.Complete.DepDestroy
-import UsdtVerify.Functions.TotalSupply
-import UsdtVerify.Functions.BalanceOf
-import UsdtVerify.Functions.Transfer
-import UsdtVerify.Functions.TransferSuccess
-import UsdtVerify.Functions.ApproveSpec
-import UsdtVerify.Functions.ApproveRevert
-import UsdtVerify.Functions.TransferFromSpec
-import UsdtVerify.Functions.TransferFeeSpec
-import UsdtVerify.Functions.TransferFault
-import UsdtVerify.Functions.TransferFaults
-import UsdtVerify.Functions.TransferFromFault
-import UsdtVerify.Functions.TransferFromFeeSpec
-import UsdtVerify.Functions.TransferFromFault2
-import UsdtVerify.Functions.DeprecatedBalance
-import UsdtVerify.Functions.DeprecatedTransferFrom
-import UsdtVerify.Functions.Nonpayable
-import UsdtVerify.Functions.PauseSpec
-import UsdtVerify.Functions.BlackListSpec
-import UsdtVerify.Functions.IssueSpec
-import UsdtVerify.Functions.SetParamsSpec
-import UsdtVerify.Functions.AddrWriteSpec
-import UsdtVerify.Functions.Destroy
-import UsdtVerify.Functions.DestroySpec
-import UsdtVerify.Functions.GettersMap
-import UsdtVerify.Functions.RunFrames
-import UsdtVerify.Functions.Strings
-import UsdtVerify.Functions.DeprecatedAllowance
-import UsdtVerify.Functions.Fallback
-import UsdtVerify.Functions.DeprecatedDestroy
-import UsdtVerify.Functions.StringsGen
+import UsdtVerify.Usdt.Complete.Dispatch
+import UsdtVerify.Usdt.Complete.Read
+import UsdtVerify.Usdt.Complete.Transfer
+import UsdtVerify.Usdt.Complete.Approve
+import UsdtVerify.Usdt.Complete.TransferFrom
+import UsdtVerify.Usdt.Complete.Owner
+import UsdtVerify.Usdt.Complete.Getters
+import UsdtVerify.Usdt.Complete.Deprecated.Transfer
+import UsdtVerify.Usdt.Complete.Deprecated.Allowance
+import UsdtVerify.Usdt.Complete.Deprecated.Destroy
+import UsdtVerify.Usdt.Spec.TotalSupply
+import UsdtVerify.Usdt.Spec.BalanceOf
+import UsdtVerify.Usdt.Proofs.Transfer
+import UsdtVerify.Usdt.Spec.Transfer
+import UsdtVerify.Usdt.Spec.Approve
+import UsdtVerify.Usdt.Spec.TransferFrom
+import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
+import UsdtVerify.Usdt.Spec.Deprecated.TransferFrom
+import UsdtVerify.Usdt.Spec.Dispatch
+import UsdtVerify.Usdt.Spec.Pause
+import UsdtVerify.Usdt.Spec.BlackList
+import UsdtVerify.Usdt.Spec.Issue
+import UsdtVerify.Usdt.Spec.SetParams
+import UsdtVerify.Usdt.Spec.AddrWrite
+import UsdtVerify.Usdt.Spec.Destroy
+import UsdtVerify.Usdt.Spec.Getters
+import UsdtVerify.Usdt.Spec.RunFrames
+import UsdtVerify.Usdt.Spec.Strings
+import UsdtVerify.Usdt.Spec.Deprecated.Allowance
+import UsdtVerify.Usdt.Spec.Deprecated.Destroy
 
 /-!
 # Summary: what is proved about the deployed USDT bytecode
@@ -52,7 +42,7 @@ state gas of a new slot, `sstoreStateGas`, 0 before Glamsterdam), by the local r
 `extCost fork` (EthLib's `externalBaseCost`: 2600 cold / 100 warm before Glamsterdam, the access
 plus 100 from Glamsterdam, EIP-8038; local rule `Local.extcodesize`), every account access
 `accCost fork` (3000 cold from Glamsterdam), and the CALL rules (`callStep_child_r`, `callWithR`
-and the step lemmas of Complete/DepCall.lean) cover the order of the charges at Glamsterdam. Each non-deprecated path is a `SpecG` (round 12: a `Spec` over
+and the step lemmas of Evm/Call.lean) cover the order of the charges at Glamsterdam. Each non-deprecated path is a `SpecG` (round 12: a `Spec` over
 the steps from frames where the same step with less gas fails or gives the same frame with that
 much less gas; it implies the `Spec`), each deprecated path a `Spec`: every run from such a
 frame reaches an end
@@ -211,15 +201,15 @@ call data of 4 to 2^256 - 1 bytes whose selector is the key of entry `i` of `ENT
 in bytecode order, docs/MAP.md) and a nonzero value ⇒ REVERT with no output, before any storage
 read: state and substate unchanged, gas left `gas - (87 + 22 * (i + 1))`.
 
-## Owner functions: the `onlyOwner` check (Owner.lean)
+## Owner functions: the `onlyOwner` check (Usdt/Proofs/Owner.lean)
 `owner` = the low 160 bits of slot 0 (`ownerOf`); the caller is compared as
 `caller & (2^160 - 1)` (`callerWord`). The check is inlined in each owner function; `ownerOk` /
 `ownerRevert` cover all ten copies (`CHECKS`). A caller other than the owner gets REVERT with no
 output after reading slot 0.
 Every `spec_*` of rounds 7 and 8 from pc 0 has a `runFrame_*` wrapper in the same namespace
-(RunFrames.lean, generated from the statements; each proof applies EthLib's `Spec.runFrame`).
+(Usdt/Spec/RunFrames.lean, generated from the statements; each proof applies EthLib's `Spec.runFrame`).
 
-## pause() 0x8456cb59 / unpause() 0x3f4ba83a (PauseSpec.lean)
+## pause() 0x8456cb59 / unpause() 0x3f4ba83a (Usdt/Spec/Pause.lean)
 `paused` is byte 20 of slot 0.
 - `pause_notOwner` / `unpause_notOwner`: caller ≠ owner ⇒ REVERT, no output.
 - `pause_paused`: owner, byte 20 ≠ 0 ⇒ REVERT (`whenNotPaused`).
@@ -229,7 +219,7 @@ Every `spec_*` of rounds 7 and 8 from pc 0 has a `runFrame_*` wrapper in the sam
   data. `withPaused w b` has byte 20 = b (`byte20_withPaused`), the same owner
   (`owner_withPaused`), and every bit outside 160..167 of `w` (`bit_withPaused`).
 
-## addBlackList(a) 0x0ecb93c0 / removeBlackList(a) 0xe4997dc5 (BlackListSpec.lean)
+## addBlackList(a) 0x0ecb93c0 / removeBlackList(a) 0xe4997dc5 (Usdt/Spec/BlackList.lean)
 `a` = argument word 0 masked to 160 bits; `L = keccak(a ++ 6)` (`listSlot a`).
 - `addBlackList_notOwner` / `removeBlackList_notOwner`: caller ≠ owner ⇒ REVERT, no output.
 - `addBlackList` / `removeBlackList` (owner): STOP; slot 0 read; `L := setLow w 1` / `setLow w 0`
@@ -237,7 +227,7 @@ Every `spec_*` of rounds 7 and 8 from pc 0 has a `runFrame_*` wrapper in the sam
   `a`. The old flag is not read. `listState_flag`: the low byte of `L` is then 1 / 0;
   `listState_other`: every other slot is unchanged.
 
-## issue(a) 0xcc872b66 / redeem(a) 0xdb006a75 (IssueSpec.lean)
+## issue(a) 0xcc872b66 / redeem(a) 0xdb006a75 (Usdt/Spec/Issue.lean)
 `a` = argument word 0; `T` = slot 1 (`_totalSupply`); `O = keccak(owner ++ 2)` (`ownerBal`),
 `B` its word.
 - `issue_notOwner` / `redeem_notOwner`: caller ≠ owner ⇒ REVERT.
@@ -251,7 +241,7 @@ Every `spec_*` of rounds 7 and 8 from pc 0 has a `runFrame_*` wrapper in the sam
 - `issue_effects` / `redeem_effects`: with `O ≠ 1` (assumed; `O` is a keccak output), the end
   words are `B ± a` and `T ± a` as numbers, and every other slot is unchanged.
 
-## setParams(b, m) 0xc0324c77 (SetParamsSpec.lean)
+## setParams(b, m) 0xc0324c77 (Usdt/Spec/SetParams.lean)
 `b`, `m` = argument words 0, 1; `d` = slot 9 (`decimals`); `f = m * 10^d` (EVM words).
 - `setParams_notOwner`: caller ≠ owner ⇒ REVERT. `setParams_bpHigh`: owner, `b ≥ 20` ⇒ REVERT.
   `setParams_feeHigh`: owner, `b < 20`, `m ≥ 50` ⇒ REVERT.
@@ -260,7 +250,7 @@ Every `spec_*` of rounds 7 and 8 from pc 0 has a `runFrame_*` wrapper in the sam
   `params_effects`: slot 3 = `b`, slot 4 = `f`, every other slot unchanged.
   The `mul` overflow (INVALID; needs `d ≥ 75`) is not covered.
 
-## deprecate(a) 0x0753c30c / transferOwnership(a) 0xf2fde38b (AddrWriteSpec.lean)
+## deprecate(a) 0x0753c30c / transferOwnership(a) 0xf2fde38b (Usdt/Spec/AddrWrite.lean)
 `a` = argument word 0 masked to 160 bits. `withAddr w a` = `w` with its low 160 bits from `a`.
 - `deprecate_notOwner` / `transferOwnership_notOwner`: caller ≠ owner ⇒ REVERT.
 - `deprecate` (owner): STOP; slot 10 := `withPaused w10 1`, then slot 10 :=
@@ -270,7 +260,7 @@ Every `spec_*` of rounds 7 and 8 from pc 0 has a `runFrame_*` wrapper in the sam
   `transferOwnership` (owner, `a ≠ 0`): STOP; slot 0 := `withAddr w0 a`; no log.
   `transferOwnership_effects`: the owner is `a`, `paused` is kept, other slots unchanged.
 
-## destroyBlackFunds(a) 0xf3bdc228 (Destroy.lean, DestroySpec.lean)
+## destroyBlackFunds(a) 0xf3bdc228 (Usdt/Spec/Destroy.lean)
 `a` = argument word 0 masked to 160 bits; `B = keccak(a ++ 2)` (`balSlot`), `d` its word
 (`dirty`); `T` = slot 1.
 - `destroyBlackFunds_notOwner`: caller ≠ owner ⇒ REVERT. `destroyBlackFunds_notListed`: owner,
@@ -282,7 +272,7 @@ Every `spec_*` of rounds 7 and 8 from pc 0 has a `runFrame_*` wrapper in the sam
   Gas `2865 +` the five read prices `+` the two write prices. `runFrame_destroyBlackFunds`.
   `destroyBlackFunds_effects`: with `B ≠ 1`, `B` is 0, slot 1 is `T - d` as a word (as numbers
   when `d ≤ T`), every other slot unchanged.
-- Deprecated (`destroyBlackFunds_dep`, DeprecatedDestroy.lean): owner, `a` blacklisted, byte 20
+- Deprecated (`destroyBlackFunds_dep`, Usdt/Spec/Deprecated/Destroy.lean): owner, `a` blacklisted, byte 20
   of slot 10 set, `ua` holding a code `c`, any route. The internal `balanceOf(a)` sends `ua` one
   message along the route with data `0x70a08231 ++ a` (`dataB`) and no value; it never reads `B`. If the call fails: REVERT, no
   output. If it ends with no error, with `S`, `ss` the state and substate it left and `d` the word
@@ -299,7 +289,7 @@ Every `spec_*` of rounds 7 and 8 from pc 0 has a `runFrame_*` wrapper in the sam
   upgraded code with a `Spec`), `destroyBlackFunds_depNoCode` (empty code: REVERT before any
   call, gas `1497 +` slots 0, `isBlackListed[a]`, 10 `+` address).
 
-## Getters (Getters.lean, GettersMap.lean)
+## Getters (Usdt/Spec/Getters.lean)
 Each returns 32 bytes and only reads; `a`, `a0`, `a1` are argument words masked to 160 bits.
 - `decimals`, `maximumFee`, `totalSupplyVar` (`_totalSupply()`), `basisPointsRate`: the word of
   slot 9, 4, 1, 3 (`getter_slot` covers the four).
@@ -320,7 +310,7 @@ the word n (length), and `topBytes w n` (the first n bytes of `w`, then zeros); 
 three times (first at the cold/warm price, then warm); gas `1010 + slot` / `1450 + slot`.
 For the words of "Tether USD" and "USDT" (`NAME_WORD`, `SYMBOL_WORD`) the data word is the UTF-8
 bytes of the string padded with zeros.
-Empty string (`name_empty`, `symbol_empty`; StringsGen.lean): low byte of the slot 0 ⇒ returns
+Empty string (`name_empty`, `symbol_empty`; Usdt/Spec/Strings.lean): low byte of the slot 0 ⇒ returns
 the word 0x20 and the word 0; slot read twice; gas `643 + slot` / `1083 + slot`.
 Long form (`name_long`, `symbol_long`): slot word odd, `N = w / 2`, 32 ≤ N < 2^180 ⇒ returns the
 word 0x20, the word N, and `strData` of the words of slots `keccak(k) + i`, i < ceil(N/32): the
@@ -348,7 +338,7 @@ neither checks the call value. Call data of 4 bytes or more whose selector is no
 32-entry table ⇒ REVERT, no output, state and substate unchanged, gas 773. Fewer than 4 bytes ⇒
 REVERT, no output, unchanged, gas 46.
 
-## The global invariant (UsdtVerify/Invariant.lean, imports this file)
+## The global invariant (Usdt/Invariant/Supply.lean, imports this file)
 `Inv C S`: the sum over the 2^160 addresses of `balances[a]` equals `_totalSupply` (slot 1).
 Under the keccak hypothesis `KeccakSep` (stated, not proved), the end state of every proved
 success path that writes is reached by `Steps` (`reach_*`), and `steps_inv` keeps `Inv` along any
@@ -356,15 +346,15 @@ finite sequence of steps; read-only paths only record reads (`inv_readSlot`, `in
 destroyBlackFunds keeps `Inv`: under `Inv`, `d ≤ _totalSupply`, so its unchecked subtraction does
 not wrap (`destroy_inv`).
 Every successful call, not deprecated, static or not, with or without an account:
-`Complete.inv_call`. Deprecated or not: `Complete.inv_call_ns` (Complete/DepInvAll.lean, from
+`Complete.inv_call`. Deprecated or not: `Complete.inv_call_ns` (Usdt/Invariant/All.lean, from
 Berlin, Glamsterdam included; when deprecated, under the named assumptions `KeepsInv` on the
 runner and `HonestBalance` for destroyBlackFunds, and since round 20 with no account of the
 contract assumed; the upgraded code may be an EIP-7702 delegation). Static or not:
-`Complete.inv_call_all` (Complete/Static.lean; "not static" replaced by `hstat`: when static,
+`Complete.inv_call_all` (Usdt/Invariant/Static.lean; "not static" replaced by `hstat`: when static,
 `message.code = CODE`, `StaticCode` and `StaticKeeps`; a static frame keeps the state, EthLib's `staticStep_runFrame`, under the named runner
 assumption `StaticKeeps`, proved for the interpreter's runner from Paris by
 `staticKeeps_process`). Along a finite sequence of such calls and of steps that keep the storage
-of `C`: `Complete.inv_calls` (Complete/Seq.lean); a successful top-level `processMessage` of
+of `C`: `Complete.inv_calls` (Usdt/Invariant/Seq.lean); a successful top-level `processMessage` of
 `CODE` with no value and no precompile, from Paris (Glamsterdam included), under
 the named assumptions, is such a call (`Complete.goodCall_process`); a top-level
 `processMessage` (any code, any fork) that ends with an error keeps every storage word
@@ -403,7 +393,7 @@ deprecated). Each conclusion states that the caller is the owner and the `requir
 Hypotheses of each: Berlin ≤ fork (Glamsterdam included), size < 2^256, the selector, the
 coldness flags as named in the specs, and `hdep` (not deprecated) for approve, transferFrom and
 destroyBlackFunds. A static frame or a contract with no account needs no hypothesis: each writing
-path reaches an SSTORE that is then `Gas.Stuck` (Stuck.lean, the `bad_*` lemmas), so no such run
+path reaches an SSTORE that is then `Gas.Stuck` (Evm/Stuck.lean, the `bad_*` lemmas), so no such run
 ends with no error (`Gas.no_ok_stuck`), and each of these conclusions (for transferOwnership, its
 `a ≠ 0` case) states `message.isStatic = false` and an account of the contract.
 
@@ -426,8 +416,8 @@ the three getters, empty for the three writes), gas, and the state and substate 
 follows a route `r`: no delegation, or (from Pectra) `c` is an EIP-7702 indicator to an address
 whose code is found, the message runs that code with the precompiles disabled, and the CALL pays
 the access to the delegate (`routeCost`). From Berlin on, Glamsterdam included (round 19:
-EXTCODESIZE at `extCost fork`, the accesses at `accCost fork`, Local/Extcodesize.lean and
-Functions/Route.lean). Named hypotheses
+EXTCODESIZE at `extCost fork`, the accesses at `accCost fork`, Evm/Local/Extcodesize.lean and
+Evm/Route.lean). Named hypotheses
 beyond the fork range, size, selector and flag: the coldness flags only.
 `destroyBlackFunds_dep_complete`: the owner's call, `a` blacklisted, the forward of
 `balanceOf(a)` answered with no error, then over the state `S` the call left and the word `d` at

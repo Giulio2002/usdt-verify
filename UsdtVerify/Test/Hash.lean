@@ -1,4 +1,4 @@
-import UsdtVerify.Code
+import UsdtVerify.Usdt.Code
 import EthLib.Execution.Evm.Instructions.Keccak
 
 /-!

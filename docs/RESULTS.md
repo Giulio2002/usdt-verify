@@ -1,7 +1,8 @@
 # What is proved about the deployed USDT bytecode
 
 This is a summary for a human reader. The Lean theorems are the reference; this page claims only
-what they state. Theorem names in parentheses; the one-place index is `UsdtVerify/Summary.lean`.
+what they state. Theorem names in parentheses; the one-place index is `UsdtVerify/Summary.lean`;
+the folders are described in `docs/LAYOUT.md`.
 
 ## The object
 
@@ -65,7 +66,7 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   These theorems take as hypotheses that the slots are pairwise distinct, and distinct from slot 0
   and from the allowance slot where needed. The slots are keccak outputs, and their distinctness is
   assumed, not proved.
-- **Deprecated totalSupply / balanceOf** (`Deprecated*.lean`). When the `deprecated` flag is set,
+- **Deprecated totalSupply / balanceOf** (`Usdt/Spec/Deprecated/TotalSupply.lean`, `BalanceOf.lean`). When the `deprecated` flag is set,
   USDT forwards the call to the address stored in slot 10. The theorems hold for every callee
   behaviour that meets a stated assumption, through EthLib's callee abstraction. These forward
   specifications (and those below, for the other deprecated functions) take the code `c` of the
@@ -86,8 +87,8 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   route whose specification ends with no error and a fixed output `o` of at least 32 bytes, with
   the route's address not a precompile and the forwarded message meeting the specification's
   precondition, the run returns the first word of `o`, unless the runner aborts.
-- **Deprecated transfer / approve / transferFrom** (`DeprecatedTransfer.lean`,
-  `DeprecatedTransferFrom.lean`). The same callee abstraction. With the flag set (and, for transfer,
+- **Deprecated transfer / approve / transferFrom** (`Usdt/Spec/Deprecated/Transfer.lean`,
+  `TransferFrom.lean`). The same callee abstraction. With the flag set (and, for transfer,
   not paused and the caller not blacklisted; for transferFrom, not paused and `f` not blacklisted;
   for approve, call data of at least 68 bytes), USDT:
   - sends exactly one message to the upgraded address, with no value, no output range, and the
@@ -107,7 +108,7 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   `runFrame_dep{T,A,F}_process`: with EthLib's own runner, for any code at the upgraded address
   with a proved specification whose runs end with no error, the run stops with no error, unless the
   runner aborts.
-- **Deprecated allowance(owner, spender)** (`DeprecatedAllowance.lean`). The same callee
+- **Deprecated allowance(owner, spender)** (`Usdt/Spec/Deprecated/Allowance.lean`). The same callee
   abstraction. With the flag set, USDT:
   - sends exactly one message to the upgraded address, with no value and the call data
     `0xdd62ed3e ++ owner ++ spender` (68 bytes, the addresses masked to 160 bits), with an output
@@ -119,30 +120,30 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
 
   `runFrame_depAl_process` instantiates this with EthLib's own message runner, as for balanceOf.
 
-- **A call that names no function** (`Fallback.lean`). TetherToken has no fallback function.
+- **A call that names no function** (`Usdt/Spec/Dispatch.lean`). TetherToken has no fallback function.
   - With at least 4 bytes of call data whose first four are not the selector of any of the 32
     functions, the run reverts with empty output, leaves the state and substate unchanged, and
     uses exactly 773 gas.
   - With fewer than 4 bytes of call data, the run reverts the same way after 46 gas.
   - Neither path checks the call value.
 
-- **Nonzero call value** (`Nonpayable.lean`, `nonpayable`). All 32 functions are nonpayable. For
+- **Nonzero call value** (`Usdt/Spec/Dispatch.lean`, `nonpayable`). All 32 functions are nonpayable. For
   every entry `i` of the selector table, a call whose selector is the key of entry `i` and whose
   value is not 0 reverts with empty output before reading storage: the state and substate are
   unchanged and the run uses exactly `87 + 22 * (i + 1)` gas.
 
-- **The owner check** (`Owner.lean`). Every owner function starts with an inlined copy of
+- **The owner check** (`Usdt/Proofs/Owner.lean`). Every owner function starts with an inlined copy of
   `require(msg.sender == owner)`, where `owner` is the low 160 bits of slot 0. One pair of
   theorems covers all ten copies: if the caller is the owner the run goes on, and otherwise it
   reverts with empty output after reading slot 0.
-- **pause() and unpause()** (`PauseSpec.lean`). `paused` is byte 20 of slot 0.
+- **pause() and unpause()** (`Usdt/Spec/Pause.lean`). `paused` is byte 20 of slot 0.
   - A caller that is not the owner gets a revert with empty output.
   - `pause()` reverts when already paused, and `unpause()` reverts when not paused.
   - On success the run stops after exactly one storage write, to slot 0. The new word has byte
     20 set to 1 (pause) or 0 (unpause), and every other bit unchanged, so the owner is unchanged
     too. One log is appended, with the topic of `Pause()` or `Unpause()` and no data. The gas is
     exact.
-- **addBlackList(a) and removeBlackList(a)** (`BlackListSpec.lean`). `isBlackListed[a]` is the low
+- **addBlackList(a) and removeBlackList(a)** (`Usdt/Spec/BlackList.lean`). `isBlackListed[a]` is the low
   byte of slot `keccak(a ++ 6)`.
   - A caller that is not the owner gets a revert with empty output.
   - The owner's call stops after exactly one storage write, to that slot. The low byte becomes 1
@@ -150,7 +151,7 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
     is appended: `AddedBlackList(a)` or `RemovedBlackList(a)`, with `a` as its data word. The old
     flag is not read, so adding twice or removing an absent address also succeeds. The gas is
     exact.
-- **issue(a) and redeem(a)** (`IssueSpec.lean`). `_totalSupply` is slot 1 and `balances[owner]`
+- **issue(a) and redeem(a)** (`Usdt/Spec/Issue.lean`). `_totalSupply` is slot 1 and `balances[owner]`
   is slot `O = keccak(owner ++ 2)`.
   - A caller that is not the owner gets a revert with empty output.
   - `issue` reverts unless `0 < a` and neither `_totalSupply + a` nor `balances[owner] + a`
@@ -161,7 +162,7 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
     - `redeem` writes `_totalSupply - a`, then `balances[owner] - a`, and logs `Redeem(a)`.
   - Assuming `O ≠ 1`, the new words are these sums and differences as plain numbers, and every
     other slot is unchanged. The gas is exact.
-- **setParams(b, m)** (`SetParamsSpec.lean`). `basisPointsRate`, `maximumFee` and `decimals`
+- **setParams(b, m)** (`Usdt/Spec/SetParams.lean`). `basisPointsRate`, `maximumFee` and `decimals`
   are slots 3, 4 and 9.
   - A caller that is not the owner gets a revert with empty output. The owner's call reverts
     when `b ≥ 20`, or when `b < 20` and `m ≥ 50`.
@@ -170,7 +171,7 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
     appended, with the two new words as data. The gas is exact.
   - When that product overflows (it needs `decimals ≥ 75`), SafeMath's assert ends the run in
     INVALID (`SetParamsSpec.spec_mulOv`, round 13).
-- **deprecate(a) and transferOwnership(a)** (`AddrWriteSpec.lean`).
+- **deprecate(a) and transferOwnership(a)** (`Usdt/Spec/AddrWrite.lean`).
   - A caller that is not the owner gets a revert with empty output.
   - `deprecate` stops after two writes of slot 10. Afterwards `deprecated` (byte 20) is 1,
     `upgradedAddress` (the low 160 bits) is `a`, and every other slot is unchanged. One log
@@ -179,7 +180,7 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
     of slot 0. Afterwards the owner is `a`, `paused` is unchanged, and so is every other slot.
     No log is emitted (Ownable has no event here).
   - The gas is exact.
-- **destroyBlackFunds(a)** (`Destroy.lean`, `DestroySpec.lean`). `B` is the slot of
+- **destroyBlackFunds(a)** (`Usdt/Spec/Destroy.lean`). `B` is the slot of
   `balances[a]` and `d` its word.
   - A caller that is not the owner gets a revert, and so does the owner when `a` is not
     blacklisted.
@@ -191,7 +192,7 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
     - it logs `DestroyedBlackFunds(a, d)`, with the address word and `d` as data.
   - Assuming `B ≠ 1`, `B` is then 0, slot 1 is `_totalSupply - d` as a word (and as a number
     when `d ≤ _totalSupply`), and every other slot is unchanged. The gas is exact.
-  - When the contract is deprecated (`DeprecatedDestroy.lean`), the getter does not read `B`.
+  - When the contract is deprecated (`Usdt/Spec/Deprecated/Destroy.lean`), the getter does not read `B`.
     It sends the upgraded address `ua` one message with no value and the data
     `0x70a08231 ++ a` (`balanceOf(a)`). The theorem holds for every callee behaviour that meets
     a stated assumption: when the call ends with no error, the contract's account still exists
@@ -209,7 +210,7 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
     - If `ua` has no code, the run reverts before any call. The interpreter's own message runner
       is covered for an upgraded code with a proved specification.
 
-- **The getters** (`Getters.lean`, `GettersMap.lean`). Each call with no value returns exactly
+- **The getters** (`Usdt/Spec/Getters.lean`). Each call with no value returns exactly
   32 bytes, writes nothing, and reads only the slots named; the gas is exact.
   - `decimals()`, `maximumFee()`, `_totalSupply()`, `basisPointsRate()` return the word of
     slot 9, 4, 1 and 3. `MAX_UINT()` returns 2^256 − 1 and reads nothing.
@@ -222,7 +223,7 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
     `isBlackListed[a]` is nonzero, and 0 otherwise.
   - `allowed(a0, a1)` returns `allowed[a0][a1]`; `allowance(a0, a1)`, when not deprecated,
     returns the same word after reading slot 10.
-- **name() and symbol()** (`Strings.lean`). They read the string in slot 7 (name) or slot 8
+- **name() and symbol()** (`Usdt/Spec/Strings.lean`). They read the string in slot 7 (name) or slot 8
   (symbol). The theorems cover a string of 1 to 31 bytes in Solidity's short form: the bytes
   from the top of the slot word, and the low byte equal to twice the length `n`.
   - The call returns 96 bytes, the ABI encoding of a string: the word 0x20, the word `n`, and a
@@ -231,10 +232,10 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
     the slot three times, writes nothing, and the gas is exact.
   - For the slot words of "Tether USD" and "USDT", the third word is the UTF-8 bytes of the
     string followed by zero bytes (`spec_name_tether`, `spec_symbol_usdt`).
-  - The empty string (`StringsGen.lean`; the low byte of the slot is 0): the call returns
+  - The empty string (`Usdt/Spec/Strings.lean`; the low byte of the slot is 0): the call returns
     64 bytes, the word 0x20 and the word 0. It reads the slot twice, writes nothing, and the gas
     is exact.
-  - The long form (`StringsGen.lean`): the slot word is odd and `N` = word / 2 is at least 32.
+  - The long form (`Usdt/Spec/Strings.lean`): the slot word is odd and `N` = word / 2 is at least 32.
     Solidity stores such a string from slot `keccak(k)` on. The call returns the word 0x20, the
     word `N`, then the words of the slots `keccak(k) + i` for i < ceil(N / 32). The last word
     keeps only its first `N mod 32` bytes followed by zeros, when `N` is not a multiple of 32.
@@ -244,7 +245,7 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   - Together these cover every slot word that Solidity writes for a string. Odd words with
     `word / 2 < 32` are not covered; Solidity never writes them.
 
-- **The global invariant** (`Invariant.lean`). `Inv` says that the sum of `balances[a]` over all
+- **The global invariant** (`Usdt/Invariant/Supply.lean`). `Inv` says that the sum of `balances[a]` over all
   2^160 addresses equals `_totalSupply` (slot 1), both read from the contract's storage.
   - The theorems assume `KeccakSep`, a stated hypothesis about keccak that is not proved:
     - distinct addresses have distinct balance slots;
@@ -266,7 +267,7 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
 
 ## Completeness of the dispatcher, for every gas
 
-- `runFrame_ok_dispatch` (`UsdtVerify/Complete/Dispatch.lean`, alias `Summary.dispatch_complete`):
+- `runFrame_ok_dispatch` (`UsdtVerify/Usdt/Complete/Dispatch.lean`, alias `Summary.dispatch_complete`):
   from Berlin, a fresh frame of `CODE` at pc 0 with call data of size below 2^256, any gas, any
   gas bound and any message runner. If the interpreter loop ends with no error, then:
   - the call data has at least 4 bytes;
@@ -297,7 +298,7 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
 - Round 18: the writing functions' completeness theorems (not deprecated) no longer assume a
   frame that is not static or an account for the contract. On every path that remains after the checks, the run
   reaches an SSTORE; in a static frame, or with no account, that SSTORE fails or halts with an
-  error at any gas (`Gas.sstore_stuck`, UsdtVerify/Stuck.lean), so no such run ends with no
+  error at any gas (`Gas.sstore_stuck`, UsdtVerify/Evm/Stuck.lean), so no such run ends with no
   error (`Gas.no_ok_stuck`, the per-path `bad_*` lemmas). Each `ok_X` of a writing path now also
   concludes `message.isStatic = false` and `hasAccount state C` (transferOwnership: on the
   `a ≠ 0` path, the only one that writes). `transferFrom`'s INVALID specifications
@@ -308,7 +309,7 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
   1 to 31 bytes in the short form, or the long form with a length below 2^180); this is a named
   hypothesis, since the other words have no specification.
 - **The invariant over every successful call, not deprecated** (`Complete.inv_call`,
-  `UsdtVerify/Complete/Inv.lean`). From Berlin on (Glamsterdam included since round 17), take a fresh frame of the deployed
+  `UsdtVerify/Usdt/Invariant/Calls.lean`). From Berlin on (Glamsterdam included since round 17), take a fresh frame of the deployed
   code at pc 0, with any call data below 2^256 bytes, any value, any gas, any gas bound and any
   message runner. Assume:
   - `KeccakSep` (keccak keeps the storage slots apart; not proved);
@@ -364,7 +365,7 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
 
 ## The invariant when deprecated: destroyBlackFunds (round 14)
 
-`UsdtVerify/Complete/DepInv.lean`. When deprecated, `destroyBlackFunds(a)` asks the upgraded
+`UsdtVerify/Usdt/Invariant/DeprecatedDestroy.lean`. When deprecated, `destroyBlackFunds(a)` asks the upgraded
 contract for `balanceOf(a)`, gets a word `d`, and then, in this contract, sets `balances[a]` to 0
 and `_totalSupply` to `_totalSupply - d` (no overflow check). Write `S` for the state the call
 left. The callee may call back into this contract, so `S` can differ from the start state.
@@ -394,7 +395,7 @@ left. The callee may call back into this contract, so `S` can differ from the st
 
 ## The invariant over every successful call, deprecated or not (round 15)
 
-`UsdtVerify/Complete/DepInvAll.lean`, `Complete.inv_call_ns` (until round 16 named
+`UsdtVerify/Usdt/Invariant/All.lean`, `Complete.inv_call_ns` (until round 16 named
 `inv_call_all`). It is `inv_call` without the
 hypothesis "not deprecated". From Berlin on (Glamsterdam included; through round 18 before Glamsterdam when deprecated), take a fresh frame of the
 deployed code at pc 0, with any call data below 2^256 bytes, any value, any gas, any gas bound
@@ -414,7 +415,7 @@ is an EIP-7702 delegation, the message still has `ua` as its current target, so 
 
 ## Static frames, and the invariant over every successful call (round 17)
 
-`UsdtVerify/Complete/Static.lean`. EthLib proves that a run of a static frame keeps the state up
+`UsdtVerify/Usdt/Invariant/Static.lean`. EthLib proves that a run of a static frame keeps the state up
 to the records of reads (`staticStep_runFrame`), given that the runner ends every static child
 message so. That premise is named here `StaticKeeps runChild`, and `staticKeeps_process` proves
 it, from Paris, for the interpreter's own runner (EthLib's `processMessage_static`).
@@ -430,17 +431,20 @@ it, from Paris, for the interpreter's own runner (EthLib's `processMessage_stati
   callee assumption; round 20 removed `hacc` from `inv_call_ns`, `inv_call_all`, `GoodCall`,
   `goodCall_process` and `process_step` (see below).
 
-## The invariant without an account of the contract (round 20)
+## The invariant without `hacc` (round 20)
 
-`UsdtVerify/Complete/DepInvAll.lean`. The callee assumption was restated so that it does not
-need the account of `C`:
+`UsdtVerify/Usdt/Invariant/All.lean`. The callee assumption was restated so that it does not
+need the account of `C`. (In a static frame, `hstat` of `inv_call_all` still implies an account of
+`C`: `StaticCode` for the nonempty code `CODE`.)
 - `KeepsInv runChild C ua` now has `Inv C` of the caller state as its only premise and `Inv C` of
   the child's end state as its conclusion. The assumption of rounds 15 to 19 is kept as
   `KeepsInvAcc` (premise also an account of `C`, conclusion also that account), and
   `keepsInv_of_acc` proves that `KeepsInvAcc` together with its missing case `KeepsInvNoAcc` (a
   caller state with no account of `C`) gives `KeepsInv`.
-- A missing account of `C` does not make a step of the forwarding paths fail: no forward
-  specification or completeness theorem of those paths takes an account. (In EthLib's
+- A missing account of `C` does not make a step of the forwarding paths fail: no completeness
+  theorem of those paths takes an account, the forward specifications of the six forwarding
+  functions take none, and those of destroyBlackFunds take none in the start state (their `hkeep`
+  is an account at the end of each forwarded call). (In EthLib's
   `finishCall` the balance check is `balance < value`, and these calls send value 0.) The missing
   account reaches the runner: `LocalForward` now states that `C` has an account in the caller
   state of the CALL iff it has one in the start state, and `localForward_noAcc` restates it for
@@ -454,7 +458,7 @@ need the account of `C`:
 
 ## A finite sequence of calls (round 17)
 
-`UsdtVerify/Complete/Seq.lean`. `Calls C S S'` is a finite sequence of steps, each either a
+`UsdtVerify/Usdt/Invariant/Seq.lean`. `Calls C S S'` is a finite sequence of steps, each either a
 `GoodCall` (one successful run of the deployed code for a message to `C`, from the state at
 that point, under the hypotheses of `inv_call_all` for that run, each with its own fork, message,
 gas and runner) or `Untouched` (any change that keeps every storage word of `C`).
@@ -468,7 +472,7 @@ gas and runner) or `Untouched` (any change that keeps every storage word of `C`)
   every address. The rollback restores the storage of the start state because the run keeps the
   block of the state (`parent`). EthLib proves that only for static messages, from Paris
   (`processMessage_static`); the local
-  `Local.parent_process` (UsdtVerify/Local/Parent.lean) proves it for every message and every
+  `Local.parent_process` (UsdtVerify/Evm/Local/Parent.lean) proves it for every message and every
   creation, static or not, from any fork, by induction on the gas, from EthLib's semantics
   (`Local.processMessage_failed_getStorage` then applies EthLib's `getStorage_restoreTxState`).
 - Calls with value (round 18): `process_value_fails` proves that, from Berlin, a top-level message
@@ -500,7 +504,7 @@ call. destroyBlackFunds ends in `tailState S C a d` over the child's end state `
   modified. These rules are EXP with its price worked out, some instruction table
   entries, EXTCODESIZE at every fork from Berlin (`Local.extcodesize`; EthLib's rule stops
   before Glamsterdam), and that every message keeps the block of the state
-  (`UsdtVerify/Local/`). STOP and GAS come from EthLib. The CALL step lemmas at every fork
+  (`UsdtVerify/Evm/Local/`). STOP and GAS come from EthLib. The CALL step lemmas at every fork
   (`callStep_child_r`, `callWithR`, `callStep_low_r`, `callStep_deep_r`, `callStep_missing`) are
   computed from EthLib's `callStep`. They are proved from EthLib's semantics, not assumed.
 
