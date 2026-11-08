@@ -6,6 +6,8 @@ import UsdtVerify.Evm.SgmSplit
 import UsdtVerify.Evm.SstoreS
 import UsdtVerify.Evm.OneWrite
 import UsdtVerify.Usdt.Refill.ApproveS
+import UsdtVerify.Evm.Chain
+import UsdtVerify.Usdt.Refill.OwnerS
 import UsdtVerify.Evm.StepSim
 import UsdtVerify.Usdt.Complete.Deprecated.Meter
 import UsdtVerify.Usdt.Complete.Deprecated.MeterR
@@ -1128,6 +1130,19 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Complete.one_write_sgm
 #print axioms UsdtVerify.Approve.approve_zero_sgm
 #print axioms UsdtVerify.Approve.approve_set_sgm
+#print axioms UsdtVerify.Complete.wMeter_gasLeft
+#print axioms UsdtVerify.Complete.exactS_halt
+#print axioms UsdtVerify.Complete.exactS_write
+#print axioms UsdtVerify.PauseSpec.pausePre
+#print axioms UsdtVerify.PauseSpec.unpausePre
+#print axioms UsdtVerify.PauseSpec.pause_sgm
+#print axioms UsdtVerify.PauseSpec.unpause_sgm
+#print axioms UsdtVerify.BlackListSpec.listPre
+#print axioms UsdtVerify.BlackListSpec.list_sgm
+#print axioms UsdtVerify.BlackListSpec.addBlackList_sgm
+#print axioms UsdtVerify.BlackListSpec.removeBlackList_sgm
+#print axioms UsdtVerify.AddrWriteSpec.ownPre
+#print axioms UsdtVerify.AddrWriteSpec.transferOwnership_sgm
 #print axioms UsdtVerify.Exact.approve_ok_dom
 #print axioms UsdtVerify.Exact.transfer_ok_dom
 #print axioms UsdtVerify.Exact.transferFrom_ok_dom
