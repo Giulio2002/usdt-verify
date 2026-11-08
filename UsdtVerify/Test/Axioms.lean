@@ -909,3 +909,9 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Sanity.hcode_S1
 #print axioms UsdtVerify.Sanity.balanceOf_mirror_sat
 #print axioms UsdtVerify.Sanity.process_step_dep_hyps
+#print axioms UsdtVerify.Sanity.storageAt_S2
+#print axioms UsdtVerify.Sanity.listed_S2
+#print axioms UsdtVerify.Sanity.bal_S2
+#print axioms UsdtVerify.Sanity.process_step_dep_hyps2
+#print axioms UsdtVerify.Sanity.destroy_gas_1M
+#print axioms UsdtVerify.Sanity.destroy_mirror_runs

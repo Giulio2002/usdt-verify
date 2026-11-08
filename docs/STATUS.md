@@ -1548,6 +1548,22 @@ T2 (third audit): the forwarded message carries the environments of the message 
 - Still free in `SentVia`: the call data, the gas and the caller's substate (`KeepsAt` is over
   every call that the code of `C` makes from `S`, with any data and gas).
 
+T3 (third audit): a deprecated state where destroyBlackFunds reaches the CALL
+(Usdt/Sanity/MirrorState.lean).
+- `SM`, `storageAt_SM`, `slotMap_cons`, `hasAccount_SM`, `hcode_SM`, `kD`, `KD`, `S2`, `mDO`
+  (`destroyBlackFunds(a)` from `CALLER_A`), `addr_mDO`, `storageAt_S2`, `slot10_S2`, `up_S2`,
+  `isOwner_S2`, `listed_S2`, `bal_S2`. In `S2 C H a`, `C` and `UA` have the same slots: 10
+  (deprecated, upgraded address `UA`), 0 (owner `CALLER_A`), `isBlackListed[a]` 1 and
+  `balances[a]` 1. The proofs split on every equality of the keccak slots with 0, 10 and each
+  other, so no keccak value is computed.
+- `process_step_dep_hyps2` (from Paris): the flag, `IsOwner`, `a` blacklisted, `balances[a] ≠ 0`
+  at `C`, `UA` holds `MIRROR` with the same `balances[a]`, `KeepsInvAt` and `HonestBalanceAt`.
+- `preCostD_le`, `destroy_gas_1M`, `destroy_mirror_runs` (Paris ≤ fork < Glamsterdam, 1000000
+  gas, any substate): `RunsOk` for that call under `processRunner`, from the iff of
+  `destroyBlackFunds_dep_ok_iff_gas_process_mirror`. So the run passes the checks and goes
+  through the CALL.
+- Not proved: `Inv` in `S2` (it needs keccak separation facts about the balance slots).
+
 ## Open (not proved)
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded

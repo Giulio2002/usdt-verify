@@ -1069,7 +1069,12 @@ ends with no error and the contract has an account in its end state".
   `HonestBalanceAt` (destroyBlackFunds can break it, see above). `KeepsInvAt` is shown for
   `processRunner` with the upgraded code STOP (round 29); `HonestBalanceAt` with the upgraded code
   `MIRROR` under `hmirror` (round 30). Round 31: `Sanity.process_step_dep_hyps` gives one concrete
-  deprecated state with `MIRROR` where `processRunner` meets both.
+  deprecated state with `MIRROR` where `processRunner` meets both. In that state no
+  destroyBlackFunds call reaches the CALL (the owner is 0 and nobody is blacklisted). Round 33:
+  `Sanity.process_step_dep_hyps2` gives a second state `S2`, where the caller is the owner, `a` is
+  blacklisted and `balances[a]` is not 0, and `processRunner` meets both there.
+  `Sanity.destroy_mirror_runs` (Paris to before Glamsterdam, 1000000 gas): the deprecated
+  destroyBlackFunds call there ends with no error, through the CALL. `Inv` in `S2` is not proved.
 - The keccak hypotheses `SepOn` and `SecSep` of a call's keys (finitely many separation facts about
   given slots; not proved, and not shown for any particular call).
 - The security properties for deprecated calls of the six forwarding functions (and, for the

@@ -563,6 +563,18 @@ through the `MIRROR` call.
 `balances[a]` at `C` and `UA` (with `Inv` from `UniqBal`-style facts on the few slots set), and a
 proof that the destroyBlackFunds run there succeeds and ends with `Inv`.
 
+**Resolution (round 33).** Usdt/Sanity/MirrorState.lean adds the state `S2 C H a`. `C` and
+`UA` have the same slots: 10 (deprecated, upgraded address `UA`), 0 (owner `CALLER_A`, not
+paused), `isBlackListed[a]` 1 and `balances[a]` 1. `UA` holds `MIRROR`. The proofs split on every
+equality between the keccak slots and 0, 10 and each other, so they compute no keccak value.
+`process_step_dep_hyps2` (from Paris): the flag is set, the caller is the owner, `a` is
+blacklisted, `balances[a] ≠ 0` at `C`, `MIRROR`'s slot holds the same word, and `processRunner`
+meets `KeepsInvAt` and `HonestBalanceAt`. `destroy_mirror_runs` (Paris ≤ fork < Glamsterdam,
+1000000 gas, any substate): the deprecated destroyBlackFunds call ends with no error under
+`processRunner`. It is derived from `destroyBlackFunds_dep_ok_iff_gas_process_mirror`, so the run
+passes the checks and goes through the CALL. Not done: `Inv` in `S2`, which needs keccak
+separation facts about the balance slots, so `Inv` after the run is not proved either.
+
 ## T4. `KeepsInvAcc` does not imply `KeepsInvAt` (Low, README)
 
 README: "The earlier forms over every message, `KeepsInv` and `KeepsInvAcc`, imply it."
