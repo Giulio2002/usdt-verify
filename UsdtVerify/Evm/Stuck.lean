@@ -2,7 +2,7 @@ import UsdtVerify.Evm.GasRules
 import EthLib.Base.Proofs.MapM
 
 /-!
-# Writes that cannot complete: static frames and a contract with no account
+# Writes that cannot complete: static frames, no account, at most 2300 gas left
 
 A frame is `Stuck` when it is running and its step, from it or from the same frame with any less
 gas, fails: an error, or a halt with an error. A run that reaches such a frame along `StepG` (from
@@ -18,6 +18,15 @@ without an account (an error of the state, which aborts the run).
 This is how the completeness theorems of the writing functions (not deprecated) do without the hypotheses
 `hstatic` (not static) and `hacc` (an account): on each writing path the run reaches its first
 SSTORE, and with a static frame or no account it cannot end with no error.
+
+Round 26:
+- `sstoreStep_low`, `sstore_low_stuck`: from Istanbul, SSTORE with at most 2300 gas left fails
+  (EIP-2200), so it is `Stuck`.
+- `NoWrite message state g`: a static frame, no account for the current target, or (from
+  Istanbul) at most `g ≤ 2300` gas; `sstoreNoWrite`: an SSTORE where `NoWrite` holds is `Stuck`.
+- `no_ok_stuck_at`: a run that reaches a `Stuck` frame along `StepG` from a start with its own gas
+  does not end with no error (used for a gas below a stipend bound, where `no_ok_stuck`, which
+  starts with more gas, does not apply).
 -/
 
 namespace UsdtVerify.Gas

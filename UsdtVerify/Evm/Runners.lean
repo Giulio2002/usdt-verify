@@ -3,9 +3,9 @@ import EthLib.Execution.Proofs.Evm.Logic.Callee
 import EthLib.Execution.Proofs.Evm.Instructions.MemoryData
 
 /-!
-# Two concrete message runners that keep the storage of every account
+# Concrete message runners
 
-For any code. They show that a runner assumption of the form `Keeps runChild C ua R` can hold
+For any code. `stopRunner` and `answerRunner` keep the storage of every account; they show that a runner assumption of the form `Keeps runChild C ua R` can hold
 when `R` holds between two states with the same storage at `C` (`SameStore C`).
 
 - `stopRunner fork bound ua`: on a message to `ua` whose code is the one byte STOP
@@ -17,6 +17,8 @@ when `R` holds between two states with the same storage at `C` (`SameStore C`).
   `stopRunner_keeps`: every message to `ua` it ends keeps the storage of every account.
 - `answerRunner f`: ends every message at once with no error, gas 0, the output `f caller msg`,
   and the caller's state (`answerRunner_ok`). `answerRunner_keeps`.
+- `answerRunnerAt S f` (round 26): the same, but every message ends in the given state `S`
+  (`answerRunnerAt_ok`); it does not keep storage in general.
 
 `Keeps` asks its relation of every message to `ua` that the runner ends with no error, whatever
 the code of the message; `stopRunner` meets it by failing the messages to `ua` that do not run

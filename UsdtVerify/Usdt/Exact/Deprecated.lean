@@ -26,7 +26,7 @@ in the state (`hcode`; `c.size < 2^256`, `hszl`, for the theorems that give succ
   at least the gas of the code after the CALL: 121, 126, 128, 51, 53, 53) exactly when `A` holds,
   the run ends with no error if and only if the checks and `A` hold. Together with `*_dep_low`
   this covers every gas.
-- `*_dep_ok_or_fails` (round 26, the same six): for a runner that may fail with errors that abort
+- `*_dep_ok_or_fails` (round 26, the same six): with `hg` and `htail`, for a runner that may fail with errors that abort
   the run (in place of `NoFail`), success gives the checks and `A`, and the checks and `A` give
   success or a failure of the runner on some message.
 - destroyBlackFunds when deprecated: the gas between `hg` and `htail`, and a runner that may fail,

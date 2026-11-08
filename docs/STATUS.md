@@ -1270,14 +1270,19 @@ entry; `DESTS` = the 32 destinations).
   `ownershipStip`, `transferStip`, `transferFromStip`.
 - Deprecated, the six forwards other than destroyBlackFunds: `spec_dep*_g` (the bound `hcg` on the
   callee in place of `htail`; the old specs are derived), `X_dep_ok_iff_gas` (no `htail`; `hans`
-  covers no error and enough gas after the CALL), `X_dep_ok_or_fails` (a runner that may fail with
-  aborting errors; one-sided).
+  covers no error and enough gas after the CALL), `X_dep_ok_or_fails` (with `htail`; a runner that may
+  fail with aborting errors; one-sided).
 - `Evm/Runners.lean`: `answerRunnerAt`. `Usdt/Sanity/Exact.lean`: `answerRunnerAt_noFail`,
   `answerRunnerAt_ans_acc`, `answerRunnerAt_hans` (meets the `hans` of deprecated destroyBlackFunds
   with `A = True`), `answerRunnerAt_ans_gas`.
 - Not covered: deprecated destroyBlackFunds between the bounds of `hg` and `htail` and under a
   runner that may fail; for the six forwards under a runner that may fail, only the one-sided form.
 - `lake build UsdtVerify` (incremental, after each code commit): exit 0.
+- Independent accuracy check of the round-26 docs against the statements: nine items fixed
+  (`X_dep_ok_or_fails` keeps `htail`, so under a runner that may fail the gas between `hg` and
+  `htail` stays open; `answerRunnerAt` does not keep storage; the `Stuck.lean`, `Iff.lean`,
+  `Runners.lean` and Sanity headers; `answerRunnerAt_hans` needs the current target `C`;
+  `answerRunnerAt_ans_gas` is stated per frame; the Summary heading; a parenthesis in LAYOUT).
 
 ## Open (not proved)
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
@@ -1317,7 +1322,8 @@ entry; `DESTS` = the 32 destinations).
   Round 26: every gas for the 13 writing functions not deprecated (`X_iff_gas`) and for the six
   deprecated forwards (`X_dep_ok_iff_gas` with `X_dep_low`). Open: deprecated destroyBlackFunds
   between the bounds of `hg` and `htail`; under a runner that may fail, an iff (only the one-sided
-  `X_dep_ok_or_fails` for the six forwards, nothing for deprecated destroyBlackFunds).
+  `X_dep_ok_or_fails` for the six forwards, and only from the bound of `htail`; nothing for
+  deprecated destroyBlackFunds).
 
 ## Generic gaps found (for the EthLib program-logic agent)
 1. Missing opcode rules at the pin (kept as LOCAL lemmas, UsdtVerify/Evm/Local/Rules.lean):
@@ -1420,6 +1426,7 @@ entry; `DESTS` = the 32 destinations).
    a fork-generic `callWith`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+- Round 26 (tree of commit 0efce8e, rm -rf .lake/build, EthLib oleans prebuilt, LEAN_NUM_THREADS=2): 138 s wall, exit 0, 0 "error:" lines.
 - Round 25 (tree of commit 0f5fb8b, rm -rf .lake/build, EthLib oleans prebuilt): 102.14 s wall,
   336.50 s user, 1776189440 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines, 1392
   jobs. `#print axioms`: 568 [propext, Classical.choice, Quot.sound], 5 [propext, Quot.sound],

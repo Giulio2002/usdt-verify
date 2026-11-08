@@ -3,7 +3,7 @@ import UsdtVerify.Evm.Iff
 import UsdtVerify.Evm.Sample
 
 /-!
-# Sanity: runners that meet the runner hypotheses of six deprecated exact conditions
+# Sanity: runners that meet the runner hypotheses of the deprecated exact conditions
 
 The theorems `*_dep_ok_iff` of `Usdt/Exact/Deprecated.lean` take a runner that never fails
 (`NoFail`), and, for all but destroyBlackFunds, that ends each forwarded message with no error

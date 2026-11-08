@@ -15,6 +15,12 @@ import UsdtVerify.Evm.Stuck
   which a specification to a normal halt that pays `cost` holds for every gas from a bound
   `B ≥ cost` on, no run with less gas than `cost` ends with no error.
   `not_runsOk_low2` and `not_runsOk_low3` take a specification with one or two more gas bounds.
+- `not_runsOk_stuck` (round 26): with a condition `G` that every run ending with no error meets,
+  and under which the frame, with its own gas, reaches a `Stuck` frame (for example an SSTORE
+  with at most 2300 gas left, `Gas.NoWrite`), no run ends with no error.
+- `of_runsOk` (round 26): a run that ends with no error meets such a condition `G`.
+- `iff_max` (round 26): the form of an exact gas threshold `max cost stip`, from `RunsOk ↔ G`
+  above both bounds, failure below `cost`, failure from `cost` to below `stip`, and `RunsOk → G`.
 - `NoFail`: the message runner returns a frame for every message (it never fails).
 - `AnsIff M ua c r d A`: the callee assumption that a message forwarded along the route `r`
   (`SendsVia M ua c r d`) ends with no error exactly when `A` holds.

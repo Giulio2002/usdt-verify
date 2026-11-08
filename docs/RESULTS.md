@@ -827,8 +827,9 @@ ends with no error and the contract has an account in its end state".
   `X_dep_low`, every gas is covered for these six. The specifications behind it
   (`spec_dep_g`, `spec_depB_g`, `spec_depAl_g`, `spec_depT_g`, `spec_depA_g`, `spec_depF_g`) take
   that bound on the callee (`hcg`) in place of `htail`; the old specifications follow from them.
-- `X_dep_ok_or_fails` (round 26, the same six): for a runner that may fail, with errors that abort
-  the run (as `Meets` asks), in place of `NoFail`: a run that ends with no error gives the checks
+- `X_dep_ok_or_fails` (round 26, the same six): the hypotheses of `X_dep_ok_iff` (with `htail`),
+  for a runner that may fail, with errors that abort the run (as `Meets` asks, `hab`), in place of
+  `NoFail`: a run that ends with no error gives the checks
   and `A`; the checks and `A` give a run that ends with no error, or a failure of the runner on
   some message (not shown to be the forward). This is not an iff.
 - `NoFail` excludes a runner that fails, which makes the run abort (EthLib's `Meets` allows such
@@ -836,8 +837,9 @@ ends with no error and the contract has an account in its end state".
   error, so it meets `hans` with `A = True` for the six forwards other than destroyBlackFunds.
   Round 26: `answerRunnerAt S f` (each message ends at once with no error, gas 0, in the state
   `S`) never fails; with `S = sState C kvs` it meets the `hans` of deprecated destroyBlackFunds
-  with `A = True` (`answerRunnerAt_hans`), and it meets the `hans` of `X_dep_ok_iff_gas` with `A`
-  the bound on the gas the CALL keeps (`answerRunnerAt_ans_gas`).
+  with `A = True`, for a message whose current target is `C` (`answerRunnerAt_hans`); and each
+  ended frame meets the condition of the `hans` of `X_dep_ok_iff_gas` exactly when `T ≤ R`, for `T`
+  the tail gas and `R` the gas the CALL keeps (`answerRunnerAt_ans_gas`, stated per frame).
 - Deprecated destroyBlackFunds: a gas between the bounds of `hg` and `htail`, and a runner that
   may fail, are not covered (the code after its CALL writes two slots).
 
@@ -878,6 +880,7 @@ ends with no error and the contract has an account in its end state".
   and every gas for the six deprecated forwards (`X_dep_low`, `X_dep_ok_iff_gas`). Deprecated
   destroyBlackFunds between the bounds of `hg` and `htail` is not covered.
 - The deprecated exact conditions for a runner that may fail: only the one-sided
-  `X_dep_ok_or_fails` for the six forwards; nothing for deprecated destroyBlackFunds.
+  `X_dep_ok_or_fails` for the six forwards, and only from the bound of `htail`; nothing for
+  deprecated destroyBlackFunds.
 - Forks before Berlin. Glamsterdam rests on EthLib's model of that fork at the pin (its prices
   and the order of its checks).

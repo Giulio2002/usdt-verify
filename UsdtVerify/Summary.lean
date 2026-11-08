@@ -426,7 +426,7 @@ hypothesis. No witness run is deprecated.
 `StrForm`. `Sanity.strings_applies`: under `KeccakSep`, `inv_call_all` and `supply_call` apply with
 those words in slots 7 and 8.
 
-## Exact success conditions (round 25; Usdt/Exact/, conditions in Usdt/Spec/Guards.lean)
+## Exact success conditions (rounds 25, 26; Usdt/Exact/, conditions in Usdt/Spec/Guards.lean)
 `Exact.RunsOk fork bound runChild evm within`: the loop of the interpreter, run from `evm`, ends
 in a frame with no error. For each function, from Berlin, a fresh frame of `CODE` at pc 0, call
 data below 2^256 bytes with the function's selector, the coldness flags as in the specs, any gas
@@ -463,13 +463,15 @@ they meet `hans` with `A = True` (used for the six forwards other than destroyBl
 Round 26, the six forwards other than destroyBlackFunds: `Exact.X_dep_ok_iff_gas` drops `htail`;
 its `hans` makes `A` equivalent to the forwarded message ending with no error and leaving enough
 gas for the code after the CALL (the gas the CALL keeps plus the gas left in the ended frame), so
-with `Exact.X_dep_low` every gas is covered. `Exact.X_dep_ok_or_fails`: for a runner that may fail
-with errors that abort the run, success gives the checks and `A`, and the checks and `A` give
-success or a failure of the runner on some message. `Sanity.answerRunnerAt_hans`: the runner
-`answerRunnerAt (sState C kvs) f` meets the `hans` of deprecated destroyBlackFunds with
-`A = True`; `Sanity.answerRunnerAt_ans_gas`: it meets the `hans` of `X_dep_ok_iff_gas` with `A`
-the bound on the gas the CALL keeps. Deprecated destroyBlackFunds between `hg` and `htail`, or
-under a runner that may fail, is not covered.
+with `Exact.X_dep_low` every gas is covered. `Exact.X_dep_ok_or_fails` (with `hg` and `htail`): for
+a runner that may fail with errors that abort the run, success gives the checks and `A`, and the
+checks and `A` give success or a failure of the runner on some message.
+`Sanity.answerRunnerAt_hans`: the runner `answerRunnerAt (sState C kvs) f` meets the `hans` of
+deprecated destroyBlackFunds with `A = True`, for a message whose current target is `C`;
+`Sanity.answerRunnerAt_ans_gas`: each frame it ends meets the condition of the `hans` of
+`X_dep_ok_iff_gas` exactly when the tail gas is at most the gas the CALL keeps. Not covered:
+deprecated destroyBlackFunds between `hg` and `htail` or under a runner that may fail, and the six
+forwards under a runner that may fail below the bound of `htail` (and only one-sided above it).
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas
