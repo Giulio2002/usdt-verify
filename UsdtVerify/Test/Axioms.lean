@@ -16,6 +16,7 @@ import UsdtVerify.Evm.StepSim
 import UsdtVerify.Usdt.Complete.Deprecated.Meter
 import UsdtVerify.Usdt.Complete.Deprecated.MeterR
 import UsdtVerify.Usdt.Complete.Deprecated.DestroyS
+import UsdtVerify.Usdt.Complete.Deprecated.PathsS
 import UsdtVerify.Usdt.Invariant.DepMeter
 import UsdtVerify.Usdt.Security.DepMeter
 import UsdtVerify.Usdt.Security.SeqDepMeter
@@ -1398,3 +1399,14 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Sanity.callGas_bounds
 #print axioms UsdtVerify.Sanity.process_mirrorS_ok
 #print axioms UsdtVerify.Sanity.destroy_mirror_runsS
+
+-- Round 45: the six other deprecated paths over StateGasMeter, the exact meter after the CALL
+#print axioms UsdtVerify.Complete.fromExtSG
+#print axioms UsdtVerify.Complete.resumeG
+#print axioms UsdtVerify.Complete.dep_call_exactS
+#print axioms UsdtVerify.Complete.dep_totalSupply_exactR
+#print axioms UsdtVerify.Complete.dep_balanceOf_exactR
+#print axioms UsdtVerify.Complete.dep_allowance_exactR
+#print axioms UsdtVerify.Complete.dep_transfer_exactR
+#print axioms UsdtVerify.Complete.dep_approve_exactR
+#print axioms UsdtVerify.Complete.dep_transferFrom_exactR

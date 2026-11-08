@@ -56,6 +56,8 @@ import UsdtVerify.Evm.FwdS
 import UsdtVerify.Usdt.Complete.Deprecated.CallS
 import UsdtVerify.Usdt.Refill.DestroyDepS
 import UsdtVerify.Usdt.Complete.Deprecated.DestroyS
+import UsdtVerify.Usdt.Complete.Deprecated.CallExactS
+import UsdtVerify.Usdt.Complete.Deprecated.PathsS
 import UsdtVerify.Usdt.Complete.Dispatch
 import UsdtVerify.Usdt.Complete.Getters
 import UsdtVerify.Usdt.Complete.Owner
