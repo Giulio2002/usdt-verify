@@ -82,7 +82,7 @@ theorem runC_of_sgm (hfork : .berlin ≤ fork) {bound : Nat}
     {within : GasMeter.gasHeld m.gas ≤ bound}
     (h : Evm.runFrame (step fork) (step_decreases fork) bound runChild m within = .ok s)
     (hok : s.error = none) (hres : m.gas.reservoir = 0 ∨ m.running = false) :
-    ∃ G, RunC fork (RunS runChild) (toNat m) { toNat s with gas := G } := by
+    ∃ G, RunC fork (RunS runChild) (fun _ => True) (toNat m) { toNat s with gas := G } := by
   by_cases hrun : m.running = true
   · have hr : m.gas.reservoir = 0 := by
       rcases hres with h | h
@@ -91,7 +91,7 @@ theorem runC_of_sgm (hfork : .berlin ≤ fork) {bound : Nat}
     have hrn : (toNat m).running = true := hrun
     -- the step over `StateGasMeter` and the step over `Nat`, when they correspond
     have hcorr : CorrS (step fork m) (step fork (toNat m)) →
-        ∃ G, RunC fork (RunS runChild) (toNat m) { toNat s with gas := G } := by
+        ∃ G, RunC fork (RunS runChild) (fun _ => True) (toNat m) { toNat s with gas := G } := by
       rintro (⟨e, he, -⟩ | ⟨m', hS, hN, hb⟩)
       · exact absurd hok (sgm_step_error hrun he h)
       · rw [runFrame_of_step_eq_next hrun hS] at h
@@ -99,7 +99,7 @@ theorem runC_of_sgm (hfork : .berlin ≤ fork) {bound : Nat}
         obtain ⟨G, hG⟩ := runC_of_sgm hfork h hok hb
         exact ⟨G, .step (.next hrn hN) hG⟩
     by_cases hF : Fwd (toNat m)
-    · rcases hF with ⟨hp, hnr⟩ | hc
+    · rcases hF with ⟨hp, hnr, -⟩ | hc
       · exact hcorr (step_simX hr hp hnr)
       · rcases step_callX hfork hr hc with hbad | hc' | ⟨caller, msg, o, osz, hS, hN, hcr, hmr⟩
         · rcases hbad with ⟨e, he⟩ | ⟨b, hb, hbr, hbe⟩
@@ -125,7 +125,7 @@ theorem runC_of_sgm (hfork : .berlin ≤ fork) {bound : Nat}
           obtain ⟨G, hE⟩ := Shadow.shadow_run hfork h hok
             (n := { y' with gas := (toNat caller).gas + budget y })
             (by rw [hty]) (Nat.le_add_left _ _)
-          exact ⟨G, .call hrn hN ⟨caller, lt, chS, hch, rfl, rfl, hcr, hmr⟩ hres' hE⟩
+          exact ⟨G, .call hrn hN ⟨caller, lt, chS, hch, rfl, rfl, hcr, hmr⟩ hres' trivial hE⟩
     · exact ⟨0, .out hrn hF⟩
   · have hl : m.running = false := by simpa using hrun
     rw [runFrame_of_running_eq_false hl] at h

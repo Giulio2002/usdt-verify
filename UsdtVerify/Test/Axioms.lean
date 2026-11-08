@@ -1,6 +1,9 @@
 import UsdtVerify.Evm.CallMeter
+import UsdtVerify.Evm.StepSimR
+import UsdtVerify.Evm.RunCR
 import UsdtVerify.Evm.StepSim
 import UsdtVerify.Usdt.Complete.Deprecated.Meter
+import UsdtVerify.Usdt.Complete.Deprecated.MeterR
 import UsdtVerify.Usdt.Invariant.DepMeter
 import UsdtVerify.Usdt.Security.DepMeter
 import UsdtVerify.Usdt.Security.SeqDepMeter
@@ -1097,6 +1100,13 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Meter.step_simX
 #print axioms UsdtVerify.Meter.routes_or_missing
 #print axioms UsdtVerify.Meter.step_callX
+#print axioms UsdtVerify.Complete.callStep_child_simR
+#print axioms UsdtVerify.Complete.callStep_deep_simR
+#print axioms UsdtVerify.Meter.sim_sstoreStepR
+#print axioms UsdtVerify.Meter.sim_of_simulatedR
+#print axioms UsdtVerify.Meter.step_simXR
+#print axioms UsdtVerify.Meter.step_callXR
+#print axioms UsdtVerify.Complete.runC_of_sgmR
 #print axioms UsdtVerify.Refill.noRefill_cheapE
 #print axioms UsdtVerify.Refill.HoareG.toIE
 #print axioms UsdtVerify.Complete.RunC.of_runFrame
@@ -1106,6 +1116,11 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Complete.RunC.not_bad
 #print axioms UsdtVerify.Complete.low_to_runningC
 #print axioms UsdtVerify.Complete.ok_splitC
+#print axioms UsdtVerify.Complete.noRefill_of_specA
+#print axioms UsdtVerify.Refill.noState_cheapE
+#print axioms UsdtVerify.Refill.HoareG.toJE
+#print axioms UsdtVerify.Refill.HoareG.toJA
+#print axioms UsdtVerify.Refill.SpecG.toJA
 #print axioms UsdtVerify.Complete.ok_splitCA
 #print axioms UsdtVerify.Complete.no_okC
 #print axioms UsdtVerify.Complete.RunC.extcodesize
@@ -1134,6 +1149,13 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Complete.dep_transferFrom_completeS
 #print axioms UsdtVerify.Complete.dep_destroy_completeC
 #print axioms UsdtVerify.Complete.dep_destroy_completeS
+#print axioms UsdtVerify.Complete.dep_totalSupply_completeR
+#print axioms UsdtVerify.Complete.dep_balanceOf_completeR
+#print axioms UsdtVerify.Complete.dep_allowance_completeR
+#print axioms UsdtVerify.Complete.dep_transfer_completeR
+#print axioms UsdtVerify.Complete.dep_approve_completeR
+#print axioms UsdtVerify.Complete.dep_transferFrom_completeR
+#print axioms UsdtVerify.Complete.dep_destroy_completeR
 #print axioms UsdtVerify.Complete.dep_totalSupply_localC
 #print axioms UsdtVerify.Complete.dep_balanceOf_localC
 #print axioms UsdtVerify.Complete.dep_allowance_localC

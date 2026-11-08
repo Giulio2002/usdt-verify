@@ -103,7 +103,7 @@ theorem dep_totalSupply_completeS (hfork : .berlin ≤ fork)
       s.substate = (incorporateChild fork caller child.1).substate := by
   obtain ⟨G, hC⟩ := runC_of_sgm hfork hrun hok (.inl hres)
   obtain ⟨c, r, h1, h2, h3, h4, h5, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩, he, hfwd,
-    hmg, hcs, hcss, -, hr, ho, -, hst, hss⟩ :=
+    hmg, hcs, hcss, -, hr, ho, -, hst, hss, -⟩ :=
     dep_totalSupply_completeC hfork hsize' hsel hdep start hC (endsOk_of_sgm hfork hrun hok) hok
   have cs : child.state = chS.1.state := by rw [hchN]; rfl
   have css : child.substate = chS.1.substate := by rw [hchN]; rfl
@@ -151,7 +151,7 @@ theorem dep_balanceOf_completeS (hfork : .berlin ≤ fork)
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
   obtain ⟨G, hC⟩ := runC_of_sgm hfork hrun hok (.inl hres)
-  obtain ⟨c, r, h1, h2, h3, h4, h5, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8⟩ :=
+  obtain ⟨c, r, h1, h2, h3, h4, h5, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8, -⟩ :=
     dep_balanceOf_completeC hfork hsize' hsel hdep start hC (endsOk_of_sgm hfork hrun hok) hok
   have cs : child.state = chS.1.state := by rw [hchN]; rfl
   have css : child.substate = chS.1.substate := by rw [hchN]; rfl
@@ -195,7 +195,7 @@ theorem dep_allowance_completeS (hfork : .berlin ≤ fork)
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
   obtain ⟨G, hC⟩ := runC_of_sgm hfork hrun hok (.inl hres)
-  obtain ⟨c, r, h1, h2, h3, h4, h5, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8⟩ :=
+  obtain ⟨c, r, h1, h2, h3, h4, h5, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8, -⟩ :=
     dep_allowance_completeC hfork hsize' hsel hdep hc10 hcU start hC (endsOk_of_sgm hfork hrun hok) hok
   have cs : child.state = chS.1.state := by rw [hchN]; rfl
   have css : child.substate = chS.1.substate := by rw [hchN]; rfl
@@ -244,7 +244,7 @@ theorem dep_transfer_completeS (hfork : .berlin ≤ fork)
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
   obtain ⟨G, hC⟩ := runC_of_sgm hfork hrun hok (.inl hres)
-  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, h7, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8⟩ :=
+  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, h7, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8, -⟩ :=
     dep_transfer_completeC hfork hsize' hsel hdep hc0 hcB hc10 hcU start hC (endsOk_of_sgm hfork hrun hok) hok
   have cs : child.state = chS.1.state := by rw [hchN]; rfl
   have css : child.substate = chS.1.substate := by rw [hchN]; rfl
@@ -288,7 +288,7 @@ theorem dep_approve_completeS (hfork : .berlin ≤ fork)
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
   obtain ⟨G, hC⟩ := runC_of_sgm hfork hrun hok (.inl hres)
-  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8⟩ :=
+  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8, -⟩ :=
     dep_approve_completeC hfork hsize' hsel hdep hc10 hcU start hC (endsOk_of_sgm hfork hrun hok) hok
   have cs : child.state = chS.1.state := by rw [hchN]; rfl
   have css : child.substate = chS.1.substate := by rw [hchN]; rfl
@@ -337,7 +337,7 @@ theorem dep_transferFrom_completeS (hfork : .berlin ≤ fork)
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
   obtain ⟨G, hC⟩ := runC_of_sgm hfork hrun hok (.inl hres)
-  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, h7, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8⟩ :=
+  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, h7, caller, msg, child, ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩, f0, q1, q2, q3, q4, -, q5, q6, -, q7, q8, -⟩ :=
     dep_transferFrom_completeC hfork hsize' hsel hdep hc0 hcB hc10 hcU start hC (endsOk_of_sgm hfork hrun hok) hok
   have cs : child.state = chS.1.state := by rw [hchN]; rfl
   have css : child.substate = chS.1.substate := by rw [hchN]; rfl

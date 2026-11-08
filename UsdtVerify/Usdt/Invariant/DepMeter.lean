@@ -34,7 +34,7 @@ open Invariant Deprecated DeprecatedBalance DeprecatedDestroy DestroySpec
 
 variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
   {substate : Substate} {evm s : Evm fork Nat} {gas : Nat}
-  {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop}
+  {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop} {Tail : Evm fork Nat → Prop}
 
 /-- `KeepsInvAt` for a relation `Run` of the child. -/
 def KeepsInvAtC (Run : Evm fork Nat → Message fork → Evm fork Nat → Prop) (message : Message fork)
@@ -73,7 +73,7 @@ theorem dep_totalSupply_localC (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x18160ddd)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (hrun : RunC fork Run evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
     LocalForwardC Run message state s := by
   obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
     dep_totalSupply_completeC hfork hsize' hsel hdep start hrun hE hok
@@ -90,7 +90,7 @@ theorem dep_balanceOf_localC (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x70a08231)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (hrun : RunC fork Run evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
     LocalForwardC Run message state s := by
   obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
     dep_balanceOf_completeC hfork hsize' hsel hdep start hrun hE hok
@@ -107,7 +107,7 @@ theorem dep_allowance_localC (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xdd62ed3e)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (hrun : RunC fork Run evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
     LocalForwardC Run message state s := by
   obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
     dep_allowance_completeC hfork hsize' hsel hdep rfl rfl start hrun hE hok
@@ -124,7 +124,7 @@ theorem dep_approve_localC (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x095ea7b3)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (hrun : RunC fork Run evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
     LocalForwardC Run message state s := by
   obtain ⟨c, r, hcode, hroute, -, -, -, -, caller, msg, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
     dep_approve_completeC hfork hsize' hsel hdep rfl rfl start hrun hE hok
@@ -141,7 +141,7 @@ theorem dep_transfer_localC (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xa9059cbb)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (hrun : RunC fork Run evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
     LocalForwardC Run message state s := by
   obtain ⟨c, r, hcode, hroute, -, -, -, -, -, caller, msg, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
     dep_transfer_completeC hfork hsize' hsel hdep rfl rfl rfl rfl start hrun hE hok
@@ -159,7 +159,7 @@ theorem dep_transferFrom_localC (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x23b872dd)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (hrun : RunC fork Run evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
     LocalForwardC Run message state s := by
   obtain ⟨c, r, hcode, hroute, -, -, -, -, -, caller, msg, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
     dep_transferFrom_completeC hfork hsize' hsel hdep rfl rfl rfl rfl start hrun hE hok
@@ -179,7 +179,7 @@ theorem dep_destroy_localC (hfork : .berlin ≤ fork)
     (hkeeps : KeepsInvAtC Run message state)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (hrun : RunC fork Run evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
     ∃ caller msg child, Run caller msg child ∧ child.error = none ∧
       SentVia message state (upAddr state message) caller msg ∧
       msg.data = dataB message ∧
@@ -208,7 +208,7 @@ theorem inv_dep_destroy_iffC (K : SepOn (callKeys message state)) (hfork : .berl
     (hkeeps : KeepsInvAtC Run message state)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (hrun : RunC fork Run evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
     ∃ caller msg child, Run caller msg child ∧ child.error = none ∧
       SentVia message state (upAddr state message) caller msg ∧
       msg.data = dataB message ∧
@@ -228,7 +228,7 @@ theorem inv_dep_destroyC (K : SepOn (callKeys message state)) (hfork : .berlin �
     (hhonest : HonestBalanceAtC Run message state)
     (hI : Inv message.currentTarget state)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (hrun : RunC fork Run evm s) (hE : EndsOk fork evm) (hok : s.error = none) : Inv message.currentTarget s.state := by
+    (hrun : RunC fork Run Tail evm s) (hE : EndsOk fork evm) (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨caller, msg, child, hch, he, hsv, hmd, hiff⟩ :=
     inv_dep_destroy_iffC K hfork hsize' hsel hdep hkeeps hI start hrun hE hok
   exact hiff.2 (hhonest caller msg child hsv hch hmd he)

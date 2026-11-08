@@ -9,12 +9,15 @@ import UsdtVerify.Evm.GasRules
 import UsdtVerify.Evm.Meter
 import UsdtVerify.Evm.Refill
 import UsdtVerify.Evm.Shadow
+import UsdtVerify.Evm.NoState
 import UsdtVerify.Evm.ProcessMeter
 import UsdtVerify.Evm.CallMeter
 import UsdtVerify.Evm.CallSim
 import UsdtVerify.Evm.StepSim
+import UsdtVerify.Evm.StepSimR
 import UsdtVerify.Evm.RunC
 import UsdtVerify.Evm.RunCS
+import UsdtVerify.Evm.RunCR
 import UsdtVerify.Evm.Local.Extcodesize
 import UsdtVerify.Evm.Local.Parent
 import UsdtVerify.Evm.Local.Rules
@@ -37,6 +40,7 @@ import UsdtVerify.Usdt.Complete.Deprecated.Destroy
 import UsdtVerify.Usdt.Complete.Deprecated.TotalSupply
 import UsdtVerify.Usdt.Complete.Deprecated.Transfer
 import UsdtVerify.Usdt.Complete.Deprecated.Meter
+import UsdtVerify.Usdt.Complete.Deprecated.MeterR
 import UsdtVerify.Usdt.Complete.Dispatch
 import UsdtVerify.Usdt.Complete.Getters
 import UsdtVerify.Usdt.Complete.Owner

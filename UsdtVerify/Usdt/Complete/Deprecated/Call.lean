@@ -251,7 +251,7 @@ theorem fromExt (hfork : .berlin ≤ fork) {p q : Nat}
 
 section RunC
 
-variable {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop}
+variable {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop} {Tail : Evm fork Nat → Prop}
 
 /-- `fromExt_found` over `RunC`. -/
 theorem fromExt_foundC {p : Nat}
@@ -259,7 +259,7 @@ theorem fromExt_foundC {p : Nat}
     {U : U256} {rest : List U256} {M : ByteArray} {st : State.TransactionState} {ss : Substate}
     {G : Nat} {evm s : Evm fork Nat}
     (start : At CODE message p (U :: rest) M G st ss evm)
-    (hrun : RunC fork Run evm s) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hok : s.error = none) :
     ∃ c, st.getCode (st.getAccount (toAddressMasked U)).codeHash = .ok c := by
   have key : ∃ (h0 : p < CODE.size), CODE[p] = 0x3b := by
     rcases hp with rfl | rfl | rfl | rfl | rfl | rfl <;> exact ⟨by code_fact, by code_fact⟩
@@ -290,14 +290,14 @@ theorem fromExtC (hfork : .berlin ≤ fork) {p q : Nat}
     (hcode : st.getCode (st.getAccount (toAddressMasked U)).codeHash = .ok c)
     {G : Nat} {evm s : Evm fork Nat}
     (start : At CODE message p (U :: U :: 0 :: i :: isz :: o :: osz :: rest) M G st ss evm)
-    (hrun : RunC fork Run evm s) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hok : s.error = none) :
     ∃ r, Routes fork st c r ∧
     BitVec.ofNat 256 c.size ≠ 0 ∧
     extCost fork (decide (toAddressMasked U ∉ ss.accessedAddresses)) + 128 +
       routeCost fork (ss.accessedAddresses.insert (toAddressMasked U)) r +
       (extendMemory M.size [(i, isz), (o, osz)]).cost ≤ G ∧
     message.depth + 1 ≤ STACK_DEPTH_LIMIT ∧
-    CallEndC Run CODE message q
+    CallEndC Run Tail CODE message q
       (asked (G - (extCost fork (decide (toAddressMasked U ∉ ss.accessedAddresses)) + 25)))
       U i isz o osz rest M (G - (extCost fork (decide (toAddressMasked U ∉ ss.accessedAddresses)) + 28))
       (st.recordAccountRead (toAddressMasked U))

@@ -53,7 +53,7 @@ theorem prefixG_allowance (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data
 /-- **`dep_allowance_complete` over `RunC`** (round 39): for any relation `Run` of the child, a `RunC`
 from the fresh frame that ends with no error, where `EndsOk` holds (for the dispatcher and the
 guards), has the conclusion of `dep_allowance_complete` with `Run caller msg child` in place of the runner. -/
-theorem dep_allowance_completeC {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop}
+theorem dep_allowance_completeC {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop} {Tail : Evm fork Nat → Prop}
     (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xdd62ed3e)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
@@ -61,7 +61,7 @@ theorem dep_allowance_completeC {Run : Evm fork Nat → Message fork → Evm for
     (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
     {gas : Nat} {evm s : Evm fork Nat}
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (hrun : RunC fork Run evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
     ∃ c r, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c ∧
     Routes fork state c r ∧
     BitVec.ofNat 256 c.size ≠ 0 ∧
@@ -83,7 +83,9 @@ theorem dep_allowance_completeC {Run : Evm fork Nat → Message fork → Evm for
       s.gas = gas - preCostAl fork c10 cU - (depCallGas fork (askedOfAl fork gas c10 cU) (gas - preCostAl fork c10 cU)
         (routeCost fork (callSub substate state message).accessedAddresses r)).cost + child.gas - 128 ∧
       s.state = (incorporateChild fork caller child).state ∧
-      s.substate = (incorporateChild fork caller child).substate := by
+      s.substate = (incorporateChild fork caller child).substate ∧
+      ∃ after, Tail after ∧
+        ∀ y, Reaches (Step fork) after y → y.running = true → Refill.NoRefillAtN y := by
   obtain ⟨h4, hv, -⟩ := EndsOk.dispatch hfork hsize' start hE
   obtain ⟨hg0, z, hz, hrunz⟩ := ok_splitCA (Nat.le_refl _)
     (fun g hg => prefixG_allowance hfork h4 hsize' hsel hv hdep hc10 hg)
@@ -122,7 +124,7 @@ theorem dep_allowance_completeC {Run : Evm fork Nat → Message fork → Evm for
     simp only [preCostAl, extCost]; omega
   rw [e1, e2] at hCE
   obtain ⟨caller, msg, child, hch, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd, hmv,
-    hmdep, hmst, after, hat, hruna⟩ := hCE
+    hmdep, hmst, after, hat, hT, hruna⟩ := hCE
   rw [hext] at hmg hmd hat
   simp only [accCost_false] at hmg hat
   refine ⟨hw, by simp only [preCostAl, extCost]; omega, hdepth, ?_⟩
@@ -131,15 +133,17 @@ theorem dep_allowance_completeC {Run : Evm fork Nat → Message fork → Evm for
     rw [hmd, memoryExtend_zero]; exact data_M3A _ _
   by_cases he : child.error = none
   · simp only [he, Option.isNone_none, ↓reduceIte] at hat
-    obtain ⟨h128, hr, ho, hgs, hst, hss⟩ := ok_exactE (Nat.le_refl 128)
-      (fun g _ => DeprecatedAllowance.okTailA (fork := fork) (message := message)
+    have hspec := fun g (_ : 128 ≤ g) => DeprecatedAllowance.okTailA (fork := fork) (message := message)
         (state := (incorporateChild fork caller child).state)
         (substate := (incorporateChild fork caller child).substate)
         (U := upWord (storageAt state message.currentTarget 10)) (a := addrArg message.data 0)
         (b := addrArg message.data 1)
         (size_outMemOfA hB child.output) (mload_outMemOfA hB (mload_M3A _ _) child.output)
-        (x := BitVec.ofNat 256 (selector message.data)) (gas := g) (by omega)) hat hruna hok
-    refine ⟨caller, msg, child, hch, he, hfwd, hmg, hcs, hcss, ?_, hr, ho, ?_, hst, hss⟩
+        (x := BitVec.ofNat 256 (selector message.data)) (gas := g) (by omega)
+    obtain ⟨h128, hr, ho, hgs, hst, hss⟩ := ok_exactE (Nat.le_refl 128) hspec hat hruna hok
+    have hnrT := noRefill_of_specA (Nat.le_refl 128) (by decide) hspec (fun _ _ => rfl) hat
+    refine ⟨caller, msg, child, hch, he, hfwd, hmg, hcs, hcss, ?_, hr, ho, ?_, hst, hss,
+      after, hT, hnrT⟩
     · simp only [Nat.add_zero] at h128
       omega
     · rw [hgs]
@@ -189,9 +193,9 @@ theorem dep_allowance_complete (hfork : .berlin ≤ fork)
         (routeCost fork (callSub substate state message).accessedAddresses r)).cost + child.1.gas - 128 ∧
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
-  obtain ⟨c, r, h1, h2, h3, h4, h5, caller, msg, child, ⟨lt, hle, hch⟩, rest⟩ :=
+  obtain ⟨c, r, h1, h2, h3, h4, h5, caller, msg, child, ⟨lt, hle, hch⟩, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, -⟩ :=
     dep_allowance_completeC hfork hsize' hsel hdep hc10 hcU start (RunC.of_runFrame hrun)
       (EndsOk.of_runFrame hrun hok) hok
-  exact ⟨c, r, h1, h2, h3, h4, h5, caller, msg, lt, ⟨child, hle⟩, hch, rest⟩
+  exact ⟨c, r, h1, h2, h3, h4, h5, caller, msg, lt, ⟨child, hle⟩, hch, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11⟩
 
 end UsdtVerify.Complete

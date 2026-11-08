@@ -117,7 +117,7 @@ theorem dep_transfer_split (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.dat
 /-- **`dep_transfer_complete` over `RunC`** (round 39): for any relation `Run` of the child, a `RunC`
 from the fresh frame that ends with no error, where `EndsOk` holds (for the dispatcher and the
 guards), has the conclusion of `dep_transfer_complete` with `Run caller msg child` in place of the runner. -/
-theorem dep_transfer_completeC {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop}
+theorem dep_transfer_completeC {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop} {Tail : Evm fork Nat → Prop}
     (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xa9059cbb)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
@@ -129,7 +129,7 @@ theorem dep_transfer_completeC {Run : Evm fork Nat → Message fork → Evm fork
     (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
     {gas : Nat} {evm s : Evm fork Nat}
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (hrun : RunC fork Run evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
     ∃ c r, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c ∧
     Routes fork state c r ∧
     byte20 (storageAt state message.currentTarget 0) = 0 ∧
@@ -153,7 +153,9 @@ theorem dep_transfer_completeC {Run : Evm fork Nat → Message fork → Evm fork
         (routeCost fork (callSubT substate state message).accessedAddresses r)).cost +
         child.gas - 51 ∧
       s.state = (incorporateChild fork caller child).state ∧
-      s.substate = (incorporateChild fork caller child).substate := by
+      s.substate = (incorporateChild fork caller child).substate ∧
+      ∃ after, Tail after ∧
+        ∀ y, Reaches (Step fork) after y → y.running = true → Refill.NoRefillAtN y := by
   obtain ⟨h4, hv, -⟩ := EndsOk.dispatch hfork hsize' start hE
   by_cases hp : byte20 (storageAt state message.currentTarget 0) ≠ 0
   · exact (hE.no_ok (fun g hg => Transfer.spec_paused hfork h4 hsize' hsel hv hp hc0 hg)
@@ -199,7 +201,7 @@ theorem dep_transfer_completeC {Run : Evm fork Nat → Message fork → Evm fork
     simp only [preCostT, extCost]; omega
   rw [e1, e2] at hCE
   obtain ⟨caller, msg, child, hch, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd, hmv,
-    hmdep, hmst, after, hat, hruna⟩ := hCE
+    hmdep, hmst, after, hat, hT, hruna⟩ := hCE
   rw [hext] at hmg hmd hat
   simp only [accCost_false] at hmg hat
   refine ⟨hp, hb, hw, by simp only [preCostT, extCost]; omega, hdepth, ?_⟩
@@ -213,7 +215,13 @@ theorem dep_transfer_completeC {Run : Evm fork Nat → Message fork → Evm fork
         (state := (incorporateChild fork caller child).state)
         (substate := (incorporateChild fork caller child).substate)
         (gas := g) (by omega)) hat hruna hok
-    refine ⟨caller, msg, child, hch, he, hfwd, hmg, hcs, hcss, ?_, hr, ho, ?_, hst, hss⟩
+    have hnrT := noRefill_of_specA (Nat.le_refl 51) (by decide)
+      (fun g _ => okTailT (fork := fork) (message := message)
+        (state := (incorporateChild fork caller child).state)
+        (substate := (incorporateChild fork caller child).substate)
+        (gas := g) (by omega)) (fun _ _ => rfl) hat
+    refine ⟨caller, msg, child, hch, he, hfwd, hmg, hcs, hcss, ?_, hr, ho, ?_, hst, hss,
+      after, hT, hnrT⟩
     · simp only [Nat.add_zero] at h51
       omega
     · rw [hgs]
@@ -269,10 +277,10 @@ theorem dep_transfer_complete (hfork : .berlin ≤ fork)
         child.1.gas - 51 ∧
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
-  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, h7, caller, msg, child, ⟨lt, hle, hch⟩, rest⟩ :=
+  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, h7, caller, msg, child, ⟨lt, hle, hch⟩, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, -⟩ :=
     dep_transfer_completeC hfork hsize' hsel hdep hc0 hcB hc10 hcU start (RunC.of_runFrame hrun)
       (EndsOk.of_runFrame hrun hok) hok
-  exact ⟨c, r, h1, h2, h3, h4, h5, h6, h7, caller, msg, lt, ⟨child, hle⟩, hch, rest⟩
+  exact ⟨c, r, h1, h2, h3, h4, h5, h6, h7, caller, msg, lt, ⟨child, hle⟩, hch, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11⟩
 
 /-! ## approve -/
 
@@ -345,7 +353,7 @@ theorem prefixG_approve (hfork : .berlin ≤ fork) (hlong : 68 ≤ message.data.
 /-- **`dep_approve_complete` over `RunC`** (round 39): for any relation `Run` of the child, a `RunC`
 from the fresh frame that ends with no error, where `EndsOk` holds (for the dispatcher and the
 guards), has the conclusion of `dep_approve_complete` with `Run caller msg child` in place of the runner. -/
-theorem dep_approve_completeC {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop}
+theorem dep_approve_completeC {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop} {Tail : Evm fork Nat → Prop}
     (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x095ea7b3)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
@@ -353,7 +361,7 @@ theorem dep_approve_completeC {Run : Evm fork Nat → Message fork → Evm fork 
     (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
     {gas : Nat} {evm s : Evm fork Nat}
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (hrun : RunC fork Run evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
     ∃ c r, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c ∧
     Routes fork state c r ∧
     68 ≤ message.data.size ∧
@@ -375,7 +383,9 @@ theorem dep_approve_completeC {Run : Evm fork Nat → Message fork → Evm fork 
       s.gas = gas - preCostA fork c10 cU - (depCallGas fork (askedOfA fork gas c10 cU) (gas - preCostA fork c10 cU)
         (routeCost fork (callSub substate state message).accessedAddresses r)).cost + child.gas - 53 ∧
       s.state = (incorporateChild fork caller child).state ∧
-      s.substate = (incorporateChild fork caller child).substate := by
+      s.substate = (incorporateChild fork caller child).substate ∧
+      ∃ after, Tail after ∧
+        ∀ y, Reaches (Step fork) after y → y.running = true → Refill.NoRefillAtN y := by
   obtain ⟨h4, hv, -⟩ := EndsOk.dispatch hfork hsize' start hE
   by_cases hl : message.data.size < 68
   · exact (hE.no_ok (fun g hg => Approve.spec_payload hfork h4 hl hsel hv hg)
@@ -416,7 +426,7 @@ theorem dep_approve_completeC {Run : Evm fork Nat → Message fork → Evm fork 
     simp only [preCostA, extCost]; omega
   rw [e1, e2] at hCE
   obtain ⟨caller, msg, child, hch, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd, hmv,
-    hmdep, hmst, after, hat, hruna⟩ := hCE
+    hmdep, hmst, after, hat, hT, hruna⟩ := hCE
   rw [hext] at hmg hmd hat
   simp only [accCost_false] at hmg hat
   refine ⟨hl, hw, by simp only [preCostA, extCost]; omega, hdepth, ?_⟩
@@ -430,7 +440,13 @@ theorem dep_approve_completeC {Run : Evm fork Nat → Message fork → Evm fork 
         (state := (incorporateChild fork caller child).state)
         (substate := (incorporateChild fork caller child).substate)
         (gas := g) (by omega)) hat hruna hok
-    refine ⟨caller, msg, child, hch, he, hfwd, hmg, hcs, hcss, ?_, hr, ho, ?_, hst, hss⟩
+    have hnrT := noRefill_of_specA (Nat.le_refl 53) (by decide)
+      (fun g _ => okTailAG (fork := fork) (message := message)
+        (state := (incorporateChild fork caller child).state)
+        (substate := (incorporateChild fork caller child).substate)
+        (gas := g) (by omega)) (fun _ _ => rfl) hat
+    refine ⟨caller, msg, child, hch, he, hfwd, hmg, hcs, hcss, ?_, hr, ho, ?_, hst, hss,
+      after, hT, hnrT⟩
     · simp only [Nat.add_zero] at h53
       omega
     · rw [hgs]
@@ -480,10 +496,10 @@ theorem dep_approve_complete (hfork : .berlin ≤ fork)
         (routeCost fork (callSub substate state message).accessedAddresses r)).cost + child.1.gas - 53 ∧
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
-  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, caller, msg, child, ⟨lt, hle, hch⟩, rest⟩ :=
+  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, caller, msg, child, ⟨lt, hle, hch⟩, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, -⟩ :=
     dep_approve_completeC hfork hsize' hsel hdep hc10 hcU start (RunC.of_runFrame hrun)
       (EndsOk.of_runFrame hrun hok) hok
-  exact ⟨c, r, h1, h2, h3, h4, h5, h6, caller, msg, lt, ⟨child, hle⟩, hch, rest⟩
+  exact ⟨c, r, h1, h2, h3, h4, h5, h6, caller, msg, lt, ⟨child, hle⟩, hch, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11⟩
 
 /-! ## transferFrom -/
 
@@ -539,7 +555,7 @@ theorem prefixG_transferFrom (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.d
 /-- **`dep_transferFrom_complete` over `RunC`** (round 39): for any relation `Run` of the child, a `RunC`
 from the fresh frame that ends with no error, where `EndsOk` holds (for the dispatcher and the
 guards), has the conclusion of `dep_transferFrom_complete` with `Run caller msg child` in place of the runner. -/
-theorem dep_transferFrom_completeC {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop}
+theorem dep_transferFrom_completeC {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop} {Tail : Evm fork Nat → Prop}
     (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x23b872dd)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
@@ -551,7 +567,7 @@ theorem dep_transferFrom_completeC {Run : Evm fork Nat → Message fork → Evm 
     (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
     {gas : Nat} {evm s : Evm fork Nat}
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (hrun : RunC fork Run evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
     ∃ c r, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c ∧
     Routes fork state c r ∧
     byte20 (storageAt state message.currentTarget 0) = 0 ∧
@@ -575,7 +591,9 @@ theorem dep_transferFrom_completeC {Run : Evm fork Nat → Message fork → Evm 
         (routeCost fork (callSubF substate state message).accessedAddresses r)).cost +
         child.gas - 53 ∧
       s.state = (incorporateChild fork caller child).state ∧
-      s.substate = (incorporateChild fork caller child).substate := by
+      s.substate = (incorporateChild fork caller child).substate ∧
+      ∃ after, Tail after ∧
+        ∀ y, Reaches (Step fork) after y → y.running = true → Refill.NoRefillAtN y := by
   obtain ⟨h4, hv, -⟩ := EndsOk.dispatch hfork hsize' start hE
   by_cases hp : byte20 (storageAt state message.currentTarget 0) ≠ 0
   · exact (hE.no_ok (fun g hg => TransferFrom.spec_paused hfork h4 hsize' hsel hv hp hc0 hg)
@@ -620,7 +638,7 @@ theorem dep_transferFrom_completeC {Run : Evm fork Nat → Message fork → Evm 
     simp only [DeprecatedTransferFrom.preCostF, extCost]; omega
   rw [e1, e2] at hCE
   obtain ⟨caller, msg, child, hch, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd, hmv,
-    hmdep, hmst, after, hat, hruna⟩ := hCE
+    hmdep, hmst, after, hat, hT, hruna⟩ := hCE
   rw [hext] at hmg hmd hat
   simp only [accCost_false] at hmg hat
   refine ⟨hp, hb, hw, by simp only [DeprecatedTransferFrom.preCostF, extCost]; omega, hdepth, ?_⟩
@@ -634,7 +652,13 @@ theorem dep_transferFrom_completeC {Run : Evm fork Nat → Message fork → Evm 
         (state := (incorporateChild fork caller child).state)
         (substate := (incorporateChild fork caller child).substate)
         (gas := g) (by omega)) hat hruna hok
-    refine ⟨caller, msg, child, hch, he, hfwd, hmg, hcs, hcss, ?_, hr, ho, ?_, hst, hss⟩
+    have hnrT := noRefill_of_specA (Nat.le_refl 53) (by decide)
+      (fun g _ => okTailF (fork := fork) (message := message)
+        (state := (incorporateChild fork caller child).state)
+        (substate := (incorporateChild fork caller child).substate)
+        (gas := g) (by omega)) (fun _ _ => rfl) hat
+    refine ⟨caller, msg, child, hch, he, hfwd, hmg, hcs, hcss, ?_, hr, ho, ?_, hst, hss,
+      after, hT, hnrT⟩
     · simp only [Nat.add_zero] at h53
       omega
     · rw [hgs]
@@ -690,9 +714,9 @@ theorem dep_transferFrom_complete (hfork : .berlin ≤ fork)
         child.1.gas - 53 ∧
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
-  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, h7, caller, msg, child, ⟨lt, hle, hch⟩, rest⟩ :=
+  obtain ⟨c, r, h1, h2, h3, h4, h5, h6, h7, caller, msg, child, ⟨lt, hle, hch⟩, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, -⟩ :=
     dep_transferFrom_completeC hfork hsize' hsel hdep hc0 hcB hc10 hcU start (RunC.of_runFrame hrun)
       (EndsOk.of_runFrame hrun hok) hok
-  exact ⟨c, r, h1, h2, h3, h4, h5, h6, h7, caller, msg, lt, ⟨child, hle⟩, hch, rest⟩
+  exact ⟨c, r, h1, h2, h3, h4, h5, h6, h7, caller, msg, lt, ⟨child, hle⟩, hch, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11⟩
 
 end UsdtVerify.Complete

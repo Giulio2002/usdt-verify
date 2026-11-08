@@ -2,6 +2,7 @@ import UsdtVerify.Evm.Call
 import UsdtVerify.Evm.Stuck
 import UsdtVerify.Evm.StepSim
 import UsdtVerify.Evm.Shadow
+import UsdtVerify.Evm.NoState
 
 /-!
 # Runs of the meter `Nat` with an abstract child (round 39)
@@ -14,7 +15,7 @@ part of a run over `Nat` that both meters give, as a predicate on the frames of 
 - `Fwd x`: the frame `x` is one that the step-by-step simulation covers: the opcode is `SimAtX`
   (an opcode of `simulated`, EXTCODESIZE or GAS) and an SSTORE there refills nothing, or it is a
   CALL with value 0 to an address whose code is found (`CallX`).
-- `RunC fork Run l s`: `s` has an error; or `l` is stopped and `s = l`; or `l` is running and not
+- `RunC fork Run Tail l s`: `s` has an error; or `l` is stopped and `s = l`; or `l` is running and not
   `Fwd` (the run leaves the simulation); or a `Step` from `l` and `RunC` from the next frame; or
   the step from `l` sends a message `msg` from a frame `c`, the relation `Run c msg ch` holds for
   some child frame `ch`, the resume from `ch` gives `b`, and `Ends fork b s`.
@@ -23,9 +24,9 @@ part of a run over `Nat` that both meters give, as a predicate on the frames of 
 - `EndsOk fork l`: a loop with some more gas than `l` ends with no error (`Ends`). The failing
   specifications from a fresh frame (the dispatcher, the guards) use it.
 - Lemmas over `RunC` for a run that ends with no error: `RunC.stopped`, `RunC.next_of`,
-  `RunC.not_bad`, `low_to_runningC`, `HoareI.lowC`, `ok_splitC` (over `StepI`, the steps from
-  frames where an SSTORE refills nothing), `no_okC` (a specification to a revert with gas left,
-  through `HoareG.toIE`), `RunC.extcodesize`, `RunC.gasOp` (one step each), `call_okC` and
+  `RunC.not_bad`, `low_to_runningC`, `HoareJ.lowC`, `ok_splitC` (over `StepJ`, the steps from
+  frames where an SSTORE neither refills nor charges state gas, since round 42), `no_okC` (a
+  specification to a revert with gas left, through `HoareG.toJE`), `RunC.extcodesize`, `RunC.gasOp` (one step each), `call_okC` and
   `CallEndC` (the CALL under the relation `Run`).
 -/
 
@@ -37,7 +38,7 @@ open EthLib.Execution.Evm
 open EthLib.Execution.Evm.Logic
 open UsdtVerify.Gas
 open UsdtVerify.Meter (SimAtX CallX)
-open UsdtVerify.Refill (NoRefillAtN StepI HoareI)
+open UsdtVerify.Refill (NoRefillAtN NoStateAtN StepI HoareI StepJ HoareJ)
 open GasCosts
 open Deprecated
 
@@ -46,22 +47,23 @@ variable {fork : Fork}
 /-! ## The predicate -/
 
 /-- A frame that the step-by-step simulation between the two meters covers: a `SimAtX` opcode
-where an SSTORE refills nothing, or a CALL with value 0 to an address whose code is found. -/
+where an SSTORE neither refills nor charges state gas (since round 42), or a CALL with value 0 to
+an address whose code is found. -/
 def Fwd (x : Evm fork Nat) : Prop :=
-  (SimAtX x ∧ NoRefillAtN x) ∨ CallX x
+  (SimAtX x ∧ NoRefillAtN x ∧ NoStateAtN x) ∨ CallX x
 
 /-- A run of the meter `Nat` from `l` to `s`, with the runs of messages given by the relation
 `Run`, and an exit at the frames that are not `Fwd`. After a message the run is an `Ends`. -/
-inductive RunC (fork : Fork) (Run : Evm fork Nat → Message fork → Evm fork Nat → Prop) :
-    Evm fork Nat → Evm fork Nat → Prop
-  | stop {l : Evm fork Nat} : l.running = false → RunC fork Run l l
-  | bad {l s : Evm fork Nat} : s.error ≠ none → RunC fork Run l s
-  | out {l s : Evm fork Nat} : l.running = true → ¬ Fwd l → RunC fork Run l s
-  | step {l b s : Evm fork Nat} : Step fork l b → RunC fork Run b s → RunC fork Run l s
+inductive RunC (fork : Fork) (Run : Evm fork Nat → Message fork → Evm fork Nat → Prop)
+    (Tail : Evm fork Nat → Prop) : Evm fork Nat → Evm fork Nat → Prop
+  | stop {l : Evm fork Nat} : l.running = false → RunC fork Run Tail l l
+  | bad {l s : Evm fork Nat} : s.error ≠ none → RunC fork Run Tail l s
+  | out {l s : Evm fork Nat} : l.running = true → ¬ Fwd l → RunC fork Run Tail l s
+  | step {l b s : Evm fork Nat} : Step fork l b → RunC fork Run Tail b s → RunC fork Run Tail l s
   | call {l c ch b s : Evm fork Nat} {msg : Message fork}
       {res : Evm fork Nat → Except EvmError (Evm fork Nat)} :
       l.running = true → step fork l = .ok (.child c msg res) → Run c msg ch →
-      res ch = .ok b → Ends fork b s → RunC fork Run l s
+      res ch = .ok b → Tail b → Ends fork b s → RunC fork Run Tail l s
 
 /-- The runs of a message runner over `Nat`: the runner gives the child frame `ch`. -/
 def RunN {bound : Nat} (runChild : MessageRunner fork Nat bound) (c : Evm fork Nat)
@@ -100,7 +102,7 @@ theorem runFrame_of_child_abort {Meter : Type} [GasMeter Meter] [LawfulGasMeter 
 /-- **Every end of the loop over `Nat` is a `RunC`**, with the relation of its runner. -/
 theorem RunC.of_runFrame {l s : Evm fork Nat} {within : GasMeter.gasHeld l.gas ≤ bound}
     (h : Evm.runFrame (Evm.step fork) (step_decreases fork) bound runChild l within = .ok s) :
-    RunC fork (RunN runChild) l s := by
+    RunC fork (RunN runChild) (fun _ => True) l s := by
   by_cases hr : l.running = true
   · rcases hstep : Evm.step fork l with e | (b | ⟨c, msg, res⟩)
     · by_cases ab : e.aborts = true
@@ -124,7 +126,7 @@ theorem RunC.of_runFrame {l s : Evm fork Nat} {within : GasMeter.gasHeld l.gas �
             cases h
             exact .bad (by simp [exceptionalHalt])
         · rw [runFrame_of_step_eq_child hr hstep lt hch hres] at h
-          exact .call hr hstep ⟨lt, hle, hch⟩ hres (Ends.run h)
+          exact .call hr hstep ⟨lt, hle, hch⟩ hres trivial (Ends.run h)
   · have hl : l.running = false := by simpa using hr
     rw [runFrame_of_running_eq_false hl] at h
     cases h
@@ -141,22 +143,22 @@ end Nat
 
 /-! ## A run that ends with no error -/
 
-variable {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop}
+variable {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop} {Tail : Evm fork Nat → Prop}
 
 /-- From a stopped frame, a `RunC` that ends with no error ends there. -/
-theorem RunC.stopped {l s : Evm fork Nat} (h : RunC fork Run l s) (hl : l.running = false)
+theorem RunC.stopped {l s : Evm fork Nat} (h : RunC fork Run Tail l s) (hl : l.running = false)
     (hok : s.error = none) : s = l := by
   cases h with
   | stop _ => rfl
   | bad he => exact absurd hok he
   | out hr _ => rw [hl] at hr; cases hr
   | step hs _ => rw [hs.running] at hl; cases hl
-  | call hr _ _ _ _ => rw [hl] at hr; cases hr
+  | call hr _ _ _ _ _ => rw [hl] at hr; cases hr
 
 /-- From a running `Fwd` frame whose step gives the next frame `b`, a `RunC` that ends with no
 error goes on from `b`. -/
-theorem RunC.next_of {l b s : Evm fork Nat} (h : RunC fork Run l s) (hr : l.running = true)
-    (hf : Fwd l) (hs : Evm.step fork l = .ok (.next b)) (hok : s.error = none) : RunC fork Run b s := by
+theorem RunC.next_of {l b s : Evm fork Nat} (h : RunC fork Run Tail l s) (hr : l.running = true)
+    (hf : Fwd l) (hs : Evm.step fork l = .ok (.next b)) (hok : s.error = none) : RunC fork Run Tail b s := by
   cases h with
   | stop hl => rw [hl] at hr; cases hr
   | bad he => exact absurd hok he
@@ -164,11 +166,11 @@ theorem RunC.next_of {l b s : Evm fork Nat} (h : RunC fork Run l s) (hr : l.runn
   | step h1 h2 =>
     rw [Step.deterministic h1 (.next hr hs)] at h2
     exact h2
-  | call _ hc _ _ _ => rw [hs] at hc; cases hc
+  | call _ hc _ _ _ _ => rw [hs] at hc; cases hc
 
 /-- From a running `Fwd` frame whose step fails or halts with an error, no `RunC` ends with no
 error. -/
-theorem RunC.not_bad {l s : Evm fork Nat} (h : RunC fork Run l s) (hr : l.running = true)
+theorem RunC.not_bad {l s : Evm fork Nat} (h : RunC fork Run Tail l s) (hr : l.running = true)
     (hf : Fwd l) (hs : StepBad (Evm.step fork l)) (hok : s.error = none) : False := by
   rcases hs with ⟨e, he⟩ | ⟨b, hb, hbr, hbe⟩
   · cases h with
@@ -184,35 +186,38 @@ theorem RunC.not_bad {l s : Evm fork Nat} (h : RunC fork Run l s) (hr : l.runnin
         have := h2.stopped rfl hok
         rw [this] at hok
         simp [exceptionalHalt] at hok
-    | call _ hc _ _ _ => rw [he] at hc; cases hc
+    | call _ hc _ _ _ _ => rw [he] at hc; cases hc
   · have h' := h.next_of hr hf hb hok
     rw [h'.stopped hbr hok] at hok
     exact hbe hok
 
-/-- A frame of a `StepI` chain is `Fwd`, with any less gas. -/
-theorem fwd_of_stepI {k : Nat} {l y : Evm fork Nat} (hs : StepI fork (sh k l) y) : Fwd l :=
-  .inl ⟨.inl hs.1.2.1, Refill.noRefillAtN_sh k hs.2⟩
+/-- A frame of a `StepJ` chain is `Fwd`, with any less gas. -/
+theorem fwd_of_stepJ {k : Nat} {l y : Evm fork Nat} (hs : StepJ fork (sh k l) y) : Fwd l :=
+  .inl ⟨.inl hs.1.2.1, Refill.noRefillAtN_sh k hs.2.1, Refill.noStateAtN_sh k hs.2.2⟩
 
 /-- A frame at EXTCODESIZE or GAS is `Fwd`. -/
 theorem fwd_of_op {x : Evm fork Nat} {op : Op} (hlt : x.pc < x.code.size)
     (hop : Op.ofByte fork x.code[x.pc] = some op) (h : op = .extcodesize ∨ op = .gas) : Fwd x := by
-  refine .inl ⟨.inr ⟨hlt, by rcases h with rfl | rfl; exact .inl hop; exact .inr hop⟩, ?_⟩
-  intro _ hs
-  have e := hop.symm.trans hs
-  rcases h with rfl | rfl <;> cases e
+  refine .inl ⟨.inr ⟨hlt, by rcases h with rfl | rfl; exact .inl hop; exact .inr hop⟩, ?_, ?_⟩
+  · intro _ hs
+    have e := hop.symm.trans hs
+    rcases h with rfl | rfl <;> cases e
+  · intro _ hs
+    have e := hop.symm.trans hs
+    rcases h with rfl | rfl <;> cases e
 
-/-- **A successful `RunC` follows a `StepI` chain.** Along a chain of `StepI` from `sh k l` to
+/-- **A successful `RunC` follows a `StepJ` chain.** Along a chain of `StepJ` from `sh k l` to
 `z`, a `RunC` from `l` that ends with no error goes through a frame `z'` with `z = sh k z'`. -/
-theorem low_to_runningC {hi z : Evm fork Nat} (hr : Reaches (StepI fork) hi z) :
-    ∀ (k : Nat) (l : Evm fork Nat), hi = sh k l → ∀ {s : Evm fork Nat}, RunC fork Run l s →
-      s.error = none → ∃ z', z = sh k z' ∧ RunC fork Run z' s := by
+theorem low_to_runningC {hi z : Evm fork Nat} (hr : Reaches (StepJ fork) hi z) :
+    ∀ (k : Nat) (l : Evm fork Nat), hi = sh k l → ∀ {s : Evm fork Nat}, RunC fork Run Tail l s →
+      s.error = none → ∃ z', z = sh k z' ∧ RunC fork Run Tail z' s := by
   induction hr with
   | refl =>
     rintro k l rfl s hs _
     exact ⟨l, rfl, hs⟩
   | step hs _ ih =>
     rintro k l rfl s hrun hok
-    have hf : Fwd l := fwd_of_stepI hs
+    have hf : Fwd l := fwd_of_stepJ hs
     obtain ⟨⟨hstep, -, hmono⟩, -⟩ := hs
     have hr : l.running = true := hstep.running
     rcases hmono k l rfl with ⟨e, he⟩ | ⟨b, hb, hbr, hbe⟩ | ⟨b, hb, hh⟩
@@ -228,26 +233,26 @@ theorem low_to_runningC {hi z : Evm fork Nat} (hr : Reaches (StepI fork) hi z) :
         rw [hh] at hn
         cases hn
 
-/-- `low_to_runningC` for a `HoareI`. -/
-theorem HoareI.lowC {P Q : Evm fork Nat → Prop} (h : HoareI fork P Q) {k : Nat}
-    {l s : Evm fork Nat} (hp : P (sh k l)) (hs : RunC fork Run l s) (hok : s.error = none) :
-    ∃ z', Q (sh k z') ∧ RunC fork Run z' s := by
+/-- `low_to_runningC` for a `HoareJ`. -/
+theorem HoareJ.lowC {P Q : Evm fork Nat → Prop} (h : HoareJ fork P Q) {k : Nat}
+    {l s : Evm fork Nat} (hp : P (sh k l)) (hs : RunC fork Run Tail l s) (hok : s.error = none) :
+    ∃ z', Q (sh k z') ∧ RunC fork Run Tail z' s := by
   obtain ⟨z, hr, hq⟩ := h _ hp
   obtain ⟨z', rfl, hz⟩ := low_to_runningC hr k l rfl hs hok
   exact ⟨z', hq, hz⟩
 
-/-- `ok_split` over `RunC`, for a `HoareI`. -/
+/-- `ok_split` over `RunC`, for a `HoareJ`. -/
 theorem ok_splitC {code : ByteArray} {message : Message fork} {pc pc' : Nat}
     {stack stack' : List U256} {memory memory' : ByteArray} {state state' : State.TransactionState}
     {substate substate' : Substate} {B c : Nat} (hB : c ≤ B)
-    (h : ∀ g, B ≤ g → HoareI fork (At code message pc stack memory g state substate)
+    (h : ∀ g, B ≤ g → HoareJ fork (At code message pc stack memory g state substate)
       (At code message pc' stack' memory' (g - c) state' substate'))
     {gas : Nat} {evm s : Evm fork Nat}
     (start : At code message pc stack memory gas state substate evm)
-    (hrun : RunC fork Run evm s) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hok : s.error = none) :
     c ≤ gas ∧ ∃ z', At code message pc' stack' memory' (gas - c) state' substate' z' ∧
-      RunC fork Run z' s := by
-  obtain ⟨z', hq, hz⟩ := HoareI.lowC (h (gas + B) (by omega)) (at_sh start B) hrun hok
+      RunC fork Run Tail z' s := by
+  obtain ⟨z', hq, hz⟩ := HoareJ.lowC (h (gas + B) (by omega)) (at_sh start B) hrun hok
   obtain ⟨hk, hat⟩ := at_unsh hq
   refine ⟨by omega, z', ?_, hz⟩
   have : gas + B - c - B = gas - c := by omega
@@ -255,7 +260,7 @@ theorem ok_splitC {code : ByteArray} {message : Message fork} {pc pc' : Nat}
   exact hat
 
 /-- `ok_splitC` for a triple over `StepG` between `At` frames whose storage reads the same and
-with less than 97,920 gas paid (`HoareG.toIA`). -/
+with less than 97,920 gas paid (`HoareG.toJA`). -/
 theorem ok_splitCA {code : ByteArray} {message : Message fork} {pc pc' : Nat}
     {stack stack' : List U256} {memory memory' : ByteArray} {state state' : State.TransactionState}
     {substate substate' : Substate} {B c : Nat} (hB : c ≤ B)
@@ -264,10 +269,10 @@ theorem ok_splitCA {code : ByteArray} {message : Message fork} {pc pc' : Nat}
     (hc : c < 97920) (hst : ∀ a k, state'.getStorage a k = state.getStorage a k)
     {gas : Nat} {evm s : Evm fork Nat}
     (start : At code message pc stack memory gas state substate evm)
-    (hrun : RunC fork Run evm s) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hok : s.error = none) :
     c ≤ gas ∧ ∃ z', At code message pc' stack' memory' (gas - c) state' substate' z' ∧
-      RunC fork Run z' s :=
-  ok_splitC hB (fun g hg => Refill.HoareG.toIA (h g hg) (by omega) hst) start hrun hok
+      RunC fork Run Tail z' s :=
+  ok_splitC hB (fun g hg => Refill.HoareG.toJA (h g hg) (by omega) hst) start hrun hok
 
 /-- **No successful `RunC` before a revert.** A specification over `StepG` to a revert that pays
 `c < 97,920` and keeps the storage, proved for every gas from `B ≥ c` on: no `RunC` from the
@@ -280,17 +285,34 @@ theorem no_okC {code : ByteArray} {message : Message fork} {pc : Nat} {stack : L
     (hc : c < 97920) (hst : ∀ a k, state'.getStorage a k = state.getStorage a k)
     {gas : Nat} {evm s : Evm fork Nat}
     (start : At code message pc stack memory gas state substate evm)
-    (hrun : RunC fork Run evm s) (hok : s.error = none) : False := by
-  have hI : HoareI fork (At code message pc stack memory (gas + (B + 1)) state substate)
+    (hrun : RunC fork Run Tail evm s) (hok : s.error = none) : False := by
+  have hI : HoareJ fork (At code message pc stack memory (gas + (B + 1)) state substate)
       (fun e => e.running = false ∧ Halted true out (gas + (B + 1) - c) state' substate' e) :=
-    Refill.HoareG.toIE (h _ (by omega)) fun c' e hc' he => by
+    Refill.HoareG.toJE (h _ (by omega)) fun c' e hc' he => by
       rw [hc'.2.2.2.2.2.2.1, he.2.2.2.2.1, he.2.2.2.2.2.1, hc'.2.2.2.2.2.2.2.2.2.2.1]
       have : STORAGE_SET_STATE_GAS = 97920 := rfl
       exact ⟨by omega, .inr (by omega), hst⟩
-  obtain ⟨z', ⟨hz, hh⟩, hrz⟩ := HoareI.lowC hI (at_sh start (B + 1)) hrun hok
+  obtain ⟨z', ⟨hz, hh⟩, hrz⟩ := HoareJ.lowC hI (at_sh start (B + 1)) hrun hok
   rw [hrz.stopped hz hok] at hok
   rw [show z'.error = (sh (B + 1) z').error from rfl, hh.2.1] at hok
   simp at hok
+
+/-- **No refill along a cheap tail** (round 42). If, from every gas `g` from `B` on, a
+specification over `StepG` takes an `At` frame to a normal halt with `g - c` gas left, `c` below
+97,920, and the storage as at the start, then no running frame that the run from an `At` frame
+with any gas reaches along `Step` refills at an SSTORE. -/
+theorem noRefill_of_specA {code : ByteArray} {message : Message fork} {pc : Nat}
+    {stack : List U256} {memory out : ByteArray} {state state' : State.TransactionState}
+    {substate substate' : Substate} {B c : Nat} (hB : c ≤ B) (hc : c < 97920)
+    (h : ∀ g, B ≤ g → SpecG fork (At code message pc stack memory g state substate)
+      (Halted false out (g - c) state' substate'))
+    (hst : ∀ a k, state'.getStorage a k = state.getStorage a k)
+    {gas : Nat} {evm : Evm fork Nat}
+    (start : At code message pc stack memory gas state substate evm) :
+    ∀ y, Reaches (Step fork) evm y → y.running = true → NoRefillAtN y := by
+  obtain ⟨z, hr, hz, -⟩ := Refill.SpecG.toIA (h (gas + B) (by omega)) (by omega) hst _
+    (at_sh start B)
+  exact Refill.noRefill_low hr hz
 
 /-! ## EXTCODESIZE and GAS -/
 
@@ -327,13 +349,13 @@ theorem RunC.extcodesize (hfork : .berlin ≤ fork) {word : U256} {rest : List U
     (hgas : externalBaseCost fork (decide (toAddressMasked word ∉ substate.accessedAddresses)) ≤
       gas)
     {evm s : Evm fork Nat} (start : At code message pc (word :: rest) memory gas state substate evm)
-    (hrun : RunC fork Run evm s) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hok : s.error = none) :
     ∃ z, At code message (pc + 1) (BitVec.ofNat 256 c.size :: rest) memory
         (gas - externalBaseCost fork (decide (toAddressMasked word ∉ substate.accessedAddresses)))
         (state.recordAccountRead (toAddressMasked word))
         { substate with
           accessedAddresses := substate.accessedAddresses.insert (toAddressMasked word) } z ∧
-      RunC fork Run z s := by
+      RunC fork Run Tail z s := by
   obtain ⟨hlt', hop, z, hz, hpost⟩ := At.next_of (post := At code message (pc + 1)
       (BitVec.ofNat 256 c.size :: rest) memory
       (gas - externalBaseCost fork (decide (toAddressMasked word ∉ substate.accessedAddresses)))
@@ -354,9 +376,9 @@ theorem RunC.extcodesize (hfork : .berlin ≤ fork) {word : U256} {rest : List U
 theorem RunC.gasOp {stack : List U256} (hlt : pc < code.size) (hbyte : code[pc] = 0x5a)
     (hgas : 2 ≤ gas) (hstack : stack.length < STACK_LIMIT)
     {evm s : Evm fork Nat} (start : At code message pc stack memory gas state substate evm)
-    (hrun : RunC fork Run evm s) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hok : s.error = none) :
     ∃ z, At code message (pc + 1) (BitVec.ofNat 256 (gas - 2) :: stack) memory (gas - 2) state
-        substate z ∧ RunC fork Run z s := by
+        substate z ∧ RunC fork Run Tail z s := by
   obtain ⟨hlt', hop, z, hz, hpost⟩ := At.next_of (post := At code message (pc + 1)
       (BitVec.ofNat 256 (gas - 2) :: stack) memory (gas - 2) state substate) hlt hbyte
     (ofByte_of_decode (op := .gas) rfl (Fork.frontier_le _)) rfl (fun evm hat => by
@@ -373,7 +395,8 @@ theorem RunC.gasOp {stack : List U256} (hlt : pc < code.size) (hbyte : code[pc] 
 /-- `CallEnd` with the relation `Run` in place of a message runner: `Run caller msg child` holds,
 and the frame that resumes from `child` (the flag `1` for no error, the output written, the gas
 back, the state and substate of `child`) `Ends` in `s`. -/
-def CallEndC (Run : Evm fork Nat → Message fork → Evm fork Nat → Prop) (code : ByteArray)
+def CallEndC (Run : Evm fork Nat → Message fork → Evm fork Nat → Prop)
+    (Tail : Evm fork Nat → Prop) (code : ByteArray)
     (message : Message fork)
     (pc : Nat) (asked to i isz o osz : U256) (rest : List U256) (memory : ByteArray) (gas : Nat)
     (state : State.TransactionState) (substate : Substate) (cold : Bool) (calleeCode : ByteArray)
@@ -407,7 +430,7 @@ def CallEndC (Run : Evm fork Nat → Message fork → Evm fork Nat → Prop) (co
         (extendMemory memory.size [(i, isz), (o, osz)]).cost) + child.gas)
       (incorporateChild fork caller child).state (incorporateChild fork caller child).substate
       after ∧
-    Ends fork after s
+    Tail after ∧ Ends fork after s
 
 /-- **`call_ok` over `RunC`.** A `RunC` that ends with no error through a CALL (no value) with
 the gas of the accesses and the memory, below the greatest depth, along the route `r`, goes
@@ -425,8 +448,8 @@ theorem call_okC (hfork : .berlin ≤ fork)
     {evm s : Evm fork Nat}
     (start : At code message pc (asked :: to :: 0 :: i :: isz :: o :: osz :: rest) memory gas
       state substate evm)
-    (hrun : RunC fork Run evm s) (hok : s.error = none) :
-    CallEndC Run code message pc asked to i isz o osz rest memory gas state substate cold
+    (hrun : RunC fork Run Tail evm s) (hok : s.error = none) :
+    CallEndC Run Tail code message pc asked to i isz o osz rest memory gas state substate cold
       calleeCode r s := by
   have hcost := callBaseCost_eq hfork cold
   obtain ⟨hc, hj, hm, hpc, hst, hmem, hg, hr, herr, hout, hs, hss⟩ := start
@@ -456,7 +479,7 @@ theorem call_okC (hfork : .berlin ≤ fork)
     cases h1 with
     | next _ hn => rw [hsent] at hn; cases hn
     | halt _ hn _ => rw [hsent] at hn; cases hn
-  | @call _ c' ch b _ msg' res _ hc' hch hres hE =>
+  | @call _ c' ch b _ msg' res _ hc' hch hres hT hE =>
     rw [hsent] at hc'
     cases hc'
     obtain ⟨after, hres', a1, a2, a3, a4, a5, a6, a7, a8, a9, ao, a10, a11⟩ :=
@@ -465,7 +488,7 @@ theorem call_okC (hfork : .berlin ≤ fork)
     have hab : after = b := Except.ok.inj hres
     subst hab
     refine ⟨caller, msg, ch, hch, c10, c11, by rw [m1, hcost], m2, m3, mt, mca, m4, mdp,
-      md, m5, m6, ⟨m7, m8, m9, m10⟩, after, ?_, hE⟩
+      md, m5, m6, ⟨m7, m8, m9, m10⟩, after, ?_, hT, hE⟩
     refine ⟨by rw [a1, c1, hc], by rw [a2, c2, hj], by rw [a3, c3], by rw [a4, c4, hpc],
       by rw [a5, c5], by rw [a6, c6], ?_, by rw [a8, c8, hr], by rw [a9, c9, herr],
       by rw [ao, co, hout], a10, a11⟩

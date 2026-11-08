@@ -100,13 +100,13 @@ theorem dep_totalSupply_split (hfork : .berlin ≤ fork) (hsize' : message.data.
 
 /-- `dep_totalSupply_split` over `RunC` (round 39), for any relation `Run` of the child, given
 the facts of the dispatcher (`h4`, `hv`). -/
-theorem dep_totalSupply_splitC {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop}
+theorem dep_totalSupply_splitC {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop} {Tail : Evm fork Nat → Prop}
     (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
     (hsel : selector message.data = 0x18160ddd) (hv : message.value = 0)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
     {gas : Nat} {evm s : Evm fork Nat}
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (hrun : RunC fork Run evm s) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hok : s.error = none) :
     574 + slotCost (coldIn substate message.currentTarget 10) ≤ gas ∧ ∃ z',
       At CODE message 3719
         [upWord (storageAt state message.currentTarget 10),
@@ -115,7 +115,7 @@ theorem dep_totalSupply_splitC {Run : Evm fork Nat → Message fork → Evm fork
           BitVec.ofNat 256 (selector message.data)] M2
         (gas - (574 + slotCost (coldIn substate message.currentTarget 10)))
         (readSlot state message.currentTarget 10) (accessSlot substate message.currentTarget 10) z' ∧
-      RunC fork Run z' s :=
+      RunC fork Run Tail z' s :=
   ok_splitCA (Nat.le_refl _) (fun g hg => prefixG_totalSupply hfork hsize hsize' hsel hv hdep rfl hg)
     (by have := slotCost_le (coldIn substate message.currentTarget 10); omega) (fun _ _ => rfl)
     start hrun hok
@@ -128,13 +128,13 @@ variable {message : Message fork} {state : State.TransactionState} {substate : S
 a `RunC` from the fresh frame that ends with no error, where `EndsOk` holds (for the
 dispatcher), has the conclusion of `dep_totalSupply_complete` with `Run caller msg child` in place
 of the runner. -/
-theorem dep_totalSupply_completeC {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop}
+theorem dep_totalSupply_completeC {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop} {Tail : Evm fork Nat → Prop}
     (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x18160ddd)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
     {gas : Nat} {evm s : Evm fork Nat}
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (hrun : RunC fork Run evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
+    (hrun : RunC fork Run Tail evm s) (hE : EndsOk fork evm) (hok : s.error = none) :
     ∃ c r, state.getCode (state.getAccount (upAddr state message)).codeHash = .ok c ∧
     Routes fork state c r ∧
     BitVec.ofNat 256 c.size ≠ 0 ∧
@@ -171,7 +171,9 @@ theorem dep_totalSupply_completeC {Run : Evm fork Nat → Message fork → Evm f
         (routeCost fork (callSub substate state message).accessedAddresses r)).cost +
         child.gas - 121 ∧
       s.state = (incorporateChild fork caller child).state ∧
-      s.substate = (incorporateChild fork caller child).substate := by
+      s.substate = (incorporateChild fork caller child).substate ∧
+      ∃ after, Tail after ∧
+        ∀ y, Reaches (Step fork) after y → y.running = true → Refill.NoRefillAtN y := by
   obtain ⟨h4, hv, -⟩ := EndsOk.dispatch hfork hsize' start hE
   obtain ⟨hg0, z, hz, hrunz⟩ := dep_totalSupply_splitC hfork h4 hsize' hsel hv hdep start hrun hok
   obtain ⟨c, hcode⟩ := fromExt_foundC (by decide) hz hrunz hok
@@ -206,7 +208,7 @@ theorem dep_totalSupply_completeC {Run : Evm fork Nat → Message fork → Evm f
     simp only [preCost, extCost]; omega
   rw [e1, e2] at hCE
   obtain ⟨caller, msg, child, hch, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd, hmv,
-    hmdep, hmst, after, hat, hruna⟩ := hCE
+    hmdep, hmst, after, hat, hT, hruna⟩ := hCE
   rw [hext] at hmg hmd hat
   simp only [accCost_false] at hmg hat
   refine ⟨hw, by simp only [preCost, extCost]; omega, hdepth, ?_⟩
@@ -215,14 +217,16 @@ theorem dep_totalSupply_completeC {Run : Evm fork Nat → Message fork → Evm f
     rw [hmd]; exact data_M2
   by_cases he : child.error = none
   · simp only [he, Option.isNone_none, ↓reduceIte] at hat
-    obtain ⟨h121, hr, ho, hgs, hst, hss⟩ := ok_exactE (Nat.le_refl 121)
-      (fun g _ => okTail (fork := fork) (message := message)
+    have hspec := fun g (_ : 121 ≤ g) => okTail (fork := fork) (message := message)
         (state := (incorporateChild fork caller child).state)
         (substate := (incorporateChild fork caller child).substate)
         (U := upWord (storageAt state message.currentTarget 10))
         (size_outMem child.output) (mload_outMem child.output)
-        (x := BitVec.ofNat 256 (selector message.data)) (gas := g) (by omega)) hat hruna hok
-    refine ⟨caller, msg, child, hch, he, hfwd, hmg, hcs, hcss, ?_, hr, ho, ?_, hst, hss⟩
+        (x := BitVec.ofNat 256 (selector message.data)) (gas := g) (by omega)
+    obtain ⟨h121, hr, ho, hgs, hst, hss⟩ := ok_exactE (Nat.le_refl 121) hspec hat hruna hok
+    have hnrT := noRefill_of_specA (Nat.le_refl 121) (by decide) hspec (fun _ _ => rfl) hat
+    refine ⟨caller, msg, child, hch, he, hfwd, hmg, hcs, hcss, ?_, hr, ho, ?_, hst, hss,
+      after, hT, hnrT⟩
     · simp only [Nat.add_zero] at h121
       omega
     · rw [hgs]
@@ -282,9 +286,9 @@ theorem dep_totalSupply_complete (hfork : .berlin ≤ fork)
         child.1.gas - 121 ∧
       s.state = (incorporateChild fork caller child.1).state ∧
       s.substate = (incorporateChild fork caller child.1).substate := by
-  obtain ⟨c, r, h1, h2, h3, h4, h5, caller, msg, child, ⟨lt, hle, hch⟩, rest⟩ :=
+  obtain ⟨c, r, h1, h2, h3, h4, h5, caller, msg, child, ⟨lt, hle, hch⟩, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, -⟩ :=
     dep_totalSupply_completeC hfork hsize' hsel hdep start (RunC.of_runFrame hrun)
       (EndsOk.of_runFrame hrun hok) hok
-  exact ⟨c, r, h1, h2, h3, h4, h5, caller, msg, lt, ⟨child, hle⟩, hch, rest⟩
+  exact ⟨c, r, h1, h2, h3, h4, h5, caller, msg, lt, ⟨child, hle⟩, hch, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11⟩
 
 end UsdtVerify.Complete
