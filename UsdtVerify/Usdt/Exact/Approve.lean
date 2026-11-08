@@ -1,4 +1,5 @@
 import UsdtVerify.Usdt.Exact.Getters
+import UsdtVerify.Evm.Dom
 import UsdtVerify.Usdt.Complete.Approve
 
 /-!
@@ -82,6 +83,30 @@ theorem approve_ok_iff (hstip : approveStip message c10 cA ≤ gas)
   · simp only [approveCost, approveStip, hz, ↓reduceIte] at hg hstip
     exact (spec_set hfork hst hacc hl hsize' hsel hv hdep hz (ha hz) hc10 hcA hstip
       hg).consequence (fun _ h => h) halted_false_ok
+
+/-- `approve` over the EIP-8037 meter at any reservoir, with refills allowed (round 42): under
+`ApproveGuard` and the gas of `approve_ok_iff`, the loop over `StateGasMeter` from a frame `m` whose
+`toNat` is the fresh frame, for any gas bound and message runner, ends with no error. -/
+theorem approve_ok_dom (hstip : approveStip message c10 cA ≤ gas)
+    (hg : approveCost fork state message c10 cA ≤ gas)
+    {m : Evm fork StateGasMeter} (hm : evm = Meter.toNat m) {boundS : Nat}
+    {runS : MessageRunner fork StateGasMeter boundS} (withinS : GasMeter.gasHeld m.gas ≤ boundS)
+    (hG : ApproveGuard state message) : Shadow.RunsOkS fork boundS runS m withinS := by
+  have key : ∃ Q : Evm fork Nat → Prop,
+      SpecG fork (At CODE message 0 [] .empty gas state substate) Q ∧
+        ∀ e, Q e → e.error = none := by
+    obtain ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hl, ha⟩ := hG
+    refine ⟨fun e => e.error = none, ?_, fun _ h => h⟩
+    by_cases hz : wordArg message.data 1 = 0
+    · simp only [approveCost, approveStip, hz, ↓reduceIte] at hg hstip
+      exact (spec_zero hfork hst hacc hl hsize' hsel hv hdep hz hc10 hcA hstip hg).consequence
+        (fun _ h => h) halted_false_ok
+    · simp only [approveCost, approveStip, hz, ↓reduceIte] at hg hstip
+      exact (spec_set hfork hst hacc hl hsize' hsel hv hdep hz (ha hz) hc10 hcA hstip
+        hg).consequence (fun _ h => h) halted_false_ok
+  obtain ⟨Q, h, hQ⟩ := key
+  exact Shadow.runsOkS_of_specG hfork h hQ (hm ▸ start) withinS
+
 
 theorem approve_low (hg : gas < approveCost fork state message c10 cA) :
     ¬ RunsOk fork bound runChild evm within := by

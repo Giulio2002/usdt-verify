@@ -1,4 +1,5 @@
 import UsdtVerify.Usdt.Exact.Getters
+import UsdtVerify.Evm.Dom
 import UsdtVerify.Usdt.Complete.Owner
 
 /-!
@@ -65,6 +66,23 @@ theorem pause_ok_iff (hstip : 3297 + slotCost c0 ≤ gas)
       spec_pause hfork hst hacc h4 hsize' hsel hv hown hp hc0 hstip hg)
     halted_false_ok start within (pause_comp hfork hsize' start within hsel hc0)
 
+/-- `pause` over the EIP-8037 meter at any reservoir, with refills allowed (round 42): under
+`PauseGuard` and the gas of `pause_ok_iff`, the loop over `StateGasMeter` from a frame `m` whose
+`toNat` is the fresh frame, for any gas bound and message runner, ends with no error. -/
+theorem pause_ok_dom (hstip : 3297 + slotCost c0 ≤ gas)
+    (hg : PAUSE_COST + slotCost c0 + flagCost fork state message 1 ≤ gas)
+    {m : Evm fork StateGasMeter} (hm : evm = Meter.toNat m) {boundS : Nat}
+    {runS : MessageRunner fork StateGasMeter boundS} (withinS : GasMeter.gasHeld m.gas ≤ boundS)
+    (hG : PauseGuard state message) : Shadow.RunsOkS fork boundS runS m withinS := by
+  have key : ∃ Q : Evm fork Nat → Prop,
+      SpecG fork (At CODE message 0 [] .empty gas state substate) Q ∧
+        ∀ e, Q e → e.error = none := by
+    obtain ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hp⟩ := hG
+    exact ⟨_, spec_pause hfork hst hacc h4 hsize' hsel hv hown hp hc0 hstip hg, halted_false_ok⟩
+  obtain ⟨Q, h, hQ⟩ := key
+  exact Shadow.runsOkS_of_specG hfork h hQ (hm ▸ start) withinS
+
+
 theorem pause_low (hg : gas < PAUSE_COST + slotCost c0 + flagCost fork state message 1) :
     ¬ RunsOk fork bound runChild evm within :=
   not_runsOk_low2 hg (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hp⟩ _ =>
@@ -108,6 +126,23 @@ theorem unpause_ok_iff (hstip : 3184 + slotCost c0 ≤ gas)
   runsOk_iff (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hp⟩ =>
       spec_unpause hfork hst hacc h4 hsize' hsel hv hown hp hc0 hstip hg)
     halted_false_ok start within (unpause_comp hfork hsize' start within hsel hc0)
+
+/-- `unpause` over the EIP-8037 meter at any reservoir, with refills allowed (round 42): under
+`UnpauseGuard` and the gas of `unpause_ok_iff`, the loop over `StateGasMeter` from a frame `m` whose
+`toNat` is the fresh frame, for any gas bound and message runner, ends with no error. -/
+theorem unpause_ok_dom (hstip : 3184 + slotCost c0 ≤ gas)
+    (hg : UNPAUSE_COST + slotCost c0 + flagCost fork state message 0 ≤ gas)
+    {m : Evm fork StateGasMeter} (hm : evm = Meter.toNat m) {boundS : Nat}
+    {runS : MessageRunner fork StateGasMeter boundS} (withinS : GasMeter.gasHeld m.gas ≤ boundS)
+    (hG : UnpauseGuard state message) : Shadow.RunsOkS fork boundS runS m withinS := by
+  have key : ∃ Q : Evm fork Nat → Prop,
+      SpecG fork (At CODE message 0 [] .empty gas state substate) Q ∧
+        ∀ e, Q e → e.error = none := by
+    obtain ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hp⟩ := hG
+    exact ⟨_, spec_unpause hfork hst hacc h4 hsize' hsel hv hown hp hc0 hstip hg, halted_false_ok⟩
+  obtain ⟨Q, h, hQ⟩ := key
+  exact Shadow.runsOkS_of_specG hfork h hQ (hm ▸ start) withinS
+
 
 theorem unpause_low (hg : gas < UNPAUSE_COST + slotCost c0 + flagCost fork state message 0) :
     ¬ RunsOk fork bound runChild evm within :=
@@ -159,6 +194,24 @@ theorem addBlackList_ok_iff (hsel : selector message.data = 0x0ecb93c0)
       spec_add hfork hst hacc h4 hsize' hsel hv hown hc0 hcB hstip hg)
     halted_false_ok start within (addBlackList_comp hfork hsize' start within hc0 hcB hsel)
 
+/-- `addBlackList` over the EIP-8037 meter at any reservoir, with refills allowed (round 42): under
+`OwnerWriteGuard` and the gas of `addBlackList_ok_iff`, the loop over `StateGasMeter` from a frame `m` whose
+`toNat` is the fresh frame, for any gas bound and message runner, ends with no error. -/
+theorem addBlackList_ok_dom (hsel : selector message.data = 0x0ecb93c0)
+    (hstip : 2779 + slotCost c0 + slotCost cB ≤ gas)
+    (hg : 1567 + slotCost c0 + slotCost cB + listCost fork state message 1 ≤ gas)
+    {m : Evm fork StateGasMeter} (hm : evm = Meter.toNat m) {boundS : Nat}
+    {runS : MessageRunner fork StateGasMeter boundS} (withinS : GasMeter.gasHeld m.gas ≤ boundS)
+    (hG : OwnerWriteGuard state message) : Shadow.RunsOkS fork boundS runS m withinS := by
+  have key : ∃ Q : Evm fork Nat → Prop,
+      SpecG fork (At CODE message 0 [] .empty gas state substate) Q ∧
+        ∀ e, Q e → e.error = none := by
+    obtain ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown⟩ := hG
+    exact ⟨_, spec_add hfork hst hacc h4 hsize' hsel hv hown hc0 hcB hstip hg, halted_false_ok⟩
+  obtain ⟨Q, h, hQ⟩ := key
+  exact Shadow.runsOkS_of_specG hfork h hQ (hm ▸ start) withinS
+
+
 theorem addBlackList_low (hsel : selector message.data = 0x0ecb93c0)
     (hg : gas < 1567 + slotCost c0 + slotCost cB + listCost fork state message 1) :
     ¬ RunsOk fork bound runChild evm within :=
@@ -199,6 +252,24 @@ theorem removeBlackList_ok_iff (hsel : selector message.data = 0xe4997dc5)
   runsOk_iff (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown⟩ =>
       spec_remove hfork hst hacc h4 hsize' hsel hv hown hc0 hcB hstip hg)
     halted_false_ok start within (removeBlackList_comp hfork hsize' start within hc0 hcB hsel)
+
+/-- `removeBlackList` over the EIP-8037 meter at any reservoir, with refills allowed (round 42): under
+`OwnerWriteGuard` and the gas of `removeBlackList_ok_iff`, the loop over `StateGasMeter` from a frame `m` whose
+`toNat` is the fresh frame, for any gas bound and message runner, ends with no error. -/
+theorem removeBlackList_ok_dom (hsel : selector message.data = 0xe4997dc5)
+    (hstip : 3307 + slotCost c0 + slotCost cB ≤ gas)
+    (hg : 2095 + slotCost c0 + slotCost cB + listCost fork state message 0 ≤ gas)
+    {m : Evm fork StateGasMeter} (hm : evm = Meter.toNat m) {boundS : Nat}
+    {runS : MessageRunner fork StateGasMeter boundS} (withinS : GasMeter.gasHeld m.gas ≤ boundS)
+    (hG : OwnerWriteGuard state message) : Shadow.RunsOkS fork boundS runS m withinS := by
+  have key : ∃ Q : Evm fork Nat → Prop,
+      SpecG fork (At CODE message 0 [] .empty gas state substate) Q ∧
+        ∀ e, Q e → e.error = none := by
+    obtain ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown⟩ := hG
+    exact ⟨_, spec_remove hfork hst hacc h4 hsize' hsel hv hown hc0 hcB hstip hg, halted_false_ok⟩
+  obtain ⟨Q, h, hQ⟩ := key
+  exact Shadow.runsOkS_of_specG hfork h hQ (hm ▸ start) withinS
+
 
 theorem removeBlackList_low (hsel : selector message.data = 0xe4997dc5)
     (hg : gas < 2095 + slotCost c0 + slotCost cB + listCost fork state message 0) :
@@ -253,6 +324,25 @@ theorem issue_ok_iff (hsel : selector message.data = 0xcc872b66)
       spec_issue hfork hst hacc h4 hsize' hsel hv hown ⟨h0, hT⟩ hB hc0 hc1 hcO hstip hg)
     halted_false_ok start within (issue_comp hfork hsize' start within hc0 hc1 hcO hsel)
 
+/-- `issue` over the EIP-8037 meter at any reservoir, with refills allowed (round 42): under
+`IssueGuard` and the gas of `issue_ok_iff`, the loop over `StateGasMeter` from a frame `m` whose
+`toNat` is the fresh frame, for any gas bound and message runner, ends with no error. -/
+theorem issue_ok_dom (hsel : selector message.data = 0xcc872b66)
+    (hstip : 4248 + slotCost c0 + slotCost c1 + slotCost cO + issueCostO fork state message ≤ gas)
+    (hg : 3024 + slotCost c0 + slotCost c1 + slotCost cO + issueCostO fork state message +
+      issueCostT fork state message ≤ gas)
+    {m : Evm fork StateGasMeter} (hm : evm = Meter.toNat m) {boundS : Nat}
+    {runS : MessageRunner fork StateGasMeter boundS} (withinS : GasMeter.gasHeld m.gas ≤ boundS)
+    (hG : IssueGuard state message) : Shadow.RunsOkS fork boundS runS m withinS := by
+  have key : ∃ Q : Evm fork Nat → Prop,
+      SpecG fork (At CODE message 0 [] .empty gas state substate) Q ∧
+        ∀ e, Q e → e.error = none := by
+    obtain ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, h0, hT, hB⟩ := hG
+    exact ⟨_, spec_issue hfork hst hacc h4 hsize' hsel hv hown ⟨h0, hT⟩ hB hc0 hc1 hcO hstip hg, halted_false_ok⟩
+  obtain ⟨Q, h, hQ⟩ := key
+  exact Shadow.runsOkS_of_specG hfork h hQ (hm ▸ start) withinS
+
+
 theorem issue_low (hsel : selector message.data = 0xcc872b66)
     (hg : gas < 3024 + slotCost c0 + slotCost c1 + slotCost cO + issueCostO fork state message +
       issueCostT fork state message) :
@@ -304,6 +394,26 @@ theorem redeem_ok_iff (hsel : selector message.data = 0xdb006a75)
   runsOk_iff (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hT, hB⟩ =>
       spec_redeem hfork hst hacc h4 hsize' hsel hv hown hT hB hc0 hc1 hcO hstip hg)
     halted_false_ok start within (redeem_comp hfork hsize' start within hc0 hc1 hcO hsel)
+
+/-- `redeem` over the EIP-8037 meter at any reservoir, with refills allowed (round 42): under
+`RedeemGuard` and the gas of `redeem_ok_iff`, the loop over `StateGasMeter` from a frame `m` whose
+`toNat` is the fresh frame, for any gas bound and message runner, ends with no error. -/
+theorem redeem_ok_dom (hsel : selector message.data = 0xdb006a75)
+    (hstip : 3838 + slotCost c0 + slotCost c1 + slotCost cO + redeemCostT fork state message ≤
+      gas)
+    (hg : 2614 + slotCost c0 + slotCost c1 + slotCost cO + redeemCostT fork state message +
+      redeemCostO fork state message ≤ gas)
+    {m : Evm fork StateGasMeter} (hm : evm = Meter.toNat m) {boundS : Nat}
+    {runS : MessageRunner fork StateGasMeter boundS} (withinS : GasMeter.gasHeld m.gas ≤ boundS)
+    (hG : RedeemGuard state message) : Shadow.RunsOkS fork boundS runS m withinS := by
+  have key : ∃ Q : Evm fork Nat → Prop,
+      SpecG fork (At CODE message 0 [] .empty gas state substate) Q ∧
+        ∀ e, Q e → e.error = none := by
+    obtain ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hT, hB⟩ := hG
+    exact ⟨_, spec_redeem hfork hst hacc h4 hsize' hsel hv hown hT hB hc0 hc1 hcO hstip hg, halted_false_ok⟩
+  obtain ⟨Q, h, hQ⟩ := key
+  exact Shadow.runsOkS_of_specG hfork h hQ (hm ▸ start) withinS
+
 
 theorem redeem_low (hsel : selector message.data = 0xdb006a75)
     (hg : gas < 2614 + slotCost c0 + slotCost c1 + slotCost cO + redeemCostT fork state message +
@@ -374,6 +484,27 @@ theorem setParams_ok_iff
     halted_false_ok start within
     (setParams_comp hfork hsize' start within hsel hc0 hc3 hc9 hc4)
 
+/-- `setParams` over the EIP-8037 meter at any reservoir, with refills allowed (round 42): under
+`SetParamsGuard` and the gas of `setParams_ok_iff`, the loop over `StateGasMeter` from a frame `m` whose
+`toNat` is the fresh frame, for any gas bound and message runner, ends with no error. -/
+theorem setParams_ok_dom
+    (hstip : 3168 + slotCost c0 + Gas.writeCost fork (originalAt state message.currentTarget 3)
+      (storageAt state message.currentTarget 3) (wordArg message.data 0) c3 + slotCost c9 +
+      50 * exponentBytes (storageAt state message.currentTarget 9) +
+      mulCost (wordArg message.data 1) ≤ gas)
+    (hg : 2425 + paramsCost fork state message c0 c3 c9 c4 ≤ gas)
+    {m : Evm fork StateGasMeter} (hm : evm = Meter.toNat m) {boundS : Nat}
+    {runS : MessageRunner fork StateGasMeter boundS} (withinS : GasMeter.gasHeld m.gas ≤ boundS)
+    (hG : SetParamsGuard state message) : Shadow.RunsOkS fork boundS runS m withinS := by
+  have key : ∃ Q : Evm fork Nat → Prop,
+      SpecG fork (At CODE message 0 [] .empty gas state substate) Q ∧
+        ∀ e, Q e → e.error = none := by
+    obtain ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hb, hm, hov⟩ := hG
+    exact ⟨_, spec_setParams hfork hst hacc h4 hsize' hsel hv hown hb hm hov hc0 hc3 hc9 hc4 hstip hg, halted_false_ok⟩
+  obtain ⟨Q, h, hQ⟩ := key
+  exact Shadow.runsOkS_of_specG hfork h hQ (hm ▸ start) withinS
+
+
 theorem setParams_low (hg : gas < 2425 + paramsCost fork state message c0 c3 c9 c4) :
     ¬ RunsOk fork bound runChild evm within :=
   not_runsOk_low2 hg (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hb, hm, hov⟩ _ =>
@@ -437,6 +568,26 @@ theorem deprecate_ok_iff
   runsOk_iff (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown⟩ =>
       spec_deprecate hfork hst hacc h4 hsize' hsel hv hown hc0 hc10 hstip hg)
     halted_false_ok start within (deprecate_comp hfork hsize' start within hsel hc0 hc10)
+
+/-- `deprecate` over the EIP-8037 meter at any reservoir, with refills allowed (round 42): under
+`OwnerWriteGuard` and the gas of `deprecate_ok_iff`, the loop over `StateGasMeter` from a frame `m` whose
+`toNat` is the fresh frame, for any gas bound and message runner, ends with no error. -/
+theorem deprecate_ok_dom
+    (hstip : 2840 + slotCost c0 + slotCost c10 + Gas.writeCost fork
+      (originalAt state message.currentTarget 10) (storageAt state message.currentTarget 10)
+      (withPaused (storageAt state message.currentTarget 10) 1) false ≤ gas)
+    (hg : 1628 + slotCost c0 + slotCost c10 + depCost fork state message ≤ gas)
+    {m : Evm fork StateGasMeter} (hm : evm = Meter.toNat m) {boundS : Nat}
+    {runS : MessageRunner fork StateGasMeter boundS} (withinS : GasMeter.gasHeld m.gas ≤ boundS)
+    (hG : OwnerWriteGuard state message) : Shadow.RunsOkS fork boundS runS m withinS := by
+  have key : ∃ Q : Evm fork Nat → Prop,
+      SpecG fork (At CODE message 0 [] .empty gas state substate) Q ∧
+        ∀ e, Q e → e.error = none := by
+    obtain ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown⟩ := hG
+    exact ⟨_, spec_deprecate hfork hst hacc h4 hsize' hsel hv hown hc0 hc10 hstip hg, halted_false_ok⟩
+  obtain ⟨Q, h, hQ⟩ := key
+  exact Shadow.runsOkS_of_specG hfork h hQ (hm ▸ start) withinS
+
 
 theorem deprecate_low (hg : gas < 1628 + slotCost c0 + slotCost c10 + depCost fork state message) :
     ¬ RunsOk fork bound runChild evm within :=
@@ -509,6 +660,31 @@ theorem transferOwnership_ok_iff (hstip : addrArg message.data 0 ≠ 0 → 3401 
     obtain ⟨hst, hacc⟩ := hw hz
     exact (spec_transferOwnership hfork hst hacc h4 hsize' hsel hv hown hz hc0 (hstip hz)
       hg).consequence (fun _ h => h) halted_false_ok
+
+/-- `transferOwnership` over the EIP-8037 meter at any reservoir, with refills allowed (round 42): under
+`TransferOwnershipGuard` and the gas of `transferOwnership_ok_iff`, the loop over `StateGasMeter` from a frame `m` whose
+`toNat` is the fresh frame, for any gas bound and message runner, ends with no error. -/
+theorem transferOwnership_ok_dom (hstip : addrArg message.data 0 ≠ 0 → 3401 + slotCost c0 ≤ gas)
+    (hg : ownershipCost fork state message c0 ≤ gas)
+    {m : Evm fork StateGasMeter} (hm : evm = Meter.toNat m) {boundS : Nat}
+    {runS : MessageRunner fork StateGasMeter boundS} (withinS : GasMeter.gasHeld m.gas ≤ boundS)
+    (hG : TransferOwnershipGuard state message) : Shadow.RunsOkS fork boundS runS m withinS := by
+  have key : ∃ Q : Evm fork Nat → Prop,
+      SpecG fork (At CODE message 0 [] .empty gas state substate) Q ∧
+        ∀ e, Q e → e.error = none := by
+    obtain ⟨⟨h4, hv⟩, hown, hw⟩ := hG
+    refine ⟨fun e => e.error = none, ?_, fun _ h => h⟩
+    by_cases hz : addrArg message.data 0 = 0
+    · simp only [ownershipCost, hz, ↓reduceIte] at hg
+      exact (spec_transferOwnership_zero hfork h4 hsize' hsel hv hown hz hc0 hg).consequence
+        (fun _ h => h) halted_false_ok
+    · simp only [ownershipCost, hz, ↓reduceIte] at hg
+      obtain ⟨hst, hacc⟩ := hw hz
+      exact (spec_transferOwnership hfork hst hacc h4 hsize' hsel hv hown hz hc0 (hstip hz)
+        hg).consequence (fun _ h => h) halted_false_ok
+  obtain ⟨Q, h, hQ⟩ := key
+  exact Shadow.runsOkS_of_specG hfork h hQ (hm ▸ start) withinS
+
 
 theorem transferOwnership_low (hg : gas < ownershipCost fork state message c0) :
     ¬ RunsOk fork bound runChild evm within := by
@@ -586,6 +762,28 @@ theorem destroyBlackFunds_ok_iff
         hstip1 hstip2 hg)
     halted_false_ok start within
     (destroyBlackFunds_comp hfork hsize' start within hsel hdep hc0 hcL hc10 hcB hc1)
+
+/-- `destroyBlackFunds` over the EIP-8037 meter at any reservoir, with refills allowed (round 42): under
+`DestroyBlackFundsGuard` and the gas of `destroyBlackFunds_ok_iff`, the loop over `StateGasMeter` from a frame `m` whose
+`toNat` is the fresh frame, for any gas bound and message runner, ends with no error. -/
+theorem destroyBlackFunds_ok_dom
+    (hstip1 : 3763 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB ≤ gas)
+    (hstip2 : 3796 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB +
+      costB fork state message + slotCost c1 ≤ gas)
+    (hg : 2865 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB + slotCost c1 +
+      costB fork state message + costT fork state message ≤ gas)
+    {m : Evm fork StateGasMeter} (hm : evm = Meter.toNat m) {boundS : Nat}
+    {runS : MessageRunner fork StateGasMeter boundS} (withinS : GasMeter.gasHeld m.gas ≤ boundS)
+    (hG : DestroyBlackFundsGuard state message) : Shadow.RunsOkS fork boundS runS m withinS := by
+  have key : ∃ Q : Evm fork Nat → Prop,
+      SpecG fork (At CODE message 0 [] .empty gas state substate) Q ∧
+        ∀ e, Q e → e.error = none := by
+    obtain ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hl⟩ := hG
+    exact ⟨_, DestroySpec.spec hfork hst hacc h4 hsize' hsel hv hown hl hdep hc0 hcL hc10 hcB hc1
+        hstip1 hstip2 hg, halted_false_ok⟩
+  obtain ⟨Q, h, hQ⟩ := key
+  exact Shadow.runsOkS_of_specG hfork h hQ (hm ▸ start) withinS
+
 
 theorem destroyBlackFunds_low
     (hg : gas < 2865 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB + slotCost c1 +

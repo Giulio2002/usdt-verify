@@ -79,7 +79,7 @@ theorem dep_balanceOf_split (hfork : .berlin ≤ fork) (hsize' : message.data.si
 
 /-- **`dep_balanceOf_complete` over `RunC`** (round 39): for any relation `Run` of the child, a `RunC`
 from the fresh frame that ends with no error, where `EndsOk` holds (for the dispatcher and the
-guards), has the conclusion of `dep_balanceOf_complete` with `Run caller msg child` in place of the runner. -/
+guards), has the conclusion of `dep_balanceOf_complete` with `Run caller msg child` in place of the runner. Since round 42 it also gives a frame `after`, the frame after the CALL, with `Tail after`, from which no running frame refills at an SSTORE. -/
 theorem dep_balanceOf_completeC {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop} {Tail : Evm fork Nat → Prop}
     (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x70a08231)

@@ -116,7 +116,7 @@ theorem dep_transfer_split (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.dat
 
 /-- **`dep_transfer_complete` over `RunC`** (round 39): for any relation `Run` of the child, a `RunC`
 from the fresh frame that ends with no error, where `EndsOk` holds (for the dispatcher and the
-guards), has the conclusion of `dep_transfer_complete` with `Run caller msg child` in place of the runner. -/
+guards), has the conclusion of `dep_transfer_complete` with `Run caller msg child` in place of the runner. Since round 42 it also gives a frame `after`, the frame after the CALL, with `Tail after`, from which no running frame refills at an SSTORE. -/
 theorem dep_transfer_completeC {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop} {Tail : Evm fork Nat → Prop}
     (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xa9059cbb)
@@ -352,7 +352,7 @@ theorem prefixG_approve (hfork : .berlin ≤ fork) (hlong : 68 ≤ message.data.
 
 /-- **`dep_approve_complete` over `RunC`** (round 39): for any relation `Run` of the child, a `RunC`
 from the fresh frame that ends with no error, where `EndsOk` holds (for the dispatcher and the
-guards), has the conclusion of `dep_approve_complete` with `Run caller msg child` in place of the runner. -/
+guards), has the conclusion of `dep_approve_complete` with `Run caller msg child` in place of the runner. Since round 42 it also gives a frame `after`, the frame after the CALL, with `Tail after`, from which no running frame refills at an SSTORE. -/
 theorem dep_approve_completeC {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop} {Tail : Evm fork Nat → Prop}
     (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x095ea7b3)
@@ -554,7 +554,7 @@ theorem prefixG_transferFrom (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.d
 
 /-- **`dep_transferFrom_complete` over `RunC`** (round 39): for any relation `Run` of the child, a `RunC`
 from the fresh frame that ends with no error, where `EndsOk` holds (for the dispatcher and the
-guards), has the conclusion of `dep_transferFrom_complete` with `Run caller msg child` in place of the runner. -/
+guards), has the conclusion of `dep_transferFrom_complete` with `Run caller msg child` in place of the runner. Since round 42 it also gives a frame `after`, the frame after the CALL, with `Tail after`, from which no running frame refills at an SSTORE. -/
 theorem dep_transferFrom_completeC {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop} {Tail : Evm fork Nat → Prop}
     (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x23b872dd)

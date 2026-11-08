@@ -1,6 +1,7 @@
 import UsdtVerify.Evm.CallMeter
 import UsdtVerify.Evm.StepSimR
 import UsdtVerify.Evm.RunCR
+import UsdtVerify.Evm.Dom
 import UsdtVerify.Evm.StepSim
 import UsdtVerify.Usdt.Complete.Deprecated.Meter
 import UsdtVerify.Usdt.Complete.Deprecated.MeterR
@@ -1107,6 +1108,22 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Meter.step_simXR
 #print axioms UsdtVerify.Meter.step_callXR
 #print axioms UsdtVerify.Complete.runC_of_sgmR
+#print axioms UsdtVerify.Shadow.dom_step
+#print axioms UsdtVerify.Shadow.dom_run
+#print axioms UsdtVerify.Shadow.runsOkS_of_specG
+#print axioms UsdtVerify.Exact.approve_ok_dom
+#print axioms UsdtVerify.Exact.transfer_ok_dom
+#print axioms UsdtVerify.Exact.transferFrom_ok_dom
+#print axioms UsdtVerify.Exact.pause_ok_dom
+#print axioms UsdtVerify.Exact.unpause_ok_dom
+#print axioms UsdtVerify.Exact.addBlackList_ok_dom
+#print axioms UsdtVerify.Exact.removeBlackList_ok_dom
+#print axioms UsdtVerify.Exact.issue_ok_dom
+#print axioms UsdtVerify.Exact.redeem_ok_dom
+#print axioms UsdtVerify.Exact.setParams_ok_dom
+#print axioms UsdtVerify.Exact.deprecate_ok_dom
+#print axioms UsdtVerify.Exact.transferOwnership_ok_dom
+#print axioms UsdtVerify.Exact.destroyBlackFunds_ok_dom
 #print axioms UsdtVerify.Refill.noRefill_cheapE
 #print axioms UsdtVerify.Refill.HoareG.toIE
 #print axioms UsdtVerify.Complete.RunC.of_runFrame

@@ -393,7 +393,45 @@ of `CODE`, deprecated, for any gas bound and message runner over `StateGasMeter`
 - `owner_only_allS` (Usdt/Security/DepMeter.lean): every run over `StateGasMeter` of one of the
   ten owner functions that ends with no error is a call by the owner, deprecated or not, with no
   runner assumption, from reservoir 0 for deprecated destroyBlackFunds and any reservoir otherwise.
-- Still not covered: a reservoir other than 0 when deprecated, the gas left after the CALL.
+- Still not covered: a reservoir other than 0 when deprecated, the gas left after the CALL
+  (both covered in round 42, below).
+
+## The EIP-8037 meter, round 42: any reservoir when deprecated, the gas after the CALL, refills
+
+- The deprecated paths from any reservoir (Usdt/Complete/Deprecated/MeterR.lean,
+  `dep_X_completeR` for the seven deprecated functions). From Berlin, from a frame `m` of
+  `StateGasMeter` with any reservoir whose `toNat` is the fresh frame of `CODE`, deprecated, any
+  gas, any gas bound and any message runner over `StateGasMeter`: a run that ends with no error
+  has the conclusion of `dep_X_completeS`, except that the message the runner ran carries the
+  reservoir of `m` (`msg.reservoir = m.gas.reservoir`). The caller frame has reservoir 0.
+- The gas after the CALL, in the same theorems. For totalSupply, balanceOf, allowance, transfer,
+  approve and transferFrom, the execution gas left plus the reservoir at the end, plus the gas of
+  the tail after the CALL (121, 126, 128, 51, 53, 53), equals the gas before the CALL less the
+  price of the CALL plus the execution gas left and the reservoir that the child returned. For
+  destroyBlackFunds the same sum is a lower bound: its two writes after the CALL may refill. The
+  split of the sum between execution gas and reservoir is not stated.
+- Why GAS before the CALL is no obstacle: no step before the CALL charges state gas, so at any
+  reservoir the execution gas left is the gas of the meter `Nat` step by step, and GAS pushes the
+  same word (`Meter.step_simXR`, `Meter.step_callXR`, Evm/StepSimR.lean). The CALL sends the message
+  over `Nat` with the reservoir of the frame (`callStep_child_simR`). After the CALL,
+  `Shadow.shadow_runQ` relates the run to a run of the meter `Nat` whose gas is the execution gas
+  left plus the reservoir plus a constant, with equality when no SSTORE of the tail refills
+  (`runC_of_sgmR`, Evm/RunCR.lean). For the six paths the tail has no refill
+  (`noRefill_of_specA`).
+- Refills (Evm/Dom.lean, `X_ok_dom` in Usdt/Exact/). From Berlin, for the 13 writing functions not
+  deprecated, at any reservoir and with no hypothesis on refills: under the guard of
+  `Usdt/Spec/Guards.lean` and the gas of `X_ok_iff` (the one-counter threshold), the run over
+  `StateGasMeter` from a frame whose `toNat` is the fresh frame, for any gas bound and message
+  runner, ends with no error. Through `Shadow.dom_run`: at every step the execution gas left over
+  `StateGasMeter` is at least the gas over `Nat`, since a refill only adds and the state gas comes
+  from the reservoir first.
+- Not covered: when a write refills, the exact threshold below which the run fails and the exact
+  gas left. A refill credits the execution gas only up to the spill of the frame and the reservoir
+  with the rest, and a later write that pays state gas takes it from that reservoir. So in that
+  case the run can succeed with less gas than the one-counter threshold, and the gas left depends
+  on the spill and on the order of the writes. `X_iff_gas_sgm` and `X_gas_any` still take their
+  refill hypotheses (`hnr`, `hnrD`, `hnrA` and the owner forms), and `Shadow.gas_ge_any` gives a
+  lower bound on the gas left with no such hypothesis.
 
 ## Completeness of the dispatcher, for every gas
 

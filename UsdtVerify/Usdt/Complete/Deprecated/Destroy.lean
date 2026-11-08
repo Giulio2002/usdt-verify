@@ -78,7 +78,7 @@ theorem prefixG_destroy (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.s
 
 /-- **`dep_destroy_complete` over `RunC`** (round 39): for any relation `Run` of the child, a `RunC`
 from the fresh frame that ends with no error, where `EndsOk` holds (for the dispatcher and the
-guards), has the conclusion of `dep_destroy_complete` with `Run caller msg child` in place of the runner. -/
+guards), has the conclusion of `dep_destroy_complete` with `Run caller msg child` in place of the runner. Since round 42 it also gives a frame `after`, the frame after the CALL, with `Tail after`. -/
 theorem dep_destroy_completeC {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop} {Tail : Evm fork Nat → Prop}
     (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)

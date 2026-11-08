@@ -580,6 +580,15 @@ or not whose calls run over `Nat` or over `StateGasMeter` (`SeqRS`, reservoir 0 
 `supply_seq_allS`, and `Security.process_stepSecD` (top-level messages over `StateGasMeter` as
 steps of `SeqRS`). `Security.owner_only_allS` (Usdt/Security/DepMeter.lean): `owner_only` over
 `StateGasMeter`, deprecated or not, reservoir 0 for deprecated destroyBlackFunds.
+Round 42 (Usdt/Complete/Deprecated/MeterR.lean): `Complete.dep_X_completeR` for the seven
+deprecated functions over `StateGasMeter` from any reservoir (`Complete.runC_of_sgmR`). The
+forwarded message carries the reservoir of the first frame. For six paths the execution gas left
+plus the reservoir at the end, plus the gas of the tail, is the gas before the CALL less its price
+plus the execution gas left and the reservoir of the child, and for destroyBlackFunds that sum is a
+lower bound. Round 42 (Usdt/Exact/): `Exact.X_ok_dom` for the 13 writing functions: under the guard
+and the threshold of `X_ok_iff`, a run over `StateGasMeter` at any reservoir ends with no error,
+with no refill hypothesis (`Shadow.dom_run`). Not covered: the exact threshold and gas when a write
+refills, and the split of the gas between execution gas and reservoir.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

@@ -9,6 +9,7 @@ import UsdtVerify.Evm.GasRules
 import UsdtVerify.Evm.Meter
 import UsdtVerify.Evm.Refill
 import UsdtVerify.Evm.Shadow
+import UsdtVerify.Evm.Dom
 import UsdtVerify.Evm.NoState
 import UsdtVerify.Evm.ProcessMeter
 import UsdtVerify.Evm.CallMeter

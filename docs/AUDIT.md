@@ -617,6 +617,28 @@ after the CALL. Not resolved from a reservoir other than 0 when deprecated.
   `StateGasMeter`, the deprecated sequence forms of the security properties over
   `StateGasMeter`.
 
+**Progress (round 42).** The two items left open in round 41 are resolved for completeness. The
+refill cases are resolved for success above the one-counter threshold, not for the exact
+threshold.
+- Deprecated, any reservoir: `dep_X_completeR` (Usdt/Complete/Deprecated/MeterR.lean) for the
+  seven deprecated functions over `StateGasMeter`, from any reservoir. GAS before the CALL is no
+  obstacle: no step before the CALL charges state gas, so the execution gas left follows the
+  one-counter gas exactly (`Meter.step_simXR`, `Meter.step_callXR`). The forwarded message carries
+  the reservoir of the frame.
+- The gas after the CALL: in the same theorems, the execution gas left plus the reservoir at the
+  end is exact for six paths (the gas before the CALL less its price, plus what the child returned,
+  less the tail), and a lower bound for destroyBlackFunds, whose two writes after the CALL may
+  refill. The split between execution gas and reservoir is not stated.
+- Refills: `X_ok_dom` (Usdt/Exact/) for the 13 writing functions: under the guard and the
+  one-counter threshold, the run over `StateGasMeter` succeeds at any reservoir with no refill
+  hypothesis (`Shadow.dom_run`). The exact threshold and gas left when a write refills are not
+  proved: a refill can pay for a later write's state gas from the reservoir, so the run can
+  succeed below the one-counter threshold. `X_iff_gas_sgm` and `X_gas_any` keep their refill
+  hypotheses.
+- Still open: the exact threshold and gas with a refill, the split of the gas at the end, the
+  invariant and the security properties from a reservoir other than 0 when deprecated, and a
+  concrete deprecated state over `StateGasMeter` with a successful run.
+
 ## T2. The runner hypotheses range over every block and transaction environment (Medium)
 
 **Evidence.** `SendsVia` (Evm/Route.lean:134) fixes `caller`, `currentTarget`, `target`,

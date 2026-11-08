@@ -1836,6 +1836,49 @@ T1 (third audit), continued. Items 2 to 4 of the plan of round 38.
   `owner_only_allS` (`owner_only` over `StateGasMeter`, reservoir 0 for deprecated
   destroyBlackFunds).
 
+### Round 42: any reservoir when deprecated, the gas after the CALL, refills (Evm/NoState.lean, Evm/StepSimR.lean, Evm/RunCR.lean, Evm/Dom.lean, Usdt/Complete/Deprecated/MeterR.lean, Usdt/Exact/)
+
+T1 (third audit), the two items left open in round 41, and the refill cases.
+- Evm/NoState.lean: `NoStateN`, `NoStateAtN` (an SSTORE that charges no state gas),
+  `noState_cheapE` (a cheap stretch charges no state gas: the charge alone is 97,920), `StepJ`,
+  `HoareJ`, `HoareG.toJE`, `HoareG.toJA`, `SpecG.toJA`. `Fwd` now also asks `NoStateAtN`, and
+  `low_to_runningC`, `HoareJ.lowC`, `ok_splitC`, `ok_splitCA`, `no_okC` go over `StepJ`. No
+  statement of a deprecated theorem changed for this.
+- Evm/CallSim.lean: `callStep_child_simR`, `callStep_deep_simR` (CALL over both meters at any
+  reservoir: the message over `StateGasMeter` is the message over `Nat` with the reservoir of the
+  frame). Evm/StepSimR.lean: `CorrR`, `sim_sstoreStepR`, `sim_of_simulatedR`, `step_simXR` (one
+  step at any reservoir, for a frame whose SSTORE neither refills nor charges state gas),
+  `CallCorrR`, `step_callXR`.
+- `RunC` has a third parameter `Tail`, a predicate on the frame after the CALL, carried by
+  `CallEndC`. The seven `dep_X_completeC` conclude `∃ after, Tail after`, and for the six paths
+  other than destroyBlackFunds also that no running frame the run from `after` reaches refills
+  (`noRefill_of_specA`). The Nat theorems `dep_X_complete` and the round 39 `dep_X_completeS`
+  keep their statements.
+- Evm/RunCR.lean: `RunSR`, `TailQ`, `runC_of_sgmR`: from Berlin, a run over `StateGasMeter` from
+  any meter gives `RunC` exactly up to the CALL, and after it the gas `G` of the end over `Nat` is
+  at most the execution gas left plus the reservoir of the end plus a constant `E`, with equality
+  when no frame of the tail refills.
+- Usdt/Complete/Deprecated/MeterR.lean: `dep_X_completeR` for the seven deprecated functions, any
+  reservoir, any gas bound and runner over `StateGasMeter`. The message the runner ran carries the
+  reservoir of the first frame. For six paths, the execution gas left plus the reservoir at the
+  end plus the gas of the tail is the gas before the CALL less its price plus the execution gas
+  left and the reservoir of the child. For destroyBlackFunds that is a lower bound.
+- Evm/Dom.lean: `sgm_charges_dom`, `dom_step`, `dom_run`, `runsOkS_of_specG` (a `StepG` run of the
+  meter `Nat` is followed over `StateGasMeter` from a frame with the same fields and at least the
+  gas, at any reservoir, refills allowed, with at least the gas at each step). Usdt/Exact/:
+  `X_ok_dom` for the 13 writing functions: under the guard and the one-counter threshold of
+  `X_ok_iff`, the run over `StateGasMeter` at any reservoir ends with no error, with no refill
+  hypothesis.
+- Item 2 of round 41 (is a reservoir other than 0 impossible to state because of GAS before the
+  CALL?): no. No step before the CALL charges state gas, so the execution gas left follows the gas
+  of the meter `Nat` exactly at any reservoir, and GAS pushes the same word on both.
+- Not done: the exact threshold and the exact gas left of a writing function when a write refills
+  (`X_iff_gas_sgm`, `X_gas_any` keep `hnr`, `hnrD`, `hnrA` and the owner forms); the split of the gas
+  at the end between execution gas and reservoir; equality of the gas for deprecated
+  destroyBlackFunds over `StateGasMeter`; the invariant and the security properties over
+  `StateGasMeter` from a reservoir other than 0 when deprecated (they still ask reservoir 0); a
+  concrete deprecated state over `StateGasMeter` with a run of USDT that ends with no error.
+
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
   Glamsterdam (third audit, T1; rounds 33 to 36 above). Round 36 covers, not deprecated: the
@@ -1858,8 +1901,13 @@ T1 (third audit), continued. Items 2 to 4 of the plan of round 38.
   verified here. The theorems start from its result.
   Round 41: the deprecated sequence forms of the security properties over `StateGasMeter`
   (`_seq_allS` over `SeqRS`) and `owner_only` for deprecated destroyBlackFunds over it
-  (`owner_only_allS`) are done, both from reservoir 0 when deprecated. Still open: a reservoir
-  other than 0 when deprecated, and the gas left after the CALL.
+  (`owner_only_allS`) are done, both from reservoir 0 when deprecated.
+  Round 42: the completeness of the deprecated paths from any reservoir, with the execution gas
+  left plus the reservoir at the end exact for six paths and bounded below for destroyBlackFunds
+  (`dep_X_completeR`), and success of the 13 writing functions at any reservoir with refills
+  allowed from the one-counter threshold (`X_ok_dom`). Still open: the exact threshold and gas
+  when a write refills, the split of the gas between execution gas and reservoir, and the
+  invariant and security properties from a reservoir other than 0 when deprecated.
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
   contract (round 24: concrete runners meet them, `Sanity/Runner.lean`). `transferFrom_bound` has

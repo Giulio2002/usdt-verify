@@ -1,4 +1,5 @@
 import UsdtVerify.Usdt.Exact.Getters
+import UsdtVerify.Evm.Dom
 import UsdtVerify.Usdt.Complete.TransferFrom
 
 /-!
@@ -110,6 +111,34 @@ theorem transferFrom_ok_iff
     exact (spec_feeF hfork hst hacc hl hsize' hsel hv hp hb hdep hov hfee hfv hallow hbal hto
       (hown hfee) hc0 hcB hc10 hcA hc3 hc4 hcF hcT hcO hg).consequence (fun _ h => h)
       halted_false_ok
+
+/-- `transferFrom` over the EIP-8037 meter at any reservoir, with refills allowed (round 42): under
+`TransferFromGuard` and the gas of `transferFrom_ok_iff`, the loop over `StateGasMeter` from a frame `m` whose
+`toNat` is the fresh frame, for any gas bound and message runner, ends with no error. -/
+theorem transferFrom_ok_dom
+    (hstip : feeOf (checkState state message) message (valArg message) = 0 →
+      stipCostF fork state message c0 cB c10 cA c3 c4 cF cT ≤ gas)
+    (hg : transferFromCost fork state message c0 cB c10 cA c3 c4 cF cT cO ≤ gas)
+    {m : Evm fork StateGasMeter} (hm : evm = Meter.toNat m) {boundS : Nat}
+    {runS : MessageRunner fork StateGasMeter boundS} (withinS : GasMeter.gasHeld m.gas ≤ boundS)
+    (hG : TransferFromGuard state message) : Shadow.RunsOkS fork boundS runS m withinS := by
+  have key : ∃ Q : Evm fork Nat → Prop,
+      SpecG fork (At CODE message 0 [] .empty gas state substate) Q ∧
+        ∀ e, Q e → e.error = none := by
+    obtain ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hl, hp, hb, hov, hallow, hfv, hbal, hto, hown⟩ := hG
+    refine ⟨fun e => e.error = none, ?_, fun _ h => h⟩
+    by_cases hfee : feeOf (checkState state message) message (valArg message) = 0
+    · simp only [transferFromCost, hfee, ↓reduceIte] at hg
+      rw [sendOf_zero hfee] at hto
+      exact (spec_ok hfork hst hacc hl hsize' hsel hv hp hb hdep hov hfee hallow hbal hto hc0 hcB
+        hc10 hcA hc3 hc4 hcF hcT (hstip hfee) hg).consequence (fun _ h => h) halted_false_ok
+    · simp only [transferFromCost, hfee, ↓reduceIte] at hg
+      exact (spec_feeF hfork hst hacc hl hsize' hsel hv hp hb hdep hov hfee hfv hallow hbal hto
+        (hown hfee) hc0 hcB hc10 hcA hc3 hc4 hcF hcT hcO hg).consequence (fun _ h => h)
+        halted_false_ok
+  obtain ⟨Q, h, hQ⟩ := key
+  exact Shadow.runsOkS_of_specG hfork h hQ (hm ▸ start) withinS
+
 
 theorem transferFrom_low
     (hg : gas < transferFromCost fork state message c0 cB c10 cA c3 c4 cF cT cO) :

@@ -127,7 +127,7 @@ variable {message : Message fork} {state : State.TransactionState} {substate : S
 /-- **`dep_totalSupply_complete` over `RunC`** (round 39): for any relation `Run` of the child,
 a `RunC` from the fresh frame that ends with no error, where `EndsOk` holds (for the
 dispatcher), has the conclusion of `dep_totalSupply_complete` with `Run caller msg child` in place
-of the runner. -/
+of the runner. Since round 42 it also gives a frame `after`, the frame after the CALL, with `Tail after`, from which no running frame refills at an SSTORE. -/
 theorem dep_totalSupply_completeC {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop} {Tail : Evm fork Nat → Prop}
     (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x18160ddd)
