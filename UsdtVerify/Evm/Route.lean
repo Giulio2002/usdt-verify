@@ -11,8 +11,9 @@ delegation indicator to an address `d`, the code of `d` (EthLib's `accessDelegat
 names the two cases (`Route`, `Routes`), what the delegated case adds (`routeCost`, `routeState`,
 `routeSub`, `routeAddr`, `routeCode`), the step of a CALL along a route (`callStep_child_r`) and
 the CALL rule under a callee assumption along a route (`callWithR`, EthLib's `callWith` without
-its hypothesis of no delegation; round 26: `callWithRS`, the same as a `Sends.HoareOn` whose
-runner may fail only on the message it sends, from which `callWithR` follows). The forward specifications of the deprecated paths
+its hypothesis of no delegation; round 26: `callWithRS`, the same as a `Sends.HoareOn`: the
+runner may fail with any error, and the run ends at the step after the CALL or at a failure of the
+runner on the message the CALL sends; `callWithR` follows from it). The forward specifications of the deprecated paths
 (Usdt/Spec/Deprecated/) and their completeness (Usdt/Complete/Deprecated/) use it.
 -/
 
@@ -277,7 +278,8 @@ theorem callStep_child_r (hfork : .berlin ≤ fork)
 
 
 /-- CALL with no value along the route `r`, under a callee assumption, for a runner that may fail
-only on the message it sends (`SendsVia` with the data read from memory): EthLib's `callWith`, for
+with any error: the run ends at the step after the CALL or at a failure of the runner on the
+message the CALL sends (`SendsVia` with the data read from memory): EthLib's `callWith`, for
 the code of the address itself or, from Pectra, the code of its delegate. The price adds the
 access to the delegate (`routeCost`); the message runs the code of the route at the address of
 the route, with the precompiles disabled when delegated, and keeps `to` as its current target;

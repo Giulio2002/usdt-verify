@@ -79,7 +79,7 @@ theorem prefixG_destroy (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.s
 /-- Every successful deprecated `destroyBlackFunds(a)` run, for any gas and any runner: the
 owner's call, not static, `a` blacklisted, the forward of `balanceOf(a)` answered with no error
 (and the contract has an account in the child's end state), then the two writes over the state the call left and the log; output, gas, state and substate
-exact. -/
+exact; and (round 26) the gas at the return from the call is at least `tailStip`. -/
 theorem dep_destroy_complete (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)

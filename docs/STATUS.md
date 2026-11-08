@@ -1284,6 +1284,33 @@ entry; `DESTS` = the 32 destinations).
   `Runners.lean` and Sanity headers; `answerRunnerAt_hans` needs the current target `C`;
   `answerRunnerAt_ans_gas` is stated per frame; the Summary heading; a parenthesis in LAYOUT).
 
+### Round 26, second part: deprecated destroyBlackFunds at every gas, runners that may fail (Evm/Sends.lean, Evm/Route.lean, Evm/Iff.lean, Usdt/Spec/Deprecated/, Usdt/Exact/Deprecated.lean)
+- `Usdt/Spec/Deprecated/Destroy.lean`: `tailStip` (the stipend bound of the code after the CALL:
+  `2518 + (price of the write of balances[a]) + (price of the read of slot 1)`), `zeroBalNoWD`,
+  `tailD_g` (the tail with `tailCost` and `tailStip` in place of `TAIL_MAX`), `tailMidD` (from
+  `tailCost` to below `tailStip` an SSTORE with at most 2300 gas left is reached, `Stuck`),
+  `spec_depD_g` (no `htail`, no `hkeep`; the callee assumption gives no error, the account and
+  both bounds). `Complete.dep_destroy_complete` also gives `tailStip` (a new last conjunct).
+- `Exact.destroyBlackFunds_dep_ok_iff_gas`: with `hg` only, `NoFail`, and `hans` (no error, an
+  account of the contract, and `max tailCost tailStip` at most the gas the CALL keeps plus the
+  gas left, both over the state and substate after the call), `RunsOk ↔ DestroyDepGuard ∧ A`.
+- `Evm/Sends.lean` (generic): `AbortsOn`, `MeetsOk`, `HoareOn`, `SpecOn` (a runner that may fail
+  with any error; the run ends in the postcondition or at a failure on a message of `S`),
+  `of_hoare`, `of_child`, `seq`, `consequence`, `mono_S`, `toUnder`. `Evm/Route.lean`:
+  `callWithRS` (`callWithR` derived). The seven `spec_dep*_g` are stated as `SpecOn` with
+  `S = SendsVia …`. `Evm/Iff.lean`: `fwd_ok_iff_fails`. `Evm/Runners.lean`: `failRunner`.
+- `Exact.X_dep_ok_iff_fails` (the seven paths): `hg` only, `hans` as in `X_dep_ok_iff_gas`, and
+  `hfail` in place of `NoFail` (a failure of the runner, any error, on a forwarded message excludes
+  `A`): `RunsOk ↔ checks ∧ A`. `X_dep_ok_iff_gas` derived from them. The one-sided
+  `X_dep_ok_or_fails` are kept.
+- `Usdt/Sanity/Exact.lean`: `answerRunnerAt_ans_gasD`, `failRunner_hans`, `failRunner_hfail`.
+- `lake build UsdtVerify` (incremental, after each code commit): exit 0, 0 "error:" lines.
+- Independent accuracy check of the docs of this part against the statements: five items fixed
+  (`tailMidD` also needs `tailCost ≤ gas` and stops at the first SSTORE below 2485; the
+  `callWithRS` wording, which said the runner may fail only on the message it sends: it may fail
+  on any message, and the run ends at a failure on the forwarded one; the Summary gloss of
+  `tailCost`; `answerRunnerAt_ans_gasD` needs an account of `C` in `S`).
+
 ## Open (not proved)
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
@@ -1319,11 +1346,11 @@ entry; `DESTS` = the 32 destinations).
   discharged.
 - Exact success conditions (round 25): done for the 32 functions not deprecated and the seven
   deprecated forwarding paths (under `NoFail` and a runner hypothesis giving the answer `A`).
-  Round 26: every gas for the 13 writing functions not deprecated (`X_iff_gas`) and for the six
-  deprecated forwards (`X_dep_ok_iff_gas` with `X_dep_low`). Open: deprecated destroyBlackFunds
-  between the bounds of `hg` and `htail`; under a runner that may fail, an iff (only the one-sided
-  `X_dep_ok_or_fails` for the six forwards, and only from the bound of `htail`; nothing for
-  deprecated destroyBlackFunds).
+  Round 26: every gas for the 13 writing functions not deprecated (`X_iff_gas`) and for the seven
+  deprecated forwards (`X_dep_ok_iff_gas` with `X_dep_low`; destroyBlackFunds in the second part),
+  and an iff for a runner that may fail with any error (`X_dep_ok_iff_fails`, under `hfail`).
+  These take the runner hypotheses `hans` (and `NoFail` or `hfail`), which quantify over every
+  caller frame; no theorem discharges them for a real upgraded contract.
 
 ## Generic gaps found (for the EthLib program-logic agent)
 1. Missing opcode rules at the pin (kept as LOCAL lemmas, UsdtVerify/Evm/Local/Rules.lean):
@@ -1426,6 +1453,12 @@ entry; `DESTS` = the 32 destinations).
    a fork-generic `callWith`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+- Round 26, second part (tree of commit 4413e35, rm -rf .lake/build, EthLib oleans prebuilt,
+  LEAN_NUM_THREADS=2): 135.76 s wall, 334.81 s user, 1774419968 bytes max RSS (`/usr/bin/time -l`),
+  exit 0, 0 "error:" lines, 1393 jobs. `#print axioms`: 648 [propext, Classical.choice,
+  Quot.sound], 5 [propext, Quot.sound], 6 [propext], 3 with no axioms (662). grep of the changed
+  files for sorry, admit, axiom declarations, native_decide, bv_decide, decide +native,
+  maxHeartbeats, maxRecDepth: none.
 - Round 26 (tree of commit 0efce8e, rm -rf .lake/build, EthLib oleans prebuilt, LEAN_NUM_THREADS=2): 138 s wall, exit 0, 0 "error:" lines.
 - Round 25 (tree of commit 0f5fb8b, rm -rf .lake/build, EthLib oleans prebuilt): 102.14 s wall,
   336.50 s user, 1776189440 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines, 1392

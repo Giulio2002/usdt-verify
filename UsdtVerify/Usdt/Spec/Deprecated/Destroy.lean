@@ -26,6 +26,11 @@ over it. In the forward specification (`spec_depD`) that the account of the cont
 exists after the call is an assumption on the callee (`hkeep`). The completeness theorem
 (`Complete.dep_destroy_complete`) needs no such assumption: without the account, or in a static
 frame, the first SSTORE after the call is `Stuck` (`tailBadD`).
+
+Round 26: `tailStip` (the stipend bound of the code after the CALL), `tailD_g` (that code with its
+exact cost and stipend bound in place of `TAIL_MAX`), `tailMidD` (from the cost of the tail to below its
+stipend bound, an SSTORE with at most 2300 gas left is reached), `zeroBalNoWD`, and `spec_depD_g` (no `htail`, no `hkeep`;
+stated as a `Sends.SpecOn`, for the forwarded messages that end with no error).
 -/
 
 namespace UsdtVerify.DeprecatedDestroy

@@ -469,9 +469,21 @@ checks and `A` give success or a failure of the runner on some message.
 `Sanity.answerRunnerAt_hans`: the runner `answerRunnerAt (sState C kvs) f` meets the `hans` of
 deprecated destroyBlackFunds with `A = True`, for a message whose current target is `C`;
 `Sanity.answerRunnerAt_ans_gas`: each frame it ends meets the condition of the `hans` of
-`X_dep_ok_iff_gas` exactly when the tail gas is at most the gas the CALL keeps. Not covered:
-deprecated destroyBlackFunds between `hg` and `htail` or under a runner that may fail, and the six
-forwards under a runner that may fail below the bound of `htail` (and only one-sided above it).
+`X_dep_ok_iff_gas` exactly when the tail gas is at most the gas the CALL keeps.
+Round 26, second part: `Exact.destroyBlackFunds_dep_ok_iff_gas` drops `htail` for deprecated
+destroyBlackFunds; its `hans` makes `A` equivalent to the forwarded message ending with no error,
+an account of `C` in its end state, and the gas the CALL keeps plus the gas left at least
+`max tailCost tailStip`, computed over the state and substate after the call
+(`DeprecatedDestroy.tailCost`: the cost of the tail; `DeprecatedDestroy.tailStip`: more than 2300
+gas left at each SSTORE of the tail). `Exact.X_dep_ok_iff_fails` (the seven paths, `hg` only): for a runner that may
+fail with any error, with the same `hans` and `hfail` (a failure of the runner on a forwarded
+message excludes `A`) in place of `NoFail`, `RunsOk` holds if and only if the checks and `A` hold;
+the `X_dep_ok_iff_gas` theorems follow from them. Behind them: `Sends.SpecOn` (Evm/Sends.lean), a
+specification under a runner that may fail whose runs end in the postcondition or at a failure on
+a forwarded message; the forward specifications `spec_dep*_g`, `spec_depD_g` are stated so.
+`Sanity.failRunner_hans`, `Sanity.failRunner_hfail`: the runner that fails on every message meets
+both with `A = False`. The runner hypotheses quantify over every caller frame; none is
+discharged for a real upgraded contract.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas
