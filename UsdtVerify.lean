@@ -9,6 +9,7 @@ import UsdtVerify.Evm.GasRules
 import UsdtVerify.Evm.Meter
 import UsdtVerify.Evm.Refill
 import UsdtVerify.Evm.Shadow
+import UsdtVerify.Evm.ProcessMeter
 import UsdtVerify.Evm.Local.Extcodesize
 import UsdtVerify.Evm.Local.Parent
 import UsdtVerify.Evm.Local.Rules
@@ -53,6 +54,7 @@ import UsdtVerify.Usdt.Refill.TransferFrom
 import UsdtVerify.Usdt.Refill.Owner
 import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.MeterOwner
+import UsdtVerify.Usdt.Invariant.SeqMeter
 import UsdtVerify.Usdt.Invariant.DeprecatedDestroy
 import UsdtVerify.Usdt.Invariant.Seq
 import UsdtVerify.Usdt.Invariant.Static

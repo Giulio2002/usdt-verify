@@ -1,6 +1,7 @@
 import UsdtVerify.Usdt.Meter
 import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.MeterOwner
+import UsdtVerify.Usdt.Invariant.SeqMeter
 import UsdtVerify.Usdt.Sanity.Strings
 import UsdtVerify.Usdt.Exact.Getters
 import UsdtVerify.Usdt.Sanity.Exact
@@ -1020,3 +1021,12 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Exact.destroyBlackFunds_specI
 #print axioms UsdtVerify.Exact.destroyBlackFunds_ok_sgm
 #print axioms UsdtVerify.Exact.destroyBlackFunds_iff_gas_sgm
+#print axioms UsdtVerify.ProcessMeter.processMessage_map_valM
+#print axioms UsdtVerify.ProcessMeter.processMessage_map_val_valueM
+#print axioms UsdtVerify.ProcessMeter.at_startFrameS
+#print axioms UsdtVerify.Complete.inv_call_any
+#print axioms UsdtVerify.Complete.inv_goodCallS
+#print axioms UsdtVerify.Complete.inv_callsS
+#print axioms UsdtVerify.Complete.goodCall_processS
+#print axioms UsdtVerify.Complete.process_value_failsS
+#print axioms UsdtVerify.Complete.process_stepS
