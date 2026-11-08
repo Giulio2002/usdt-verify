@@ -29,14 +29,19 @@ a deprecated state.
 Round 33 (third audit, T3): a state where deprecated destroyBlackFunds reaches the CALL.
 - `SM C H kvs`: `C` and `UA` both have the slots `kvs`, `UA` holds `MIRROR`. `S2 C H a` is
   `SM C H (KD a)`: slot 10 deprecated with upgraded address `UA`, the owner `CALLER_A` in slot 0
-  (not paused), `isBlackListed[a]` 1 and `balances[a]` 1. Whatever the keccak slots collide with,
-  `a` is blacklisted and `balances[a]` is not 0 (`listed_S2`, `bal_S2`).
+  (not paused), `isBlackListed[a]` 1, `balances[a]` 1 and (since round 45) `_totalSupply` 1.
+  Whatever the keccak slots collide with, `a` is blacklisted and `balances[a]` is not 0
+  (`listed_S2`, `bal_S2`).
 - `process_step_dep_hyps2`: from Paris, for `destroyBlackFunds(a)` from `CALLER_A`, the flag is
   set, the caller is the owner, `a` is blacklisted, `balances[a]` is not 0, `MIRROR`'s slot holds
   the same word, and `processRunner` meets `KeepsInvAt` and `HonestBalanceAt`.
 - `destroy_mirror_runs`: from Paris and before Glamsterdam, with 1000000 gas and any substate,
   that call ends with no error under `processRunner` (`RunsOk`).
-- Not proved: `Inv` in `S2`. It needs keccak separation facts about the balance slots.
+- `inv_S2` (round 45): `Inv C (S2 C H a)` under `SepOn [kD a]`, the keccak separation of the one
+  key of `S2`. `destroy_mirror_inv`: from Paris and before Glamsterdam, under `SepOn` of the keys
+  of that call, `Inv` holds in `S2`, the call ends with no error (`destroy_mirror_runs`), and every
+  run of it that ends with no error, at any gas bound, ends in a state where `Inv` holds. The
+  separation itself is assumed, not proved.
 
 Usdt/Sanity/MirrorStateS.lean (round 44) runs the same call over the EIP-8037 meter under
 `processRunnerM` (`destroy_mirror_runsS`).
@@ -257,9 +262,10 @@ theorem hcode_SM {M : Message fork} {C : Address} {kvs : List (U256 × U256)} (H
 abbrev kD (a : U256) : U256 := bitwiseAnd ADDR_MASK a
 
 /-- The slots of `S2`: slot 10 deprecated with upgraded address `UA`, the owner `CALLER_A` in
-slot 0 (not paused), `isBlackListed[a]` 1 and `balances[a]` 1. An earlier pair wins. -/
+slot 0 (not paused), `isBlackListed[a]` 1, `balances[a]` 1 and (since round 45) `_totalSupply`
+(slot 1) 1. An earlier pair wins. -/
 abbrev KD (a : U256) : List (U256 × U256) :=
-  [(10, W), (0, W_A), (listSlot (kD a), 1), (mapSlot (kD a) 2, 1)]
+  [(10, W), (0, W_A), (listSlot (kD a), 1), (mapSlot (kD a) 2, 1), (1, 1)]
 
 /-- The deprecated state of T3: `C` and `UA` both have the slots `KD a`, `UA` holds `MIRROR`. -/
 abbrev S2 (C : Address) (H : Hash32) (a : U256) : State.TransactionState := SM C H (KD a)
@@ -278,8 +284,10 @@ theorem storageAt_S2 (C : Address) (H : Hash32) (a : U256) (x : Address) (hx : x
     (n : U256) :
     storageAt (S2 C H a) x n =
       if (10 : U256) = n then W else if (0 : U256) = n then W_A else
-        if listSlot (kD a) = n then 1 else if mapSlot (kD a) 2 = n then 1 else 0 := by
-  rw [storageAt_SM C H _ x hx, slotMap_cons, slotMap_cons, slotMap_cons, slotMap_cons]
+        if listSlot (kD a) = n then 1 else if mapSlot (kD a) 2 = n then 1 else
+          if (1 : U256) = n then 1 else 0 := by
+  rw [storageAt_SM C H _ x hx, slotMap_cons, slotMap_cons, slotMap_cons, slotMap_cons,
+    slotMap_cons]
   simp [slotMap]
 
 theorem slot10_S2 (C : Address) (H : Hash32) (a : U256) : storageAt (S2 C H a) C 10 = W := by
@@ -319,6 +327,72 @@ theorem bal_S2 (C : Address) (H : Hash32) (a : U256) (x : Address) (hx : x = C �
     · split
       · decide
       · simp
+
+/-- The sum over the first `n` numbers of a function that is 0 but at `k`, where it is 1. -/
+theorem sumTo_indicator (k : Nat) : ∀ n, sumTo (fun i => if i = k then (1 : Int) else 0) n =
+    if k < n then 1 else 0
+  | 0 => by simp [sumTo]
+  | n + 1 => by
+    rw [sumTo, sumTo_indicator k n]
+    by_cases h1 : k < n
+    · have h2 : k < n + 1 := by omega
+      have h3 : n ≠ k := by omega
+      simp [h1, h2, h3]
+    · by_cases h4 : k = n
+      · subst h4; simp
+      · have h5 : ¬ k < n + 1 := by omega
+        have h3 : n ≠ k := fun e => h4 e.symm
+        simp [h1, h5, h3]
+
+/-- **`Inv` in `S2` (round 45).** Under the keccak separation `SepOn [kD a]` of the one key of
+`S2` (the fixed slots 0..10 are no balance slot; the balance slot of `kD a` is that of no other
+address word; the slot of `isBlackListed[kD a]` is no balance slot and not slot 1), the sum of the
+balances of `C` in `S2 C H a` is 1 (`balances[kD a]`), which is `_totalSupply`. -/
+theorem inv_S2 (C : Address) (H : Hash32) (a : U256) (hsep : SepOn [kD a]) :
+    Invariant.Inv C (S2 C H a) := by
+  have hk : (kD a).toNat < 2 ^ 160 := mask_lt a
+  have hmk : TransferOk.mkey (kD a) = kD a := by simp only [TransferOk.mkey, kD, mask_mask]
+  have hU := hsep.uniq (kD a) (by simp) hk
+  obtain ⟨hLnb, hL1⟩ := hsep.list (kD a) (by simp)
+  have hl : listSlot (kD a) = mapSlot (kD a) 6 := by simp only [listSlot, hmk]
+  have hb1 := bal_ne_one hsep.fixed hk
+  -- the balances
+  have hbal : ∀ i, i < 2 ^ 160 → bal C (S2 C H a) i =
+      if i = (kD a).toNat then (1 : Int) else 0 := by
+    intro i hi
+    have hx : (BitVec.ofNat 256 i).toNat < 2 ^ 160 := by
+      rw [BitVec.toNat_ofNat, Nat.mod_eq_of_lt (by omega)]; exact hi
+    have h10 : (10 : U256) ≠ mapSlot (BitVec.ofNat 256 i) 2 :=
+      nb_fixed hsep.fixed (n := 10) (by decide) _ hx
+    have h0 : (0 : U256) ≠ mapSlot (BitVec.ofNat 256 i) 2 :=
+      nb_fixed hsep.fixed (n := 0) (by decide) _ hx
+    have hL : listSlot (kD a) ≠ mapSlot (BitVec.ofNat 256 i) 2 := by
+      rw [hl]; exact hLnb _ hx
+    have h1 : (1 : U256) ≠ mapSlot (BitVec.ofNat 256 i) 2 :=
+      fun e => bal_ne_one hsep.fixed hx e.symm
+    simp only [bal]
+    rw [storageAt_S2 C H a C (.inl rfl)]
+    simp only [h10, h0, hL, ↓reduceIte]
+    by_cases hi' : i = (kD a).toNat
+    · subst hi'
+      simp only [ofNat_toNat, ↓reduceIte]; rfl
+    · have hne : mapSlot (kD a) 2 ≠ mapSlot (BitVec.ofNat 256 i) 2 := by
+        intro e
+        have := hU _ hx e.symm
+        apply hi'
+        rw [← this, BitVec.toNat_ofNat, Nat.mod_eq_of_lt (by omega)]
+      simp only [hne, h1, hi', ↓reduceIte]; rfl
+  -- the total
+  have htot : tot C (S2 C H a) = 1 := by
+    simp only [tot]
+    have hL' : listSlot (kD a) ≠ 1 := fun e => hL1 (hl ▸ e)
+    rw [storageAt_S2 C H a C (.inl rfl)]
+    simp only [show (10 : U256) ≠ 1 by decide, show (0 : U256) ≠ 1 by decide, hL', hb1,
+      ↓reduceIte]
+    rfl
+  unfold Invariant.Inv sumBal
+  rw [sumTo_congr _ hbal, sumTo_indicator, htot]
+  simp [hk]
 
 /-- **A deprecated destroyBlackFunds that reaches the forward, with `KeepsInvAt` and
 `HonestBalanceAt` (third audit, T3).** From Paris, for `destroyBlackFunds(a)` from the owner
@@ -421,5 +495,46 @@ theorem destroy_mirror_runs (hparis : .paris ≤ fork) (hglam : fork < .glamster
     simp only [atCallState, callStateD, routeState, hasAccount,
       State.TransactionState.getAccountOptional_recordAccountRead]
     exact h0
+
+/-- **A deprecated run in `S2` that keeps `Inv` (round 45).** From Paris and before Glamsterdam,
+in `S2 C H a` (`H` not the empty code hash), under the keccak separation `SepOn` of the keys of
+`destroyBlackFunds(a)` from `CALLER_A` to `C`: `Inv` holds in `S2`, the call with 1000000 gas and
+any substate ends with no error under `processRunner`, and every run of it that ends with no
+error, at any gas bound, ends in a state where `Inv` holds (`inv_dep_destroy`, with
+`KeepsInvAt` and `HonestBalanceAt` from `process_step_dep_hyps2`). -/
+theorem destroy_mirror_inv (hparis : .paris ≤ fork) (hglam : fork < .glamsterdam)
+    (b : BlockEnvironment fork) (t : TransactionEnvironment fork) (C : Address) (a : U256)
+    (ss : Substate) (H : Hash32) (hH : H ≠ State.EMPTY_CODE_HASH)
+    (K : SepOn (callKeys (mDO b t C a) (S2 C H a))) :
+    Invariant.Inv C (S2 C H a) ∧
+    RunsOk fork 1000000 (processRunner fork 1000000)
+      (sFrame (mDO b t C a) (S2 C H a) ss 1000000) (Nat.le_refl _) ∧
+    ∀ {g : Nat} (s : Evm fork Nat) (within : GasMeter.gasHeld
+        (sFrame (mDO b t C a) (S2 C H a) ss 1000000).gas ≤ g),
+      Evm.runFrame (step fork) (step_decreases fork) g (processRunner fork g)
+        (sFrame (mDO b t C a) (S2 C H a) ss 1000000) within = .ok s →
+      s.error = none → Invariant.Inv C s.state := by
+  have hberlin : .berlin ≤ fork := Nat.le_trans (by decide) hparis
+  have hmem : kD a ∈ callKeys (mDO b t C a) (S2 C H a) := by
+    have e : addrArg (mDO b t C a).data 0 = kD a := addr_mDO b t C a
+    unfold callKeys
+    rw [e]
+    exact List.mem_cons_of_mem _ List.mem_cons_self
+  have hI : Invariant.Inv C (S2 C H a) := inv_S2 C H a (K.mono (by
+    intro x hx
+    rw [List.mem_singleton] at hx
+    rw [hx]; exact hmem))
+  refine ⟨hI, destroy_mirror_runs hparis hglam b t C a ss H hH, fun {g} s within hrun hok => ?_⟩
+  obtain ⟨hdep, -, -, -, -, -, -, hkeeps, hhonest⟩ := process_step_dep_hyps2 hparis b t C a H hH g
+  have hsz : (mDO b t C a).data.size < 2 ^ 256 := by
+    show (data1 SEL_D a).size < 2 ^ 256; rw [size_data1 size_SEL_D]; decide
+  have hsl : selector (mDO b t C a).data = 0xf3bdc228 := by
+    show selector (data1 SEL_D a) = _; rw [selector_data1 size_SEL_D]; decide
+  have hst : At CODE (mDO b t C a) 0 [] .empty 1000000 (S2 C H a) ss
+      (sFrame (mDO b t C a) (S2 C H a) ss 1000000) := at_sFrame (mDO b t C a) rfl _ _ _
+  exact inv_dep_destroy (message := mDO b t C a) (state := S2 C H a) (substate := ss)
+    (gas := 1000000) (evm := sFrame (mDO b t C a) (S2 C H a) ss 1000000) (bound := g)
+    (runChild := processRunner fork g) (s := s) K hberlin hsz hsl hdep hkeeps hhonest hI hst
+    within hrun hok
 
 end UsdtVerify.Sanity

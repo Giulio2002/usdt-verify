@@ -1410,3 +1410,8 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Complete.dep_transfer_exactR
 #print axioms UsdtVerify.Complete.dep_approve_exactR
 #print axioms UsdtVerify.Complete.dep_transferFrom_exactR
+
+-- Round 45: Inv in S2 (slot 1 added to S2) under SepOn of its key
+#print axioms UsdtVerify.Sanity.sumTo_indicator
+#print axioms UsdtVerify.Sanity.inv_S2
+#print axioms UsdtVerify.Sanity.destroy_mirror_inv
