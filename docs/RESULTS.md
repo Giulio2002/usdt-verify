@@ -293,6 +293,28 @@ from Berlin, and EIP-3529's refunds from London, as EthLib's model computes them
     round 13 (`ok_*`, and `inv_call` below). This file proves nothing about the deprecated paths;
   see `inv_call_all` below.
 
+## The EIP-8037 meter, round 37: the security properties (Usdt/Security/)
+
+From a frame `m` whose `toNat` is the fresh frame of `CODE`, for any gas bound and message runner
+over `StateGasMeter`, any reservoir, refills allowed, no bound on the gas of the transaction,
+from Berlin, with the hypotheses of the Nat form:
+
+- One call, not deprecated: `nonOwner_call_any` (a caller other than the owner changes only
+  slots of `balances` and `allowed`, and under `SecSep` every `Protected` slot keeps its word),
+  `paused_call_any`, `listed_call_any`, `allowKept_call_any`, `transferFrom_bound_any`,
+  `supply_call_any`. `owner_only_any` (every successful run of one of the ten owner functions is
+  a call by the owner) and `nonOwner_local_any` hold deprecated or not, except for deprecated
+  destroyBlackFunds.
+- Sequences: `SeqS C Q` has steps over the meter `Nat` (`RunOk`), steps over `StateGasMeter`
+  (`RunOkS`) and `Untouched` steps. `nonOwner_seqS`, `paused_seqS`, `listed_seqS`,
+  `allowKept_seqS`, `supply_seqS` state the five properties over it. `process_stepSec`: from
+  Paris, every top-level message with code `CODE`, no precompile, that EthLib's `processMessage`
+  over `StateGasMeter` ends is a `RunOkS` step or an `Untouched` step.
+- Route: `ends_any` gives, from such a run with no error, a loop of the meter `Nat` from a fresh
+  frame of `CODE` with more gas that ends (`Gas.Ends`) in the same state (`Shadow.shadow_ends`).
+  The properties depend only on the state.
+- Not covered: the deprecated paths over `StateGasMeter`.
+
 ## Completeness of the dispatcher, for every gas
 
 - `runFrame_ok_dispatch` (`UsdtVerify/Usdt/Complete/Dispatch.lean`, alias `Summary.dispatch_complete`):

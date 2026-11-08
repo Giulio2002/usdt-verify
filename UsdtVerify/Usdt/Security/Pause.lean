@@ -25,6 +25,10 @@ Deprecated or not (round 23):
 - `paused_call_all`: `paused_call` without `hdep`; when deprecated the runner meets `KeepsBal`
   (a call to the upgraded address keeps every balance of `C`).
 - `paused_seq_all`: over a `SeqR` sequence of non-owner calls, with `KeepsSlots` and `KeepsBal`.
+
+Over the EIP-8037 meter (round 37), not deprecated, any reservoir, refills allowed:
+`paused_call_any`, `paused_seqS`. The `_seqS` forms take a `SeqS` (calls over `Nat` or
+`StateGasMeter`); the `Seq` forms are proved from them.
 -/
 
 namespace UsdtVerify.Security
@@ -85,15 +89,36 @@ theorem paused_call (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fo
           selector message.data = 0xf3bdc228)) :=
   (effect_call hfork hsize' hdep h7 h8 start within hrun hok).paused K hpaused
 
-/-- **Pause over a sequence.** Along a finite sequence of successful calls to `C` by callers other
-than the owner (of each call's start state) and of `Untouched` steps, from a state where `C` is
-paused, not deprecated, with slots 7 and 8 of `StrForm`, each call with `SecSep` of its keys at
-its start state: every balance keeps its word. -/
-theorem paused_seq {C : Address} {S S' : State.TransactionState}
-    (h : Seq C NotOwnerK S S') (hdep : byte20 (storageAt S C 10) = 0)
+/-- `paused_call` over the EIP-8037 meter (round 37): for a run of the loop over
+`StateGasMeter`, any gas bound and message runner, from a frame `m` whose `toNat` is the fresh
+frame of `CODE`. No hypothesis on the reservoir, on refills or on the gas limit. -/
+theorem paused_call_any (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
+    (hsize' : message.data.size < 2 ^ 256)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    (hpaused : byte20 (storageAt state message.currentTarget 0) ≠ 0)
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    {runS : MessageRunner fork StateGasMeter bound} {m t : Evm fork StateGasMeter}
+    (start : At CODE message 0 [] .empty gas state substate (Meter.toNat m))
+    {within : GasMeter.gasHeld m.gas ≤ bound}
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runS m within = .ok t)
+    (hok : t.error = none) :
+    BalKept message.currentTarget state t.state ∨
+      (callerWord message = ownerOf state message.currentTarget ∧
+        (selector message.data = 0xcc872b66 ∨ selector message.data = 0xdb006a75 ∨
+          selector message.data = 0xf3bdc228)) :=
+  (effect_any hfork hsize' hdep h7 h8 start hrun hok).paused K hpaused
+
+/-- **Pause over a sequence.** Along a finite sequence of successful calls to `C` (over the meter
+`Nat` or over `StateGasMeter`, `SeqS`, round 37) by callers other than the owner (of each call's
+start state) and of `Untouched` steps, from a state where `C` is paused, not deprecated, with slots
+7 and 8 of `StrForm`, each call with `SecSep` of its keys at its start state: every balance keeps
+its word. -/
+theorem paused_seqS {C : Address} {S S' : State.TransactionState}
+    (h : SeqS C NotOwnerK S S') (hdep : byte20 (storageAt S C 10) = 0)
     (hpaused : byte20 (storageAt S C 0) ≠ 0)
     (h7 : StrForm (storageAt S C 7)) (h8 : StrForm (storageAt S C 8)) : BalKept C S S' := by
-  refine seq_lift (I := fun X => Plain C X ∧ byte20 (storageAt X C 0) ≠ 0) (R := BalKept C)
+  refine seqS_lift (I := fun X => Plain C X ∧ byte20 (storageAt X C 0) ≠ 0) (R := BalKept C)
     (fun _ _ _ => rfl) (fun h1 h2 x hx => (h2 x hx).trans (h1 x hx))
     (fun hu hI => ⟨fun _ _ => hu _, plain_of_untouched hu hI.1, by rw [hu]; exact hI.2⟩) ?_ h
     ⟨⟨hdep, h7, h8⟩, hpaused⟩
@@ -108,6 +133,13 @@ theorem paused_seq {C : Address} {S S' : State.TransactionState}
     · exact hk
     · exact absurd howner hno
   · rw [hw 0 (fixed_not_kba K.toSepOn (k := 0) (by decide))]; exact hp
+
+/-- `paused_seqS` for a `Seq` (calls over the meter `Nat`). -/
+theorem paused_seq {C : Address} {S S' : State.TransactionState}
+    (h : Seq C NotOwnerK S S') (hdep : byte20 (storageAt S C 10) = 0)
+    (hpaused : byte20 (storageAt S C 0) ≠ 0)
+    (h7 : StrForm (storageAt S C 7)) (h8 : StrForm (storageAt S C 8)) : BalKept C S S' :=
+  paused_seqS h.toS hdep hpaused h7 h8
 
 /-! ## Deprecated or not -/
 

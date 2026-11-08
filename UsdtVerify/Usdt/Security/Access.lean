@@ -33,6 +33,11 @@ Hypotheses by name: `K : SecSep (callKeys message state)` (keccak separation of 
 slots keyed by the call's words, not proved; round 29, replacing `KeccakSep` and `AllowSep`), `hdep` (not deprecated:
 byte 20 of slot 10 is 0; deprecated paths call the upgraded contract), `h7`, `h8` (`StrForm`, for
 name() and symbol()), `hno` (the caller is not the owner).
+
+Over the EIP-8037 meter (round 37), not deprecated, any reservoir, refills allowed:
+`nonOwner_call_any`, `nonOwner_seqS`, `owner_only_any`, `nonOwner_local_any` (the last two except
+deprecated destroyBlackFunds). The `_seqS` forms take a `SeqS` (calls over `Nat` or
+`StateGasMeter`); the `Seq` forms are proved from them.
 -/
 
 namespace UsdtVerify.Security
@@ -121,6 +126,26 @@ theorem nonOwner_call (K : SecSep (callKeys message state)) (hfork : .berlin ≤
   have he := effect_call hfork hsize' hdep h7 h8 start within hrun hok
   exact ⟨he.nonOwner hno, fun n hn => he.nonOwnerK K.toSepOn hno n (protected_not_kba K hn)⟩
 
+/-- **Access control, one call, over the EIP-8037 meter** (round 37): `nonOwner_call` for a run
+of the loop over `StateGasMeter`, any gas bound and message runner, from a frame `m` whose `toNat`
+is the fresh frame of `CODE`. No hypothesis on the reservoir, on refills or on the gas limit. -/
+theorem nonOwner_call_any (K : SecSep (callKeys message state)) (hfork : .berlin ≤ fork)
+    (hsize' : message.data.size < 2 ^ 256)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    (hno : callerWord message ≠ ownerOf state message.currentTarget)
+    {runS : MessageRunner fork StateGasMeter bound} {m t : Evm fork StateGasMeter}
+    (start : At CODE message 0 [] .empty gas state substate (Meter.toNat m))
+    {within : GasMeter.gasHeld m.gas ≤ bound}
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runS m within = .ok t)
+    (hok : t.error = none) :
+    Writes message.currentTarget BalOrAllow state t.state ∧
+      ∀ n, Protected n → storageAt t.state message.currentTarget n =
+        storageAt state message.currentTarget n := by
+  have he := effect_any hfork hsize' hdep h7 h8 start hrun hok
+  exact ⟨he.nonOwner hno, fun n hn => he.nonOwnerK K.toSepOn hno n (protected_not_kba K hn)⟩
+
 /-- The caller is not the owner of the start state. -/
 def NotOwner {fork : Fork} (message : Message fork) (S : State.TransactionState) : Prop :=
   callerWord message ≠ ownerOf S message.currentTarget
@@ -148,17 +173,18 @@ theorem plain_of_untouched {C : Address} {S S' : State.TransactionState} (hu : U
   obtain ⟨hdep, h7, h8⟩ := hP
   exact ⟨by rw [hu]; exact hdep, by rw [hu]; exact h7, by rw [hu]; exact h8⟩
 
-/-- **Access control over a sequence.** Along a finite sequence of successful calls to `C`, each
-by a caller other than the owner of its start state, and of `Untouched` steps, from a state where
+/-- **Access control over a sequence.** Along a finite sequence of successful calls to `C` over
+the meter `Nat` or over `StateGasMeter` (`SeqS`, round 37), each by a caller other than the owner
+of its start state, and of `Untouched` steps, from a state where
 `C` is not deprecated and slots 7 and 8 are of `StrForm`, each call with `SecSep` of its keys at
 its start state: only slots of `balances` and `allowed` change, and every `Protected` slot (the
 owner, the `paused` and `deprecated` flags, `_totalSupply`, slots 3 and 4, `upgradedAddress`, the
 blacklist flag of every address word) keeps its word. -/
-theorem nonOwner_seq {C : Address} {S S' : State.TransactionState}
-    (h : Seq C NotOwnerK S S') (hdep : byte20 (storageAt S C 10) = 0)
+theorem nonOwner_seqS {C : Address} {S S' : State.TransactionState}
+    (h : SeqS C NotOwnerK S S') (hdep : byte20 (storageAt S C 10) = 0)
     (h7 : StrForm (storageAt S C 7)) (h8 : StrForm (storageAt S C 8)) :
     Writes C BalOrAllow S S' ∧ ∀ n, Protected n → storageAt S' C n = storageAt S C n := by
-  refine seq_lift (I := Plain C)
+  refine seqS_lift (I := Plain C)
     (R := fun X Y => Writes C BalOrAllow X Y ∧ ∀ n, Protected n → storageAt Y C n = storageAt X C n)
     (fun S => ⟨Writes.refl _ _ S, fun _ _ => rfl⟩)
     (fun h1 h2 => ⟨h1.1.trans h2.1, fun n hn => (h2.2 n hn).trans (h1.2 n hn)⟩)
@@ -171,6 +197,14 @@ theorem nonOwner_seq {C : Address} {S S' : State.TransactionState}
   have hwK := he.nonOwnerK K.toSepOn hno
   exact ⟨⟨he.nonOwner hno, fun n hn => hwK n (protected_not_kba K hn)⟩,
     plain_of_writes K.toSepOn hwK ⟨hdep, h7, h8⟩⟩
+
+/-- **Access control over a sequence** of calls over the meter `Nat`: `nonOwner_seqS` for a
+`Seq`. -/
+theorem nonOwner_seq {C : Address} {S S' : State.TransactionState}
+    (h : Seq C NotOwnerK S S') (hdep : byte20 (storageAt S C 10) = 0)
+    (h7 : StrForm (storageAt S C 7)) (h8 : StrForm (storageAt S C 8)) :
+    Writes C BalOrAllow S S' ∧ ∀ n, Protected n → storageAt S' C n = storageAt S C n :=
+  nonOwner_seqS h.toS hdep h7 h8
 
 /-! ## Deprecated or not -/
 
@@ -219,6 +253,29 @@ def OwnerFn (x : Nat) : Prop :=
   x = 0x0753c30c ∨ x = 0x0ecb93c0 ∨ x = 0x3f4ba83a ∨ x = 0x8456cb59 ∨ x = 0xc0324c77 ∨
     x = 0xcc872b66 ∨ x = 0xdb006a75 ∨ x = 0xe4997dc5 ∨ x = 0xf2fde38b ∨ x = 0xf3bdc228
 
+/-- **Owner functions, for a loop that ends** (round 37). From Berlin, a fresh frame of `CODE` at
+pc 0 whose loop ends with no error (`Ends`), one of the ten owner functions, not the deprecated
+destroyBlackFunds (`hd`): the caller is the owner (the low 160 bits of slot 0 at the start). -/
+theorem owner_onlyE (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
+    (hsel : OwnerFn (selector message.data))
+    (hd : byte20 (storageAt state message.currentTarget 10) = 0 ∨
+      selector message.data ≠ 0xf3bdc228)
+    (start : At CODE message 0 [] .empty gas state substate evm)
+    (hrun : Gas.Ends fork evm s) (hok : s.error = none) :
+    callerWord message = ownerOf state message.currentTarget := by
+  rcases hsel with h | h | h | h | h | h | h | h | h | h
+  · exact (ok_deprecate hfork hsize' h rfl rfl start hrun hok).2.2.1
+  · exact (ok_addBlackList hfork hsize' h rfl rfl start hrun hok).2.2.1
+  · exact (ok_unpause hfork hsize' h rfl start hrun hok).2.2.1
+  · exact (ok_pause hfork hsize' h rfl start hrun hok).2.2.1
+  · exact (ok_setParams hfork hsize' h rfl rfl rfl rfl start hrun hok).2.2.1
+  · exact (ok_issue hfork hsize' h rfl rfl rfl start hrun hok).2.2.1
+  · exact (ok_redeem hfork hsize' h rfl rfl rfl start hrun hok).2.2.1
+  · exact (ok_removeBlackList hfork hsize' h rfl rfl start hrun hok).2.2.1
+  · exact (ok_transferOwnership hfork hsize' h rfl start hrun hok).1
+  · exact (ok_destroyBlackFunds hfork hsize' h (hd.resolve_right (fun hne => hne h)) rfl rfl rfl rfl
+      rfl start hrun hok).2.2.1
+
 /-- **Owner functions, deprecated or not.** From Berlin (Glamsterdam included), a fresh frame of
 `CODE` at pc 0, static or not, any call data below 2^256 bytes, any value, any gas, any gas bound
 and any message runner, deprecated or not, no assumption on the runner: every run of one of the
@@ -230,22 +287,29 @@ theorem owner_only (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : callerWord message = ownerOf state message.currentTarget := by
-  rcases hsel with h | h | h | h | h | h | h | h | h | h
-  · exact (ok_deprecate hfork hsize' h rfl rfl start (Gas.Ends.run hrun) hok).2.2.1
-  · exact (ok_addBlackList hfork hsize' h rfl rfl start (Gas.Ends.run hrun) hok).2.2.1
-  · exact (ok_unpause hfork hsize' h rfl start (Gas.Ends.run hrun) hok).2.2.1
-  · exact (ok_pause hfork hsize' h rfl start (Gas.Ends.run hrun) hok).2.2.1
-  · exact (ok_setParams hfork hsize' h rfl rfl rfl rfl start (Gas.Ends.run hrun) hok).2.2.1
-  · exact (ok_issue hfork hsize' h rfl rfl rfl start (Gas.Ends.run hrun) hok).2.2.1
-  · exact (ok_redeem hfork hsize' h rfl rfl rfl start (Gas.Ends.run hrun) hok).2.2.1
-  · exact (ok_removeBlackList hfork hsize' h rfl rfl start (Gas.Ends.run hrun) hok).2.2.1
-  · exact (ok_transferOwnership hfork hsize' h rfl start (Gas.Ends.run hrun) hok).1
-  · by_cases hdep : byte20 (storageAt state message.currentTarget 10) = 0
-    · exact (ok_destroyBlackFunds hfork hsize' h hdep rfl rfl rfl rfl rfl start (Gas.Ends.run hrun)
-        hok).2.2.1
-    · obtain ⟨_, _, -, -, howner, -⟩ :=
-        dep_destroy_complete hfork hsize' h hdep rfl rfl rfl rfl start within hrun hok
-      exact howner
+  by_cases hd : byte20 (storageAt state message.currentTarget 10) = 0 ∨
+      selector message.data ≠ 0xf3bdc228
+  · exact owner_onlyE hfork hsize' hsel hd start (Gas.Ends.run hrun) hok
+  · obtain ⟨hdep, h⟩ := not_or.mp hd
+    obtain ⟨_, _, -, -, howner, -⟩ :=
+      dep_destroy_complete hfork hsize' (Classical.byContradiction h) hdep rfl rfl rfl rfl start within hrun hok
+    exact howner
+
+/-- **Owner functions over the EIP-8037 meter** (round 37): `owner_only` for a run of the loop
+over `StateGasMeter`, any gas bound, message runner and reservoir, from a frame `m` whose `toNat`
+is the fresh frame of `CODE`, except deprecated destroyBlackFunds (`hd`; its path makes a CALL).
+-/
+theorem owner_only_any (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
+    (hsel : OwnerFn (selector message.data))
+    (hd : byte20 (storageAt state message.currentTarget 10) = 0 ∨
+      selector message.data ≠ 0xf3bdc228)
+    {runS : MessageRunner fork StateGasMeter bound} {m t : Evm fork StateGasMeter}
+    (start : At CODE message 0 [] .empty gas state substate (Meter.toNat m))
+    {within : GasMeter.gasHeld m.gas ≤ bound}
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runS m within = .ok t)
+    (hok : t.error = none) : callerWord message = ownerOf state message.currentTarget := by
+  obtain ⟨_, _, _, start', hE, hok', -⟩ := ends_any hfork start hrun hok
+  exact owner_onlyE hfork hsize' hsel hd start' hE hok'
 
 /-- **Access control without a runner assumption, deprecated or not.** As `nonOwner_call` without
 `hdep`, for every function other than the six that forward when deprecated (`FwdFn`): if the
@@ -267,6 +331,31 @@ theorem nonOwner_local (K : SecSep (callKeys message state)) (hfork : .berlin �
   · exact absurd (owner_only hfork hsize' (.inr (.inr (.inr (.inr (.inr (.inr (.inr (.inr (.inr
       hd))))))))) start within hrun hok) hno
   have he := effect_local hfork hsize' (.inr (fun h => h.elim hsel hd)) h7 h8 start within hrun hok
+  exact ⟨he.nonOwner hno, fun n hn => he.nonOwnerK K.toSepOn hno n (protected_not_kba K hn)⟩
+
+/-- **Access control without a runner assumption, over the EIP-8037 meter** (round 37):
+`nonOwner_local` for a run of the loop over `StateGasMeter`, any gas bound, message runner and
+reservoir, deprecated or not, for every function outside `FwdFn`, except deprecated
+destroyBlackFunds (`hd`; its path makes a CALL). -/
+theorem nonOwner_local_any (K : SecSep (callKeys message state)) (hfork : .berlin ≤ fork)
+    (hsize' : message.data.size < 2 ^ 256)
+    (hsel : ¬ FwdFn (selector message.data))
+    (hd : byte20 (storageAt state message.currentTarget 10) = 0 ∨
+      selector message.data ≠ 0xf3bdc228)
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    (hno : callerWord message ≠ ownerOf state message.currentTarget)
+    {runS : MessageRunner fork StateGasMeter bound} {m t : Evm fork StateGasMeter}
+    (start : At CODE message 0 [] .empty gas state substate (Meter.toNat m))
+    {within : GasMeter.gasHeld m.gas ≤ bound}
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runS m within = .ok t)
+    (hok : t.error = none) :
+    Writes message.currentTarget BalOrAllow state t.state ∧
+      ProtKept message.currentTarget state t.state := by
+  by_cases hd' : selector message.data = 0xf3bdc228
+  · exact absurd (owner_only_any hfork hsize' (.inr (.inr (.inr (.inr (.inr (.inr (.inr (.inr
+      (.inr hd'))))))))) hd start hrun hok) hno
+  have he := effect_local_any hfork hsize' (.inr (fun h => h.elim hsel hd')) h7 h8 start hrun hok
   exact ⟨he.nonOwner hno, fun n hn => he.nonOwnerK K.toSepOn hno n (protected_not_kba K hn)⟩
 
 /-- The predicate of the sequences of non-owner calls, deprecated or not: the caller is not the

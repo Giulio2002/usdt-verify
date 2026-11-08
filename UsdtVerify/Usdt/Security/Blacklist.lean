@@ -22,6 +22,10 @@ tests it. The balance of `a` is the slot `keccak(a ++ 2)`.
 Deprecated or not (round 23): `listed_call_all` (when deprecated the runner meets `KeepsListed`:
 a call to the upgraded address lowers the balance of no address blacklisted in its caller state)
 and `listed_seq_all` (with `KeepsSlots` and `KeepsListed`).
+
+Over the EIP-8037 meter (round 37), not deprecated, any reservoir, refills allowed:
+`listed_call_any`, `listed_seqS`. The `_seqS` forms take a `SeqS` (calls over `Nat` or
+`StateGasMeter`); the `Seq` forms are proved from them.
 -/
 
 namespace UsdtVerify.Security
@@ -136,15 +140,34 @@ theorem listed_call (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fo
     (hok : s.error = none) : NoDec message.currentTarget (mapSlot a 2) state s.state :=
   (effect_call hfork hsize' hdep h7 h8 start within hrun hok).listed K ha hl hsel
 
-/-- **Blacklist over a sequence.** Along a finite sequence of successful calls to `C` by callers
-other than the owner (of each call's start state) and of `Untouched` steps, from a state where
-`C` is not deprecated, slots 7 and 8 are of `StrForm`, and the address word `a < 2^160` is
-blacklisted, each call with `SecSep` of its keys: `balances[a]` is not lower at the end. -/
-theorem listed_seq {C : Address} {S S' : State.TransactionState}
-    (h : Seq C NotOwnerK S S') (hdep : byte20 (storageAt S C 10) = 0)
+/-- `listed_call` over the EIP-8037 meter (round 37): for a run of the loop over
+`StateGasMeter`, any gas bound and message runner, from a frame `m` whose `toNat` is the fresh
+frame of `CODE`. No hypothesis on the reservoir, on refills or on the gas limit. -/
+theorem listed_call_any (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
+    (hsize' : message.data.size < 2 ^ 256)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    {a : U256} (ha : a.toNat < 2 ^ 160) (hl : Listed message.currentTarget state a)
+    (hsel : (selector message.data ≠ 0xdb006a75 ∧ selector message.data ≠ 0xf3bdc228) ∨
+      callerWord message ≠ ownerOf state message.currentTarget)
+    {runS : MessageRunner fork StateGasMeter bound} {m t : Evm fork StateGasMeter}
+    (start : At CODE message 0 [] .empty gas state substate (Meter.toNat m))
+    {within : GasMeter.gasHeld m.gas ≤ bound}
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runS m within = .ok t)
+    (hok : t.error = none) : NoDec message.currentTarget (mapSlot a 2) state t.state :=
+  (effect_any hfork hsize' hdep h7 h8 start hrun hok).listed K ha hl hsel
+
+/-- **Blacklist over a sequence.** Along a finite sequence of successful calls to `C` (over the
+meter `Nat` or over `StateGasMeter`, `SeqS`, round 37) by callers other than the owner (of each
+call's start state) and of `Untouched` steps, from a state where `C` is not deprecated, slots 7 and
+8 are of `StrForm`, and the address word `a < 2^160` is blacklisted, each call with `SecSep` of its
+keys: `balances[a]` is not lower at the end. -/
+theorem listed_seqS {C : Address} {S S' : State.TransactionState}
+    (h : SeqS C NotOwnerK S S') (hdep : byte20 (storageAt S C 10) = 0)
     (h7 : StrForm (storageAt S C 7)) (h8 : StrForm (storageAt S C 8))
     {a : U256} (ha : a.toNat < 2 ^ 160) (hl : Listed C S a) : NoDec C (mapSlot a 2) S S' := by
-  refine seq_lift (I := fun X => Plain C X ∧ Listed C X a) (R := NoDec C (mapSlot a 2))
+  refine seqS_lift (I := fun X => Plain C X ∧ Listed C X a) (R := NoDec C (mapSlot a 2))
     (fun _ => NoDec.refl _ _ _) (fun h1 h2 => h1.trans h2)
     (fun hu hI => ⟨NoDec.of_writes (W := fun _ => False) (.of_same hu) id,
       plain_of_untouched hu hI.1, by unfold Listed; rw [hu]; exact hI.2⟩) ?_ h
@@ -159,6 +182,13 @@ theorem listed_seq {C : Address} {S S' : State.TransactionState}
   unfold Listed
   rw [hw _ (protected_not_kba K (.inr (.inr (.inr (.inr (.inr ⟨a, ha, rfl⟩))))))]
   exact hl
+
+/-- `listed_seqS` for a `Seq` (calls over the meter `Nat`). -/
+theorem listed_seq {C : Address} {S S' : State.TransactionState}
+    (h : Seq C NotOwnerK S S') (hdep : byte20 (storageAt S C 10) = 0)
+    (h7 : StrForm (storageAt S C 7)) (h8 : StrForm (storageAt S C 8))
+    {a : U256} (ha : a.toNat < 2 ^ 160) (hl : Listed C S a) : NoDec C (mapSlot a 2) S S' :=
+  listed_seqS h.toS hdep h7 h8 ha hl
 
 /-! ## Deprecated or not -/
 

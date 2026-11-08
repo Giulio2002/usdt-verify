@@ -25,6 +25,10 @@ deprecated destroyBlackFunds, slot 1 becomes `T - d` for some word `d`) and
 `supply_seq_all`, when deprecated with the runner assumption `KeepsSupply` (a call to the
 upgraded address keeps slot 1 of `C`). issue and redeem do not branch on the flag: when deprecated
 they are covered by `SupplyStep` with no runner assumption.
+
+Over the EIP-8037 meter (round 37), not deprecated, any reservoir, refills allowed:
+`supply_call_any`, `supply_seqS`. The `_seqS` forms take a `SeqS` (calls over `Nat` or
+`StateGasMeter`); the `Seq` forms are proved from them.
 -/
 
 namespace UsdtVerify.Security
@@ -109,6 +113,21 @@ theorem supply_call (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fo
     (hok : s.error = none) : SupplyStep message state s.state :=
   (effect_call hfork hsize' hdep h7 h8 start within hrun hok).supply K
 
+/-- `supply_call` over the EIP-8037 meter (round 37): for a run of the loop over
+`StateGasMeter`, any gas bound and message runner, from a frame `m` whose `toNat` is the fresh
+frame of `CODE`. No hypothesis on the reservoir, on refills or on the gas limit. -/
+theorem supply_call_any (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
+    (hsize' : message.data.size < 2 ^ 256)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    {runS : MessageRunner fork StateGasMeter bound} {m t : Evm fork StateGasMeter}
+    (start : At CODE message 0 [] .empty gas state substate (Meter.toNat m))
+    {within : GasMeter.gasHeld m.gas ≤ bound}
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runS m within = .ok t)
+    (hok : t.error = none) : SupplyStep message state t.state :=
+  (effect_any hfork hsize' hdep h7 h8 start hrun hok).supply K
+
 /-- The predicate of `supply_seq` on each call: none of issue, redeem and destroyBlackFunds, and,
 at its start state, not deprecated with slots 7 and 8 of `StrForm`, and `SepOn` of its keys. -/
 def NoSupplyFn {fork : Fork} (message : Message fork) (S : State.TransactionState) : Prop :=
@@ -116,17 +135,18 @@ def NoSupplyFn {fork : Fork} (message : Message fork) (S : State.TransactionStat
     selector message.data ≠ 0xf3bdc228 ∧ Plain message.currentTarget S ∧
     SepOn (callKeys message S)
 
-/-- **Supply over a sequence.** Along a finite sequence of successful calls to `C` that are none
-of issue, redeem and destroyBlackFunds (each not deprecated, with slots 7 and 8 of `StrForm`, at
-its start state, with `SepOn` of its keys there) and of `Untouched` steps: `_totalSupply` (slot 1)
-keeps its word. Callers may be the owner. -/
-theorem supply_seq {C : Address} {S S' : State.TransactionState}
-    (h : Seq C NoSupplyFn S S') : storageAt S' C 1 = storageAt S C 1 := by
-  refine seq_lift (I := fun _ => True) (R := fun X Y => storageAt Y C 1 = storageAt X C 1)
+/-- **Supply over a sequence.** Along a finite sequence of successful calls to `C` (over the meter
+`Nat` or over `StateGasMeter`, `SeqS`, round 37) that are none of issue, redeem and
+destroyBlackFunds (each not deprecated, with slots 7 and 8 of `StrForm`, at its start state, with
+`SepOn` of its keys there) and of `Untouched` steps: `_totalSupply` (slot 1) keeps its word. Callers
+may be the owner. -/
+theorem supply_seqS {C : Address} {S S' : State.TransactionState}
+    (h : SeqS C NoSupplyFn S S') : storageAt S' C 1 = storageAt S C 1 := by
+  refine seqS_lift (I := fun _ => True) (R := fun X Y => storageAt Y C 1 = storageAt X C 1)
     (fun _ => rfl) (fun h1 h2 => h2.trans h1) (fun hu _ => ⟨hu 1, trivial⟩) ?_ h trivial
   intro S S' fork message hr hq _
   obtain ⟨hi, hr', hd, ⟨hdep, h7, h8⟩, K⟩ := hq
-  have hC : message.currentTarget = C := by obtain ⟨_, _, _, _, _, _, _, hC, -⟩ := hr; exact hC
+  have hC : message.currentTarget = C := hr.1
   subst hC
   obtain ⟨-, he⟩ := hr.effect hdep h7 h8
   refine ⟨?_, trivial⟩
@@ -135,6 +155,11 @@ theorem supply_seq {C : Address} {S S' : State.TransactionState}
   · exact absurd e hi
   · exact absurd e hr'
   · exact absurd e hd
+
+/-- `supply_seqS` for a `Seq` (calls over the meter `Nat`). -/
+theorem supply_seq {C : Address} {S S' : State.TransactionState}
+    (h : Seq C NoSupplyFn S S') : storageAt S' C 1 = storageAt S C 1 :=
+  supply_seqS h.toS
 
 /-! ## Deprecated or not -/
 

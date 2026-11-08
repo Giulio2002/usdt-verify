@@ -1717,6 +1717,28 @@ T1 (third audit), continued.
   execution gas left and the reservoir at a reservoir other than 0; the gas of a run with a
   refill (only `gas_ge_any`); the security properties over `StateGasMeter`.
 
+### Round 37: the security properties over the EIP-8037 meter (Usdt/Security/)
+
+T1 (third audit), continued.
+- Usdt/Security/Effect.lean: `effect_localE` (`effect_local` for a loop that ends, `Gas.Ends`;
+  `effect_local` is proved from it); `ends_any` (a run over `StateGasMeter` with no error, any
+  reservoir, gives a fresh frame of `CODE` of the meter `Nat` whose loop `Ends` with no error in the
+  same state, through `Shadow.shadow_ends`); `effect_local_any`, `effect_any`. `RunOkS` (a call
+  over `StateGasMeter`), `RunEff`, `RunOk.eff`, `RunOkS.eff`, `SeqS` (steps `RunOk`, `RunOkS`,
+  `Untouched`), `Seq.toS`, `seqS_lift`.
+- Single calls over `StateGasMeter`, any gas bound, message runner and reservoir, refills allowed,
+  not deprecated: `nonOwner_call_any`, `paused_call_any`, `listed_call_any`,
+  `allowKept_call_any`, `supply_call_any`, `transferFrom_bound_any` (through
+  `transferFrom_boundE`), `owner_only_any` (through `owner_onlyE`) and `nonOwner_local_any`
+  (deprecated or not, except deprecated destroyBlackFunds, whose path makes a CALL).
+- Sequences: `nonOwner_seqS`, `paused_seqS`, `listed_seqS`, `allowKept_seqS`, `supply_seqS` over
+  `SeqS`, with the hypotheses of the `Seq` forms; `nonOwner_seq` and the other `Seq` forms are
+  proved from them. Usdt/Security/Meter.lean: `runOkS_process`, `process_stepSec` (from Paris, a
+  top-level message with code `CODE` that `processMessage` ends over `StateGasMeter` is a `RunOkS`
+  step or an `Untouched` step).
+- Not done: the deprecated paths over `StateGasMeter` (and so the `_all` security theorems over
+  it); the split of the gas at the end; the gas of a run with a refill.
+
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
   Glamsterdam (third audit, T1; rounds 33 to 36 above). Round 36 covers, not deprecated: the
@@ -1725,7 +1747,9 @@ T1 (third audit), continued.
   hypothesis on the start state per write that can refill, and `process_step` /
   `goodCall_process` / `inv_calls` over `StateGasMeter` with no such hypothesis. Not covered: the
   deprecated paths, the split of the gas at the end between execution gas and reservoir, the gas
-  of a run with a refill, and the security properties over `StateGasMeter`.
+  of a run with a refill, and the security properties over `StateGasMeter` when deprecated.
+  Round 37: the security properties over `StateGasMeter` not deprecated, single calls and `SeqS`
+  sequences, with no hypothesis on the reservoir, on refills or on the gas limit.
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
   contract (round 24: concrete runners meet them, `Sanity/Runner.lean`). `transferFrom_bound` has

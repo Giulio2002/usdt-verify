@@ -564,6 +564,25 @@ Not resolved for the deprecated paths.
 - Still open: the deprecated paths over `StateGasMeter` (CALL is not `simulated`), and the
   security properties of Usdt/Security/ over `StateGasMeter`.
 
+**Progress (round 37).** The security properties over `StateGasMeter`, not deprecated.
+- Every single-call security theorem not deprecated has a form for a run of the loop over
+  `StateGasMeter`, for any gas bound, message runner and reservoir, with no refill hypothesis and
+  no bound on the gas limit: `nonOwner_call_any`, `owner_only_any` and `nonOwner_local_any` (both
+  except deprecated destroyBlackFunds), `paused_call_any`, `listed_call_any`,
+  `allowKept_call_any`, `transferFrom_bound_any`, `supply_call_any` (Usdt/Security/). They go
+  through `Security.ends_any` (from `Shadow.shadow_ends`): the run gives a loop of the meter `Nat`
+  from a fresh frame of `CODE` with more gas that ends (`Gas.Ends`) in the same state. The Nat
+  theorems they use take `Ends` (`effect_localE`, `owner_onlyE`, `transferFrom_boundE`).
+- Sequences: `SeqS` mixes calls over the meter `Nat` (`RunOk`) and over `StateGasMeter`
+  (`RunOkS`) with `Untouched` steps. `nonOwner_seqS`, `paused_seqS`, `listed_seqS`,
+  `allowKept_seqS`, `supply_seqS` state the properties over it, with the hypotheses of the `Seq`
+  forms. The `Seq` forms are now proved from them (`Seq.toS`). `Security.process_stepSec`
+  (Usdt/Security/Meter.lean): from Paris, every top-level message with code `CODE` (no
+  precompile) that `processMessage` ends over `StateGasMeter` is a `RunOkS` step or an
+  `Untouched` step.
+- Still open: the deprecated paths over `StateGasMeter`, including the security properties when
+  deprecated.
+
 ## T2. The runner hypotheses range over every block and transaction environment (Medium)
 
 **Evidence.** `SendsVia` (Evm/Route.lean:134) fixes `caller`, `currentTarget`, `target`,

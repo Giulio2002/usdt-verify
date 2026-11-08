@@ -1,5 +1,6 @@
 import UsdtVerify.Usdt.Invariant.Seq
 import UsdtVerify.Evm.Keeps
+import UsdtVerify.Evm.Shadow
 
 /-!
 # What a successful call does to the storage of the contract
@@ -49,6 +50,13 @@ as `effect_call` takes it, and meeting the predicate `Q` on its message and star
 and transitive relation, with an invariant, from one step to the sequence. `SeqR C R Q` and
 `seqR_lift`: the same with steps `RunOkR C R`, deprecated or not, whose runner meets `Keeps … R`
 when `C` is deprecated at the step's start state.
+
+Over the EIP-8037 meter (round 37): `effect_localE` is `effect_local` for a loop that ends
+(`Gas.Ends`). `ends_any`: a run of the loop over `StateGasMeter` that ends with no error, at any
+reservoir, refills allowed, gives such a loop of the meter `Nat` that ends in the same state
+(`Shadow.shadow_ends`). `effect_local_any`, `effect_any`: `effect_local`, `effect_call` over
+`StateGasMeter`. `SeqS C Q`: a sequence whose calls run over `Nat` (`RunOk`) or over
+`StateGasMeter` (`RunOkS`); `seqS_lift`; `Seq.toS`.
 -/
 
 namespace UsdtVerify.Security
@@ -457,10 +465,174 @@ def FlagFn (x : Nat) : Prop := FwdFn x ∨ x = 0xf3bdc228
 theorem flag_of {x : Nat} {b : U256} (h : byte20 b = 0 ∨ ¬ FlagFn x) (hx : FlagFn x) :
     byte20 b = 0 := h.resolve_right (fun hn => hn hx)
 
+/-- **The effect of every successful call that runs locally**, for a loop that ends with no error
+(`Ends`, round 37; it covers the loop of `runFrame` by `Ends.run`, and the shadow run of a loop over
+`StateGasMeter` by `shadow_ends`): as `effect_call`, with `hdep` replaced by "not deprecated, or a
+function other than the seven of `FlagFn`". The other 25 functions of the table do not branch on the
+flag (their completeness theorems `ok_X` take no `hdep`). -/
+theorem effect_localE (hfork : .berlin ≤ fork)
+    (hsize' : message.data.size < 2 ^ 256)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0 ∨
+      ¬ FlagFn (selector message.data))
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    (start : At CODE message 0 [] .empty gas state substate evm)
+    (hrun : Ends fork evm s) (hok : s.error = none) : Effect message state s.state := by
+  obtain ⟨-, -, i, hi⟩ := ends_ok_dispatch hfork hsize' start hrun hok
+  have rd : ∀ {X : State.TransactionState}, s.state = X →
+      (∀ n, storageAt X message.currentTarget n = storageAt state message.currentTarget n) →
+      Effect message state s.state := fun hst h => .same (fun n => by rw [hst]; exact h n)
+  match i, hi with
+  | ⟨0, _⟩, hi =>
+    rcases ok_name hfork hsize' (hi.trans rfl) h7 start hrun hok with
+      ⟨-, -, -, hst, -⟩ | ⟨-, -, -, -, -, -, hst, -⟩ | ⟨-, -, -, -, hst, -⟩ <;>
+    exact rd hst (fun n => by simp only [storageAt_readSlot, storageAt_rdSt])
+  | ⟨1, _⟩, hi =>
+    obtain ⟨-, hacc, howner, -, -, hst, -⟩ := ok_deprecate hfork hsize' (hi.trans rfl) rfl rfl
+      start hrun hok
+    refine .ownerW howner ?_
+    rw [hst]
+    refine Writes.wr (Writes.wr (Writes.read _ _) ?_ (.inr (.inr (.inr (.inl rfl)))) _) ?_
+      (.inr (.inr (.inr (.inl rfl)))) _
+    · wchain
+    · wchain
+  | ⟨2, _⟩, hi =>
+    obtain ⟨-, hacc, -, -, h⟩ := ok_approve hfork hsize' (hi.trans rfl)
+      (flag_of hdep (.inl (.inl (hi.trans rfl)))) rfl rfl start hrun hok
+    refine .approve (hi.trans rfl) ?_
+    rcases h with ⟨-, -, hst, -⟩ | ⟨-, -, -, hst, -⟩ <;> rw [hst]
+    · exact Writes.wr (W := (· = allowArg message)) (Writes.read _ _) (hasAccount_readSlot hacc)
+        rfl _
+    · exact Writes.wr (W := (· = allowArg message)) ((Writes.read _ _).rd _ _)
+        (hasAccount_readSlot (hasAccount_readSlot hacc)) rfl _
+  | ⟨3, _⟩, hi =>
+    obtain ⟨-, -, hst, -⟩ := ok_deprecated hfork hsize' (hi.trans rfl) start hrun hok
+    exact rd hst (fun n => by simp only [storageAt_readSlot])
+  | ⟨4, _⟩, hi =>
+    obtain ⟨-, hacc, howner, -, -, hst, -⟩ := ok_addBlackList hfork hsize' (hi.trans rfl) rfl rfl
+      start hrun hok
+    refine .ownerW howner ?_
+    rw [hst]
+    exact Writes.wr (Writes.read _ _) (hasAccount_readSlot hacc)
+      (.inr (.inr (.inr (.inr rfl)))) _
+  | ⟨5, _⟩, hi =>
+    obtain ⟨-, -, hst, -⟩ := ok_totalSupply hfork hsize' (hi.trans rfl)
+      (flag_of hdep (.inl (.inr (.inl (hi.trans rfl))))) start hrun hok
+    exact rd hst (fun n => by simp only [storageAt_readSlot])
+  | ⟨6, _⟩, hi =>
+    obtain ⟨-, hacc, -, hpause, hblack, -, hallow, hfv, hbal, hto, -, h⟩ := ok_transferFrom hfork
+      hsize' (hi.trans rfl) (flag_of hdep (.inl (.inr (.inr (.inl (hi.trans rfl)))))) rfl rfl rfl rfl rfl rfl rfl rfl rfl start hrun hok
+    rcases h with ⟨hfee, -, hst, -⟩ | ⟨-, hown, -, hst, -⟩
+    · rw [sendOf_zero hfee] at hto
+      exact .fromOk (hi.trans rfl) hacc hpause hblack hallow hbal hto hst
+    · exact .fromFee (hi.trans rfl) hacc hpause hblack hallow hfv hbal hto hown hst
+  | ⟨7, _⟩, hi =>
+    obtain ⟨-, -, hst, -⟩ := ok_upgradedAddress hfork hsize' (hi.trans rfl) start hrun hok
+    exact rd hst (fun n => by simp only [storageAt_readSlot])
+  | ⟨8, _⟩, hi =>
+    obtain ⟨-, -, hst, -⟩ := ok_balances hfork hsize' (hi.trans rfl) start hrun hok
+    exact rd hst (fun n => by simp only [storageAt_readSlot])
+  | ⟨9, _⟩, hi =>
+    obtain ⟨-, -, hst, -⟩ := ok_decimals hfork hsize' (hi.trans rfl) start hrun hok
+    exact rd hst (fun n => by simp only [storageAt_readSlot])
+  | ⟨10, _⟩, hi =>
+    obtain ⟨-, -, hst, -⟩ := ok_maximumFee hfork hsize' (hi.trans rfl) start hrun hok
+    exact rd hst (fun n => by simp only [storageAt_readSlot])
+  | ⟨11, _⟩, hi =>
+    obtain ⟨-, -, hst, -⟩ := ok_totalSupplyVar hfork hsize' (hi.trans rfl) start hrun hok
+    exact rd hst (fun n => by simp only [storageAt_readSlot])
+  | ⟨12, _⟩, hi =>
+    obtain ⟨-, hacc, howner, -, -, -, hst, -⟩ := ok_unpause hfork hsize' (hi.trans rfl) rfl start
+      hrun hok
+    rw [hst]
+    exact .ownerW howner (Writes.write hacc (.inl rfl) _)
+  | ⟨13, _⟩, hi =>
+    obtain ⟨-, -, hst, -⟩ := ok_getBlackListStatus hfork hsize' (hi.trans rfl) start hrun hok
+    exact rd hst (fun n => by simp only [storageAt_readSlot])
+  | ⟨14, _⟩, hi =>
+    obtain ⟨-, -, hst, -⟩ := ok_allowed hfork hsize' (hi.trans rfl) start hrun hok
+    exact rd hst (fun n => by simp only [storageAt_readSlot])
+  | ⟨15, _⟩, hi =>
+    obtain ⟨-, -, hst, -⟩ := ok_paused hfork hsize' (hi.trans rfl) start hrun hok
+    exact rd hst (fun n => by simp only [storageAt_readSlot])
+  | ⟨16, _⟩, hi =>
+    obtain ⟨-, -, hst, -⟩ := ok_balanceOf hfork hsize' (hi.trans rfl)
+      (flag_of hdep (.inl (.inr (.inr (.inr (.inl (hi.trans rfl))))))) start hrun hok
+    exact rd hst (fun n => by simp only [storageAt_readSlot])
+  | ⟨17, _⟩, hi =>
+    obtain ⟨-, hacc, howner, -, -, -, hst, -⟩ := ok_pause hfork hsize' (hi.trans rfl) rfl start
+      hrun hok
+    rw [hst]
+    exact .ownerW howner (Writes.write hacc (.inl rfl) _)
+  | ⟨18, _⟩, hi =>
+    obtain ⟨-, -, hst, -⟩ := ok_getOwner hfork hsize' (hi.trans rfl) start hrun hok
+    exact rd hst (fun n => by simp only [storageAt_readSlot])
+  | ⟨19, _⟩, hi =>
+    obtain ⟨-, -, hst, -⟩ := ok_owner hfork hsize' (hi.trans rfl) start hrun hok
+    exact rd hst (fun n => by simp only [storageAt_readSlot])
+  | ⟨20, _⟩, hi =>
+    rcases ok_symbol hfork hsize' (hi.trans rfl) h8 start hrun hok with
+      ⟨-, -, -, hst, -⟩ | ⟨-, -, -, -, -, -, hst, -⟩ | ⟨-, -, -, -, hst, -⟩ <;>
+    exact rd hst (fun n => by simp only [storageAt_readSlot, storageAt_rdSt])
+  | ⟨21, _⟩, hi =>
+    obtain ⟨-, hacc, -, hpause, hblack, -, hfv, hbal, hto, -, h⟩ := ok_transfer hfork hsize'
+      (hi.trans rfl) (flag_of hdep (.inl (.inr (.inr (.inr (.inr (.inl (hi.trans rfl)))))))) rfl rfl rfl rfl rfl rfl rfl rfl start hrun hok
+    rcases h with ⟨hfee, -, hst, -⟩ | ⟨-, hown, -, hst, -⟩
+    · rw [sendOf_zero hfee] at hto
+      exact .transferOk (hi.trans rfl) hacc hpause hblack hbal hto hst
+    · exact .transferFee (hi.trans rfl) hacc hpause hblack hfv hbal hto hown hst
+  | ⟨22, _⟩, hi =>
+    obtain ⟨-, hacc, howner, -, -, -, -, -, hst, -⟩ := ok_setParams hfork hsize' (hi.trans rfl)
+      rfl rfl rfl rfl start hrun hok
+    refine .ownerW howner ?_
+    rw [hst]
+    refine ((Writes.wr ((Writes.wr (Writes.read _ _) ?_ (.inr (.inl rfl)) _).rd _ _) ?_
+      (.inr (.inr (.inl rfl))) _).rd _ _).rd _ _
+    · wchain
+    · wchain
+  | ⟨23, _⟩, hi =>
+    obtain ⟨-, hacc, howner, -, hT, hB, -, -, hst, -⟩ := ok_issue hfork hsize' (hi.trans rfl) rfl
+      rfl rfl start hrun hok
+    exact .issue (hi.trans rfl) howner hacc hT hB hst
+  | ⟨24, _⟩, hi =>
+    obtain ⟨-, hacc, howner, hT, hB, -, -, hst, -⟩ := ok_redeem hfork hsize' (hi.trans rfl) rfl
+      rfl rfl start hrun hok
+    exact .redeem (hi.trans rfl) howner hacc hT hB hst
+  | ⟨25, _⟩, hi =>
+    obtain ⟨-, -, hst, -⟩ := ok_allowance hfork hsize' (hi.trans rfl)
+      (flag_of hdep (.inl (.inr (.inr (.inr (.inr (.inr (hi.trans rfl)))))))) start hrun hok
+    exact rd hst (fun n => by simp only [storageAt_readSlot])
+  | ⟨26, _⟩, hi =>
+    obtain ⟨-, -, hst, -⟩ := ok_basisPointsRate hfork hsize' (hi.trans rfl) start hrun hok
+    exact rd hst (fun n => by simp only [storageAt_readSlot])
+  | ⟨27, _⟩, hi =>
+    obtain ⟨-, -, hst, -⟩ := ok_isBlackListed hfork hsize' (hi.trans rfl) start hrun hok
+    exact rd hst (fun n => by simp only [storageAt_readSlot])
+  | ⟨28, _⟩, hi =>
+    obtain ⟨-, hacc, howner, -, -, hst, -⟩ := ok_removeBlackList hfork hsize' (hi.trans rfl) rfl
+      rfl start hrun hok
+    refine .ownerW howner ?_
+    rw [hst]
+    exact Writes.wr (Writes.read _ _) (hasAccount_readSlot hacc)
+      (.inr (.inr (.inr (.inr rfl)))) _
+  | ⟨29, _⟩, hi =>
+    obtain ⟨-, -, hst, -⟩ := ok_maxUint hfork hsize' (hi.trans rfl) start hrun hok
+    exact rd hst (fun _ => rfl)
+  | ⟨30, _⟩, hi =>
+    obtain ⟨howner, -, h⟩ := ok_transferOwnership hfork hsize' (hi.trans rfl) rfl start hrun hok
+    rcases h with ⟨-, -, hst, -⟩ | ⟨-, -, hacc, -, hst, -⟩
+    · exact rd hst (fun n => by simp only [storageAt_readSlot])
+    · rw [hst]
+      exact .ownerW howner (Writes.write hacc (.inl rfl) _)
+  | ⟨31, _⟩, hi =>
+    obtain ⟨-, hacc, howner, hlisted, -, -, hst, -⟩ := ok_destroyBlackFunds hfork hsize'
+      (hi.trans rfl) (flag_of hdep (.inr (hi.trans rfl))) rfl rfl rfl rfl rfl start hrun hok
+    exact .destroy (hi.trans rfl) howner hacc hlisted hst
+  | ⟨n + 32, h⟩, _ => exact absurd h (by omega)
+
 /-- **The effect of every successful call that runs locally**: as `effect_call`, with `hdep`
-replaced by "not deprecated, or a function other than the seven of `FlagFn`". The other 25
-functions of the table do not branch on the flag (their completeness theorems `ok_X` take no
-`hdep`). -/
+replaced by "not deprecated, or a function other than the seven of `FlagFn`". The `runFrame`
+form of `effect_localE`. -/
 theorem effect_local (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0 ∨
@@ -470,158 +642,8 @@ theorem effect_local (hfork : .berlin ≤ fork)
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
-    (hok : s.error = none) : Effect message state s.state := by
-  obtain ⟨-, -, i, hi⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  have rd : ∀ {X : State.TransactionState}, s.state = X →
-      (∀ n, storageAt X message.currentTarget n = storageAt state message.currentTarget n) →
-      Effect message state s.state := fun hst h => .same (fun n => by rw [hst]; exact h n)
-  match i, hi with
-  | ⟨0, _⟩, hi =>
-    rcases ok_name hfork hsize' (hi.trans rfl) h7 start (Ends.run hrun) hok with
-      ⟨-, -, -, hst, -⟩ | ⟨-, -, -, -, -, -, hst, -⟩ | ⟨-, -, -, -, hst, -⟩ <;>
-    exact rd hst (fun n => by simp only [storageAt_readSlot, storageAt_rdSt])
-  | ⟨1, _⟩, hi =>
-    obtain ⟨-, hacc, howner, -, -, hst, -⟩ := ok_deprecate hfork hsize' (hi.trans rfl) rfl rfl
-      start (Ends.run hrun) hok
-    refine .ownerW howner ?_
-    rw [hst]
-    refine Writes.wr (Writes.wr (Writes.read _ _) ?_ (.inr (.inr (.inr (.inl rfl)))) _) ?_
-      (.inr (.inr (.inr (.inl rfl)))) _
-    · wchain
-    · wchain
-  | ⟨2, _⟩, hi =>
-    obtain ⟨-, hacc, -, -, h⟩ := ok_approve hfork hsize' (hi.trans rfl)
-      (flag_of hdep (.inl (.inl (hi.trans rfl)))) rfl rfl start (Ends.run hrun) hok
-    refine .approve (hi.trans rfl) ?_
-    rcases h with ⟨-, -, hst, -⟩ | ⟨-, -, -, hst, -⟩ <;> rw [hst]
-    · exact Writes.wr (W := (· = allowArg message)) (Writes.read _ _) (hasAccount_readSlot hacc)
-        rfl _
-    · exact Writes.wr (W := (· = allowArg message)) ((Writes.read _ _).rd _ _)
-        (hasAccount_readSlot (hasAccount_readSlot hacc)) rfl _
-  | ⟨3, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_deprecated hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
-    exact rd hst (fun n => by simp only [storageAt_readSlot])
-  | ⟨4, _⟩, hi =>
-    obtain ⟨-, hacc, howner, -, -, hst, -⟩ := ok_addBlackList hfork hsize' (hi.trans rfl) rfl rfl
-      start (Ends.run hrun) hok
-    refine .ownerW howner ?_
-    rw [hst]
-    exact Writes.wr (Writes.read _ _) (hasAccount_readSlot hacc)
-      (.inr (.inr (.inr (.inr rfl)))) _
-  | ⟨5, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_totalSupply hfork hsize' (hi.trans rfl)
-      (flag_of hdep (.inl (.inr (.inl (hi.trans rfl))))) start (Ends.run hrun) hok
-    exact rd hst (fun n => by simp only [storageAt_readSlot])
-  | ⟨6, _⟩, hi =>
-    obtain ⟨-, hacc, -, hpause, hblack, -, hallow, hfv, hbal, hto, -, h⟩ := ok_transferFrom hfork
-      hsize' (hi.trans rfl) (flag_of hdep (.inl (.inr (.inr (.inl (hi.trans rfl)))))) rfl rfl rfl rfl rfl rfl rfl rfl rfl start (Ends.run hrun) hok
-    rcases h with ⟨hfee, -, hst, -⟩ | ⟨-, hown, -, hst, -⟩
-    · rw [sendOf_zero hfee] at hto
-      exact .fromOk (hi.trans rfl) hacc hpause hblack hallow hbal hto hst
-    · exact .fromFee (hi.trans rfl) hacc hpause hblack hallow hfv hbal hto hown hst
-  | ⟨7, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_upgradedAddress hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
-    exact rd hst (fun n => by simp only [storageAt_readSlot])
-  | ⟨8, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_balances hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
-    exact rd hst (fun n => by simp only [storageAt_readSlot])
-  | ⟨9, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_decimals hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
-    exact rd hst (fun n => by simp only [storageAt_readSlot])
-  | ⟨10, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_maximumFee hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
-    exact rd hst (fun n => by simp only [storageAt_readSlot])
-  | ⟨11, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_totalSupplyVar hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
-    exact rd hst (fun n => by simp only [storageAt_readSlot])
-  | ⟨12, _⟩, hi =>
-    obtain ⟨-, hacc, howner, -, -, -, hst, -⟩ := ok_unpause hfork hsize' (hi.trans rfl) rfl start
-      (Ends.run hrun) hok
-    rw [hst]
-    exact .ownerW howner (Writes.write hacc (.inl rfl) _)
-  | ⟨13, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_getBlackListStatus hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
-    exact rd hst (fun n => by simp only [storageAt_readSlot])
-  | ⟨14, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_allowed hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
-    exact rd hst (fun n => by simp only [storageAt_readSlot])
-  | ⟨15, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_paused hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
-    exact rd hst (fun n => by simp only [storageAt_readSlot])
-  | ⟨16, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_balanceOf hfork hsize' (hi.trans rfl)
-      (flag_of hdep (.inl (.inr (.inr (.inr (.inl (hi.trans rfl))))))) start (Ends.run hrun) hok
-    exact rd hst (fun n => by simp only [storageAt_readSlot])
-  | ⟨17, _⟩, hi =>
-    obtain ⟨-, hacc, howner, -, -, -, hst, -⟩ := ok_pause hfork hsize' (hi.trans rfl) rfl start
-      (Ends.run hrun) hok
-    rw [hst]
-    exact .ownerW howner (Writes.write hacc (.inl rfl) _)
-  | ⟨18, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_getOwner hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
-    exact rd hst (fun n => by simp only [storageAt_readSlot])
-  | ⟨19, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_owner hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
-    exact rd hst (fun n => by simp only [storageAt_readSlot])
-  | ⟨20, _⟩, hi =>
-    rcases ok_symbol hfork hsize' (hi.trans rfl) h8 start (Ends.run hrun) hok with
-      ⟨-, -, -, hst, -⟩ | ⟨-, -, -, -, -, -, hst, -⟩ | ⟨-, -, -, -, hst, -⟩ <;>
-    exact rd hst (fun n => by simp only [storageAt_readSlot, storageAt_rdSt])
-  | ⟨21, _⟩, hi =>
-    obtain ⟨-, hacc, -, hpause, hblack, -, hfv, hbal, hto, -, h⟩ := ok_transfer hfork hsize'
-      (hi.trans rfl) (flag_of hdep (.inl (.inr (.inr (.inr (.inr (.inl (hi.trans rfl)))))))) rfl rfl rfl rfl rfl rfl rfl rfl start (Ends.run hrun) hok
-    rcases h with ⟨hfee, -, hst, -⟩ | ⟨-, hown, -, hst, -⟩
-    · rw [sendOf_zero hfee] at hto
-      exact .transferOk (hi.trans rfl) hacc hpause hblack hbal hto hst
-    · exact .transferFee (hi.trans rfl) hacc hpause hblack hfv hbal hto hown hst
-  | ⟨22, _⟩, hi =>
-    obtain ⟨-, hacc, howner, -, -, -, -, -, hst, -⟩ := ok_setParams hfork hsize' (hi.trans rfl)
-      rfl rfl rfl rfl start (Ends.run hrun) hok
-    refine .ownerW howner ?_
-    rw [hst]
-    refine ((Writes.wr ((Writes.wr (Writes.read _ _) ?_ (.inr (.inl rfl)) _).rd _ _) ?_
-      (.inr (.inr (.inl rfl))) _).rd _ _).rd _ _
-    · wchain
-    · wchain
-  | ⟨23, _⟩, hi =>
-    obtain ⟨-, hacc, howner, -, hT, hB, -, -, hst, -⟩ := ok_issue hfork hsize' (hi.trans rfl) rfl
-      rfl rfl start (Ends.run hrun) hok
-    exact .issue (hi.trans rfl) howner hacc hT hB hst
-  | ⟨24, _⟩, hi =>
-    obtain ⟨-, hacc, howner, hT, hB, -, -, hst, -⟩ := ok_redeem hfork hsize' (hi.trans rfl) rfl
-      rfl rfl start (Ends.run hrun) hok
-    exact .redeem (hi.trans rfl) howner hacc hT hB hst
-  | ⟨25, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_allowance hfork hsize' (hi.trans rfl)
-      (flag_of hdep (.inl (.inr (.inr (.inr (.inr (.inr (hi.trans rfl)))))))) start (Ends.run hrun) hok
-    exact rd hst (fun n => by simp only [storageAt_readSlot])
-  | ⟨26, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_basisPointsRate hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
-    exact rd hst (fun n => by simp only [storageAt_readSlot])
-  | ⟨27, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_isBlackListed hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
-    exact rd hst (fun n => by simp only [storageAt_readSlot])
-  | ⟨28, _⟩, hi =>
-    obtain ⟨-, hacc, howner, -, -, hst, -⟩ := ok_removeBlackList hfork hsize' (hi.trans rfl) rfl
-      rfl start (Ends.run hrun) hok
-    refine .ownerW howner ?_
-    rw [hst]
-    exact Writes.wr (Writes.read _ _) (hasAccount_readSlot hacc)
-      (.inr (.inr (.inr (.inr rfl)))) _
-  | ⟨29, _⟩, hi =>
-    obtain ⟨-, -, hst, -⟩ := ok_maxUint hfork hsize' (hi.trans rfl) start (Ends.run hrun) hok
-    exact rd hst (fun _ => rfl)
-  | ⟨30, _⟩, hi =>
-    obtain ⟨howner, -, h⟩ := ok_transferOwnership hfork hsize' (hi.trans rfl) rfl start (Ends.run hrun) hok
-    rcases h with ⟨-, -, hst, -⟩ | ⟨-, -, hacc, -, hst, -⟩
-    · exact rd hst (fun n => by simp only [storageAt_readSlot])
-    · rw [hst]
-      exact .ownerW howner (Writes.write hacc (.inl rfl) _)
-  | ⟨31, _⟩, hi =>
-    obtain ⟨-, hacc, howner, hlisted, -, -, hst, -⟩ := ok_destroyBlackFunds hfork hsize'
-      (hi.trans rfl) (flag_of hdep (.inr (hi.trans rfl))) rfl rfl rfl rfl rfl start (Ends.run hrun) hok
-    exact .destroy (hi.trans rfl) howner hacc hlisted hst
-  | ⟨n + 32, h⟩, _ => exact absurd h (by omega)
+    (hok : s.error = none) : Effect message state s.state :=
+  effect_localE hfork hsize' hdep h7 h8 start (Ends.run hrun) hok
 
 /-- **The effect of every successful call** (not deprecated): from Berlin (Glamsterdam included),
 a fresh frame of `CODE` at pc 0, static or not, any call data below 2^256 bytes, any value, any
@@ -636,6 +658,58 @@ theorem effect_call (hfork : .berlin ≤ fork)
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
     (hok : s.error = none) : Effect message state s.state :=
   effect_local hfork hsize' (.inl hdep) h7 h8 start within hrun hok
+
+/-! ## Over the EIP-8037 meter (round 37) -/
+
+/-- **A successful run over `StateGasMeter`, as a loop of the meter `Nat` that ends** (round 37).
+A run of the loop over `StateGasMeter`, for any gas bound and message runner, from a frame `m`
+whose `toNat` is a fresh frame of `CODE`, that ends in `t` with no error: some fresh frame of
+`CODE` of the meter `Nat` with the same message, state and substate (and more gas) has a loop that
+ends (`Ends`) with no error in the state of `t`. No hypothesis on the reservoir, on refills or on
+the gas limit (`Shadow.shadow_ends`). -/
+theorem ends_any (hfork : .berlin ≤ fork)
+    {runS : MessageRunner fork StateGasMeter bound} {m t : Evm fork StateGasMeter}
+    (start : At CODE message 0 [] .empty gas state substate (Meter.toNat m))
+    {within : GasMeter.gasHeld m.gas ≤ bound}
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runS m within = .ok t)
+    (hok : t.error = none) :
+    ∃ (g : Nat) (l e : Evm fork Nat), At CODE message 0 [] .empty g state substate l ∧
+      Ends fork l e ∧ e.error = none ∧ e.state = t.state := by
+  obtain ⟨G, hE⟩ := Shadow.shadow_ends hfork hrun hok
+  exact ⟨_, _, _, at_sh start (Shadow.budget m), hE, hok, rfl⟩
+
+/-- **The effect of every successful call that runs locally, over `StateGasMeter`** (round 37):
+`effect_local` for a run of the loop over `StateGasMeter`, for any gas bound and message runner,
+from a frame `m` whose `toNat` is the fresh frame of `CODE`. No hypothesis on the reservoir of
+`m`, on refills or on the gas limit. -/
+theorem effect_local_any (hfork : .berlin ≤ fork)
+    (hsize' : message.data.size < 2 ^ 256)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0 ∨
+      ¬ FlagFn (selector message.data))
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    {runS : MessageRunner fork StateGasMeter bound} {m t : Evm fork StateGasMeter}
+    (start : At CODE message 0 [] .empty gas state substate (Meter.toNat m))
+    {within : GasMeter.gasHeld m.gas ≤ bound}
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runS m within = .ok t)
+    (hok : t.error = none) : Effect message state t.state := by
+  obtain ⟨_, _, e, start', hE, hok', hst⟩ := ends_any hfork start hrun hok
+  rw [← hst]
+  exact effect_localE hfork hsize' hdep h7 h8 start' hE hok'
+
+/-- **The effect of every successful call over `StateGasMeter`** (round 37, not deprecated):
+`effect_call` over `StateGasMeter`, any reservoir, refills allowed. -/
+theorem effect_any (hfork : .berlin ≤ fork)
+    (hsize' : message.data.size < 2 ^ 256)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    {runS : MessageRunner fork StateGasMeter bound} {m t : Evm fork StateGasMeter}
+    (start : At CODE message 0 [] .empty gas state substate (Meter.toNat m))
+    {within : GasMeter.gasHeld m.gas ≤ bound}
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runS m within = .ok t)
+    (hok : t.error = none) : Effect message state t.state :=
+  effect_local_any hfork hsize' (.inl hdep) h7 h8 start hrun hok
 
 /-! ## Deprecated or not -/
 
@@ -859,5 +933,84 @@ theorem seqR_lift {C : Address} {R0 : State.TransactionState → State.Transacti
 its start state (they are read by name() and symbol() only). -/
 def Strs {fork : Fork} (message : Message fork) (S : State.TransactionState) : Prop :=
   StrForm (storageAt S message.currentTarget 7) ∧ StrForm (storageAt S message.currentTarget 8)
+
+/-! ## Sequences over the meter `Nat` and over `StateGasMeter` (round 37) -/
+
+/-- One successful run of `CODE` over `StateGasMeter` for a message to `C`, from `S` to `S'`,
+with the hypotheses `effect_any` takes beyond "not deprecated" and the string slots: any gas
+bound, message runner and reservoir. -/
+def RunOkS (C : Address) (S S' : State.TransactionState) {fork : Fork} (message : Message fork) :
+    Prop :=
+  ∃ (substate : Substate) (gas bound : Nat) (runChild : MessageRunner fork StateGasMeter bound)
+    (m s : Evm fork StateGasMeter) (within : GasMeter.gasHeld m.gas ≤ bound),
+    message.currentTarget = C ∧ .berlin ≤ fork ∧ message.data.size < 2 ^ 256 ∧
+    At CODE message 0 [] .empty gas S substate (Meter.toNat m) ∧
+    Evm.runFrame (step fork) (step_decreases fork) bound runChild m within = .ok s ∧
+    s.error = none ∧ S' = s.state
+
+/-- What the sequence theorems use of one call: its target is `C`, and when `C` is not
+deprecated at `S` and slots 7 and 8 are of `StrForm` there, the call has an `Effect`. -/
+def RunEff (C : Address) (S S' : State.TransactionState) {fork : Fork} (message : Message fork) :
+    Prop :=
+  message.currentTarget = C ∧ (byte20 (storageAt S C 10) = 0 → StrForm (storageAt S C 7) →
+    StrForm (storageAt S C 8) → Effect message S S')
+
+theorem RunOk.eff {C : Address} {S S' : State.TransactionState} (h : RunOk C S S' message) :
+    RunEff C S S' message := by
+  have hC : message.currentTarget = C := by obtain ⟨_, _, _, _, _, _, _, hC, -⟩ := h; exact hC
+  exact ⟨hC, fun hdep h7 h8 => (h.effect hdep h7 h8).2⟩
+
+theorem RunOkS.eff {C : Address} {S S' : State.TransactionState} (h : RunOkS C S S' message) :
+    RunEff C S S' message := by
+  obtain ⟨substate, gas, bound, runChild, m, s, within, hC, hfork, hsize, start, hrun, hok, rfl⟩ :=
+    h
+  subst hC
+  exact ⟨rfl, fun hdep h7 h8 => effect_any hfork hsize hdep h7 h8 start hrun hok⟩
+
+theorem RunEff.effect {C : Address} {S S' : State.TransactionState} (h : RunEff C S S' message)
+    (hdep : byte20 (storageAt S C 10) = 0) (h7 : StrForm (storageAt S C 7))
+    (h8 : StrForm (storageAt S C 8)) : message.currentTarget = C ∧ Effect message S S' :=
+  ⟨h.1, h.2 hdep h7 h8⟩
+
+/-- A finite sequence of successful calls to `C` over the meter `Nat` (`RunOk`) or over
+`StateGasMeter` (`RunOkS`), each meeting `Q` on its message and its start state, and of changes
+that keep every storage word of `C`. -/
+inductive SeqS (C : Address) (Q : ∀ {fork : Fork}, Message fork → State.TransactionState → Prop) :
+    State.TransactionState → State.TransactionState → Prop
+  | nil (S : State.TransactionState) : SeqS C Q S S
+  | call {S S' S'' : State.TransactionState} {fork : Fork} {message : Message fork} :
+      RunOk C S S' message → Q message S → SeqS C Q S' S'' → SeqS C Q S S''
+  | callS {S S' S'' : State.TransactionState} {fork : Fork} {message : Message fork} :
+      RunOkS C S S' message → Q message S → SeqS C Q S' S'' → SeqS C Q S S''
+  | other {S S' S'' : State.TransactionState} : Untouched C S S' → SeqS C Q S' S'' →
+      SeqS C Q S S''
+
+/-- Every `Seq` is a `SeqS`. -/
+theorem Seq.toS {C : Address} {Q : ∀ {fork : Fork}, Message fork → State.TransactionState → Prop}
+    {S S' : State.TransactionState} (h : Seq C Q S S') : SeqS C Q S S' := by
+  induction h with
+  | nil S => exact .nil S
+  | call hr hq _ ih => exact .call hr hq ih
+  | other hu _ ih => exact .other hu ih
+
+/-- `seq_lift` for `SeqS`: the calls are given by `RunEff`. -/
+theorem seqS_lift {C : Address} {Q : ∀ {fork : Fork}, Message fork → State.TransactionState → Prop}
+    {I : State.TransactionState → Prop} {R : State.TransactionState → State.TransactionState → Prop}
+    (hrefl : ∀ S, R S S) (htrans : ∀ {S S' S''}, R S S' → R S' S'' → R S S'')
+    (hother : ∀ {S S'}, Untouched C S S' → I S → R S S' ∧ I S')
+    (hcall : ∀ {S S'} {fork : Fork} {message : Message fork}, RunEff C S S' message →
+      Q message S → I S → R S S' ∧ I S')
+    {S S' : State.TransactionState} (h : SeqS C Q S S') (hI : I S) : R S S' := by
+  induction h with
+  | nil S => exact hrefl S
+  | call hr hq _ ih =>
+    obtain ⟨hR, hI'⟩ := hcall hr.eff hq hI
+    exact htrans hR (ih hI')
+  | callS hr hq _ ih =>
+    obtain ⟨hR, hI'⟩ := hcall hr.eff hq hI
+    exact htrans hR (ih hI')
+  | other hu _ ih =>
+    obtain ⟨hR, hI'⟩ := hother hu hI
+    exact htrans hR (ih hI')
 
 end UsdtVerify.Security

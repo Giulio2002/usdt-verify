@@ -24,6 +24,7 @@ import UsdtVerify.Usdt.Security.Allowance
 import UsdtVerify.Usdt.Security.Blacklist
 import UsdtVerify.Usdt.Security.Pause
 import UsdtVerify.Usdt.Security.Access
+import UsdtVerify.Usdt.Security.Meter
 import UsdtVerify.Usdt.Complete.Deprecated.Allowance
 import UsdtVerify.Usdt.Complete.Deprecated.Destroy
 import UsdtVerify.Usdt.Invariant.All
@@ -1047,3 +1048,28 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Exact.redeem_gas_any
 #print axioms UsdtVerify.Exact.setParams_gas_any
 #print axioms UsdtVerify.Exact.destroyBlackFunds_gas_any
+#print axioms UsdtVerify.Security.effect_localE
+#print axioms UsdtVerify.Security.ends_any
+#print axioms UsdtVerify.Security.effect_local_any
+#print axioms UsdtVerify.Security.effect_any
+#print axioms UsdtVerify.Security.RunOk.eff
+#print axioms UsdtVerify.Security.RunOkS.eff
+#print axioms UsdtVerify.Security.Seq.toS
+#print axioms UsdtVerify.Security.seqS_lift
+#print axioms UsdtVerify.Security.nonOwner_call_any
+#print axioms UsdtVerify.Security.nonOwner_seqS
+#print axioms UsdtVerify.Security.owner_onlyE
+#print axioms UsdtVerify.Security.owner_only_any
+#print axioms UsdtVerify.Security.nonOwner_local_any
+#print axioms UsdtVerify.Security.paused_call_any
+#print axioms UsdtVerify.Security.paused_seqS
+#print axioms UsdtVerify.Security.listed_call_any
+#print axioms UsdtVerify.Security.listed_seqS
+#print axioms UsdtVerify.Security.allowKept_call_any
+#print axioms UsdtVerify.Security.allowKept_seqS
+#print axioms UsdtVerify.Security.transferFrom_boundE
+#print axioms UsdtVerify.Security.transferFrom_bound_any
+#print axioms UsdtVerify.Security.supply_call_any
+#print axioms UsdtVerify.Security.supply_seqS
+#print axioms UsdtVerify.Security.runOkS_process
+#print axioms UsdtVerify.Security.process_stepSec

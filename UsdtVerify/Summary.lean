@@ -543,6 +543,12 @@ gas left and the reservoir at the end add up to `gas + reservoir - cost`.
 (Usdt/Invariant/SeqMeter.lean): the invariant over `processMessage` runs over `StateGasMeter`,
 from Paris, not deprecated, with no hypothesis on the reservoir, on refills or on the gas of the
 transaction.
+Round 37 (Usdt/Security/): the security properties over `StateGasMeter`, not deprecated, any
+reservoir, refills allowed: `Security.nonOwner_call_any`, `paused_call_any`, `listed_call_any`,
+`allowKept_call_any`, `transferFrom_bound_any`, `supply_call_any`, `owner_only_any`, and over
+sequences of calls over `Nat` or `StateGasMeter` (`SeqS`): `nonOwner_seqS`, `paused_seqS`,
+`listed_seqS`, `allowKept_seqS`, `supply_seqS`. `Security.process_stepSec`: the steps from
+`processMessage` over `StateGasMeter`.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

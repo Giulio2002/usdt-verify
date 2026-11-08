@@ -24,6 +24,10 @@ Deprecated or not (round 23): `allowKept_call_all` and `allowKept_seq_all`, when
 the runner assumption `KeepsAllow` (a call to the upgraded address keeps every slot of `allowed`
 of `C`). transferFrom and approve forward when deprecated, so `transferFrom_bound` has no
 deprecated form.
+
+Over the EIP-8037 meter (round 37), not deprecated, any reservoir, refills allowed:
+`allowKept_call_any`, `transferFrom_bound_any`, `allowKept_seqS`. The `_seqS` forms take a `SeqS`
+(calls over `Nat` or `StateGasMeter`); the `Seq` forms are proved from them.
 -/
 
 namespace UsdtVerify.Security
@@ -99,20 +103,28 @@ theorem allowKept_call {y z : U256} (K : SecSep (y :: z :: callKeys message stat
     (hok : s.error = none) : AllowKeptAt y z message.currentTarget state s.state :=
   (effect_call hfork hsize' hdep h7 h8 start within hrun hok).allowKept K hsel
 
-/-- **transferFrom stays within the allowance.** From Berlin (Glamsterdam included), a fresh frame
-of `CODE` at pc 0, static or not, any call data below 2^256 bytes, any value, any gas, any gas
-bound and any message runner; not deprecated; under `SepOn` of the call's keys. For `transferFrom(f, t, v)`
-(`f = fromArg`, `v = valArg`), with `A = allowed[f][caller]` at the start, every run that ends
-with no error has: `A = MAX_UINT` or `v ≤ A`; `balances[f]` at the start is at most
-`balances[f]` at the end plus `v`; when `A ≠ MAX_UINT` the allowance at the end plus `v` is `A`;
-when `A = MAX_UINT` the allowance at the end is `MAX_UINT`. -/
-theorem transferFrom_bound (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
+/-- `allowKept_call` over the EIP-8037 meter (round 37): for a run of the loop over
+`StateGasMeter`, any gas bound and message runner, from a frame `m` whose `toNat` is the fresh
+frame of `CODE`. No hypothesis on the reservoir, on refills or on the gas limit. -/
+theorem allowKept_call_any {y z : U256} (K : SecSep (y :: z :: callKeys message state)) (hfork : .berlin ≤ fork)
+    (hsize' : message.data.size < 2 ^ 256)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    (hsel : selector message.data ≠ 0x095ea7b3 ∧ selector message.data ≠ 0x23b872dd)
+    {runS : MessageRunner fork StateGasMeter bound} {m t : Evm fork StateGasMeter}
+    (start : At CODE message 0 [] .empty gas state substate (Meter.toNat m))
+    {within : GasMeter.gasHeld m.gas ≤ bound}
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runS m within = .ok t)
+    (hok : t.error = none) : AllowKeptAt y z message.currentTarget state t.state :=
+  (effect_any hfork hsize' hdep h7 h8 start hrun hok).allowKept K hsel
+
+/-- `transferFrom_bound` for a loop that ends with no error (`Ends`, round 37). -/
+theorem transferFrom_boundE (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x23b872dd)
     (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
     (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
-    (hok : s.error = none) :
+    (hrun : Gas.Ends fork evm s) (hok : s.error = none) :
     (storageAt state message.currentTarget (allowFrom message (fromArg message)) = MAX_UINT ∨
       (valArg message).toNat ≤
         (storageAt state message.currentTarget (allowFrom message (fromArg message))).toNat) ∧
@@ -126,7 +138,7 @@ theorem transferFrom_bound (K : SepOn (callKeys message state)) (hfork : .berlin
     (storageAt state message.currentTarget (allowFrom message (fromArg message)) = MAX_UINT →
       storageAt s.state message.currentTarget (allowFrom message (fromArg message)) = MAX_UINT) := by
   obtain ⟨-, hacc, -, -, -, -, hallow, -, hbal, hto, -, h⟩ := ok_transferFrom hfork hsize' hsel
-    hdep rfl rfl rfl rfl rfl rfl rfl rfl rfl start (Gas.Ends.run hrun) hok
+    hdep rfl rfl rfl rfl rfl rfl rfl rfl rfl start hrun hok
   have hA : allowOf (checkState state message) message (fromArg message) =
       storageAt state message.currentTarget (allowFrom message (fromArg message)) := by
     simp only [storageAt_readSlot]
@@ -201,6 +213,61 @@ theorem transferFrom_bound (K : SepOn (callKeys message state)) (hfork : .berlin
     · wchain
     · ndchain
 
+/-- **transferFrom stays within the allowance.** From Berlin (Glamsterdam included), a fresh frame
+of `CODE` at pc 0, static or not, any call data below 2^256 bytes, any value, any gas, any gas
+bound and any message runner; not deprecated; under `SepOn` of the call's keys. For `transferFrom(f, t, v)`
+(`f = fromArg`, `v = valArg`), with `A = allowed[f][caller]` at the start, every run that ends
+with no error has: `A = MAX_UINT` or `v ≤ A`; `balances[f]` at the start is at most
+`balances[f]` at the end plus `v`; when `A ≠ MAX_UINT` the allowance at the end plus `v` is `A`;
+when `A = MAX_UINT` the allowance at the end is `MAX_UINT`. -/
+theorem transferFrom_bound (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
+    (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x23b872dd)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    (start : At CODE message 0 [] .empty gas state substate evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
+    (hok : s.error = none) :
+    (storageAt state message.currentTarget (allowFrom message (fromArg message)) = MAX_UINT ∨
+      (valArg message).toNat ≤
+        (storageAt state message.currentTarget (allowFrom message (fromArg message))).toNat) ∧
+    (storageAt state message.currentTarget (recipientSlot (fromArg message))).toNat ≤
+      (storageAt s.state message.currentTarget (recipientSlot (fromArg message))).toNat +
+        (valArg message).toNat ∧
+    (storageAt state message.currentTarget (allowFrom message (fromArg message)) ≠ MAX_UINT →
+      (storageAt s.state message.currentTarget (allowFrom message (fromArg message))).toNat +
+        (valArg message).toNat =
+      (storageAt state message.currentTarget (allowFrom message (fromArg message))).toNat) ∧
+    (storageAt state message.currentTarget (allowFrom message (fromArg message)) = MAX_UINT →
+      storageAt s.state message.currentTarget (allowFrom message (fromArg message)) = MAX_UINT) :=
+  transferFrom_boundE K hfork hsize' hsel hdep start (Gas.Ends.run hrun) hok
+
+/-- `transferFrom_bound` over the EIP-8037 meter (round 37): for a run of the loop over
+`StateGasMeter`, any gas bound and message runner, from a frame `m` whose `toNat` is the fresh
+frame of `CODE`. No hypothesis on the reservoir, on refills or on the gas limit. -/
+theorem transferFrom_bound_any (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
+    (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x23b872dd)
+    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
+    {runS : MessageRunner fork StateGasMeter bound} {m t : Evm fork StateGasMeter}
+    (start : At CODE message 0 [] .empty gas state substate (Meter.toNat m))
+    {within : GasMeter.gasHeld m.gas ≤ bound}
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runS m within = .ok t)
+    (hok : t.error = none) :
+    (storageAt state message.currentTarget (allowFrom message (fromArg message)) = MAX_UINT ∨
+      (valArg message).toNat ≤
+        (storageAt state message.currentTarget (allowFrom message (fromArg message))).toNat) ∧
+    (storageAt state message.currentTarget (recipientSlot (fromArg message))).toNat ≤
+      (storageAt t.state message.currentTarget (recipientSlot (fromArg message))).toNat +
+        (valArg message).toNat ∧
+    (storageAt state message.currentTarget (allowFrom message (fromArg message)) ≠ MAX_UINT →
+      (storageAt t.state message.currentTarget (allowFrom message (fromArg message))).toNat +
+        (valArg message).toNat =
+      (storageAt state message.currentTarget (allowFrom message (fromArg message))).toNat) ∧
+    (storageAt state message.currentTarget (allowFrom message (fromArg message)) = MAX_UINT →
+      storageAt t.state message.currentTarget (allowFrom message (fromArg message)) = MAX_UINT) := by
+  obtain ⟨_, _, e, start', hE, hok', hst⟩ := ends_any hfork start hrun hok
+  rw [← hst]
+  exact transferFrom_boundE K hfork hsize' hsel hdep start' hE hok'
+
 /-- The predicate of `allowKept_seq` on each call: neither approve nor transferFrom, and, at its
 start state, not deprecated with slots 7 and 8 of `StrForm`, and `SecSep` of the call's keys and
 `y`, `z`. -/
@@ -209,20 +276,26 @@ def NoAllowFn (y z : U256) {fork : Fork} (message : Message fork) (S : State.Tra
   selector message.data ≠ 0x095ea7b3 ∧ selector message.data ≠ 0x23b872dd ∧
     Plain message.currentTarget S ∧ SecSep (y :: z :: callKeys message S)
 
-/-- **Allowances over a sequence.** Along a finite sequence of successful calls to `C` that are
-neither approve nor transferFrom (each not deprecated, with slots 7 and 8 of `StrForm`, and with
-`SecSep` of its keys and `y`, `z`, at its start state) and of `Untouched` steps, the slot of
-`allowed` keyed by `y` and `z` keeps its word. Callers may be the owner. -/
-theorem allowKept_seq {y z : U256} {C : Address} {S S' : State.TransactionState}
-    (h : Seq C (@NoAllowFn y z) S S') : AllowKeptAt y z C S S' := by
-  refine seq_lift (I := fun _ => True) (R := AllowKeptAt y z C) (fun _ => rfl)
+/-- **Allowances over a sequence.** Along a finite sequence of successful calls to `C` (over the
+meter `Nat` or over `StateGasMeter`, `SeqS`, round 37) that are neither approve nor transferFrom
+(each not deprecated, with slots 7 and 8 of `StrForm`, and with `SecSep` of its keys and `y`, `z`,
+at its start state) and of `Untouched` steps, the slot of `allowed` keyed by `y` and `z` keeps its
+word. Callers may be the owner. -/
+theorem allowKept_seqS {y z : U256} {C : Address} {S S' : State.TransactionState}
+    (h : SeqS C (@NoAllowFn y z) S S') : AllowKeptAt y z C S S' := by
+  refine seqS_lift (I := fun _ => True) (R := AllowKeptAt y z C) (fun _ => rfl)
     (fun h1 h2 => h2.trans h1) (fun hu _ => ⟨hu _, trivial⟩) ?_ h trivial
   intro S S' fork message hr hq _
   obtain ⟨ha, hf, ⟨hdep, h7, h8⟩, K⟩ := hq
-  have hC : message.currentTarget = C := by obtain ⟨_, _, _, _, _, _, _, hC, -⟩ := hr; exact hC
+  have hC : message.currentTarget = C := hr.1
   subst hC
   obtain ⟨-, he⟩ := hr.effect hdep h7 h8
   exact ⟨he.allowKept K ⟨ha, hf⟩, trivial⟩
+
+/-- `allowKept_seqS` for a `Seq` (calls over the meter `Nat`). -/
+theorem allowKept_seq {y z : U256} {C : Address} {S S' : State.TransactionState}
+    (h : Seq C (@NoAllowFn y z) S S') : AllowKeptAt y z C S S' :=
+  allowKept_seqS h.toS
 
 /-! ## Deprecated or not -/
 
