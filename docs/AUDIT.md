@@ -427,3 +427,191 @@ keccak hypotheses `SepOn` of the call, which `process_step` also takes.
   for `Inv`; `HonestBalanceAt` compares with the child's end state as documented. Apart from L1–L4
   the README and RESULTS claims compared match their statements (the README's access-control claim
   was checked only against the first audit's verdict).
+
+# Third audit (USDT-32)
+
+A third independent reviewer, who wrote none of this code, read the public README sentence by
+sentence after round 31 (head `cb14650`) and compared each factual claim with the Lean statement
+it cites (`#check` / `#print` in scratch files outside the repository, never committed). It also
+re-checked the round-31 changes (M1, `Sanity/MirrorState.lean`, `Sanity/MirrorExact.lean`) for
+vacuity, and looked for `True` hypotheses, `Nat` truncation in gas and supply statements,
+quantification over empty types and misuse of `decide +kernel`. No theorem statement or README
+sentence was changed; README replacements were sent to the main session. Every Lean command ran
+under `safe.sh -m 9G`; `lake build` exit 0, 1400 jobs.
+
+## Summary
+
+| # | Severity | Finding | Touches |
+|---|---|---|---|
+| T1 | High | Every theorem is stated for EthLib's one-counter `Nat` meter, which EthLib uses only up to BPO5. At Glamsterdam EthLib runs transactions with the EIP-8037 `StateGasMeter`. "Glamsterdam included" is not about EthLib's Glamsterdam | statements or README |
+| T2 | Medium | The runner hypotheses still range over every block and transaction environment of the forwarded message (and, for `KeepsAt`, any call data and gas). Under `processRunner`, `hans` cannot hold for an upgraded code whose success reads the block or the transaction | statements, README |
+| T3 | Low | `process_step_dep_hyps` is satisfiable only degenerately: in `S1` every deprecated destroyBlackFunds call fails its guard before the CALL, and every balance is 0 | Sanity, README |
+| T4 | Low | README: "`KeepsInvAcc` implies `KeepsInvAt`". No theorem says so, and it does not hold for every runner | README |
+| T5 | Low | Completeness gas equalities (`s.gas = gas - okCost …`) use truncated `Nat` subtraction and do not state `okCost ≤ gas` | statements (optional) |
+| T6 | Low | README: smaller overstatements (fork range of `balanceOf_mirror_sat`, `StaticCode` left out for `inv_call_all`, `depD_inv`'s `d` called "the answer", a stale `KeepsInv`) | README |
+| T7 | Info | Checked and found sound (below) | none |
+
+## T1. Glamsterdam is proved for the one-counter meter, not for EthLib's EIP-8037 meter (High)
+
+**Evidence.** Every theorem is about `Evm fork Nat`. In `inv_call`, `inv_call_all`, the `*_complete`, the
+`X_ok_iff`, `X_iff_gas` and `X_dep_*` theorems, `runner : MessageRunner fork Nat bound`.
+`goodCall_process` and `process_step` take `ended : {evm : Evm fork Nat // …}`, so their
+`processMessage` runs with `Meter := Nat`. EthLib at `fd3457dbf`:
+
+- `Execution/Evm/Machine/Frame.lean:124-143`: "The meter of every fork up to BPO5: one counter of
+  the gas left. These forks have no state gas … There is no reservoir, and nothing to refill, to
+  roll back or to commit." (`reservoir _ := 0`, `rollback gas := gas`, `chargeState` takes
+  from the one counter.)
+- `Execution/Transactions/Process.lean:435-438`: `processTransaction` runs
+  `runTransaction StateGasMeter …` when `fork ≥ .glamsterdam`, and `runTransaction Nat …` before.
+- `Execution/Evm/Gas/StateGas.lean`: the Glamsterdam meter charges state gas from a reservoir
+  first, spills the rest into execution gas, and gives the spill back on a revert
+  (`gasLeft + spill`, `reservoir := baseline`). A CALL passes on the reservoir
+  (`Call/Instructions.lean:248`, `reservoir := GasMeter.reservoir evm.gas`).
+- No file in `UsdtVerify/` mentions `StateGasMeter`. `grep -i "8037\|StateGasMeter\|reservoir" docs/*.md`
+  finds only "one-counter meter … no reservoir" (STATUS.md:924), and nothing that says EthLib
+  uses another meter at Glamsterdam.
+
+**Consequence.** At Glamsterdam the theorems are about a machine that EthLib itself does not
+run for that fork. The exact gas figures, the `X_iff_gas` thresholds, `Gas.writeMax` (223,721 from Glamsterdam) and
+the 2300 bound at a storage write all assume that a new slot's state gas comes out of the same
+counter. Under EIP-8037 it comes from the reservoir first. So a call can succeed with less execution
+gas than the stated threshold, and the gas left differs. `process_step` / `goodCall_process` "from
+Paris, Glamsterdam included" classify `processMessage … (Meter := Nat)` runs, but
+`processTransaction` at Glamsterdam never produces them. The invariant and the security properties
+at Glamsterdam are shown only for successful one-counter runs. Nothing transfers them to
+`StateGasMeter` runs. Berlin to BPO5 are not affected.
+
+**Suggested fix.** Either (a) state the fork range as Berlin ≤ fork < Glamsterdam for the
+`processMessage`-level results, and say that the Glamsterdam instances are for the one-counter
+meter, or (b) generalise the gas-independent results (invariant, security, completeness of
+effects) over `[LawfulGasMeter Meter]` and prove the gas-exact ones for `StateGasMeter` separately.
+The README sentence "All of this holds from the Berlin fork onwards, Glamsterdam included" should
+name the meter (replacement sent).
+
+## T2. The runner hypotheses range over every block and transaction environment (Medium)
+
+**Evidence.** `SendsVia` (Evm/Route.lean:134) fixes `caller`, `currentTarget`, `target`,
+`codeAddress`, `code`, `disablePrecompiles`, `data`, `value`, `depth`, `isStatic`. `CallFrom`
+fixes `msg.gas`, `caller.state`, `caller.substate`. Neither fixes `msg.blockEnv`, `msg.txEnv` or
+`msg.shouldTransferValue` (EthLib `Message`, Machine/Frame.lean:238). EthLib's CALL builds the
+child message with `blockEnv := evm.message.blockEnv`, `txEnv := evm.message.txEnv`
+(Call/Instructions.lean:258-259), and TIMESTAMP, NUMBER, ORIGIN, GASPRICE, COINBASE, CHAINID, BASEFEE
+… read `evm.message.blockEnv` / `txEnv` (Instructions/EnvironmentData.lean:70-133). Machine-checked
+in scratch (exit 0, axioms `[propext, Classical.choice, Quot.sound]`):
+
+```lean
+theorem sendsVia_callFrom_env (h1 : SendsVia message ua c r d msg) (h2 : CallFrom g st ss caller msg)
+    (b : BlockEnvironment fork) (t : TransactionEnvironment fork) :
+    SendsVia message ua c r d { msg with blockEnv := b, txEnv := t } ∧
+      CallFrom g st ss caller { msg with blockEnv := b, txEnv := t } := ⟨h1, h2⟩
+theorem sentVia_env (h : SentVia message S ua caller msg) (b t) :
+    SentVia message S ua caller { msg with blockEnv := b, txEnv := t } := h
+```
+
+`SentVia` (the set of `KeepsInvAt`, `HonestBalanceAt` and the security `KeepsAt`) also leaves the call
+data free (`SendsVia … msg.data msg`). It also leaves free the gas, the caller's substate, and every
+account field except storage and code (`SameView`).
+
+**Consequence (argued, not machine-checked).** Take `processRunner` and an upgraded code whose
+success depends on the environment, for example `TIMESTAMP PUSH1 5 JUMPI INVALID JUMPDEST STOP`.
+With the gas of the CALL fixed, the forwarded message succeeds for one timestamp and fails for
+another. Both messages are in the set of `hans`, so no `A` makes `hans` true. So `X_dep_ok_iff`,
+`X_dep_ok_iff_gas`, `X_dep_ok_iff_fails` and `X_dep_ok_or_fails` are vacuous for such a code
+under the real runner. `KeepsInvAt` and `HonestBalanceAt` likewise demand the property under every
+environment and every call data. `NoFailOn`, `hfail` and the failure disjunct concern `.error`
+results. For `processRunner` these come from the state, which `CallFrom` fixes, so the M1 fix holds
+for them in practice. STOP and `MIRROR` read no environment, so every existing instance stands.
+This is the same class of issue as finding 3 and M1, one field set further.
+
+**Suggested fix.** Add `msg.blockEnv = message.blockEnv ∧ msg.txEnv = message.txEnv` (and
+`msg.shouldTransferValue = true`) to `SendsVia`. `callStep_child_r` gets them from `finishCall`.
+For `KeepsAt`, either fix the data (`dataB` for destroyBlackFunds, the forwarded data otherwise) or
+state in the README that it is free.
+
+## T3. `S1` exercises no deprecated destroyBlackFunds forward (Low)
+
+**Evidence.** In `S1 C H` the only nonzero slot of `C` is 10. So the owner is the zero address,
+`isBlackListed[a]` is 0, and every `balances[a]` is 0 on both `C` and `UA`. Machine-checked in
+scratch (exit 0, standard axioms):
+
+```lean
+theorem S1_destroy_guard_false (b t C caller a H c)
+    (h10 : BlackList.listSlot (addrArg (mD b t C caller a).data 0) ≠ 10) :
+    ¬ DestroyDepGuard (S1 C H) (mD b t C caller a) c
+```
+
+By `dep_destroy_complete` (which concludes the listed check), no deprecated destroyBlackFunds call
+in `S1` succeeds. Every one stops before the CALL. `process_step_dep_hyps` therefore shows that
+`KeepsInvAt` and `HonestBalanceAt` can hold together, but only in a state where the branch they
+guard is never taken. `HonestBalanceAt` holds there as `0 = 0`. `balanceOf_mirror_sat` is not
+degenerate in this way: the reviewer proved its right-hand side at Pectra for every substate
+(`mirror_run_succeeds`, scratch, exit 0, standard axioms), so the run in `S1` really succeeds
+through the `MIRROR` call.
+
+**Suggested fix.** A second state with the caller as owner, `a` blacklisted, and the same nonzero
+`balances[a]` at `C` and `UA` (with `Inv` from `UniqBal`-style facts on the few slots set), and a
+proof that the destroyBlackFunds run there succeeds and ends with `Inv`.
+
+## T4. `KeepsInvAcc` does not imply `KeepsInvAt` (Low, README)
+
+README: "The earlier forms over every message, `KeepsInv` and `KeepsInvAcc`, imply it."
+`keepsInv_at` gives `KeepsInv → KeepsInvAt`. For `KeepsInvAcc` the only theorem is
+`keepsInv_of_acc : KeepsInvAcc → KeepsInvNoAcc → KeepsInv`. `KeepsInvAcc` says nothing from a caller
+state with no account of `C`, and `SameView` (storage and code only) allows such a caller state.
+So a runner that breaks `Inv` only there meets `KeepsInvAcc` and not `KeepsInvAt` (argued).
+Replacement sent.
+
+## T5. Truncated subtraction in completeness gas equalities (Low)
+
+`ok_transfer` and the other non-deprecated `ok_*` conclude `s.gas = gas - okCost …` (`Nat`) and
+do not conclude `okCost … ≤ gas`. If that bound failed, the equality would read `s.gas = 0`. The
+exactness claim holds only together with `X_iff_gas` (success gives `max cost stip ≤ gas`), and the
+README's "ends exactly as its spec says" does not say so. The deprecated `dep_*_complete` are
+fine: they conclude `preCost + 100 + R ≤ gas`, and `messageCallGas` keeps the CALL's cost within
+the gas left, so no subtraction there truncates. Hypotheses like `121 ≤ gas - preCost - cost` can
+only become stronger by truncation. The supply statements (`SupplyStep`) are additive in `Nat`,
+and `Inv` is in `Int`, so neither truncates. Suggested fix: add the `okCost ≤ gas` conjunct.
+
+## T6. Smaller README overstatements (Low)
+
+- "In it, every hypothesis of the gas-exact deprecated `balanceOf` theorem holds" leaves out
+  that `balanceOf_mirror_sat` is from Paris and before Glamsterdam, and that it is the `MIRROR`
+  instance. "Only the keccak hypothesis `SepOn` is not discharged there" also leaves out the other
+  hypotheses of `process_step` (`StrForm`, size, no precompile, static), and the T3 caveat.
+- `inv_call_all`'s static branch needs `message.code = CODE ∧ StaticCode state message ∧
+  StaticKeeps`. The README names only `StaticKeeps` there. It also says "left to `KeepsInv`",
+  but the hypothesis is now `KeepsInvAt`.
+- `depD_inv` concludes `∃ S d, … evm.state = tailState S C a d ∧ (Inv ↔ d = balance in S)`. `d` is
+  not tied to the upgraded contract's answer in this statement (the specification of the path ties
+  it). The README says "the upgraded contract's answer".
+- "Logic/NatCode.lean" is `EthLib/Execution/Proofs/Evm/Logic/NatCode.lean` (Info).
+
+## T7. Checked and found sound (Info)
+
+- Every file path the README names exists after the reorganisation into `Evm/` and `Usdt/`, and
+  every theorem or definition it names exists with the stated name (`StaticCode` is EthLib's). The
+  file names given for theorems are right (`inv_call` in Invariant/Calls.lean, `inv_call_all` in
+  Static.lean, `inv_calls` and `process_step` in Seq.lean, `inv_tail_iff` … in
+  DeprecatedDestroy.lean, `owner_only` in Access.lean).
+- Numbers: 11,075 bytes, keccak `b44fb4e9…ea55` (build output), byte 3565 is `0x5b`, 32 selectors
+  (`ENTRIES.length = 32`), 19 read functions, 13 writing functions, 10 owner functions, 7 forwards,
+  fallback 773 and 46 gas with `773 ≤ gas` / `46 ≤ gas`, nonpayable revert at `87 + 22 (i+1)` gas,
+  `MIRROR` 25 bytes, `StrForm` long form below 2^180, the 2300 bound (`sstore_low_stuck`, from Istanbul),
+  `X_iff_gas` threshold `max cost stip`.
+- `SepOn`: every field compares one given slot with the 2^160 balance slots or with the 11 fixed
+  slots, as the README says. The 2^-96 is per key. For keys an adversary chooses, a violation is a
+  two-function keccak collision, about 2^128 work. That is consistent with the README.
+- No `sorry`, `axiom`, `native_decide`, `bv_decide`, `admit`, `implemented_by`, `extern`, `unsafe` or
+  `partial def` in `UsdtVerify/`. The build reports 833 `#print axioms` lines: 827 with a subset of
+  `[propext, Classical.choice, Quot.sound]`, 6 with none, 0 with `sorryAx`. All 35 `decide +kernel`
+  are on closed goals (exp constants, selector bytes, sizes, the jumpdest walk, string bytes).
+- No hypothesis of a main theorem is `True`. The `True` occurrences are `A = True` in Sanity
+  instances and `I := fun _ => True` in sequence lifts. `BlockEnvironment fork` and
+  `TransactionEnvironment fork` are inhabited (their fork-dependent fields are `Since`, a function
+  type), so the Sanity `∀ b t, ∃ …` are not vacuous. `exists_hash` gives a hash for `S1`.
+- Round 31 M1: `NoFailOn`, `hfail` and the failure disjunct now carry `CallFrom` (state, substate,
+  gas). Apart from T2 they are asked of the frame and gas at the CALL. `balanceOf_mirror_sat`'s
+  hypotheses are jointly satisfiable, and its success side holds (T3).
+- Measurement caveat (Info): the 1.8 GB in the README is the `max RSS` from `/usr/bin/time -l`,
+  the largest single process, not the sum over parallel jobs.
