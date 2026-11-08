@@ -366,6 +366,27 @@ top-level `processMessage` of `CODE` with no precompile, under the hypotheses of
 None
 has an alias here, since Invariant imports this file.
 
+## Security properties (Usdt/Security/, round 22; they import this file)
+Over every successful run of a fresh frame of `CODE`, from Berlin (Glamsterdam included), static
+or not, any call data below 2^256 bytes, any value, any gas, bound and runner, not deprecated
+(`hdep`), slots 7 and 8 of `StrForm` (`h7`, `h8`; not taken by `transferFrom_bound`):
+`Security.effect_call` classifies the end state (`Effect`). Under `KeccakSep`, and `AllowSep`
+where named (a slot of `allowed` is none of the slots 0..10 and no slot of `isBlackListed`;
+not proved):
+`Security.nonOwner_call` (a caller other than the owner, the low 160 bits of slot 0, changes only
+slots of `balances` and `allowed`; slots 0, 1, 3, 4, 10 and the blacklist slots keep their words;
+`AllowSep`), `Security.paused_call` (when paused, every balance keeps its word, or it is the
+owner's issue, redeem or destroyBlackFunds), `Security.listed_call` (a blacklisted address word's
+balance does not decrease, except by the owner's redeem or destroyBlackFunds),
+`Security.transferFrom_bound` (`v ≤ A` unless `A = MAX_UINT`; `balances[_from]` falls by at most
+`v`; the allowance becomes `A - v`, or stays `MAX_UINT`), `Security.allowKept_call` (only approve
+and transferFrom change a slot of `allowed`; `AllowSep`), `Security.supply_call` (slot 1 changes
+only by the owner's issue `+ v`, redeem `- v`, destroyBlackFunds `- balances[a]`, unchecked).
+Over sequences (`Security.Seq`, with `Untouched` steps): `nonOwner_seq`, `paused_seq`,
+`listed_seq` (calls by callers other than the owner; the start state not deprecated, with
+`StrForm`), `allowKept_seq`, `supply_seq` (calls of the other functions, each not deprecated with
+`StrForm` at its start). See docs/RESULTS.md for the exact statements.
+
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas
 bound and any message runner: if the loop of the interpreter ends with no error, then the call

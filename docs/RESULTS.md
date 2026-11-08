@@ -491,6 +491,67 @@ allowance, approve, transfer, transferFrom) make one call, from a caller state w
 storage of `C`, and end in exactly the child's end state: nothing is written locally after the
 call. destroyBlackFunds ends in `tailState S C a d` over the child's end state `S`.
 
+## Security properties (round 22)
+
+`UsdtVerify/Usdt/Security/`. Each theorem is about one run of the deployed code from Berlin on
+(Glamsterdam included): a fresh frame of the code at pc 0, any call data below 2^256 bytes, any
+value, any gas, any gas bound and any message runner, static or not, that ends with no error.
+Each takes "not deprecated" (`hdep`: byte 20 of slot 10 is 0) and, except `transferFrom_bound`,
+slots 7 and 8 of `StrForm` (`h7`, `h8`; the completeness proofs of name() and symbol() use them).
+The keccak hypotheses are `KeccakSep` (as for the invariant) and, where named, `AllowSep` (new,
+not proved: a slot of `allowed` is none of the slots 0..10 and no slot of `isBlackListed`).
+The owner is the low 160 bits of slot 0; the caller is compared with it masked to 160 bits, as
+the code does.
+
+- `effect_call` (Effect.lean): every such run ends in a state described by one case of `Effect`,
+  built from the completeness theorems: no slot changed; transfer or transferFrom (fee 0 or not)
+  with the checks the run passed (not paused, the sender, or `_from`, not blacklisted, the
+  allowance check) and its end state; approve (only `allowed[caller][spender]` may change); an
+  owner function that writes only slots 0, 3, 4, 10 and slots of `isBlackListed`; issue, redeem,
+  destroyBlackFunds by the owner, with their end states.
+- Access control, `nonOwner_call` (Access.lean): if the caller is not the owner, only slots of
+  `balances` and of `allowed` change. Under `KeccakSep` and `AllowSep`, slots 0 (owner, `paused`),
+  1 (`_totalSupply`), 3, 4, 10 (`upgradedAddress`, `deprecated`) and every slot of
+  `isBlackListed` keep their words.
+- Pause, `paused_call` (Pause.lean): from a paused state (byte 20 of slot 0 not 0), under
+  `KeccakSep`, every balance keeps its word, or the caller is the owner and the function is
+  issue, redeem or destroyBlackFunds.
+- Blacklist, `listed_call` (Blacklist.lean): for an address word `a < 2^160` whose
+  `isBlackListed` low byte is not 0 at the start, under `KeccakSep`, `balances[a]` is not lower
+  at the end, unless the run is the owner's redeem or destroyBlackFunds (`hsel`). This covers
+  transfer by `a` and transferFrom with `_from = a`.
+- Allowances (Allowance.lean): `transferFrom_bound` (under `KeccakSep`): with `A` the allowance
+  `allowed[_from][caller]` at the start, `A = MAX_UINT` or `v ≤ A`; `balances[_from]` at the
+  start is at most `balances[_from]` at the end plus `v`; if `A ≠ MAX_UINT` the allowance at the
+  end plus `v` is `A`; if `A = MAX_UINT` the allowance stays `MAX_UINT`. `allowKept_call` (under
+  `KeccakSep` and `AllowSep`): when the selector is neither approve nor transferFrom, every slot of
+  `allowed` keeps its word.
+- Supply, `supply_call` (Supply.lean, under `KeccakSep`): slot 1 keeps its word, or the owner
+  called issue (slot 1 becomes `T + v` as numbers), redeem (`T - v` as numbers) or
+  destroyBlackFunds (`T - balances[a]` as a 256-bit subtraction, unchecked in the code), with `T`
+  and `balances[a]` read at the start.
+
+Over sequences: `Seq C Q S S'` is a finite sequence of successful runs of the code for messages
+to `C` (each as above, with the predicate `Q` on its message and start state) and of `Untouched`
+steps (any change that keeps every storage word of `C`); `seq_lift` lifts a reflexive and
+transitive relation with an invariant to it.
+- `nonOwner_seq`, `paused_seq`, `listed_seq` (`Q`: the caller is not the owner of that call's
+  start state): from a state that is not deprecated with slots 7 and 8 of `StrForm` (and paused,
+  for `paused_seq`; with `a` blacklisted, for `listed_seq`), under `KeccakSep` and `AllowSep`:
+  only slots of `balances` and `allowed` change and the `Protected` slots keep their words; every
+  balance keeps its word; `balances[a]` is not lower at the end. Not deprecated, `StrForm`, the
+  flags and the owner are kept along the sequence, so they are needed only at the start.
+- `allowKept_seq` (`Q`: neither approve nor transferFrom, not deprecated and `StrForm` at that
+  call's start state; any caller): every slot of `allowed` keeps its word. Under `KeccakSep` and
+  `AllowSep`.
+- `supply_seq` (`Q`: none of issue, redeem, destroyBlackFunds, not deprecated and `StrForm` at that
+  call's start state; any caller): slot 1 keeps its word. Under `KeccakSep`.
+
+Not covered by these theorems: deprecated calls (the forwarding functions end in the state the
+upgraded contract's call left, which is the runner's), and runs that are not a fresh frame of
+the code (a call through another contract is covered only as a run of the code, not as part of
+the outer transaction).
+
 ## What is trusted
 
 - The Lean 4 kernel (v4.35.0).
@@ -514,7 +575,11 @@ call. destroyBlackFunds ends in `tailState S C a d` over the child's end state `
 - The invariant over deprecated calls without the runner assumptions `KeepsInv` and
   `HonestBalance` (destroyBlackFunds can break it, see above). No concrete upgraded contract is
   shown to meet them.
-- `KeccakSep` (a hypothesis of the invariant theorems, about keccak).
+- `KeccakSep` (a hypothesis of the invariant theorems, about keccak) and `AllowSep` (a hypothesis
+  of some security theorems, about keccak).
+- The security theorems of round 22 for deprecated calls.
+- A theorem that neither `KeepsInv` nor `KeepsInvAcc` implies the other (it holds by the
+  definitions; it is not stated).
 - Runs that run out of gas below the stated bounds, except at the dispatcher (see above).
 - Forks before Berlin. Glamsterdam rests on EthLib's model of that fork at the pin (its prices
   and the order of its checks).

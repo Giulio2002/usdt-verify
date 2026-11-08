@@ -1,3 +1,8 @@
+import UsdtVerify.Usdt.Security.Supply
+import UsdtVerify.Usdt.Security.Allowance
+import UsdtVerify.Usdt.Security.Blacklist
+import UsdtVerify.Usdt.Security.Pause
+import UsdtVerify.Usdt.Security.Access
 import UsdtVerify.Usdt.Complete.Deprecated.Allowance
 import UsdtVerify.Usdt.Complete.Deprecated.Destroy
 import UsdtVerify.Usdt.Invariant.All
@@ -451,3 +456,21 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.TransferOk.bad_transfer
 #print axioms UsdtVerify.TransferFrom.bad_allowF
 #print axioms UsdtVerify.TransferFrom.bad_transferFrom
+#print axioms UsdtVerify.Security.effect_call
+#print axioms UsdtVerify.Security.seq_lift
+#print axioms UsdtVerify.Security.Effect.nonOwner
+#print axioms UsdtVerify.Security.nonOwner_call
+#print axioms UsdtVerify.Security.nonOwner_seq
+#print axioms UsdtVerify.Security.Effect.paused
+#print axioms UsdtVerify.Security.paused_call
+#print axioms UsdtVerify.Security.paused_seq
+#print axioms UsdtVerify.Security.Effect.listed
+#print axioms UsdtVerify.Security.listed_call
+#print axioms UsdtVerify.Security.listed_seq
+#print axioms UsdtVerify.Security.Effect.allowKept
+#print axioms UsdtVerify.Security.allowKept_call
+#print axioms UsdtVerify.Security.transferFrom_bound
+#print axioms UsdtVerify.Security.allowKept_seq
+#print axioms UsdtVerify.Security.Effect.supply
+#print axioms UsdtVerify.Security.supply_call
+#print axioms UsdtVerify.Security.supply_seq

@@ -1105,7 +1105,36 @@ entry; `DESTS` = the 32 destinations).
   forwarding functions and for the start state (All.lean, RESULTS, round 20 above); "neither
   form implies the other" is by the definitions, not a theorem.
 
+### Round 22: security properties (Usdt/Security/, Evm/Frame.lean; docs/RESULTS.md "Security properties")
+- `Evm/Frame.lean` (generic): `Writes C W S S'` (every slot of `C` outside `W` keeps its word)
+  and `NoDec C k S S'` (slot `k` does not decrease), with read/write/transitivity lemmas.
+- `Security/Effect.lean`: `Effect` (one case per kind of successful call, from the `ok_X`
+  completeness theorems) and `effect_call` (every successful run, not deprecated, slots 7 and 8 of
+  `StrForm`, static or not, any call data below 2^256 bytes, value, gas, bound, runner); the slot
+  classes `BalSlot`, `AllowSlot`, `ListSlot`, `OwnW`; the new keccak hypothesis `AllowSep` (a slot of
+  `allowed` is none of the slots 0..10 and no slot of `isBlackListed`; not proved); `RunOk`,
+  `Seq C Q` (successful runs meeting `Q`, and `Untouched` steps) and `seq_lift`.
+- Access control (`Access.lean`): `Effect.nonOwner`, `nonOwner_call`, `nonOwner_seq`.
+- Pause (`Pause.lean`): `Effect.paused`, `paused_call`, `paused_seq`.
+- Blacklist (`Blacklist.lean`): `Effect.listed`, `listed_call`, `listed_seq`.
+- Allowances (`Allowance.lean`): `transferFrom_bound`, `Effect.allowKept`, `allowKept_call`,
+  `allowKept_seq`.
+- Supply (`Supply.lean`): `Effect.supply`, `supply_call`, `supply_seq`.
+- What each states: docs/RESULTS.md, section "Security properties (round 22)".
+- Not done: the deprecated paths in these theorems (each single-call theorem takes `hdep`); the
+  theorem that neither `KeepsInv` nor `KeepsInvAcc` implies the other.
+- `lake build UsdtVerify` (incremental, after each of the five commits and after the docs):
+  exit 0, 0 "error:" lines, 1374 jobs at the end; `#print axioms`: 18 new lines, each [propext,
+  Classical.choice, Quot.sound]; in all 416 [propext, Classical.choice, Quot.sound], 4 [propext,
+  Quot.sound], 5 [propext], 1 with none. grep of the new files for sorry, admit, axiom,
+  native_decide, bv_decide, decide +native, maxHeartbeats: none. No clean rebuild in this round.
+
 ## Open (not proved)
+- Security properties when deprecated: the round-22 theorems take `hdep` (not deprecated). When
+  deprecated, the forwarding functions end in the state the runner's child left; a statement
+  would need a runner assumption, as `KeepsInv` for the invariant.
+- `AllowSep`, like `KeccakSep`, is a hypothesis about keccak, not proved.
+- A theorem that neither `KeepsInv` nor `KeepsInvAcc` implies the other (by the definitions only).
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
   transfer (round 12), approve, transferFrom, the ten owner functions (round 13), not deprecated
   where the function reads the flag, and every getter and name/symbol (round 13, name/symbol

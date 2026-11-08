@@ -61,6 +61,7 @@ When USDT is deprecated, it forwards each call to an upgraded contract. Those pa
 - `UsdtVerify/Usdt/Proofs/` holds the block by block proofs, one file per function.
 - `UsdtVerify/Usdt/Complete/` holds the completeness theorems.
 - `UsdtVerify/Usdt/Invariant/` holds the supply invariant.
+- `UsdtVerify/Usdt/Security/` holds the access control, pause, blacklist, allowance and supply properties.
 - `UsdtVerify/Summary.lean` indexes the main theorems.
 
 `docs/LAYOUT.md` describes each folder and maps the old paths to the new ones.
@@ -137,6 +138,18 @@ The six other forwarding functions write nothing locally after the forwarded cal
 
 `inv_calls` in `UsdtVerify/Usdt/Invariant/Seq.lean` lifts the invariant to any finite sequence of steps. A step is either a successful call that meets the hypotheses of `inv_call_all`, each with its own fork, message and runner, or a step that leaves every storage word of USDT unchanged. `goodCall_process` shows that a successful top-level message to USDT with no value, from Paris, is such a call. A failed call is proved to leave every storage word unchanged after the rollback (`untouched_process_failed`), using a general lemma proved here from EthLib's semantics: every step keeps the parent block of the state. A top-level call to USDT with a nonzero value always fails (`process_value_fails`). So `process_step` shows that every top-level message to USDT, from Paris, is one of the two kinds of step, with no assumption about failed calls.
 
+## Security properties
+
+`UsdtVerify/Usdt/Security/` proves five whole-contract properties, for one successful call with any call data, value and gas, and for sequences of calls. They hold from Berlin, Glamsterdam included, for static and non-static frames, when the contract is not deprecated.
+
+- **Access control** (`Access.lean`). A caller who is not the owner changes only balance and allowance slots. The owner, the paused and deprecated flags, the fee settings, the upgraded address, the blacklist and the total supply keep their values.
+- **Pause** (`Pause.lean`). While paused, every balance stays the same, unless the call is the owner's `issue`, `redeem` or `destroyBlackFunds`.
+- **Blacklist** (`Blacklist.lean`). A blacklisted address's balance never decreases, except through the owner's `redeem` or `destroyBlackFunds`. So it cannot send tokens, directly or through `transferFrom`.
+- **Allowances** (`Allowance.lean`). `transferFrom` moves at most the allowance, unless the allowance is `2^256 - 1`. Only `approve` and `transferFrom` change an allowance.
+- **Supply** (`Supply.lean`). The total supply changes only through `issue` (+v), `redeem` (-v) and `destroyBlackFunds` (minus the destroyed balance).
+
+Besides `KeccakSep`, some of these use a second hypothesis about keccak, `AllowSep`: an allowance slot is never one of the fixed slots or a blacklist slot. The deprecated case is not covered.
+
 ## What you have to trust
 
 - The Lean 4 kernel.
@@ -150,7 +163,7 @@ A few general opcode rules are proved locally in `UsdtVerify/Evm/Local/` while t
 ## What is not covered yet
 
 - Forks before Berlin.
-- `KeccakSep` is a hypothesis about keccak, not a theorem.
+- `KeccakSep` and `AllowSep` are hypotheses about keccak, not theorems.
 - `KeepsInv` and `HonestBalance` are not shown to hold for any real upgraded contract. They say what the upgraded contract must do.
 - Slot words for `name` and `symbol` in a form Solidity never writes.
 - The individual path specs still state exact gas bounds. Completeness and the invariant hold for any gas.

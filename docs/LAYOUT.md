@@ -6,6 +6,7 @@ Where to look:
 - The block-by-block proofs behind it: `UsdtVerify/Usdt/Proofs/<Function>.lean`.
 - That the specification covers every successful run (any gas): `UsdtVerify/Usdt/Complete/`.
 - The supply invariant: `UsdtVerify/Usdt/Invariant/`.
+- The security properties (access control, pause, blacklist, allowances, supply): `UsdtVerify/Usdt/Security/`.
 - Lemmas about the EVM that hold for every code: `UsdtVerify/Evm/`.
 - One index of the main theorems, with aliases: `UsdtVerify/Summary.lean`.
 
@@ -19,6 +20,7 @@ No file there imports a file outside `Evm/`.
 - `Storage.lean`, `Write.lean`: slots, reads and writes (`storageAt`, `readSlot`, `writeSlot`, `mapSlot`, `byte20`).
 - `Calldata.lean`: the selector and the argument words of the call data.
 - `Steps.lean`: `repc`, `restate`, `slotCost` and the tactics `gas_ok`, `stk_ok`, `step`, `at_pc`.
+- `Frame.lean`: which slots a change of state may write (`Writes`), and a slot that does not decrease (`NoDec`).
 - `MemRev.lean`: a read across two adjacent memory writes made in reverse order.
 - `Exact.lean`, `Split.lean`: from a specification over `StepG` to every successful run of the interpreter loop.
 - `Route.lean`, `Call.lean`: the route of a CALL (EIP-7702 delegation included), and the EXTCODESIZE, GAS, SUB and CALL steps for any gas and any runner.
@@ -36,6 +38,8 @@ No file there imports a file outside `Evm/`.
   No file in `Proofs/` imports a file in `Spec/`.
 - `Complete/`: completeness, every successful run with any gas follows the specification; `Complete/Deprecated/` for the deprecated paths.
 - `Invariant/`: `Supply.lean` (the invariant and its effects), `Calls.lean` (every successful call, not deprecated), `DeprecatedDestroy.lean`, `All.lean` (deprecated or not), `Static.lean` (static frames), `Seq.lean` (a finite sequence of calls).
+
+- `Security/`: `Effect.lean` (what every successful call, not deprecated, does to the storage: `Effect`, `effect_call`; the slot classes; `AllowSep`; sequences `Seq` and `seq_lift`), `Access.lean` (access control), `Pause.lean` (no balance moves while paused), `Blacklist.lean` (a blacklisted address cannot lower its balance), `Allowance.lean` (transferFrom within the allowance; only approve and transferFrom change allowances), `Supply.lean` (`_totalSupply` changes only through issue, redeem and destroyBlackFunds).
 
 `UsdtVerify/Test/`: `Hash.lean` (the build checks that `CODE` is the bytes of `data/usdt.runtime.hex` with the recorded keccak256) and `Axioms.lean` (`#print axioms` of the main theorems).
 

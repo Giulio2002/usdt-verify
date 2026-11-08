@@ -1,6 +1,7 @@
 import UsdtVerify.Evm.Call
 import UsdtVerify.Evm.Calldata
 import UsdtVerify.Evm.Exact
+import UsdtVerify.Evm.Frame
 import UsdtVerify.Evm.Gas
 import UsdtVerify.Evm.GasRules
 import UsdtVerify.Evm.Local.Extcodesize
@@ -73,3 +74,8 @@ import UsdtVerify.Usdt.Steps
 import UsdtVerify.Summary
 import UsdtVerify.Test.Axioms
 import UsdtVerify.Test.Hash
+import UsdtVerify.Usdt.Security.Access
+import UsdtVerify.Usdt.Security.Pause
+import UsdtVerify.Usdt.Security.Blacklist
+import UsdtVerify.Usdt.Security.Allowance
+import UsdtVerify.Usdt.Security.Supply
