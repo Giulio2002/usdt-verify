@@ -15,7 +15,7 @@ the folders are described in `docs/LAYOUT.md`.
   one-counter gas meter (`Nat`). EthLib itself runs transactions with that meter up to BPO5. From
   Glamsterdam it runs them with the EIP-8037 meter `StateGasMeter` (docs/AUDIT.md, third audit,
   T1). So the Glamsterdam instances below are about the one-counter meter at that fork's prices,
-  except the round-34 results of "The EIP-8037 meter" below. Forks: Berlin onwards, Glamsterdam included. Since round 17 the paths
+  except the results of the sections "The EIP-8037 meter" (rounds 34 to 36) below. Forks: Berlin onwards, Glamsterdam included. Since round 17 the paths
   that write storage hold at Glamsterdam (each SSTORE costs `writeCost`, EthLib's `sstoreCost`
   plus its state gas of a new slot). Since round 19 the paths that make a call (deprecated) hold
   there too: EXTCODESIZE costs `extCost fork` (EthLib's `externalBaseCost`: 2600 cold / 100 warm
@@ -1100,11 +1100,10 @@ ends with no error and the contract has an account in its end state".
 - Forks before Berlin. Glamsterdam rests on EthLib's model of that fork at the pin (its prices
   and the order of its checks).
 - Runs under EthLib's EIP-8037 meter `StateGasMeter`, which EthLib's `processTransaction` uses
-  from Glamsterdam, beyond the results of rounds 34 and 35 below: the deprecated paths (their
-  CALL); the gas of a run with a reservoir other than 0 or with a refill; the exact success
-  condition for the functions other than approve, and for transfer with a fee, and for
-  transferFrom; `process_step` and `goodCall_process` at Glamsterdam. See docs/STATUS.md (rounds
-  33 to 35).
+  from Glamsterdam, beyond the results of rounds 34 to 36 below: the deprecated paths (their
+  CALL); the split of the gas between the execution gas left and the reservoir at a reservoir
+  other than 0; the gas of a run with a refill (only a lower bound, `Shadow.gas_ge_any`); the
+  security properties. See docs/STATUS.md (rounds 33 to 36).
 
 ## The EIP-8037 meter (round 34; UsdtVerify/Evm/Meter.lean, UsdtVerify/Usdt/Meter.lean)
 
@@ -1169,7 +1168,41 @@ ends with no error and the contract has an account in its end state".
   when the write of the sender's balance refills nothing (`hnrD`; it refills exactly when that slot
   was 0 at the start of the transaction, is not 0 at the call, and `v` is the whole balance). The
   write of the recipient's balance adds without overflow, so it never refills.
-- Not covered: transfer with a fee above 0 and transferFrom in the exact form (their success paths
-  are not lifted to `StepI`), the gas of a run with a reservoir other than 0 or with a refill, the
-  deprecated paths, `process_step` and `goodCall_process` over `StateGasMeter`.
+- Not covered by round 35 (round 36 below covers the first, third and fourth): transfer with a fee
+  above 0 and transferFrom in the exact form, the gas of a run with a reservoir other than 0 or
+  with a refill, the deprecated paths, `process_step` and `goodCall_process` over
+  `StateGasMeter`.
+
+## The EIP-8037 meter, round 36 (Usdt/Refill/, Usdt/MeterIff.lean, Usdt/MeterOwner.lean, Usdt/MeterGas.lean, Usdt/Invariant/SeqMeter.lean, Evm/Refill.lean, Evm/Shadow.lean, Evm/ProcessMeter.lean)
+
+From a frame `m` whose `toNat` is the fresh frame of `CODE` with `gas` execution gas, for any gas
+bound and message runner, not deprecated, from Berlin:
+
+- Exact success condition, reservoir 0. For the 13 writing functions (transfer with any fee,
+  transferFrom on all paths, approve, and the ten owner functions), `X_iff_gas_sgm`: the run over
+  `StateGasMeter` ends with no error if and only if the guard of `Usdt/Spec/Guards.lean` holds and
+  the gas is at least the bound of `X_iff_gas`. `X_ok_sgm`: then the execution gas left is
+  `gas - cost`. Refill hypotheses, each on the start state, one per write that can refill:
+  approve `hnr`; transfer `hnrD`; transferFrom `hnrA` (only when the allowance is not
+  `MAX_UINT`) and `hnrD`; unpause `hnr`; removeBlackList `hnr`; issue `hnrT`; redeem `hnrT`,
+  `hnrO`; setParams `hnr3`, `hnr4`; destroyBlackFunds `hnrB`, `hnrT`; none for pause,
+  addBlackList, deprecate, transferOwnership. A write of a word that is not 0 never refills
+  (`refill_of_ne`), nor does an addition with no overflow (`refill_add`).
+- The gas at any reservoir. `X_gas_any` (Usdt/MeterGas.lean), same 13 functions, same
+  hypotheses: a run over `StateGasMeter` that ends with no error has
+  `s.gas.gasLeft + s.gas.reservoir + cost = gas + m.gas.reservoir`. `Shadow.gas_ge_any`: for a path
+  given as a triple over `StepG`, with no refill hypothesis, `gas + reservoir ≤ s.gas.gasLeft +
+  s.gas.reservoir + cost`.
+- The invariant over `StateGasMeter`, any reservoir, refills allowed, no bound on the gas of the
+  transaction. `inv_call_any`; `GoodCallS`, `CallsS` (steps over `Nat`, steps over
+  `StateGasMeter`, `Untouched` steps), `inv_callsS`; `goodCall_processS`, `process_value_failsS`,
+  `process_stepS`: from Paris, every top-level message to `C` with code `CODE`, no precompile,
+  not deprecated, that EthLib's `processMessage` over `StateGasMeter` ends, is a `GoodCallS` or
+  an `Untouched` step. These carry the keccak hypothesis `SepOn (callKeys message S)` and `StrForm`
+  of slots 7 and 8, as `goodCall_process`.
+- Generic: `Refill.HoareG.toIW'`, `HoareG.toI1`, `SpecG.toIW'`, `SpecG.toIS` (lifts of a stretch
+  or a whole path that changes one word); `Shadow.runsOk_of_specI` (a run over `StateGasMeter`
+  with no error gives a run of the meter `Nat` with no error from `toNat m`, any runner);
+  `Shadow.shadow_runQ`, `gas_ge_any`, `gas_eq_any`; `ProcessMeter.processMessage_map_valM` and
+  `processMessage_map_val_valueM` (EthLib's lemmas over any lawful meter).
 

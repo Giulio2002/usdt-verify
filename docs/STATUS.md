@@ -1674,16 +1674,58 @@ T1 (third audit), continued.
   `StepI`, so their exact forms; `process_step` / `goodCall_process` over `StateGasMeter`; the gas
   of a run with a reservoir other than 0.
 
+### Round 36: every writing function over the EIP-8037 meter, the gas at any reservoir, process_step (Evm/Refill.lean, Evm/Shadow.lean, Evm/ProcessMeter.lean, Usdt/Refill/, Usdt/MeterIff.lean, Usdt/MeterOwner.lean, Usdt/MeterGas.lean, Usdt/Invariant/SeqMeter.lean)
+
+T1 (third audit), continued.
+- Evm/Refill.lean: `HoareG.toIW'` (one write over a state that reads as the start; `toIW` is now
+  its instance), `HoareG.toI1` (any stretch whose ends differ at one word, through
+  `noRefill_one`), `SpecG.toIW'`, `SpecG.toIS` (a whole path to a halt), `getStorage_writeSlot_ne`,
+  `writeCost_le_of_no_create`, `writeCost_le_max`, `exponentBytes_le`.
+- Usdt/Refill/Fee.lean: transfer with a fee above 0 over `StepI` (`feeHeadI`, `ownerPartI`,
+  `bodyFeeI`, `spec_feeI`). The credit and the owner's credit add without overflow
+  (`refill_add`); the debit keeps `hnrD`. `transfer_specI`, `transfer_ok_sgm`,
+  `transfer_iff_gas_sgm` no longer take `hfee`.
+- Usdt/Refill/TransferFrom.lean: `allowStepI` (the allowance write only when `A ≠ MAX_UINT`,
+  `hnrA`), `bodyFI`, `spec_okFI`, `headFI`, `ownerPartFI`, `bodyFeeFI`, `spec_feeFI`.
+  Usdt/MeterIff.lean: `transferFrom_specI`, `transferFrom_ok_sgm`, `transferFrom_iff_gas_sgm`
+  (`hnrA`, `hnrD`; `balances[_from]` is read after the allowance step, as in `TransferFromGuard`).
+- Evm/Shadow.lean: `simAt_low`, `runFrame_of_reachesN`, `runsOk_of_specI`: a run over
+  `StateGasMeter` with no error, together with a triple over `StepI` from a frame with more gas,
+  gives a run of the meter `Nat` with no error from `toNat m`, for any runner. The converse of
+  each `X_iff_gas_sgm` of round 36 uses it with the Nat `X_iff_gas`.
+- Usdt/MeterOwner.lean: `X_specI`, `X_ok_sgm`, `X_iff_gas_sgm` for pause, unpause, addBlackList,
+  removeBlackList, deprecate, transferOwnership (through `SpecG.toIW'` / `SpecG.toIS` on the
+  whole path), issue, redeem, setParams, destroyBlackFunds (Usdt/Refill/Owner.lean: split at the
+  point between the two writes). Refill hypotheses: none for pause, addBlackList, deprecate,
+  transferOwnership (every word written is proved not 0: `withPaused_one_ne`, `setLow_one_ne`,
+  `depWord_ne`, `withAddr_ne`); `hnr` for unpause and removeBlackList; `hnrT` for issue (the
+  owner's credit adds without overflow; `_totalSupply` is read after it, and the two slots may
+  be the same); `hnrT`, `hnrO` for redeem; `hnr3`, `hnr4` for setParams; `hnrB`, `hnrT` for
+  destroyBlackFunds.
+- Evm/Shadow.lean: `shadow_step` also states `n'.gas + Q m ≤ n.gas + Q m'` (`Q` = execution gas
+  left + reservoir), with equality when the frame refills nothing; `shadow_runQ` carries it over a
+  run; `gas_ge_any` (a lower bound from a triple over `StepG`, refills allowed) and `gas_eq_any`
+  (the equality from a triple over `StepI`). Usdt/MeterGas.lean: `X_gas_any` for the 13 writing
+  functions, any reservoir: `s.gas.gasLeft + s.gas.reservoir + cost = gas + m.gas.reservoir`.
+- Evm/ProcessMeter.lean: EthLib's `processMessage_map_val` and `processMessage_map_val_value`
+  restated for any lawful meter, with the same proofs; `at_startFrameS`.
+  Usdt/Invariant/SeqMeter.lean: `inv_call_any` (any reservoir, refills allowed, through
+  `shadow_ends`), `GoodCallS`, `CallsS`, `inv_callsS`, `goodCall_processS`,
+  `process_value_failsS`, `process_stepS` (from Paris, not deprecated). The bound of 2^24 on the
+  gas of the transaction (`allocateGas_reservoir`) is not needed for them.
+- Not done: the deprecated paths over `StateGasMeter`; the split of the gas at the end between the
+  execution gas left and the reservoir at a reservoir other than 0; the gas of a run with a
+  refill (only `gas_ge_any`); the security properties over `StateGasMeter`.
+
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
-  Glamsterdam (third audit, T1; rounds 33 and 34 above). Round 34 covers the completeness
-  theorems not deprecated and `inv_call`, for a frame with reservoir 0 and runs where no SSTORE
-  refills (`hnr`). Round 35 derives `hnr` for approve and transfer with a fee of 0 (one hypothesis
-  on the start state for the write that can refill), proves their exact success condition over
-  `StateGasMeter` from reservoir 0, and gives the guard and the effects of approve, transfer and
-  transferFrom at any reservoir. Not covered: the deprecated paths, the gas at a reservoir other
-  than 0, the exact forms of transfer with a fee and of transferFrom, and `process_step` /
-  `goodCall_process` over `StateGasMeter`.
+  Glamsterdam (third audit, T1; rounds 33 to 36 above). Round 36 covers, not deprecated: the
+  exact success condition from reservoir 0 for the 13 writing functions, the sum of the
+  execution gas left and the reservoir at the end at any reservoir (`X_gas_any`), each under one
+  hypothesis on the start state per write that can refill, and `process_step` /
+  `goodCall_process` / `inv_calls` over `StateGasMeter` with no such hypothesis. Not covered: the
+  deprecated paths, the split of the gas at the end between execution gas and reservoir, the gas
+  of a run with a refill, and the security properties over `StateGasMeter`.
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
   contract (round 24: concrete runners meet them, `Sanity/Runner.lean`). `transferFrom_bound` has
@@ -1840,6 +1882,10 @@ T1 (third audit), continued.
    a fork-generic `callWith`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+Round 36: clean project build (`rm -rf .lake/build`, safe.sh 9G, LEAN_NUM_THREADS not set) 110.28 s
+wall, 1812168704 bytes max RSS (/usr/bin/time -l), exit 0, 0 "error:" lines, 1414 jobs, 966
+`#print axioms` lines: 926 [propext, Classical.choice, Quot.sound], 23 [propext, Quot.sound],
+10 [propext], 7 none.
 Round 35: clean project build (`rm -rf .lake/build`, LEAN_NUM_THREADS=2, safe.sh 9G) 142.97 s
 wall, 1765408768 bytes max RSS (/usr/bin/time -l), exit 0, 0 "error:" lines, 1407 jobs, 871
 `#print axioms` lines: 841 [propext, Classical.choice, Quot.sound], 20 [propext, Quot.sound],

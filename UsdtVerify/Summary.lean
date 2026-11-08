@@ -43,7 +43,8 @@ All theorems are about the 11075-byte runtime code `CODE` (data/usdt.runtime.hex
 EthLib's EVM semantics from pc 0 in a fresh frame (`At CODE message 0 [] .empty gas state
 substate`), for every fork from Berlin on, with EthLib's one-counter gas meter `Nat` (EthLib runs
 transactions with it up to BPO5; from Glamsterdam it runs them with the EIP-8037 `StateGasMeter`,
-which only the theorems of Usdt/Meter.lean and Usdt/MeterIff.lean cover). The paths that write storage hold from Berlin on,
+which only the theorems of Usdt/Meter.lean, Usdt/MeterIff.lean, Usdt/MeterOwner.lean,
+Usdt/MeterGas.lean and Usdt/Invariant/SeqMeter.lean cover). The paths that write storage hold from Berlin on,
 Glamsterdam included, since round 17: each SSTORE costs `Gas.writeCost` (`sstoreCost` plus the
 state gas of a new slot, `sstoreStateGas`, 0 before Glamsterdam), by the local rule
 `Gas.sstoreWG`. The deprecated paths hold at the same forks since round 19: EXTCODESIZE costs
@@ -532,6 +533,16 @@ give the guard and the effects of a run over `StateGasMeter` that ends with no e
 reservoir (`Shadow.shadow_run`). `Exact.approve_iff_gas_sgm` and `Exact.transfer_iff_gas_sgm`
 (fee 0) give the exact success condition over `StateGasMeter` from reservoir 0, when the one
 write that can refill does not (`hnr`, `hnrD`).
+Round 36: the exact success condition over `StateGasMeter` from reservoir 0 for the 13 writing
+functions not deprecated: `Exact.transfer_iff_gas_sgm` (any fee),
+`Exact.transferFrom_iff_gas_sgm`, and `Exact.X_iff_gas_sgm` for the ten owner functions
+(Usdt/MeterOwner.lean), each with a hypothesis on the start state for each write that can refill.
+`Exact.X_gas_any` (Usdt/MeterGas.lean): at any reservoir, under the same hypotheses, the execution
+gas left and the reservoir at the end add up to `gas + reservoir - cost`.
+`Complete.process_stepS`, `Complete.goodCall_processS`, `Complete.inv_callsS`
+(Usdt/Invariant/SeqMeter.lean): the invariant over `processMessage` runs over `StateGasMeter`,
+from Paris, not deprecated, with no hypothesis on the reservoir, on refills or on the gas of the
+transaction.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

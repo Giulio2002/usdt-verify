@@ -24,8 +24,9 @@ completeness theorems `ok_X` (Usdt/Complete/Read, Getters, Owner, Approve, Trans
 TransferFrom), the per-function `inv_X` and `inv_call`. Stated here:
 `inv_call_sgm`, `ok_transfer_sgm`, `ok_approve_sgm`, `ok_transferFrom_sgm`.
 
-Not covered: the deprecated paths (their CALL is not a `simulated` opcode), and the `X_ok_iff` /
-`X_iff_gas` theorems, which state that a run with enough gas succeeds.
+Not covered here: the deprecated paths (their CALL is not a `simulated` opcode). The `X_iff_gas`
+forms over `StateGasMeter` are in Usdt/MeterIff.lean and Usdt/MeterOwner.lean, where `hnr` is
+derived from the path (rounds 35, 36).
 -/
 
 namespace UsdtVerify.Complete

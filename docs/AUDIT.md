@@ -541,6 +541,29 @@ result.
   a reservoir other than 0 or with a refill, the deprecated paths, `process_step` and
   `goodCall_process` over `StateGasMeter`.
 
+**Progress (round 36).** Resolved for the paths not deprecated, under named refill hypotheses.
+Not resolved for the deprecated paths.
+- Exact success conditions over `StateGasMeter` from reservoir 0, for the 13 writing functions not
+  deprecated: `transfer_iff_gas_sgm` (any fee), `transferFrom_iff_gas_sgm` (all paths), and
+  `X_iff_gas_sgm` for pause, unpause, addBlackList, removeBlackList, issue, redeem, setParams,
+  deprecate, transferOwnership, destroyBlackFunds (Usdt/MeterIff.lean, Usdt/MeterOwner.lean),
+  with `X_ok_sgm` (execution gas left `gas - cost`). Each takes a hypothesis on the start state
+  for each write that can refill, and none for a write proved never to refill (a word that is
+  not 0, or an addition with no overflow). For each function the hypotheses are listed in
+  Usdt/MeterOwner.lean and Usdt/MeterIff.lean.
+- The gas at any reservoir: `X_gas_any` (Usdt/MeterGas.lean), for the same 13 functions and the
+  same hypotheses. A run over `StateGasMeter` that ends with no error ends with its execution gas
+  left and its reservoir adding up to `gas + reservoir - cost`. The split between the two parts
+  is not stated. `Shadow.gas_ge_any` gives the lower bound `gas + reservoir - cost` with no refill
+  hypothesis, for a path given as a triple over `StepG`.
+- `process_step` / `goodCall_process` over `StateGasMeter`: `process_stepS`,
+  `goodCall_processS`, `process_value_failsS`, `inv_call_any`, `CallsS`, `inv_callsS`
+  (Usdt/Invariant/SeqMeter.lean), from Paris, not deprecated. They take no hypothesis on the
+  reservoir, on refills or on the gas limit of the transaction: the invariant depends only on the
+  state, and `shadow_run` gives a run of the meter `Nat` that ends in the same state.
+- Still open: the deprecated paths over `StateGasMeter` (CALL is not `simulated`), and the
+  security properties of Usdt/Security/ over `StateGasMeter`.
+
 ## T2. The runner hypotheses range over every block and transaction environment (Medium)
 
 **Evidence.** `SendsVia` (Evm/Route.lean:134) fixes `caller`, `currentTarget`, `target`,

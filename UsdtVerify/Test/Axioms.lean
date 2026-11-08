@@ -1,6 +1,7 @@
 import UsdtVerify.Usdt.Meter
 import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.MeterOwner
+import UsdtVerify.Usdt.MeterGas
 import UsdtVerify.Usdt.Invariant.SeqMeter
 import UsdtVerify.Usdt.Sanity.Strings
 import UsdtVerify.Usdt.Exact.Getters
@@ -1030,3 +1031,19 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Complete.goodCall_processS
 #print axioms UsdtVerify.Complete.process_value_failsS
 #print axioms UsdtVerify.Complete.process_stepS
+#print axioms UsdtVerify.Shadow.shadow_runQ
+#print axioms UsdtVerify.Shadow.gas_ge_any
+#print axioms UsdtVerify.Shadow.gas_eq_any
+#print axioms UsdtVerify.Exact.approve_gas_any
+#print axioms UsdtVerify.Exact.transfer_gas_any
+#print axioms UsdtVerify.Exact.transferFrom_gas_any
+#print axioms UsdtVerify.Exact.pause_gas_any
+#print axioms UsdtVerify.Exact.unpause_gas_any
+#print axioms UsdtVerify.Exact.addBlackList_gas_any
+#print axioms UsdtVerify.Exact.removeBlackList_gas_any
+#print axioms UsdtVerify.Exact.deprecate_gas_any
+#print axioms UsdtVerify.Exact.transferOwnership_gas_any
+#print axioms UsdtVerify.Exact.issue_gas_any
+#print axioms UsdtVerify.Exact.redeem_gas_any
+#print axioms UsdtVerify.Exact.setParams_gas_any
+#print axioms UsdtVerify.Exact.destroyBlackFunds_gas_any
