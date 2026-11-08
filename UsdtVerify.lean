@@ -93,6 +93,7 @@ import UsdtVerify.Usdt.Security.Allowance
 import UsdtVerify.Usdt.Security.Supply
 import UsdtVerify.Usdt.Sanity.Runner
 import UsdtVerify.Usdt.Sanity.Process
+import UsdtVerify.Usdt.Sanity.ProcessExact
 import UsdtVerify.Usdt.Sanity.Transfer
 import UsdtVerify.Usdt.Sanity.Calls
 import UsdtVerify.Usdt.Sanity.Security

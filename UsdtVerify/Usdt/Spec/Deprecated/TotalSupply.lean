@@ -28,7 +28,7 @@ open EthLib.Execution.Evm
 open EthLib.Execution.Evm.Logic
 open GasCosts
 open UsdtVerify.Complete (Route Routes routeAddr routeCode routeCost routeState routeSub SendsVia
-  routes_congr routeCost_insert_insert callWithR)
+  CallFrom atCallState atCallSub routes_congr routeCost_insert_insert callWithR)
 
 variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
   {substate : Substate}
@@ -504,7 +504,8 @@ low 160 bits of slot 10) holds a code `c` of 1 to 2^256 - 1 bytes; the CALL foll
 (`Routes`: no delegation, or from Pectra an EIP-7702 delegate whose code is found); the depth
 leaves room for one more frame; `c10` and `cU` are whether slot 10 and `ua` are cold; there is the
 gas of the path to the CALL and of the CALL, with the access to the delegate (`hg`); and every
-ended forwarded message that meets `callee` leaves at least 121 gas for the code after the CALL:
+ended forwarded message that meets `callee`, sent with the gas the CALL gives from the caller frame
+at the CALL (`CallFrom`, round 30), leaves at least 121 gas for the code after the CALL:
 the gas the CALL keeps plus the gas left in the ended frame (`hcg`).
 
 Then under every runner whose ended messages meet `callee`, the run ends (or the runner fails on the forwarded message)
@@ -533,6 +534,9 @@ theorem spec_dep_g (hfork : .berlin ≤ fork)
     {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop}
     (hcg : ∀ caller msg child, callee caller msg child →
       SendsVia message (upAddr state message) c r SEL_TS msg →
+      CallFrom (callGas fork gas c10 cU (callR substate state message r)).subCall
+        (atCallState (callState state message) (upAddr state message) r message.currentTarget)
+        (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
       121 ≤ gas - preCost fork c10 cU -
         (callGas fork gas c10 cU (callR substate state message r)).cost + child.gas) :
     Sends.SpecOn fork callee (SendsVia message (upAddr state message) c r SEL_TS)
@@ -583,7 +587,7 @@ theorem spec_dep_g (hfork : .berlin ≤ fork)
   have hfwd : SendsVia message (upAddr state message) c r SEL_TS msg := by
     refine ⟨hmc, hmt, hmtg, hmca, hmcode, hmdp, ?_, hmv, hmdep, hmst⟩
     rw [hmd]; exact data_M2
-  have hT := hcg caller msg child hcal hfwd
+  have hT := hcg caller msg child hcal hfwd ⟨hmg, hcs, hcss⟩
   by_cases he : child.error = none
   · simp only [he, Option.isNone_none, ↓reduceIte] at hat
     obtain ⟨after, hreach, hrun, hq⟩ := okTail (fork := fork) (message := message)
@@ -650,7 +654,7 @@ theorem spec_dep (hfork : .berlin ≤ fork)
             (incorporateChild fork caller child).state
             (incorporateChild fork caller child).substate evm) :=
   (spec_dep_g hfork hsize hsize' hsel hv hdep hcode hsz hszl hroute hdepth hc10 hcU hg
-    fun _ _ _ _ _ => by omega).toUnder
+    fun _ _ _ _ _ _ => by omega).toUnder
 
 /-- With an output of at least 32 bytes, the word read back is the first word of the output. -/
 theorem resWord_outMem {o : ByteArray} (ho : 32 ≤ o.size) : resWord (outMem o) = loadWord o 0 32 := by

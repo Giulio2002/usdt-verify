@@ -32,7 +32,7 @@ open EthLib.Execution.Evm
 open EthLib.Execution.Evm.Logic
 open GasCosts
 open UsdtVerify.Complete (Route Routes routeAddr routeCode routeCost routeState routeSub SendsVia
-  routes_congr routeCost_insert_insert callWithR)
+  CallFrom atCallState atCallSub routes_congr routeCost_insert_insert callWithR)
 open Deprecated DeprecatedBalance DeprecatedTransfer GettersMap Getters
 
 variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
@@ -548,7 +548,8 @@ theorem preCallAl (hfork : .berlin ≤ fork)
   unfold extCost; omega
 
 /-- `spec_depAl` with the bound `htail` (at least 128 gas left after the price of the CALL) replaced by
-`hcg`: every ended forwarded message that meets `callee` leaves at least 128 gas for the code after
+`hcg`: every ended forwarded message that meets `callee`, sent with the gas the CALL gives from
+the caller frame at the CALL (`CallFrom`, round 30), leaves at least 128 gas for the code after
 the CALL, the gas the CALL keeps plus the gas left in the ended frame.
 Stated as a `Sends.SpecOn` (round 26): the frames that end the runner's messages meet
 `callee`, the runner may fail with any error, and the run ends as stated or at a failure of the
@@ -567,6 +568,9 @@ theorem spec_depAl_g (hfork : .berlin ≤ fork)
     {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop}
     (hcg : ∀ caller msg child, callee caller msg child →
       SendsVia message (upAddr state message) c r (dataAl message) msg →
+      CallFrom (callGasAl fork gas c10 cU (callR substate state message r)).subCall
+        (atCallState (callState state message) (upAddr state message) r message.currentTarget)
+        (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
       128 ≤ gas - preCostAl fork c10 cU - (callGasAl fork gas c10 cU (callR substate state message r)).cost + child.gas) :
     Sends.SpecOn fork callee (SendsVia message (upAddr state message) c r (dataAl message))
       (At CODE message 0 [] .empty gas state substate)
@@ -618,7 +622,7 @@ theorem spec_depAl_g (hfork : .berlin ≤ fork)
   have hfwd : SendsVia message (upAddr state message) c r (dataAl message) msg := by
     refine ⟨hmc, hmt, hmtg, hmca, hmcode, hmdp, ?_, hmv, hmdep, hmst⟩
     rw [hmd, memoryExtend_zero]; exact data_M3A _ _
-  have hT := hcg caller msg child hcal hfwd
+  have hT := hcg caller msg child hcal hfwd ⟨hmg, hcs, hcss⟩
   have hB := size_M3A (addrArg message.data 0) (addrArg message.data 1)
   by_cases he : child.error = none
   · simp only [he, Option.isNone_none, ↓reduceIte] at hat
@@ -699,7 +703,7 @@ theorem spec_depAl (hfork : .berlin ≤ fork)
             (incorporateChild fork caller child).substate evm) := by
   apply Sends.SpecOn.toUnder
   apply spec_depAl_g
-  all_goals first | assumption | (intro _ _ _ _ _; omega)
+  all_goals first | assumption | (intro _ _ _ _ _ _; omega)
 
 /-- `allowance(owner, spender)` when deprecated, for a callee that answers `o` (at least 32
 bytes) to the forwarded call: the run returns the first word of `o`, with no error. -/

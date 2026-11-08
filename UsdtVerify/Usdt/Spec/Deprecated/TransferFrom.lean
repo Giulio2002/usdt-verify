@@ -25,7 +25,7 @@ open EthLib.Execution.Evm
 open EthLib.Execution.Evm.Logic
 open GasCosts
 open UsdtVerify.Complete (Route Routes routeAddr routeCode routeCost routeState routeSub SendsVia
-  routes_congr routeCost_insert_insert callWithR)
+  CallFrom atCallState atCallSub routes_congr routeCost_insert_insert callWithR)
 open Deprecated DeprecatedBalance DeprecatedTransfer TransferOk TransferFrom
 
 variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
@@ -344,7 +344,8 @@ theorem preExtF (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
   exact Logic.reshape rfl rfl (by gas_ok)
 
 /-- `spec_depF` with the bound `htail` (at least 53 gas left after the price of the CALL) replaced by
-`hcg`: every ended forwarded message that meets `callee` leaves at least 53 gas for the code after
+`hcg`: every ended forwarded message that meets `callee`, sent with the gas the CALL gives from
+the caller frame at the CALL (`CallFrom`, round 30), leaves at least 53 gas for the code after
 the CALL, the gas the CALL keeps plus the gas left in the ended frame.
 Stated as a `Sends.SpecOn` (round 26): the frames that end the runner's messages meet
 `callee`, the runner may fail with any error, and the run ends as stated or at a failure of the
@@ -355,6 +356,9 @@ theorem spec_depF_g {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
     {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop}
     (hcg : ∀ caller msg child, callee caller msg child →
       SendsVia message (upAddr state message) c r (dataF message) msg →
+      CallFrom (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).subCall
+        (atCallState (callStateF state message) (upAddr state message) r message.currentTarget)
+        (atCallSub (callSubF substate state message) (upAddr state message) r) caller msg →
       53 ≤ gas - preCostF fork c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost + child.gas) :
     Sends.SpecOn fork callee (SendsVia message (upAddr state message) c r (dataF message))
       (At CODE message 0 [] .empty gas state substate)
@@ -426,7 +430,7 @@ theorem spec_depF_g {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
   have hfwd : SendsVia message (upAddr state message) c r (dataF message) msg := by
     refine ⟨hmc, hmt, hmtg, hmca, hmcode, hmdp, ?_, hmv, hmdep, hmst⟩
     rw [hmd]; exact data_memFD message
-  have hT := hcg caller msg child hcal hfwd
+  have hT := hcg caller msg child hcal hfwd ⟨hmg, hcs, hcss⟩
   by_cases he : child.error = none
   · simp only [he, Option.isNone_none, ↓reduceIte] at hat
     obtain ⟨after, hreach, hrun, hq⟩ := okTailF (fork := fork) (message := message)
@@ -487,7 +491,7 @@ theorem spec_depF {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
             (incorporateChild fork caller child).substate evm) := by
   apply Sends.SpecOn.toUnder
   apply spec_depF_g
-  all_goals first | assumption | (intro _ _ _ _ _; omega)
+  all_goals first | assumption | (intro _ _ _ _ _ _; omega)
 
 /-- `transferFrom(from, to, value)` when deprecated, for a callee that succeeds on the forwarded call:
 the run STOPs with no error after the call (state and substate from `incorporateChild`). -/

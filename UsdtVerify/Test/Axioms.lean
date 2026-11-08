@@ -10,6 +10,7 @@ import UsdtVerify.Usdt.Sanity.TransferFrom
 import UsdtVerify.Usdt.Sanity.Calls
 import UsdtVerify.Usdt.Sanity.Runner
 import UsdtVerify.Usdt.Sanity.Process
+import UsdtVerify.Usdt.Sanity.ProcessExact
 import UsdtVerify.Usdt.Security.Supply
 import UsdtVerify.Usdt.Security.Allowance
 import UsdtVerify.Usdt.Security.Blacklist
@@ -835,3 +836,24 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Sanity.noFailOn_process_stop
 #print axioms UsdtVerify.Sanity.hans_process_stop
 #print axioms UsdtVerify.Sanity.totalSupply_dep_ok_iff_process_stop
+-- round 30: `hans` over the call the path makes, with its gas (docs/AUDIT.md, finding 3)
+#print axioms UsdtVerify.DeprecatedDestroy.tail_le_max
+#print axioms UsdtVerify.Sanity.process_stop_child
+#print axioms UsdtVerify.Sanity.hans_gas_process_stop
+#print axioms UsdtVerify.Sanity.hans_destroy_process_stop
+#print axioms UsdtVerify.Sanity.hans_destroy_gas_process_stop
+#print axioms UsdtVerify.Sanity.incorporate_keys
+#print axioms UsdtVerify.Sanity.coldIn_congr
+#print axioms UsdtVerify.Sanity.coldIn_accessSlot_congr
+#print axioms UsdtVerify.Sanity.balanceOf_dep_ok_iff_process_stop
+#print axioms UsdtVerify.Sanity.allowance_dep_ok_iff_process_stop
+#print axioms UsdtVerify.Sanity.transfer_dep_ok_iff_process_stop
+#print axioms UsdtVerify.Sanity.approve_dep_ok_iff_process_stop
+#print axioms UsdtVerify.Sanity.transferFrom_dep_ok_iff_process_stop
+#print axioms UsdtVerify.Sanity.totalSupply_dep_ok_iff_gas_process_stop
+#print axioms UsdtVerify.Sanity.balanceOf_dep_ok_iff_gas_process_stop
+#print axioms UsdtVerify.Sanity.allowance_dep_ok_iff_gas_process_stop
+#print axioms UsdtVerify.Sanity.transfer_dep_ok_iff_gas_process_stop
+#print axioms UsdtVerify.Sanity.approve_dep_ok_iff_gas_process_stop
+#print axioms UsdtVerify.Sanity.transferFrom_dep_ok_iff_gas_process_stop
+#print axioms UsdtVerify.Sanity.destroyBlackFunds_dep_ok_iff_gas_process_stop

@@ -138,6 +138,25 @@ def SendsVia (message : Message fork) (ua : Address) (c : ByteArray) (r : Route)
     msg.disablePrecompiles = r.isSome ∧ msg.data = d ∧ msg.value = 0 ∧
     msg.depth = message.depth + 1 ∧ msg.isStatic = message.isStatic
 
+/-- The state of the caller frame at a CALL from `C` to `ua` along the route `r`, from the state
+`st` before the CALL: the reads of `ua`, of the delegate and of `C` recorded. -/
+abbrev atCallState (st : State.TransactionState) (ua : Address) (r : Route) (C : Address) :
+    State.TransactionState :=
+  (routeState (st.recordAccountRead ua) r).recordAccountRead C
+
+/-- The substate of the caller frame at a CALL to `ua` along the route `r`, from the substate
+`ss` before the CALL: `ua` and the delegate accessed. -/
+abbrev atCallSub (ss : Substate) (ua : Address) (r : Route) : Substate :=
+  routeSub { ss with accessedAddresses := ss.accessedAddresses.insert ua } r
+
+/-- Round 30 (docs/AUDIT.md, finding 3): the message `msg` has the gas `g`, and the caller frame
+has the state `st` and the substate `ss`. The exact theorems of the deprecated paths ask their
+callee assumption (`hans`) only of the message their CALL sends (`SendsVia`) with the gas, from
+the caller frame, that the CALL gives (`CallFrom`), so the answer `A` can depend on that gas. -/
+def CallFrom (g : Nat) (st : State.TransactionState) (ss : Substate) (caller : Evm fork Nat)
+    (msg : Message fork) : Prop :=
+  msg.gas = g ∧ caller.state = st ∧ caller.substate = ss
+
 /-- Accessing an address twice is accessing it once, for the price of the route. -/
 theorem routeCost_insert_insert (acc : Std.ExtTreeSet Address) (u : Address) (r : Route) :
     routeCost fork ((acc.insert u).insert u) r = routeCost fork (acc.insert u) r := by

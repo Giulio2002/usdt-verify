@@ -41,7 +41,7 @@ open EthLib.Execution.Evm
 open EthLib.Execution.Evm.Logic
 open GasCosts
 open UsdtVerify.Complete (Route Routes routeAddr routeCode routeCost routeState routeSub SendsVia
-  routes_congr routeCost_insert_insert callWithR)
+  CallFrom atCallState atCallSub routes_congr routeCost_insert_insert callWithR)
 open Deprecated DeprecatedBalance DeprecatedTransfer Transfer TransferOk Owner Admin BlackList
   Destroy DestroySpec
 
@@ -633,6 +633,22 @@ theorem tailD_g (hfork : .berlin ≤ fork) {a x U : U256}
   refine ⟨hr, he, ho, by rw [hgas]; simp only [tailCost]; omega, hs, ?_⟩
   rw [hss, ha]
 
+/-- From Berlin, the cost of the tail and its stipend bound are at most `TAIL_MAX fork` (round
+30). -/
+theorem tail_le_max (hfork : .berlin ≤ fork) (S : State.TransactionState)
+    (C : EthLib.Base.Address) (a d : U256) (cB c1 : Bool) :
+    max (tailCost fork S C a d cB c1) (tailStip fork S C a cB c1) ≤ TAIL_MAX fork := by
+  have hb1 := Gas.writeCost_le hfork (originalAt S C (mapSlot a 2)) (storageAt S C (mapSlot a 2))
+    0 cB
+  have hb2 := Gas.writeCost_le hfork (originalAt S C 1)
+    (storageAt (writeSlot S C (mapSlot a 2) 0) C 1)
+    (sub (storageAt (writeSlot S C (mapSlot a 2) 0) C 1) d) false
+  have hW : 22100 ≤ Gas.writeMax fork := by unfold Gas.writeMax; split <;> omega
+  have hs1 : slotCost c1 ≤ 2100 := by unfold slotCost; split <;> omega
+  simp only [tailCost, tailStip, TAIL_MAX]
+  generalize Gas.writeMax fork = W at hb1 hb2 hW
+  exact Nat.max_le.mpr ⟨by omega, by omega⟩
+
 /-- From 4892 after a call that succeeded, with at least the cost of the tail but less than its
 stipend bound (round 26): the run reaches an `SSTORE` with at most 2300 gas left (the first one
 when `gas < 2485`, else the one of `_totalSupply`), which is `Stuck`. -/
@@ -896,7 +912,8 @@ theorem spec_depD (hfork : .berlin ≤ fork)
 
 /-- `spec_depD` with no bound on the gas after the CALL (round 26), for the forwarded messages that
 end well. In place of `htail` and `hkeep`, the callee assumption `hcg`: every forwarded message
-that meets `callee` ends with no error, in a state where the contract has an account, and leaves,
+that meets `callee`, sent with the gas the CALL gives from the caller frame at the CALL
+(`CallFrom`, round 30), ends with no error, in a state where the contract has an account, and leaves,
 with the gas the CALL keeps, at least the cost of the tail (`tailCost`) and its stipend bound
 (`tailStip`), both computed over the state and substate after the call. Then the run stops
 normally in `tailState`, `tailSub`, gas exact.
@@ -923,6 +940,9 @@ theorem spec_depD_g (hfork : .berlin ≤ fork)
     {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop}
     (hcg : ∀ caller msg child, callee caller msg child →
       SendsVia message (upAddr state message) c r (dataB message) msg →
+      CallFrom (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).subCall
+        (atCallState (callStateD state message) (upAddr state message) r message.currentTarget)
+        (atCallSub (callSubD substate state message) (upAddr state message) r) caller msg →
       child.error = none ∧ hasAccount child.state message.currentTarget ∧
       tailCost fork (incorporateChild fork caller child).state message.currentTarget
           (addrArg message.data 0) (resWord (outMemOf (memD message) child.output))
@@ -982,13 +1002,13 @@ theorem spec_depD_g (hfork : .berlin ≤ fork)
     exact ⟨a1, a2, a3, a4, a5, a6, by rw [a7, memoryExtend_zero]; exact data_memD message, a8, a9, a10⟩
   refine Sends.SpecOn.seq (Sends.HoareOn.of_hoare (preCallD hfork hsize hsize' hsel hv hown hl
     hdep hcode hsz hszl hc0 hcL hc10 hcU (by omega))) (Sends.HoareOn.seq hcall (Sends.HoareOn.of_hoare ?_))
-  rintro evm ⟨caller, msg, child, hcal, -, -, -, -, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd, hmv,
+  rintro evm ⟨caller, msg, child, hcal, -, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd, hmv,
     hmdep, hmst, hat⟩
   have hfwd : SendsVia message (upAddr state message) c r (dataB message) msg := by
     refine ⟨hmc, hmt, hmtg, hmca, hmcode, hmdp, ?_, hmv, hmdep, hmst⟩
     rw [hmd, memoryExtend_zero]; exact data_memD message
   have hB := size_memD message
-  obtain ⟨he, hacc0, hcost, hstip⟩ := hcg caller msg child hcal hfwd
+  obtain ⟨he, hacc0, hcost, hstip⟩ := hcg caller msg child hcal hfwd ⟨hmg, hcs, hcss⟩
   simp only [he, Option.isNone_none, ↓reduceIte] at hat
   have hacc : hasAccount (incorporateChild fork caller child).state message.currentTarget := by
     rw [state_incorporateChild]; exact hacc0

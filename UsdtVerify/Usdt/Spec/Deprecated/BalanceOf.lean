@@ -26,7 +26,7 @@ open EthLib.Execution.Evm
 open EthLib.Execution.Evm.Logic
 open GasCosts
 open UsdtVerify.Complete (Route Routes routeAddr routeCode routeCost routeState routeSub SendsVia
-  routes_congr routeCost_insert_insert callWithR)
+  CallFrom atCallState atCallSub routes_congr routeCost_insert_insert callWithR)
 open Deprecated
 
 variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
@@ -343,7 +343,8 @@ theorem preCallB (hfork : .berlin ≤ fork)
   unfold extCost; omega
 
 /-- `spec_depB` with the bound `htail` (at least 126 gas left after the price of the CALL) replaced by
-`hcg`: every ended forwarded message that meets `callee` leaves at least 126 gas for the code after
+`hcg`: every ended forwarded message that meets `callee`, sent with the gas the CALL gives from
+the caller frame at the CALL (`CallFrom`, round 30), leaves at least 126 gas for the code after
 the CALL, the gas the CALL keeps plus the gas left in the ended frame.
 Stated as a `Sends.SpecOn` (round 26): the frames that end the runner's messages meet
 `callee`, the runner may fail with any error, and the run ends as stated or at a failure of the
@@ -362,6 +363,9 @@ theorem spec_depB_g (hfork : .berlin ≤ fork)
     {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop}
     (hcg : ∀ caller msg child, callee caller msg child →
       SendsVia message (upAddr state message) c r (dataB message) msg →
+      CallFrom (callGasB fork gas c10 cU (callR substate state message r)).subCall
+        (atCallState (callState state message) (upAddr state message) r message.currentTarget)
+        (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
       126 ≤ gas - preCostB fork c10 cU - (callGasB fork gas c10 cU (callR substate state message r)).cost + child.gas) :
     Sends.SpecOn fork callee (SendsVia message (upAddr state message) c r (dataB message))
       (At CODE message 0 [] .empty gas state substate)
@@ -412,7 +416,7 @@ theorem spec_depB_g (hfork : .berlin ≤ fork)
   have hfwd : SendsVia message (upAddr state message) c r (dataB message) msg := by
     refine ⟨hmc, hmt, hmtg, hmca, hmcode, hmdp, ?_, hmv, hmdep, hmst⟩
     rw [hmd]; exact data_M2B _
-  have hT := hcg caller msg child hcal hfwd
+  have hT := hcg caller msg child hcal hfwd ⟨hmg, hcs, hcss⟩
   have hB := size_M2B (addrArg message.data 0)
   by_cases he : child.error = none
   · simp only [he, Option.isNone_none, ↓reduceIte] at hat
@@ -492,7 +496,7 @@ theorem spec_depB (hfork : .berlin ≤ fork)
             (incorporateChild fork caller child).substate evm) := by
   apply Sends.SpecOn.toUnder
   apply spec_depB_g
-  all_goals first | assumption | (intro _ _ _ _ _; omega)
+  all_goals first | assumption | (intro _ _ _ _ _ _; omega)
 
 /-- A callee assumption that pins the answer: every message sent to `ua` (code `c`) along the
 route `r` with data `d` ends with no error and the output `o`. -/
