@@ -1210,6 +1210,27 @@ entry; `DESTS` = the 32 destinations).
   axioms. grep of the new files for sorry, admit, axiom declarations, native_decide, bv_decide,
   decide +native, maxHeartbeats, maxRecDepth: none.
 
+### Round 25: exact success conditions (Usdt/Exact/, Usdt/Spec/Guards.lean, Evm/Iff.lean; docs/RESULTS.md "Exact success conditions")
+- `Evm/Iff.lean` (generic): `RunsOk` (the interpreter loop returns a frame with no error),
+  `halted_false_ok`, `runsOk_of_spec`, `runsOk_iff`, `not_runsOk_low`, `not_runsOk_low2`,
+  `not_runsOk_low3`.
+- `Usdt/Spec/Guards.lean`: `CallOk`, `CanWrite`, `IsOwner`, and the condition of each function
+  (`PauseGuard`, `UnpauseGuard`, `OwnerWriteGuard`, `IssueGuard`, `RedeemGuard`,
+  `SetParamsGuard`, `TransferOwnershipGuard`, `DestroyBlackFundsGuard`, `ApproveGuard`,
+  `TransferGuard`, `TransferFromGuard`).
+- `Usdt/Exact/Getters.lean`, `Owner.lean`, `Approve.lean`, `Transfer.lean`, `TransferFrom.lean`:
+  `X_ok_iff` and `X_low` for the 32 functions, not deprecated where the function reads the flag
+  (`hdep`). `X_ok_iff`: with the gas of the success path (the cost, and the stipend bounds the
+  success spec takes), `RunsOk` holds iff the condition holds. `X_low`: below the cost, `RunsOk`
+  does not hold. Each `ok_iff` comes from the completeness theorem (one direction) and the
+  success spec run through `SpecG.runFrame` (the other); each `low` from the completeness theorem
+  and `ok_exact`. Costs that depend on the path are `if`s: `strCost` (name, symbol),
+  `ownershipCost`, `approveCost`/`approveStip`, `transferCost`/`transferStip1`/`transferStip2`,
+  `transferFromCost` (with `stipCostF`).
+- Not covered: a gas at or above the cost but below a stipend bound (the run may fail there by
+  EIP-2200; no theorem says either way).
+- `lake build UsdtVerify` (incremental, after each code commit): exit 0, 0 "error:" lines.
+
 ## Open (not proved)
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
@@ -1243,6 +1264,8 @@ entry; `DESTS` = the 32 destinations).
   `balRunner` meet it, and that `balRunner` meets `HonestBalance`.
 - Non-vacuity (round 24): no witness run is deprecated; `KeccakSep` and `AllowSep` are not
   discharged.
+- Exact success conditions (round 25): done for the 32 functions not deprecated; a gas between
+  the cost of a success path and a stipend bound is not covered.
 
 ## Generic gaps found (for the EthLib program-logic agent)
 1. Missing opcode rules at the pin (kept as LOCAL lemmas, UsdtVerify/Evm/Local/Rules.lean):

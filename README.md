@@ -145,7 +145,10 @@ The six other forwarding functions write nothing locally after the forwarded cal
 `UsdtVerify/Usdt/Exact/` proves the converse of completeness: with enough gas, a call succeeds if and only if its stated conditions hold, so there are no unexpected reverts. With less gas than the success path costs, the call fails. The conditions are written out in `UsdtVerify/Usdt/Spec/Guards.lean`.
 
 - The 19 read functions, including `totalSupply`, `balanceOf` and `allowance` when not deprecated, and `name` and `symbol` for the string forms Solidity writes, succeed exactly when the call data has at least 4 bytes and the call sends no ether.
-- The writing functions are in progress.
+- Every writing function, when not deprecated, has a theorem `X_ok_iff`. Given gas at least the cost of its success path, and more than 2300 gas left at each storage write as EIP-2200 requires, the call succeeds exactly when its condition holds. For `transfer` the condition is: at least 68 bytes of call data, no ether, not paused, sender not blacklisted, no overflow in the fee product, fee at most the amount, amount at most the sender's balance, no overflow at the recipient, a frame that is not static and an existing account. The owner functions add that the caller is the owner, plus each function's own checks.
+- When the cost depends on the path, for example a fee of 0 or above 0, it is stated as an `if`.
+- Gas at least the cost but at or below a 2300 bound is not covered.
+- The deprecated paths are in progress.
 
 ## Security properties
 

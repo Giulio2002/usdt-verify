@@ -729,6 +729,63 @@ needed. Their satisfiability is shown separately, above.
 `strings_applies`: under `KeccakSep`, `inv_call_all` and `supply_call` apply to `approve(s, 0)`
 from that state.
 
+## Exact success conditions (round 25)
+
+`UsdtVerify/Usdt/Exact/`, with the conditions in `UsdtVerify/Usdt/Spec/Guards.lean` and the generic
+lemmas in `UsdtVerify/Evm/Iff.lean`.
+Completeness says that every run that ends with no error is a proved success path.
+These theorems add the converse: the success path is taken whenever its condition holds.
+`RunsOk fork bound runChild evm within` says that the loop of the interpreter, run from `evm`,
+returns a frame with no error (a REVERT or a fault sets an error).
+
+For each function below, from Berlin, a fresh frame of `CODE` at pc 0, call data below `2^256`
+bytes with the function's selector, the coldness flags named as in the specs, any gas bound and
+any message runner:
+- `X_ok_iff`: if the gas is at least the cost of the success path, and at least each stipend bound
+  the success specification takes (more than 2300 gas left at an SSTORE, EIP-2200), then
+  `RunsOk` holds if and only if the condition holds.
+- `X_low`: if the gas is below the cost of the success path, `RunsOk` does not hold, whatever the
+  condition.
+
+A gas at or above the cost but below a stipend bound is not covered by either theorem.
+
+The conditions, in plain terms (each is a `def` in `Guards.lean`):
+- `CallOk`: at least 4 bytes of call data and no value.
+  The 19 functions that only read succeed exactly when `CallOk` holds: decimals, maximumFee,
+  _totalSupply, basisPointsRate, deprecated, paused, upgradedAddress, owner, getOwner, MAX_UINT,
+  balances, isBlackListed, getBlackListStatus, allowed; totalSupply, balanceOf and allowance when
+  not deprecated (`hdep`); name and symbol when their slot word is of `StrForm` (gas `strCost`,
+  by the form of the word).
+- `CanWrite`: the frame is not static and `C` has an account. `IsOwner`: the caller, as a word,
+  is the low 160 bits of slot 0.
+- pause: `CallOk`, `CanWrite`, `IsOwner`, not paused. unpause: the same, but paused.
+- addBlackList, removeBlackList, deprecate: `CallOk`, `CanWrite`, `IsOwner` (`OwnerWriteGuard`).
+- issue(a): `CallOk`, `CanWrite`, `IsOwner`, `0 < a`, `_totalSupply + a < 2^256`,
+  `balances[owner] + a < 2^256`.
+- redeem(a): `CallOk`, `CanWrite`, `IsOwner`, `a ≤ _totalSupply`, `a ≤ balances[owner]`.
+- setParams(b, m): `CallOk`, `CanWrite`, `IsOwner`, `b < 20`, `m < 50`, `m * 10^decimals < 2^256`
+  (`10^decimals` as the EVM word `exp 10 (slot 9)`).
+- transferOwnership(a): `CallOk`, `IsOwner`, and `CanWrite` when `a ≠ 0` (gas `ownershipCost`,
+  by `a`).
+- destroyBlackFunds(a), not deprecated: `CallOk`, `CanWrite`, `IsOwner`, `a` blacklisted.
+- approve(s, v), not deprecated: `CallOk`, `CanWrite`, at least 68 bytes, and if `v ≠ 0` the
+  allowance `allowed[caller][s]` is 0 (gas `approveCost`, stipend `approveStip`, by `v`).
+- transfer(a, v), not deprecated: `CallOk`, `CanWrite`, at least 68 bytes, not paused, the caller
+  not blacklisted, `v * basisPointsRate < 2^256`, `fee ≤ v`, `v ≤ balances[caller]`,
+  `balances[a] + (v - fee) < 2^256` (read after the sender's write), and if `fee ≠ 0`
+  `balances[owner] + fee < 2^256` (read after the recipient's write). Gas `transferCost` (by the
+  fee); with a fee of 0 also the stipends `transferStip1`, `transferStip2`.
+- transferFrom(f, t, v), not deprecated: `CallOk`, `CanWrite`, at least 100 bytes, not paused,
+  `f` not blacklisted (the caller's status is not read), `v * basisPointsRate < 2^256`, the
+  allowance `allowed[f][caller]` is `MAX_UINT` or at least `v`, `fee ≤ v`, `v ≤ balances[f]`,
+  `balances[t] + (v - fee) < 2^256`, and if `fee ≠ 0` `balances[owner] + fee < 2^256` (each read
+  where the code reads it). Gas `transferFromCost`; with a fee of 0 also the stipend `stipCostF`.
+
+The terms of transfer and transferFrom are the words the bytecode computes (`feeOf`, `balS`,
+`balT`, `balO`, `allowOf`, `balFrom`, `balTo`, `balOF`), read in the state after the reads of the
+checks; reads change no slot, so the slots hold the words of the start state, except the balances
+read after a write, as stated.
+
 ## What is trusted
 
 - The Lean 4 kernel (v4.35.0).
@@ -761,6 +818,8 @@ from that state.
 - A deprecated run in the non-vacuity witnesses of round 24: no witness run is deprecated.
 - A theorem that neither `KeepsInv` nor `KeepsInvAcc` implies the other (it holds by the
   definitions; it is not stated).
-- Runs that run out of gas below the stated bounds, except at the dispatcher (see above).
+- Runs that run out of gas below the stated bounds, except at the dispatcher (see above) and below
+  the cost of a success path (round 25, `X_low`). A gas at or above that cost but below a
+  stipend bound is not covered.
 - Forks before Berlin. Glamsterdam rests on EthLib's model of that fork at the pin (its prices
   and the order of its checks).

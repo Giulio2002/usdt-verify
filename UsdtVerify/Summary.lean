@@ -29,6 +29,11 @@ import UsdtVerify.Usdt.Spec.RunFrames
 import UsdtVerify.Usdt.Spec.Strings
 import UsdtVerify.Usdt.Spec.Deprecated.Allowance
 import UsdtVerify.Usdt.Spec.Deprecated.Destroy
+import UsdtVerify.Usdt.Exact.Getters
+import UsdtVerify.Usdt.Exact.Owner
+import UsdtVerify.Usdt.Exact.Approve
+import UsdtVerify.Usdt.Exact.Transfer
+import UsdtVerify.Usdt.Exact.TransferFrom
 
 /-!
 # Summary: what is proved about the deployed USDT bytecode
@@ -419,6 +424,25 @@ hypothesis. No witness run is deprecated.
 `Sanity.strForm_name` and `Sanity.strForm_symbol`: the words of "Tether USD" and "USDT" are of
 `StrForm`. `Sanity.strings_applies`: under `KeccakSep`, `inv_call_all` and `supply_call` apply with
 those words in slots 7 and 8.
+
+## Exact success conditions (round 25; Usdt/Exact/, conditions in Usdt/Spec/Guards.lean)
+`Exact.RunsOk fork bound runChild evm within`: the loop of the interpreter, run from `evm`, ends
+in a frame with no error. For each function, from Berlin, a fresh frame of `CODE` at pc 0, call
+data below 2^256 bytes with the function's selector, the coldness flags as in the specs, any gas
+bound and any message runner:
+- `Exact.X_ok_iff`: with the gas of the success path (its cost, and where the specification asks
+  for it more than 2300 gas left at an SSTORE), `RunsOk` holds if and only if the condition holds.
+- `Exact.X_low`: with less gas than the cost of the success path, `RunsOk` does not hold.
+  A gas between the cost and a stipend bound is not covered.
+The conditions: `CallOk` (at least 4 bytes, no value) for the 19 functions that only read (name
+and symbol under `StrForm`, gas `Exact.strCost`; totalSupply, balanceOf, allowance under `hdep`);
+`PauseGuard`, `UnpauseGuard`, `OwnerWriteGuard` (addBlackList, removeBlackList, deprecate),
+`IssueGuard`, `RedeemGuard`, `SetParamsGuard`, `TransferOwnershipGuard` (gas
+`Exact.ownershipCost`), `DestroyBlackFundsGuard` (under `hdep`); `ApproveGuard`, `TransferGuard`,
+`TransferFromGuard` (under `hdep`; gas `Exact.approveCost`, `Exact.transferCost`,
+`Exact.transferFromCost`, stipends `Exact.approveStip`, `Exact.transferStip1`,
+`Exact.transferStip2`, `TransferFrom.stipCostF`). Each writing condition contains `CanWrite`
+(not static, an account of `C`); each owner condition `IsOwner`.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

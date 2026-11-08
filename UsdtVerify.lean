@@ -34,6 +34,10 @@ import UsdtVerify.Usdt.Complete.Read
 import UsdtVerify.Usdt.Complete.Transfer
 import UsdtVerify.Usdt.Complete.TransferFrom
 import UsdtVerify.Usdt.Exact.Getters
+import UsdtVerify.Usdt.Exact.TransferFrom
+import UsdtVerify.Usdt.Exact.Transfer
+import UsdtVerify.Usdt.Exact.Approve
+import UsdtVerify.Usdt.Exact.Owner
 import UsdtVerify.Usdt.Invariant.All
 import UsdtVerify.Usdt.Invariant.Calls
 import UsdtVerify.Usdt.Invariant.DeprecatedDestroy

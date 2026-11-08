@@ -1,5 +1,9 @@
 import UsdtVerify.Usdt.Sanity.Strings
 import UsdtVerify.Usdt.Exact.Getters
+import UsdtVerify.Usdt.Exact.TransferFrom
+import UsdtVerify.Usdt.Exact.Transfer
+import UsdtVerify.Usdt.Exact.Approve
+import UsdtVerify.Usdt.Exact.Owner
 import UsdtVerify.Usdt.Sanity.TransferFrom
 import UsdtVerify.Usdt.Sanity.Calls
 import UsdtVerify.Usdt.Sanity.Runner
@@ -586,3 +590,31 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Exact.name_low
 #print axioms UsdtVerify.Exact.symbol_ok_iff
 #print axioms UsdtVerify.Exact.symbol_low
+#print axioms UsdtVerify.Exact.not_runsOk_low2
+#print axioms UsdtVerify.Exact.not_runsOk_low3
+#print axioms UsdtVerify.Exact.pause_ok_iff
+#print axioms UsdtVerify.Exact.pause_low
+#print axioms UsdtVerify.Exact.unpause_ok_iff
+#print axioms UsdtVerify.Exact.unpause_low
+#print axioms UsdtVerify.Exact.addBlackList_ok_iff
+#print axioms UsdtVerify.Exact.addBlackList_low
+#print axioms UsdtVerify.Exact.removeBlackList_ok_iff
+#print axioms UsdtVerify.Exact.removeBlackList_low
+#print axioms UsdtVerify.Exact.issue_ok_iff
+#print axioms UsdtVerify.Exact.issue_low
+#print axioms UsdtVerify.Exact.redeem_ok_iff
+#print axioms UsdtVerify.Exact.redeem_low
+#print axioms UsdtVerify.Exact.setParams_ok_iff
+#print axioms UsdtVerify.Exact.setParams_low
+#print axioms UsdtVerify.Exact.deprecate_ok_iff
+#print axioms UsdtVerify.Exact.deprecate_low
+#print axioms UsdtVerify.Exact.transferOwnership_ok_iff
+#print axioms UsdtVerify.Exact.transferOwnership_low
+#print axioms UsdtVerify.Exact.destroyBlackFunds_ok_iff
+#print axioms UsdtVerify.Exact.destroyBlackFunds_low
+#print axioms UsdtVerify.Exact.approve_ok_iff
+#print axioms UsdtVerify.Exact.approve_low
+#print axioms UsdtVerify.Exact.transfer_ok_iff
+#print axioms UsdtVerify.Exact.transfer_low
+#print axioms UsdtVerify.Exact.transferFrom_ok_iff
+#print axioms UsdtVerify.Exact.transferFrom_low

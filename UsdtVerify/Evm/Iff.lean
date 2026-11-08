@@ -69,4 +69,32 @@ theorem not_runsOk_low {G : Prop} {B cost gas : Nat} (hB : cost ≤ B) (hlt : ga
   have := (Complete.ok_exact hB (hspec (hcomp s hs hok)) start within hs hok).1
   omega
 
+/-- `not_runsOk_low` for a specification with two gas bounds, the second one the cost. -/
+theorem not_runsOk_low2 {G : Prop} {B1 cost gas : Nat} (hlt : gas < cost)
+    {out : ByteArray} {st' : State.TransactionState} {ss' : Substate}
+    (hspec : G → ∀ g, B1 ≤ g → cost ≤ g →
+      SpecG fork (At code message pc stack memory g state substate)
+        (Halted false out (g - cost) st' ss'))
+    (start : At code message pc stack memory gas state substate evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =
+      .ok s → s.error = none → G) :
+    ¬ RunsOk fork bound runChild evm within :=
+  not_runsOk_low (B := B1 + cost) (Nat.le_add_left _ _) hlt
+    (fun hG g hg => hspec hG g (Complete.le_l hg) (Complete.le_r hg)) start within hcomp
+
+/-- `not_runsOk_low` for a specification with three gas bounds, the third one the cost. -/
+theorem not_runsOk_low3 {G : Prop} {B1 B2 cost gas : Nat} (hlt : gas < cost)
+    {out : ByteArray} {st' : State.TransactionState} {ss' : Substate}
+    (hspec : G → ∀ g, B1 ≤ g → B2 ≤ g → cost ≤ g →
+      SpecG fork (At code message pc stack memory g state substate)
+        (Halted false out (g - cost) st' ss'))
+    (start : At code message pc stack memory gas state substate evm)
+    (within : GasMeter.gasHeld evm.gas ≤ bound)
+    (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =
+      .ok s → s.error = none → G) :
+    ¬ RunsOk fork bound runChild evm within :=
+  not_runsOk_low2 (B1 := B1 + B2) hlt
+    (fun hG g h1 h2 => hspec hG g (Complete.le_l h1) (Complete.le_r h1) h2) start within hcomp
+
 end UsdtVerify.Exact
