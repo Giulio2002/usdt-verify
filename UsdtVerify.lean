@@ -13,6 +13,7 @@ import UsdtVerify.Evm.Dom
 import UsdtVerify.Evm.NoState
 import UsdtVerify.Evm.ProcessMeter
 import UsdtVerify.Evm.FirstFrame
+import UsdtVerify.Evm.Auth
 import UsdtVerify.Evm.CallMeter
 import UsdtVerify.Evm.CallSim
 import UsdtVerify.Evm.StepSim

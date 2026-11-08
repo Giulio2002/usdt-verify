@@ -24,6 +24,7 @@ import UsdtVerify.Usdt.Sanity.ProcessMeter
 import UsdtVerify.Usdt.Sanity.ProcessMeterR
 import UsdtVerify.Usdt.Sanity.MirrorStateS
 import UsdtVerify.Usdt.Sanity.MirrorCallS
+import UsdtVerify.Evm.Auth
 import UsdtVerify.Usdt.Meter
 import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.MeterOwner
@@ -1431,3 +1432,26 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Sanity.delegatedAddress_CODE
 #print axioms UsdtVerify.Sanity.destroy_mirror_processT
 #print axioms UsdtVerify.Sanity.destroy_mirror_callS
+
+-- Round 46: the authorizations of a call (EIP-7702), with the recovered authorities as hypotheses
+#print axioms UsdtVerify.Auth.getCode_modifyState
+#print axioms UsdtVerify.Auth.getCode_insert
+#print axioms UsdtVerify.Auth.getCode_setCode_of_ne
+#print axioms UsdtVerify.Auth.getCode_setCode_self
+#print axioms UsdtVerify.Auth.delegate_ok
+#print axioms UsdtVerify.Auth.pay_pre
+#print axioms UsdtVerify.Auth.pay_glam
+#print axioms UsdtVerify.Auth.pay_keeps
+#print axioms UsdtVerify.Auth.apply_out
+#print axioms UsdtVerify.Auth.apply_none
+#print axioms UsdtVerify.Auth.apply_refused
+#print axioms UsdtVerify.Auth.apply_accepted
+#print axioms UsdtVerify.Auth.apply_cases
+#print axioms UsdtVerify.Auth.accepts_code
+#print axioms UsdtVerify.Auth.apply_code
+#print axioms UsdtVerify.Auth.apply_keeps
+#print axioms UsdtVerify.Auth.fold_keeps
+#print axioms UsdtVerify.Auth.apply_meter_pre
+#print axioms UsdtVerify.Auth.fold_meter_pre
+#print axioms UsdtVerify.Auth.prepareFirstFrame_auths
+#print axioms UsdtVerify.Auth.prepareFirstFrame_auths_error
