@@ -1,5 +1,6 @@
 import UsdtVerify.Usdt.Meter
 import UsdtVerify.Usdt.MeterIff
+import UsdtVerify.Usdt.MeterOwner
 import UsdtVerify.Usdt.Sanity.Strings
 import UsdtVerify.Usdt.Exact.Getters
 import UsdtVerify.Usdt.Sanity.Exact
@@ -975,3 +976,47 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Exact.transferFrom_specI
 #print axioms UsdtVerify.Exact.transferFrom_ok_sgm
 #print axioms UsdtVerify.Exact.transferFrom_iff_gas_sgm
+#print axioms UsdtVerify.Refill.HoareG.toI1
+#print axioms UsdtVerify.Refill.SpecG.toIW'
+#print axioms UsdtVerify.Refill.SpecG.toIS
+#print axioms UsdtVerify.Refill.writeCost_le_of_no_create
+#print axioms UsdtVerify.Refill.writeCost_le_max
+#print axioms UsdtVerify.Shadow.simAt_low
+#print axioms UsdtVerify.Shadow.runFrame_of_reachesN
+#print axioms UsdtVerify.Shadow.runsOk_of_specI
+#print axioms UsdtVerify.Exact.pause_specI
+#print axioms UsdtVerify.Exact.pause_ok_sgm
+#print axioms UsdtVerify.Exact.pause_iff_gas_sgm
+#print axioms UsdtVerify.Exact.unpause_specI
+#print axioms UsdtVerify.Exact.unpause_ok_sgm
+#print axioms UsdtVerify.Exact.unpause_iff_gas_sgm
+#print axioms UsdtVerify.Exact.addBlackList_specI
+#print axioms UsdtVerify.Exact.addBlackList_ok_sgm
+#print axioms UsdtVerify.Exact.addBlackList_iff_gas_sgm
+#print axioms UsdtVerify.Exact.removeBlackList_specI
+#print axioms UsdtVerify.Exact.removeBlackList_ok_sgm
+#print axioms UsdtVerify.Exact.removeBlackList_iff_gas_sgm
+#print axioms UsdtVerify.Exact.deprecate_specI
+#print axioms UsdtVerify.Exact.deprecate_ok_sgm
+#print axioms UsdtVerify.Exact.deprecate_iff_gas_sgm
+#print axioms UsdtVerify.Exact.transferOwnership_specI
+#print axioms UsdtVerify.Exact.transferOwnership_ok_sgm
+#print axioms UsdtVerify.Exact.transferOwnership_iff_gas_sgm
+#print axioms UsdtVerify.Refill.exponentBytes_le
+#print axioms UsdtVerify.Refill.getStorage_writeSlot_ne
+#print axioms UsdtVerify.IssueSpec.spec_issueI
+#print axioms UsdtVerify.IssueSpec.spec_redeemI
+#print axioms UsdtVerify.SetParamsSpec.spec_setParamsI
+#print axioms UsdtVerify.DestroySpec.specI
+#print axioms UsdtVerify.Exact.issue_specI
+#print axioms UsdtVerify.Exact.issue_ok_sgm
+#print axioms UsdtVerify.Exact.issue_iff_gas_sgm
+#print axioms UsdtVerify.Exact.redeem_specI
+#print axioms UsdtVerify.Exact.redeem_ok_sgm
+#print axioms UsdtVerify.Exact.redeem_iff_gas_sgm
+#print axioms UsdtVerify.Exact.setParams_specI
+#print axioms UsdtVerify.Exact.setParams_ok_sgm
+#print axioms UsdtVerify.Exact.setParams_iff_gas_sgm
+#print axioms UsdtVerify.Exact.destroyBlackFunds_specI
+#print axioms UsdtVerify.Exact.destroyBlackFunds_ok_sgm
+#print axioms UsdtVerify.Exact.destroyBlackFunds_iff_gas_sgm

@@ -712,6 +712,145 @@ theorem HoareG.toIW {code code' : ByteArray} {message message' : Message fork} {
         (writeSlot st T n w) ss') :=
   HoareG.toIW' h (fun _ _ => rfl) hd hacc hle hnr
 
+/-- **A stretch with one written word, from Glamsterdam.** A triple over `StepG` is one over `StepI`
+when, from each frame `c` of the precondition to each frame `e` of the postcondition: `e` has no
+error; the storage at `e` reads as at `c` except at the word `(T, K)`; that word does not go from
+a word that is not 0 at `c` to 0 at `e` while it was 0 before the transaction; less than twice
+`STORAGE_SET_STATE_GAS` is paid, and less than once unless the word goes from 0 at `c` to a word
+that is not 0 at `e` while it was 0 before the transaction. -/
+theorem HoareG.toI1 (hglam : fork ≥ .glamsterdam) {P Q : Evm fork Nat → Prop}
+    (h : HoareG fork P Q) {T : EthLib.Base.Address} {K : EthLib.Base.Bytes32}
+    (hc : ∀ c e, P c → Q e → e.error = none ∧
+      (∀ a k, (a ≠ T ∨ k ≠ K) → e.state.getStorage a k = c.state.getStorage a k) ∧
+      ¬(c.state.getStorageOriginal T K = 0 ∧ c.state.getStorage T K ≠ 0 ∧
+        e.state.getStorage T K = 0) ∧
+      c.gas < e.gas + 2 * STORAGE_SET_STATE_GAS ∧
+      (¬(c.state.getStorageOriginal T K = 0 ∧ c.state.getStorage T K = 0 ∧
+        e.state.getStorage T K ≠ 0) → c.gas < e.gas + STORAGE_SET_STATE_GAS)) :
+    HoareI fork P Q := by
+  intro c hp
+  obtain ⟨e, hr, hq⟩ := h c hp
+  obtain ⟨herr, hsame, hA, hg2, hg1⟩ := hc c e hp hq
+  exact ⟨e, reaches_liftI hr fun y y1 hcy hy hye =>
+    noRefill_one hglam hcy hy hye herr hsame hA hg2 hg1, hq⟩
+
+/-- **A path to a halt with one write.** `HoareG.toIW'` for a specification from an `At` frame to
+a normal halt: the state at the halt is `st₁` with slot `n` of `T` written to `w`, where `st₁`
+reads as the first state `st`. -/
+theorem SpecG.toIW' {code : ByteArray} {message : Message fork} {pc : Nat}
+    {stack : List U256} {memory out : ByteArray} {g d : Nat}
+    {st st₁ : State.TransactionState} {ss ss' : Substate} {T : EthLib.Base.Address} {n w : U256}
+    {cold : Bool}
+    (h : SpecG fork (At code message pc stack memory g st ss)
+      (Halted false out (g - (d + writeCost fork (originalAt st T n) (storageAt st T n) w cold))
+        (writeSlot st₁ T n w) ss'))
+    (hS : ∀ a k, st₁.getStorage a k = st.getStorage a k)
+    (hd : d ≤ 80000) (hacc : hasAccount st₁ T)
+    (hle : d + writeCost fork (originalAt st T n) (storageAt st T n) w cold ≤ g)
+    (hnr : sstoreStateRefill fork (originalAt st T n) (storageAt st T n) w = 0) :
+    HoareI fork (At code message pc stack memory g st ss)
+      (fun evm => evm.running = false ∧ Halted false out
+        (g - (d + writeCost fork (originalAt st T n) (storageAt st T n) w cold))
+        (writeSlot st₁ T n w) ss' evm) := by
+  by_cases hglam : fork ≥ .glamsterdam
+  · refine HoareG.toI1 hglam h (T := T) (K := U256.toBeBytes n) fun c e hp hq => ?_
+    have hcs := hp.2.2.2.2.2.2.2.2.2.2.1
+    have hcg := hp.2.2.2.2.2.2.1
+    have hes := hq.2.2.2.2.2.1
+    have heg := hq.2.2.2.2.1
+    have herr := hq.2.2.1
+    have hw : e.state.getStorage T (U256.toBeBytes n) = w := by
+      rw [hes]; exact storageAt_writeSlot_self hacc
+    have hwc := writeCost_le_glam hglam (originalAt st T n) (storageAt st T n) w cold
+    have hS' : STORAGE_SET_STATE_GAS = 97920 := rfl
+    have hsg : sstoreStateGas fork (originalAt st T n) (storageAt st T n) w ≤ 97920 := by
+      unfold sstoreStateGas; split <;> simp [STORAGE_SET_STATE_GAS, STATE_BYTES_PER_STORAGE_SET, CPSB]
+    refine ⟨by rw [herr]; rfl, fun a k hne => ?_, ?_, ?_, ?_⟩
+    · rw [hes, hcs, State.TransactionState.getStorage_setStorage_of_ne (setStorage_writeSlot hacc)
+        hne, ← hS a k]
+      rfl
+    · rw [hcs, hw]
+      rintro ⟨h1, h2, h3⟩
+      have : sstoreStateRefill fork (originalAt st T n) (storageAt st T n) w ≠ 0 := by
+        unfold sstoreStateRefill
+        rw [if_pos' ⟨hglam, h1, h2, h3⟩]
+        decide
+      exact this hnr
+    · rw [hcg, heg]; omega
+    · rw [hcs, hw, hcg, heg]
+      intro hn
+      have : sstoreStateGas fork (originalAt st T n) (storageAt st T n) w = 0 := by
+        unfold sstoreStateGas
+        exact ite_eq_right_iff.mpr fun h => absurd ⟨h.2.1, h.2.2.1, h.2.2.2⟩ hn
+      omega
+  · exact HoareG.toI_lt (Nat.lt_of_not_le hglam) h
+
+/-- A write leaves every other word as it reads. -/
+theorem getStorage_writeSlot_ne {st : State.TransactionState} {T : EthLib.Base.Address}
+    {n w : U256} (hacc : hasAccount st T) {a : EthLib.Base.Address} {k : EthLib.Base.Bytes32}
+    (hne : a ≠ T ∨ k ≠ U256.toBeBytes n) :
+    (writeSlot st T n w).getStorage a k = st.getStorage a k := by
+  rw [State.TransactionState.getStorage_setStorage_of_ne (setStorage_writeSlot hacc) hne]
+  rfl
+
+/-- **A path to a halt that changes one word.** A specification over `StepG` from an `At` frame
+with state `st` to a normal halt with state `st'` is one over `StepI` when `st'` reads as `st`
+except at slot `n` of `T` and, from Glamsterdam: that slot does not go from a word that is not 0
+to 0 while it was 0 before the transaction; the path pays less than twice
+`STORAGE_SET_STATE_GAS`, and less than once unless that slot goes from 0 to a word that is not 0
+while it was 0 before the transaction. -/
+theorem SpecG.toIS {code : ByteArray} {message : Message fork} {pc : Nat}
+    {stack : List U256} {memory out : ByteArray} {g g' : Nat}
+    {st st' : State.TransactionState} {ss ss' : Substate} {T : EthLib.Base.Address} {n : U256}
+    (h : SpecG fork (At code message pc stack memory g st ss) (Halted false out g' st' ss'))
+    (hsame : ∀ a k, (a ≠ T ∨ k ≠ U256.toBeBytes n) → st'.getStorage a k = st.getStorage a k)
+    (hA : fork ≥ .glamsterdam →
+      ¬(originalAt st T n = 0 ∧ storageAt st T n ≠ 0 ∧ storageAt st' T n = 0))
+    (hg2 : fork ≥ .glamsterdam → g < g' + 2 * STORAGE_SET_STATE_GAS)
+    (hg1 : fork ≥ .glamsterdam →
+      ¬(originalAt st T n = 0 ∧ storageAt st T n = 0 ∧ storageAt st' T n ≠ 0) →
+      g < g' + STORAGE_SET_STATE_GAS) :
+    HoareI fork (At code message pc stack memory g st ss)
+      (fun evm => evm.running = false ∧ Halted false out g' st' ss' evm) := by
+  by_cases hglam : fork ≥ .glamsterdam
+  · refine HoareG.toI1 hglam h (T := T) (K := U256.toBeBytes n) fun c e hp hq => ?_
+    have hcs := hp.2.2.2.2.2.2.2.2.2.2.1
+    have hcg := hp.2.2.2.2.2.2.1
+    have hes := hq.2.2.2.2.2.1
+    have heg := hq.2.2.2.2.1
+    have herr := hq.2.2.1
+    refine ⟨by rw [herr]; rfl, fun a k hne => ?_, ?_, ?_, ?_⟩
+    · rw [hes, hcs]; exact hsame a k hne
+    · rw [hcs, hes]; exact hA hglam
+    · rw [hcg, heg]; exact hg2 hglam
+    · rw [hcs, hes, hcg, heg]; exact hg1 hglam
+  · exact HoareG.toI_lt (Nat.lt_of_not_le hglam) h
+
+/-- From Glamsterdam, a write whose state gas is 0 costs at most 22,100. -/
+theorem writeCost_le_of_no_create (hg : fork ≥ .glamsterdam) (o c w : U256) (cold : Bool)
+    (h : ¬(o = 0 ∧ c = 0 ∧ w ≠ 0)) : writeCost fork o c w cold ≤ 22100 := by
+  have hs : sstoreStateGas fork o c w = 0 := by
+    unfold sstoreStateGas
+    exact ite_eq_right_iff.mpr fun h' => absurd ⟨h'.2.1, h'.2.2.1, h'.2.2.2⟩ h
+  have := writeCost_le_glam hg o c w cold
+  omega
+
+/-- From Glamsterdam, a write costs at most 110,020: 12,100 and `STORAGE_SET_STATE_GAS`. -/
+theorem writeCost_le_max (hg : fork ≥ .glamsterdam) (o c w : U256) (cold : Bool) :
+    writeCost fork o c w cold ≤ 12100 + STORAGE_SET_STATE_GAS := by
+  have := writeCost_le_glam hg o c w cold
+  have hsg : sstoreStateGas fork o c w ≤ STORAGE_SET_STATE_GAS := by
+    unfold sstoreStateGas; split <;> simp [STORAGE_SET_STATE_GAS, STATE_BYTES_PER_STORAGE_SET, CPSB]
+  omega
+
+/-- The exponent of a word has at most 32 bytes. -/
+theorem exponentBytes_le (x : U256) : exponentBytes x ≤ 32 := by
+  unfold exponentBytes bitLength
+  split
+  · omega
+  · have := (Nat.log2_lt (by assumption)).mpr x.isLt
+    omega
+
 /-- **The frames of a run that refill nothing.** If a `StepI` chain goes from `sh k lo` to a
 stopped frame, then every running frame that `lo` reaches along `Step` refills nothing. The run
 from `lo` has `k` less gas: up to where it fails, it follows the chain. -/

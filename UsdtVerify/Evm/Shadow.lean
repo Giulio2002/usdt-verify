@@ -499,4 +499,75 @@ theorem ends_of_specI {P Q : Evm fork Nat → Prop}
   obtain ⟨z, hr, hz, -⟩ := h _ hp
   exact ends_of_sgmN hrun hres (noRefill_low hr hz)
 
+/-! ## A run over `StateGasMeter` gives a run of the meter `Nat` -/
+
+/-- **The frames of a run are `SimAt`.** If a `StepG` chain goes from `sh k lo` to a stopped
+frame, then every running frame that `lo` reaches along `Step` is `SimAt`. -/
+theorem simAt_low {k : Nat} {lo z : Evm fork Nat} (h : Reaches (StepG fork) (sh k lo) z)
+    (hz : z.running = false) :
+    ∀ y, Reaches (Step fork) lo y → y.running = true → SimAt y := by
+  intro y hy
+  induction hy generalizing z with
+  | refl =>
+    intro hr
+    cases h with
+    | refl => rw [running_sh] at hz; rw [hz] at hr; cases hr
+    | step hs _ => exact hs.2.1
+  | step hs1 hr1 ih =>
+    rename_i lo lo1 y
+    intro hyr
+    have hlo : lo.running = true := hs1.running
+    cases h with
+    | refl => rw [running_sh, hlo] at hz; cases hz
+    | step hs hr =>
+      rename_i hi1
+      rcases hs.2.2 k lo rfl with ⟨e, he⟩ | ⟨b, hb, hbr, -⟩ | ⟨b, hb, hhi⟩
+      · cases hs1 with
+        | next _ hn => rw [he] at hn; cases hn
+        | halt _ _ _ =>
+          rw [reaches_stopped hr1 rfl] at hyr
+          cases hyr
+      · have := Step.deterministic hs1 (.next hlo hb)
+        subst this
+        rw [reaches_stopped hr1 hbr, hbr] at hyr
+        cases hyr
+      · have e1 := Step.deterministic hs1 (.next hlo hb)
+        have e2 := Step.deterministic hs.1 (.next (by rw [running_sh]; exact hlo) hhi)
+        subst e1 e2
+        exact ih hr hz hyr
+
+/-- The loop of the interpreter over the meter `Nat` follows a `Step` chain to a stopped frame,
+for any gas bound and message runner. -/
+theorem runFrame_of_reachesN {bound : Nat} {runChild : MessageRunner fork Nat bound}
+    {l s : Evm fork Nat} (h : Reaches (Step fork) l s) (hs : s.running = false)
+    (within : GasMeter.gasHeld l.gas ≤ bound) :
+    Evm.runFrame (step fork) (step_decreases fork) bound runChild l within = .ok s := by
+  induction h with
+  | refl => exact runFrame_of_running_eq_false hs
+  | step h1 _ ih =>
+    cases h1 with
+    | next hr hn => rw [runFrame_of_step_eq_next hr hn]; exact ih hs _
+    | halt hr hn hab =>
+      rw [runFrame_of_step_eq_error hr hn hab]
+      rename_i hrest
+      rw [reaches_stopped hrest rfl]
+
+/-- **A run of the meter `Nat` from a run over `StateGasMeter`.** If a triple over `StepI` to
+stopped frames holds from `sh k (toNat m)`, `m` has reservoir 0, and the loop over
+`StateGasMeter` from `m` ends with no error, then the loop over the meter `Nat` from `toNat m`
+ends with no error, for any gas bound and message runner. -/
+theorem runsOk_of_specI {P Q : Evm fork Nat → Prop}
+    (h : HoareI fork P fun e => e.running = false ∧ Q e) {m s : Evm fork StateGasMeter} {k : Nat}
+    (hp : P (sh k (toNat m))) (hres : m.gas.reservoir = 0)
+    {within : GasMeter.gasHeld m.gas ≤ bound}
+    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild m within = .ok s)
+    (hok : s.error = none) {bound' : Nat} (runChild' : MessageRunner fork Nat bound')
+    (within' : GasMeter.gasHeld (toNat m).gas ≤ bound') :
+    ∃ s', Evm.runFrame (step fork) (step_decreases fork) bound' runChild' (toNat m) within' =
+      .ok s' ∧ s'.error = none := by
+  obtain ⟨z, hr, hz, -⟩ := h _ hp
+  rcases ends_of_sgmN hrun hres (noRefill_low hr hz) with ⟨hc, hs⟩ | ⟨x, hx, hxr, hnp⟩
+  · exact ⟨toNat s, runFrame_of_reachesN hc hs within', hok⟩
+  · exact absurd (simAt_low (hr.mono fun h => h.1) hz x hx hxr) hnp
+
 end UsdtVerify.Shadow
