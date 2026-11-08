@@ -1,3 +1,4 @@
+import UsdtVerify.Usdt.Sanity.Strings
 import UsdtVerify.Usdt.Sanity.TransferFrom
 import UsdtVerify.Usdt.Sanity.Calls
 import UsdtVerify.Usdt.Sanity.Runner
@@ -540,3 +541,7 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Sanity.inv_applies
 #print axioms UsdtVerify.Sanity.transferFrom_ok_sat
 #print axioms UsdtVerify.Sanity.transferFrom_bound_applies
+#print axioms UsdtVerify.Sanity.strForm_name
+#print axioms UsdtVerify.Sanity.strForm_symbol
+#print axioms UsdtVerify.Sanity.inv_mainnet
+#print axioms UsdtVerify.Sanity.strings_applies

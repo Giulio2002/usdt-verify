@@ -661,6 +661,74 @@ state"; it is part of each call's predicate `Q` here (in round 22 it was kept fr
 - `supply_seq_all` (`R = SupplyKept C`, `Q`: none of issue, redeem, destroyBlackFunds, `Strs`):
   slot 1 keeps its word.
 
+## Non-vacuity: the assumptions can hold together (round 24)
+
+`UsdtVerify/Usdt/Sanity/`. These theorems show that the hypotheses of the main theorems can all
+hold at once, so the main theorems do not hold only because their hypotheses are never true.
+They do not prove `KeccakSep` or `AllowSep`, which are statements about keccak.
+
+Runner assumptions (`Sanity/Runner.lean`, `Evm/Runners.lean`):
+- `keepsAll_of_same`: if every message from `C` to `ua` that the runner ends with no error
+  leaves the storage of `C` as it was in the caller state, then the runner meets `KeepsSlots`,
+  `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply` and `KeepsInv`.
+- `stop_keeps_all`: `stopRunner fork bound ua` meets all six, for every `C`, at every fork.
+  On a message to `ua` whose code is the one byte STOP and that has a target, no value and no
+  precompile, `stopRunner` is EthLib's `processRunner`, and on a message to another address it is
+  `processRunner` too. It fails every other message to `ua`.
+  `stop_staticKeeps`: from Paris it meets `StaticKeeps`.
+  `Keeps` asks its relation of every message to `ua`, whatever the message's code. So nothing is
+  claimed of `processRunner` itself.
+- `balRunner` ends every message at once with no error and keeps the state. Its answer is the 32
+  bytes of the word at slot `keccak(x ++ 2)` of the message's caller, where `x` is the word at
+  byte 4 of the message's data. `runner_assumptions_hold`: it meets all six, `StaticKeeps` at
+  every fork, and `HonestBalance` for every message and state.
+  `honestBalance_of_answers`: `HonestBalance` holds whenever each forwarded `balanceOf(a)` that
+  ends with no error answers at least 32 bytes whose first word is `balances[a]` of the contract
+  in the child's end state.
+- No real upgraded contract is shown to meet these assumptions. `balRunner` is not the run of
+  any code.
+
+Spec preconditions (`Sanity/Transfer.lean`, `Calls.lean`, `TransferFrom.lean`). Each `*_sat` holds
+at every fork from Berlin and for every block, transaction, contract address `C` and substate.
+It gives a message to `C` running `CODE`, a start state `sState C kvs` and a gas. `sState C kvs`
+has one account, at `C`, and the slots `kvs`. From these the interpreter loop, with
+`processRunner`, ends with no error. The proof applies the spec theorem in parentheses, so every
+hypothesis of that theorem holds there:
+- `transfer_ok_sat` (`TransferOk.runFrame_ok`): `transfer(to, 1)` by any caller, with
+  `balances[caller]` = 256.
+- `transferFrom_ok_sat` (`TransferFrom.runFrame_ok`): `transferFrom(f, to, 1)` by any caller,
+  with `allowed[f][caller]` = `balances[f]` = 256.
+- `approve_set_sat` (`Approve.runFrame_set`): `approve(s, 1)`, with every slot 0.
+- `issue_sat`, `redeem_sat` (`IssueSpec.runFrame_issue`, `runFrame_redeem`): `issue(1)`,
+  `redeem(1)` by the owner `CALLER_A` (twenty bytes 0x01).
+- `destroy_sat` (`DestroySpec.runFrame_spec`): `destroyBlackFunds(a)` by the owner, for any `a`,
+  with `isBlackListed[a]` = 1.
+No fact about keccak is used. In each state every slot holds one of a few words, and each check
+passes for each of them, whichever slots collide.
+
+Security theorems and the invariant (`Sanity/Security.lean`, `TransferFrom.lean`). `OkRun M S
+ss`: some gas and a frame for which `At CODE M 0 [] .empty gas S ss` holds, from which the
+interpreter loop with `processRunner` ends with no error. There are four witnesses, each with
+`OkRun` and the other hypotheses that are not about keccak:
+- `transfer_witness`: not deprecated, slots 7 and 8 of `StrForm`, the caller is not the owner,
+  and the selector is transfer's.
+- `paused_witness`: `approve(s, 0)` while paused.
+- `listed_witness`: `approve(s, 0)` with `Listed C S a`.
+- `inv_witness`: `approve(s, 1)` from the state with every slot 0, where `Inv` holds (`inv_empty`).
+Each `_applies` theorem takes `KeccakSep`, and `AllowSep` where needed, and applies the theorem to
+a witness, so it discharges every other hypothesis. They cover `nonOwner_call` and `_call_all`,
+`allowKept_call` and `_call_all`, `supply_call` and `_call_all`, `paused_call` and `_call_all`,
+`listed_call` and `_call_all`, `inv_call_ns`, `inv_call_all` and `transferFrom_bound`.
+No witness run is deprecated. So the runner hypotheses of the `_call_all` forms and of
+`inv_call_all`, which these theorems take only when deprecated, hold there because they are never
+needed. Their satisfiability is shown separately, above.
+
+`StrForm` (`Sanity/Strings.lean`): `strForm_name` and `strForm_symbol` prove that `NAME_WORD` and
+`SYMBOL_WORD`, the slot words of "Tether USD" and "USDT", are of `StrForm`.
+`inv_mainnet`: under `KeccakSep`, `Inv` holds in the state whose slots 7 and 8 hold them.
+`strings_applies`: under `KeccakSep`, `inv_call_all` and `supply_call` apply to `approve(s, 0)`
+from that state.
+
 ## What is trusted
 
 - The Lean 4 kernel (v4.35.0).
@@ -682,13 +750,15 @@ state"; it is part of each call's predicate `Q` here (in round 22 it was kept fr
 
 - name/symbol on slot words outside `StrForm`.
 - The invariant over deprecated calls without the runner assumptions `KeepsInv` and
-  `HonestBalance` (destroyBlackFunds can break it, see above). No concrete upgraded contract is
-  shown to meet them.
+  `HonestBalance` (destroyBlackFunds can break it, see above). No real upgraded contract is
+  shown to meet them. Concrete runners that meet them are given in round 24 (`Sanity/Runner.lean`).
 - `KeccakSep` (a hypothesis of the invariant theorems, about keccak) and `AllowSep` (a hypothesis
   of some security theorems, about keccak).
 - The security properties for deprecated calls of the six forwarding functions (and, for the
   allowance and supply properties, of destroyBlackFunds) without the runner assumptions `KeepsSlots`, `KeepsBal`, `KeepsListed`,
-  `KeepsAllow`, `KeepsSupply` (round 23). No concrete upgraded contract is shown to meet them.
+  `KeepsAllow`, `KeepsSupply` (round 23). No real upgraded contract is shown to meet them.
+  Concrete runners that meet them are given in round 24.
+- A deprecated run in the non-vacuity witnesses of round 24: no witness run is deprecated.
 - A theorem that neither `KeepsInv` nor `KeepsInvAcc` implies the other (it holds by the
   definitions; it is not stated).
 - Runs that run out of gas below the stated bounds, except at the dispatcher (see above).

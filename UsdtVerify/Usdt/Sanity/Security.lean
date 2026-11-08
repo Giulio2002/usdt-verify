@@ -15,7 +15,7 @@ and substate, list the other hypotheses that are not about keccak:
 - `paused_witness`: `approve(s, 0)` by any caller, slot 0 holding `2^160` (paused, owner 0).
   Paused, not deprecated, slots 7 and 8 of `StrForm`.
 - `listed_witness`: `approve(s, 0)` by any caller, `isBlackListed[a]` holding 2, for any
-  `a < 2^160`. `Listed C S a`, not deprecated, slots 7 and 8 of `StrForm`.
+  word `a`. `Listed C S a`, not deprecated, slots 7 and 8 of `StrForm`.
 - `inv_witness`: `approve(s, 1)` by any caller, every slot 0. `Inv C S`, not deprecated, not
   static, slots 7 and 8 of `StrForm`.
 

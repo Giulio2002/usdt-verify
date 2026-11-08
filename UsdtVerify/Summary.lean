@@ -402,6 +402,24 @@ their words), `Security.paused_call_all` (`KeepsBal`), `Security.listed_call_all
 `Security.transfer_checks_all`, `Security.transferFrom_checks_all` (not paused, sender or
 `_from` not blacklisted). See docs/RESULTS.md, "Security properties, deprecated or not".
 
+## Non-vacuity (round 24; Usdt/Sanity/, which imports this file)
+Concrete runners meet the runner assumptions. `stopRunner` is EthLib's `processRunner` on the
+messages to `ua` that run the one byte STOP, and it fails every other message to `ua`. It meets
+`KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply` and `KeepsInv`, and from Paris
+`StaticKeeps`. `balRunner` keeps the state and answers the word of `balances[x]`. It meets all six,
+`StaticKeeps` and `HonestBalance` (`Sanity.runner_assumptions_hold`).
+For every fork from Berlin, block, transaction, contract address and substate, each of these
+gives a call, a start state and a gas where every hypothesis of a spec theorem holds, with a run
+under `processRunner` that ends with no error: `Sanity.transfer_ok_sat`,
+`Sanity.transferFrom_ok_sat`, `Sanity.approve_set_sat`, `Sanity.issue_sat`, `Sanity.redeem_sat`
+and `Sanity.destroy_sat`. No keccak fact is used.
+Under `KeccakSep`, and `AllowSep` where needed, the `Sanity.*_applies` theorems apply the
+security theorems, `inv_call_ns` and `inv_call_all` to such runs. They discharge every other
+hypothesis. No witness run is deprecated.
+`Sanity.strForm_name` and `Sanity.strForm_symbol`: the words of "Tether USD" and "USDT" are of
+`StrForm`. `Sanity.strings_applies`: under `KeccakSep`, `inv_call_all` and `supply_call` apply with
+those words in slots 7 and 8.
+
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas
 bound and any message runner: if the loop of the interpreter ends with no error, then the call

@@ -1171,10 +1171,50 @@ entry; `DESTS` = the 32 destinations).
   with none. grep of the changed files for sorry, admit, axiom, native_decide, bv_decide,
   decide +native, maxHeartbeats, maxRecDepth: none.
 
+### Round 24: non-vacuity (Usdt/Sanity/, Evm/Runners.lean, Evm/Sample.lean; docs/RESULTS.md "Non-vacuity")
+- `Evm/Runners.lean` (generic): `SameStore`, `stopRunner` (EthLib's `processRunner` on the
+  messages to `ua` that run the one byte STOP with a target, no value and no precompile, and on
+  every message to another address; it fails every other message to `ua`), `stopRunner_ok`,
+  `stopRunner_keeps`, `answerRunner`, `answerRunner_keeps`, `loadWord_append_wordBytes`.
+- `Evm/Sample.lean` (generic): `sState` (one account with given slots), `sMsg`, `sFrame`,
+  `at_sFrame`, `data1`/`data2`/`data3` with their size, selector and word lemmas,
+  `selector_append`, `loadWord_append_wordBytes_append`, `le_writeSlot`, `slotCost_le`.
+- `Sanity/Runner.lean`: `keepsAll_of_same`; `stop_keeps_all` (`stopRunner` meets `KeepsSlots`,
+  `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`, `KeepsInv`), `stop_staticKeeps` (from
+  Paris); `balRunner` meets all six, `StaticKeeps` and `HonestBalance`
+  (`runner_assumptions_hold`); `honestBalance_of_answers`.
+- `Sanity/Transfer.lean`, `Calls.lean`, `TransferFrom.lean`: `transfer_ok_sat`,
+  `transferFrom_ok_sat`, `approve_set_sat`, `issue_sat`, `redeem_sat`, `destroy_sat`. Each gives
+  a call, a state and a gas where every hypothesis of the spec theorem holds, and the run under
+  `processRunner` ends with no error. It holds at every fork from Berlin and for every block,
+  transaction, contract address and substate. No keccak fact is used.
+- `Sanity/Security.lean`: `OkRun`; `transfer_witness`, `paused_witness`, `listed_witness`,
+  `inv_witness` (`inv_empty`); `nonOwner_applies`, `allowKept_supply_applies`, `paused_applies`,
+  `listed_applies`, `inv_applies` apply the security theorems (single call and `_call_all`),
+  `inv_call_ns` and `inv_call_all` under `KeccakSep` (and `AllowSep`), and discharge every other
+  hypothesis. `transferFrom_bound_applies` (TransferFrom.lean) does the same for
+  `transferFrom_bound`.
+- `Sanity/Strings.lean`: `strForm_name`, `strForm_symbol`; `inv_mainnet` (under `KeccakSep`);
+  `strings_applies` (`inv_call_all` and `supply_call` with "Tether USD" and "USDT" in slots 7
+  and 8).
+- Not done: a witness run that is deprecated (every witness has slot 10 not deprecated, so the
+  runner hypotheses of the `_call_all` forms hold there only because these theorems take them
+  only when deprecated); a real upgraded contract (code) shown to meet the runner assumptions;
+  `KeccakSep`, `AllowSep` (statements about keccak).
+- Unlike `processRunner`, `stopRunner` fails the messages to `ua` whose code is not STOP.
+  `Keeps` asks its relation of every message to `ua` whatever its code, and nothing is claimed of
+  `processRunner` there.
+- `lake build UsdtVerify` (incremental, after each of the four code commits): exit 0, 0 "error:"
+  lines. `#print axioms`: 42 new lines. 39 are [propext, Classical.choice, Quot.sound], 1
+  (`selector_append`) is [propext, Quot.sound], and 2 (`strForm_name`, `strForm_symbol`) have no
+  axioms. grep of the new files for sorry, admit, axiom declarations, native_decide, bv_decide,
+  decide +native, maxHeartbeats, maxRecDepth: none.
+
 ## Open (not proved)
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
-  contract. `transferFrom_bound` has no deprecated form.
+  contract (round 24: concrete runners meet them, `Sanity/Runner.lean`). `transferFrom_bound` has
+  no deprecated form.
 - `AllowSep`, like `KeccakSep`, is a hypothesis about keccak, not proved.
 - A theorem that neither `KeepsInv` nor `KeepsInvAcc` implies the other (by the definitions only).
 - Completeness per function: done for the dispatcher (round 11), totalSupply, balanceOf,
@@ -1199,7 +1239,10 @@ entry; `DESTS` = the 32 destinations).
   when deprecated and not static, `hacc`; `inv_call_ns` took `hstatic` through round 18). Without `HonestBalance`, deprecated
   destroyBlackFunds keeps `Inv` exactly when the answer is the local balance
   (`inv_dep_destroy_iff`); `exists_breaks` gives a state where a different answer breaks it.
-  `KeepsInv` is not proved for any concrete upgraded contract.
+  `KeepsInv` is not proved for any real upgraded contract. Round 24 shows that `stopRunner` and
+  `balRunner` meet it, and that `balRunner` meets `HonestBalance`.
+- Non-vacuity (round 24): no witness run is deprecated; `KeccakSep` and `AllowSep` are not
+  discharged.
 
 ## Generic gaps found (for the EthLib program-logic agent)
 1. Missing opcode rules at the pin (kept as LOCAL lemmas, UsdtVerify/Evm/Local/Rules.lean):
@@ -1302,6 +1345,10 @@ entry; `DESTS` = the 32 destinations).
    a fork-generic `callWith`.
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+- Round 24 (tree of commit 2969de2 plus the round-24 docs, rm -rf .lake/build, EthLib oleans
+  prebuilt): 124.57 s wall, 310.57 s user, 1785806848 bytes max RSS (`/usr/bin/time -l`), exit 0,
+  0 "error:" lines, 1383 jobs. `#print axioms`: 480 [propext, Classical.choice, Quot.sound],
+  5 [propext, Quot.sound], 5 [propext], 3 with no axioms (493).
 - Round 23 (tree of commit c5d8090 plus the round-23 docs, rm -rf .lake/build, EthLib oleans
   prebuilt): 118.52 s wall, 303.37 s user, 1798701056 bytes max RSS (`/usr/bin/time -l`), exit 0,
   0 "error:" lines, 1375 jobs; `#print axioms`: 441 [propext, Classical.choice, Quot.sound],

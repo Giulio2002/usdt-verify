@@ -171,7 +171,7 @@ A few general opcode rules are proved locally in `UsdtVerify/Evm/Local/` while t
 
 - Forks before Berlin.
 - `KeccakSep` and `AllowSep` are hypotheses about keccak, not theorems.
-- `KeepsInv`, `HonestBalance` and the `Keeps*` assumptions are not shown to hold for any real upgraded contract. They say what the upgraded contract must do. `UsdtVerify/Usdt/Sanity/Runner.lean` shows they can all hold at once: a runner whose upgraded contract only runs `STOP` meets every runner assumption except `HonestBalance`, and a runner that answers each address's local balance meets all of them. `UsdtVerify/Usdt/Sanity/` also gives, for every fork from Berlin, a concrete state and call where the success theorems of `transfer`, `approve`, `issue`, `redeem` and `destroyBlackFunds` apply and the run succeeds, so their hypotheses can all hold. The same is shown for `transferFrom`, the five security theorems and `inv_call_all`, except for the keccak hypotheses `KeccakSep` and `AllowSep`, which no concrete run can discharge. These examples are not deprecated, so for them the runner assumptions hold because the contract is not deprecated. The runners above show those assumptions can hold when it is.
+- `KeepsInv`, `HonestBalance` and the `Keeps*` assumptions are not shown to hold for any real upgraded contract. They say what the upgraded contract must do. `UsdtVerify/Usdt/Sanity/Runner.lean` shows they can all hold at once: a runner whose upgraded contract only runs `STOP` meets every runner assumption except `HonestBalance`, and a runner that answers each address's local balance meets all of them. `UsdtVerify/Usdt/Sanity/` also gives, for every fork from Berlin, a concrete state and call where the success theorems of `transfer`, `approve`, `issue`, `redeem` and `destroyBlackFunds` apply and the run succeeds, so their hypotheses can all hold. The same is shown for `transferFrom`, the five security theorems and `inv_call_all`, except for the keccak hypotheses `KeccakSep` and `AllowSep`, which no concrete run can discharge. These examples are not deprecated, so for them the runner assumptions hold because the contract is not deprecated. The runners above show those assumptions can hold when it is. Finally, the mainnet slot words for "Tether USD" and "USDT" are proved to be in the form `name` and `symbol` need (`strForm_name`, `strForm_symbol`), and `inv_call_all` is shown to apply to a state holding them.
 - Slot words for `name` and `symbol` in a form Solidity never writes.
 - The individual path specs still state exact gas bounds. Completeness and the invariant hold for any gas.
 
@@ -188,7 +188,7 @@ lake exe cache get
 lake build
 ```
 
-EthLib is fetched as a dependency at the commit pinned in `lakefile.lean`. Building EthLib from source takes a long time and several GB of memory. Once EthLib is built, this project builds from clean in about 120 seconds with two threads and needs about 1.8 GB.
+EthLib is fetched as a dependency at the commit pinned in `lakefile.lean`. Building EthLib from source takes a long time and several GB of memory. Once EthLib is built, this project builds from clean in about 125 seconds with two threads and needs about 1.8 GB.
 
 ## Credits
 
