@@ -18,7 +18,9 @@ gas bound and ANY message runner:
 - writing `S` for the state after the call (`incorporateChild`) and `d` for the word at 0x60
   after CALL wrote the start of the child's output: the run stopped with empty output in
   `tailState S C a d` (`balances[a] := 0`, then `_totalSupply := T' - d`, unchecked), substate
-  `tailSub`, gas exact (`tailCost`).
+  `tailSub`, gas exact (`tailCost`); and (round 26) the gas at the return from the call covers
+  the stipend bound of the tail (`tailStip`: otherwise an SSTORE of the tail is reached with at
+  most 2300 gas left, `DeprecatedDestroy.tailMidD`).
 
 The code found is in the conclusion, as for the other deprecated functions. Named hypotheses:
 the coldness flags only. The conclusion also states that the frame is not static and that the
@@ -129,7 +131,15 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork)
         (addrArg message.data 0) (resWord (outMemOf (memD message) child.1.output)) ∧
       s.substate = tailSub fork (incorporateChild fork caller child.1).substate
         (incorporateChild fork caller child.1).state message.currentTarget
-        (addrArg message.data 0) (resWord (outMemOf (memD message) child.1.output)) := by
+        (addrArg message.data 0) (resWord (outMemOf (memD message) child.1.output)) ∧
+      tailStip fork (incorporateChild fork caller child.1).state message.currentTarget
+          (addrArg message.data 0)
+          (coldIn (incorporateChild fork caller child.1).substate message.currentTarget
+            (balSlot message))
+          (coldIn (accessSlot (incorporateChild fork caller child.1).substate
+            message.currentTarget (balSlot message)) message.currentTarget 1) ≤
+        gas - preCostD fork c0 cL c10 cU - (depCallGas fork (askedOfD fork gas c0 cL c10 cU) (gas - preCostD fork c0 cL c10 cU)
+        (routeCost fork (callSubD substate state message).accessedAddresses r)).cost + child.1.gas := by
   obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
   by_cases hown : callerWord message ≠ ownerOf state message.currentTarget
   · exact (no_ok (fun g hg => Destroy.spec_notOwner hfork h4 hsize' hsel hv hown hc0 hg)
@@ -198,12 +208,19 @@ theorem dep_destroy_complete (hfork : .berlin ≤ fork)
         (size_outMemOf hB child.1.output)
         (mload_outMemOf hB (by rw [memoryExtend_zero]; exact ptr_memD message) child.1.output)
         (x := BitVec.ofNat 256 (selector message.data)) rfl rfl (gas := g) h1) hat wa hruna hok
+    have hstip := Nat.le_of_not_lt fun hlt => no_ok_stuck_at
+      (tailMidD (x := BitVec.ofNat 256 (selector message.data)) hfork (mkey_addrArg0 message.data)
+        hstatic hacc (size_outMemOf hB child.1.output)
+        (mload_outMemOf hB (by rw [memoryExtend_zero]; exact ptr_memD message) child.1.output)
+        rfl rfl hcost hlt) hat wa hruna hok
     refine ⟨caller, msg, lt, child, hch, he, hstatic, by rwa [state_incorporateChild] at hacc,
-      hfwd, hmg, hcs, hcss, ?_, hr, ho, ?_, hst, hss⟩
+      hfwd, hmg, hcs, hcss, ?_, hr, ho, ?_, hst, hss, ?_⟩
     · simp only [Nat.add_zero, balSlot] at hcost ⊢
       exact hcost
     · rw [hgs]
       simp only [Nat.add_zero, balSlot]
+    · simp only [Nat.add_zero, balSlot] at hstip ⊢
+      exact hstip
   · have hz : child.1.error.isNone = false := by
       cases h : child.1.error
       · exact absurd h he

@@ -689,3 +689,9 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Exact.transfer_dep_ok_or_fails
 #print axioms UsdtVerify.Exact.approve_dep_ok_or_fails
 #print axioms UsdtVerify.Exact.transferFrom_dep_ok_or_fails
+#print axioms UsdtVerify.DeprecatedDestroy.zeroBalNoWD
+#print axioms UsdtVerify.DeprecatedDestroy.tailD_g
+#print axioms UsdtVerify.DeprecatedDestroy.tailMidD
+#print axioms UsdtVerify.DeprecatedDestroy.spec_depD_g
+#print axioms UsdtVerify.Exact.destroyBlackFunds_dep_ok_iff_gas
+#print axioms UsdtVerify.Sanity.answerRunnerAt_ans_gasD

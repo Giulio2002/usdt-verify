@@ -24,6 +24,10 @@ exactly when a condition `A` holds.
 - `answerRunnerAt_ans_gas` (round 26): the runner hypothesis of the `*_dep_ok_iff_gas` theorems
   holds for `answerRunnerAt S f` with `A` the bound on the gas the CALL keeps (the ended frames
   have gas 0).
+- `answerRunnerAt_ans_gasD` (round 26): the same for the runner hypothesis of
+  `destroyBlackFunds_dep_ok_iff_gas`, when `S` has an account of `C`: the ended frame has no
+  error, an account of `C` and gas 0, so the condition reduces to the bound `T ≤ R`. Stated per
+  frame: `T` (the tail's cost and stipend bound) depends on the caller's frame.
 -/
 
 namespace UsdtVerify.Sanity
@@ -88,5 +92,17 @@ theorem answerRunnerAt_ans_gas {S : State.TransactionState} (T R : Nat)
   obtain ⟨he, -, -, hg⟩ := answerRunnerAt_ok h
   rw [hg, Nat.add_zero]
   exact ⟨fun h => h.2, fun h => ⟨he, h⟩⟩
+
+/-- `answerRunnerAt S f`, with `S` an account of `C`, ends each message with no error, an
+account of `C` and gas 0: the condition of the runner hypothesis of
+`destroyBlackFunds_dep_ok_iff_gas` holds of its ended frame exactly when `T ≤ R`. -/
+theorem answerRunnerAt_ans_gasD {S : State.TransactionState} {C : Address} (hS : hasAccount S C)
+    (T R : Nat) (caller : Evm fork Nat) (msg : Message fork) (lt : msg.gas < bound)
+    (child : { c : Evm fork Nat // GasMeter.gasHeld c.gas ≤ msg.gas })
+    (h : answerRunnerAt S f caller msg lt = .ok child) :
+    child.1.error = none ∧ hasAccount child.1.state C ∧ T ≤ R + child.1.gas ↔ T ≤ R := by
+  obtain ⟨he, hs, -, hg⟩ := answerRunnerAt_ok h
+  rw [hg, Nat.add_zero, hs]
+  exact ⟨fun h => h.2.2, fun h => ⟨he, hS, h⟩⟩
 
 end UsdtVerify.Sanity

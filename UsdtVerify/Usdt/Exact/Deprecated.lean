@@ -29,8 +29,14 @@ in the state (`hcode`; `c.size < 2^256`, `hszl`, for the theorems that give succ
 - `*_dep_ok_or_fails` (round 26, the same six): with `hg` and `htail`, for a runner that may fail with errors that abort
   the run (in place of `NoFail`), success gives the checks and `A`, and the checks and `A` give
   success or a failure of the runner on some message.
-- destroyBlackFunds when deprecated: the gas between `hg` and `htail`, and a runner that may fail,
-  are not covered (the code after its CALL writes two slots, whose prices depend on the state).
+- `destroyBlackFunds_dep_ok_iff_gas` (round 26): the same with `hg` only, for destroyBlackFunds,
+  whose code after the CALL writes `balances[a]` and slot 1: `hans` makes `A` equivalent to the
+  forwarded message ending with no error, in a state with an account of the contract, and with
+  enough gas left for the code after the CALL, the larger of its cost (`tailCost`) and its
+  stipend bound (`tailStip`: more than 2300 gas left at the second SSTORE). Both are computed over
+  the state and substate after the call: the coldness and the original and current words of
+  `balances[a]` and slot 1 there. With `destroyBlackFunds_dep_low` this covers every gas, under a
+  runner that never fails.
 - destroyBlackFunds: `A` is the answer "the forwarded message ends with no error and the contract
   has an account in its end state", and the checks are `DestroyDepGuard`.
 -/
@@ -769,6 +775,74 @@ theorem destroyBlackFunds_dep_ok_iff (hszl : c.size < 2 ^ 256)
         hdepth hc0 hcL hc10 hcU hg htail fun _ _ _ hcal hfwd _ => (hcal hfwd).2)
       meets hnf (fun e ⟨_, _, _, hcal, hfwd, _, _, _, hok, _⟩ =>
         halted_false_ok e (hok (hcal hfwd).1)) start within
+
+/-- `destroyBlackFunds(a)` when deprecated, with the gas of the path up to the CALL (`hg`) and no
+bound on the gas after it: the run succeeds exactly when `DestroyDepGuard` holds and `A` holds,
+where `A` is equivalent (`hans`) to the forwarded `balanceOf(a)` ending with no error, in a state
+where the contract has an account, and leaving, with the gas the CALL keeps, at least the larger
+of the cost of the tail (`tailCost`) and its stipend bound (`tailStip`), both computed over the
+state and substate after the call (`incorporateChild`): the coldness and the original and
+current words of `balances[a]` and slot 1 there. -/
+theorem destroyBlackFunds_dep_ok_iff_gas (hszl : c.size < 2 ^ 256)
+    (hg : preCostD fork c0 cL c10 cU + 100 + callRD substate state message r ≤ gas)
+    {A : Prop}
+    (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child →
+      SendsVia message (upAddr state message) c r (dataB message) msg →
+        (child.1.error = none ∧ hasAccount child.1.state message.currentTarget ∧
+          max (tailCost fork (incorporateChild fork caller child.1).state message.currentTarget
+              (addrArg message.data 0) (resWord (outMemOf (memD message) child.1.output))
+              (coldIn (incorporateChild fork caller child.1).substate message.currentTarget
+                (balSlot message))
+              (coldIn (accessSlot (incorporateChild fork caller child.1).substate
+                message.currentTarget (balSlot message)) message.currentTarget 1))
+            (tailStip fork (incorporateChild fork caller child.1).state message.currentTarget
+              (addrArg message.data 0)
+              (coldIn (incorporateChild fork caller child.1).substate message.currentTarget
+                (balSlot message))
+              (coldIn (accessSlot (incorporateChild fork caller child.1).substate
+                message.currentTarget (balSlot message)) message.currentTarget 1)) ≤
+            gas - preCostD fork c0 cL c10 cU -
+              (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).cost +
+              child.1.gas ↔ A))
+    (hnf : NoFail runChild) :
+    RunsOk fork bound runChild evm within ↔ DestroyDepGuard state message c ∧ A := by
+  constructor
+  · rintro ⟨s, hs, hok⟩
+    obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hs hok
+    obtain ⟨c', r', hcode', hroute', hown, hl, hw, -, hdepth, caller, msg, lt, child, hch, he, hst,
+      hacc, hfwd, -, -, -, hcost, -, -, -, -, -, hstip⟩ :=
+      dep_destroy_complete hfork hsize' hsel hdep hc0 hcL hc10 hcU start within hs hok
+    obtain rfl := code_eq hcode hcode'
+    obtain rfl := routes_unique hroute' hroute
+    exact ⟨⟨⟨⟨h4, hv⟩, size_pos_of hw, hdepth⟩, hown, hl, hst⟩,
+      (hans caller msg lt child hch hfwd).1 ⟨he, hacc, Nat.max_le.mpr ⟨hcost, hstip⟩⟩⟩
+  · rintro ⟨⟨⟨⟨h4, hv⟩, hsz, hdepth⟩, hown, hl, hst⟩, hA⟩
+    let callee : Evm fork Nat → Message fork → Evm fork Nat → Prop := fun caller msg child =>
+      SendsVia message (upAddr state message) c r (dataB message) msg →
+        child.error = none ∧ hasAccount child.state message.currentTarget ∧
+          max (tailCost fork (incorporateChild fork caller child).state message.currentTarget
+              (addrArg message.data 0) (resWord (outMemOf (memD message) child.output))
+              (coldIn (incorporateChild fork caller child).substate message.currentTarget
+                (balSlot message))
+              (coldIn (accessSlot (incorporateChild fork caller child).substate
+                message.currentTarget (balSlot message)) message.currentTarget 1))
+            (tailStip fork (incorporateChild fork caller child).state message.currentTarget
+              (addrArg message.data 0)
+              (coldIn (incorporateChild fork caller child).substate message.currentTarget
+                (balSlot message))
+              (coldIn (accessSlot (incorporateChild fork caller child).substate
+                message.currentTarget (balSlot message)) message.currentTarget 1)) ≤
+            gas - preCostD fork c0 cL c10 cU -
+              (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).cost + child.gas
+    have meets : Meets callee runChild :=
+      ⟨fun caller msg lt child hch hfwd => (hans caller msg lt child hch hfwd).2 hA,
+        fun caller msg lt e h => absurd h (hnf caller msg lt e)⟩
+    exact runsOk_of_specUnder
+      (spec_depD_g (callee := callee) hfork hst h4 hsize' hsel hv hown hl hdep hcode hsz hszl
+        hroute hdepth hc0 hcL hc10 hcU hg fun _ _ _ hcal hfwd =>
+          let ⟨he, hacc, hm⟩ := hcal hfwd
+          ⟨he, hacc, (Nat.max_le.mp hm).1, (Nat.max_le.mp hm).2⟩)
+      meets hnf (fun e ⟨_, _, _, _, _, h⟩ => halted_false_ok e h) start within
 
 theorem destroyBlackFunds_dep_low
     (hg : gas < preCostD fork c0 cL c10 cU + 100 + callRD substate state message r) :
