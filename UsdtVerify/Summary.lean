@@ -550,6 +550,9 @@ sequences of calls over `Nat` or `StateGasMeter` (`SeqS`): `nonOwner_seqS`, `pau
 `listed_seqS`, `allowKept_seqS`, `supply_seqS`. `Security.process_stepSec`: the steps from
 `processMessage` over `StateGasMeter`. `Complete.callStep_child_rS`, `Complete.resumeCall_sgm`
 (Evm/CallMeter.lean): the CALL step and the resume after the child over `StateGasMeter`.
+Round 38: `Meter.step_simX` and `Meter.step_callX` (Evm/StepSim.lean): one step over both meters,
+from reservoir 0, at EXTCODESIZE, GAS and CALL. A run of the deprecated paths over
+`StateGasMeter` is not covered.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

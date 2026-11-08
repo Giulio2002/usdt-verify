@@ -1753,6 +1753,23 @@ T1 (third audit), continued.
   `StateGasMeter` (a `KeepsAt` form for it). The split of the gas at the end, and the gas of a run
   with a refill, are not done either.
 
+### Round 38: one step at EXTCODESIZE, GAS and CALL over the EIP-8037 meter (Evm/CallSim.lean, Evm/StepSim.lean)
+
+T1 (third audit), continued. Item 1 of the plan of round 37, at the level of one step.
+- Evm/CallSim.lean, from a frame of `StateGasMeter` with reservoir 0, CALL with no value along a
+  route: `callStep_child_sim` (below the greatest depth, with the gas: both meters send the same
+  message, the caller over `Nat` is the `toNat` of the caller over `StateGasMeter`, whose
+  reservoir is 0, both resume through `resumeCall`); `callStep_deep_sim` (at the greatest depth:
+  corresponding next frames, reservoir 0). For any reservoir: `callStep_low_rS`,
+  `callStep_missingS` (`StepBadS`).
+- Evm/StepSim.lean: `SimAtX`, `step_simX` (`step_sim` at EXTCODESIZE and GAS too), `CallX`,
+  `CallCorr`, `routes_or_missing`, `step_callX` (every CALL frame with value 0 and code found).
+- Not done: items 2 to 4 (the deprecated cases of `inv_call_any` and `process_stepS`, the
+  `dep_*_complete` theorems and the deprecated security properties over `StateGasMeter`). The
+  route is in the local note `handoff-usdt38.md`: a predicate on runs of the meter `Nat` with an abstract
+  relation for the child and an exit at frames the simulation does not cover, the `dep_*` proofs
+  restated over it, and a bridge from a run over `StateGasMeter` at reservoir 0.
+
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
   Glamsterdam (third audit, T1; rounds 33 to 36 above). Round 36 covers, not deprecated: the

@@ -589,6 +589,14 @@ Not resolved for the deprecated paths.
   instructions over `Nat` (`lifts_gasStep`, `lifts_extcodesizeStep`), but `step_sim` does not
   include them yet.
 
+
+**Progress (round 38).** Not resolved for the deprecated paths. One step at EXTCODESIZE, GAS and
+CALL over `StateGasMeter` is related to the step over `Nat`, from reservoir 0
+(`Meter.step_simX`, `Meter.step_callX`, Evm/StepSim.lean). The message of the CALL is the same
+over both meters, with reservoir 0. Not done: a run of the deprecated paths over
+`StateGasMeter`, so the deprecated cases of `inv_call_any`, `process_stepS`, the `dep_*_complete`
+theorems and the deprecated security properties over `StateGasMeter`.
+
 ## T2. The runner hypotheses range over every block and transaction environment (Medium)
 
 **Evidence.** `SendsVia` (Evm/Route.lean:134) fixes `caller`, `currentTarget`, `target`,

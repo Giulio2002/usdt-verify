@@ -319,6 +319,15 @@ from Berlin, with the hypotheses of the Nat form:
   the resume over `Nat` but the gas, and its execution gas left and reservoir add up to those of
   the caller and the child).
 - Not covered: the deprecated paths over `StateGasMeter`.
+- Round 38, one step at EXTCODESIZE, GAS and CALL (Evm/CallSim.lean, Evm/StepSim.lean):
+  `Meter.step_simX` is `step_sim` at EXTCODESIZE and GAS too, from reservoir 0 (GAS pushes the
+  execution gas left, which is the gas of the `toNat` frame). `Meter.step_callX`: at a CALL with
+  0 as the value and the code of the called address found, from reservoir 0 and Berlin, the step
+  over `StateGasMeter` fails or halts with an error (`callStep_low_rS`, `callStep_missingS`), or
+  both steps give the same error or corresponding next frames (`callStep_deep_sim`), or both send
+  the same message from callers related by `toNat`, the caller over `StateGasMeter` with
+  reservoir 0 (`callStep_child_sim`). These are steps only. No run with a CALL over
+  `StateGasMeter` is related to a run over `Nat` yet.
 
 ## Completeness of the dispatcher, for every gas
 
