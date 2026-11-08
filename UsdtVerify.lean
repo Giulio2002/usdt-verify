@@ -13,6 +13,8 @@ import UsdtVerify.Evm.ProcessMeter
 import UsdtVerify.Evm.CallMeter
 import UsdtVerify.Evm.CallSim
 import UsdtVerify.Evm.StepSim
+import UsdtVerify.Evm.RunC
+import UsdtVerify.Evm.RunCS
 import UsdtVerify.Evm.Local.Extcodesize
 import UsdtVerify.Evm.Local.Parent
 import UsdtVerify.Evm.Local.Rules
@@ -34,6 +36,7 @@ import UsdtVerify.Usdt.Complete.Deprecated.Call
 import UsdtVerify.Usdt.Complete.Deprecated.Destroy
 import UsdtVerify.Usdt.Complete.Deprecated.TotalSupply
 import UsdtVerify.Usdt.Complete.Deprecated.Transfer
+import UsdtVerify.Usdt.Complete.Deprecated.Meter
 import UsdtVerify.Usdt.Complete.Dispatch
 import UsdtVerify.Usdt.Complete.Getters
 import UsdtVerify.Usdt.Complete.Owner

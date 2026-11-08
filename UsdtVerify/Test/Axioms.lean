@@ -1,5 +1,6 @@
 import UsdtVerify.Evm.CallMeter
 import UsdtVerify.Evm.StepSim
+import UsdtVerify.Usdt.Complete.Deprecated.Meter
 import UsdtVerify.Usdt.Meter
 import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.MeterOwner
@@ -1086,3 +1087,28 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Meter.step_simX
 #print axioms UsdtVerify.Meter.routes_or_missing
 #print axioms UsdtVerify.Meter.step_callX
+#print axioms UsdtVerify.Refill.noRefill_cheapE
+#print axioms UsdtVerify.Refill.HoareG.toIE
+#print axioms UsdtVerify.Complete.RunC.of_runFrame
+#print axioms UsdtVerify.Complete.EndsOk.of_runFrame
+#print axioms UsdtVerify.Complete.RunC.stopped
+#print axioms UsdtVerify.Complete.RunC.next_of
+#print axioms UsdtVerify.Complete.RunC.not_bad
+#print axioms UsdtVerify.Complete.low_to_runningC
+#print axioms UsdtVerify.Complete.ok_splitC
+#print axioms UsdtVerify.Complete.ok_splitCA
+#print axioms UsdtVerify.Complete.no_okC
+#print axioms UsdtVerify.Complete.RunC.extcodesize
+#print axioms UsdtVerify.Complete.RunC.gasOp
+#print axioms UsdtVerify.Complete.call_okC
+#print axioms UsdtVerify.Complete.EndsOk.no_ok
+#print axioms UsdtVerify.Complete.resumeCall_withGas
+#print axioms UsdtVerify.Complete.runC_of_sgm
+#print axioms UsdtVerify.Complete.endsOk_of_sgm
+#print axioms UsdtVerify.Complete.fromExt_foundC
+#print axioms UsdtVerify.Complete.fromExtC
+#print axioms UsdtVerify.Complete.EndsOk.dispatch
+#print axioms UsdtVerify.Complete.dep_totalSupply_splitC
+#print axioms UsdtVerify.Complete.dep_totalSupply_completeC
+#print axioms UsdtVerify.Complete.incorporateChild_toNat
+#print axioms UsdtVerify.Complete.dep_totalSupply_completeS

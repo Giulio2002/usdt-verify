@@ -20,9 +20,10 @@ facts about the two ends of the stretch only.
   (97,920), from Glamsterdam.
 - `noRefill_cheap`: a frame that a `StepG` chain passes, between two frames with the same
   storage, with less than 97,920 gas paid between them and no error at the end, refills nothing.
+  `noRefill_cheapE` (round 39): the same when the end has an error but gas left (a revert).
 - `StepI`, `HoareI`: steps over `StepG` from frames that refill nothing, and their triples.
   `HoareG.toI` and `SpecG.toI` make a triple over `StepG` one over `StepI` when its two ends
-  meet the conditions of `noRefill_cheap`. `At.ruleI` and `sstoreWI` are `At.ruleG` and
+  meet the conditions of `noRefill_cheap` (`HoareG.toIE`: of `noRefill_cheapE`). `At.ruleI` and `sstoreWI` are `At.ruleG` and
   `Gas.sstoreWG` over `StepI`; `sstoreWI` asks that the write refill nothing.
 - `noRefill_low`, `noRefill_run`: from a `StepI` chain to a stopped frame, from `sh k lo`, every
   running frame that the run from `lo` reaches along `Step` refills nothing.
@@ -107,12 +108,12 @@ theorem popWord_with {n a : Evm fork Nat} {x : U256} (h : popWord n = .ok (x, a)
   exact ⟨st, h.2.symm⟩
 
 /-- An SSTORE that gives a frame keeps the words of storage before the transaction. It either
-halts with an error and the storage as it was, or it writes `new` at its key, changes no other
-word and pays at least the state gas of its write. -/
+halts with an error, no gas and the storage as it was, or it writes `new` at its key, changes no
+other word and pays at least the state gas of its write. -/
 theorem sstoreStep_cases {x y : Evm fork Nat} (h : sstoreStep x = .ok y) {key new : U256}
     {rest : List U256} (hs : x.stack.val = key :: new :: rest) :
     (∀ a k, y.state.getStorageOriginal a k = x.state.getStorageOriginal a k) ∧
-    ((y.running = false ∧ y.error ≠ none ∧
+    ((y.running = false ∧ y.error ≠ none ∧ y.gas = 0 ∧
         ∀ a k, y.state.getStorage a k = x.state.getStorage a k) ∨
       (y.running = x.running ∧
         y.state.getStorage x.message.currentTarget key.toBeBytes = new ∧
@@ -179,7 +180,7 @@ theorem sstoreStep_cases {x y : Evm fork Nat} (h : sstoreStep x = .ok y) {key ne
       simp only [refillStateGas, GasMeter.refill, recordStorageRead] at hc4 hc5 ⊢
       rw [hst3.2.1] at hc4 hc5 ⊢
       omega
-  · refine ⟨fun a k => ?_, .inl ⟨rfl, by simp [exceptionalHalt], fun a k => ?_⟩⟩
+  · refine ⟨fun a k => ?_, .inl ⟨rfl, by simp [exceptionalHalt], rfl, fun a k => ?_⟩⟩
     · simp only [id, exceptionalHalt, recordStorageRead, hst3.1]
       rfl
     · simp only [id, exceptionalHalt, recordStorageRead, hst3.1]
@@ -309,7 +310,7 @@ theorem step_store {x y : Evm fork Nat} (h : Step fork x y) (hp : SimAt x) :
           obtain ⟨key, new, rest, hst⟩ := sstoreStep_stack hx
           obtain ⟨ho, hc⟩ := sstoreStep_cases hx hst
           refine ⟨ho, fun a k hne => ?_⟩
-          rcases hc with ⟨-, -, hsame⟩ | ⟨-, hw, hother, hgas⟩
+          rcases hc with ⟨-, -, -, hsame⟩ | ⟨-, hw, hother, hgas⟩
           · exact absurd (hsame a k) hne
           · by_cases hk : a = x.message.currentTarget ∧ k = key.toBeBytes
             · obtain ⟨rfl, rfl⟩ := hk
@@ -324,22 +325,23 @@ theorem step_store {x y : Evm fork Nat} (h : Step fork x y) (hp : SimAt x) :
       cases hs
       exact ⟨fun _ _ => rfl, fun _ _ hne => absurd rfl hne⟩
 
-/-- An SSTORE step from a `SimAt` frame either halts with an error or writes its new word. -/
+/-- An SSTORE step from a `SimAt` frame either halts with an error and no gas or writes its new
+word. -/
 theorem step_sstore {x y : Evm fork Nat} (h : Step fork x y) (hlt : x.pc < x.code.size)
     (hop : Op.ofByte fork x.code[x.pc] = some .sstore) {key new : U256} {rest : List U256}
     (hs : x.stack.val = key :: new :: rest) :
-    (y.running = false ∧ y.error ≠ none) ∨
+    (y.running = false ∧ y.error ≠ none ∧ y.gas = 0) ∨
       y.state.getStorage x.message.currentTarget key.toBeBytes = new := by
   cases h with
-  | halt hr hst hab => exact .inl ⟨rfl, by simp [exceptionalHalt]⟩
+  | halt hr hst hab => exact .inl ⟨rfl, by simp [exceptionalHalt], rfl⟩
   | next hr hst =>
     rw [step_of_instruction hlt hop instruction_sstore] at hst
     rcases hx : sstoreStep x with e | b
     · rw [hx] at hst; cases hst
     rw [hx] at hst
     cases hst
-    rcases (sstoreStep_cases hx hs).2 with ⟨h1, h2, -⟩ | ⟨-, hw, -⟩
-    · exact .inl ⟨h1, h2⟩
+    rcases (sstoreStep_cases hx hs).2 with ⟨h1, h2, h3, -⟩ | ⟨-, hw, -⟩
+    · exact .inl ⟨h1, h2, h3⟩
     · exact .inr hw
 
 /-! ## Along a chain -/
@@ -397,10 +399,39 @@ theorem noRefill_cheap {c y y1 e : Evm fork Nat} (hcy : Reaches (StepG fork) c y
   by_cases hc0 : c.state.getStorage y.message.currentTarget key.toBeBytes = 0
   · have := create_gas hglam hcy hoc hc0 hcur
     omega
-  · rcases step_sstore hy.1 hlt hop hst with ⟨hr1, he1⟩ | hw
+  · rcases step_sstore hy.1 hlt hop hst with ⟨hr1, he1, -⟩ | hw
     · have := reaches_stopped (reaches_toStep hye) hr1
       rw [this] at herr
       exact he1 herr
+    · rw [hnew] at hw
+      have := create_gas hglam hye (by rw [oy1]; exact ho) hw (by rw [hsame]; exact hc0)
+      omega
+
+/-- `noRefill_cheap` for an end `e` that has no error or has gas left (round 39): an SSTORE
+that halts leaves no gas, so the end may be a revert with gas left. -/
+theorem noRefill_cheapE {c y y1 e : Evm fork Nat} (hcy : Reaches (StepG fork) c y)
+    (hy : StepG fork y y1) (hye : Reaches (StepG fork) y1 e) (herr : e.error = none ∨ 0 < e.gas)
+    (hgas : c.gas < e.gas + STORAGE_SET_STATE_GAS)
+    (hsame : ∀ a k, e.state.getStorage a k = c.state.getStorage a k) : NoRefillAtN y := by
+  intro hlt hop key new rest hst
+  apply Classical.byContradiction
+  intro hR
+  obtain ⟨hglam, ho, hcur, hnew⟩ := sstoreStateRefill_ne_zero hR
+  obtain ⟨gcy, ocy⟩ := chain_store hcy
+  obtain ⟨gye, oye⟩ := chain_store hye
+  obtain ⟨gy1, oy1, -⟩ := step_store hy.1 hy.2.1
+  have hoc : c.state.getStorageOriginal y.message.currentTarget key.toBeBytes = 0 := by
+    rw [← ocy]; exact ho
+  by_cases hc0 : c.state.getStorage y.message.currentTarget key.toBeBytes = 0
+  · have := create_gas hglam hcy hoc hc0 hcur
+    omega
+  · rcases step_sstore hy.1 hlt hop hst with ⟨hr1, he1, hg1⟩ | hw
+    · have := reaches_stopped (reaches_toStep hye) hr1
+      rw [this] at herr
+      rcases herr with h | h
+      · exact he1 h
+      · rw [hg1] at h
+        exact absurd h (Nat.lt_irrefl 0)
     · rw [hnew] at hw
       have := create_gas hglam hye (by rw [oy1]; exact ho) hw (by rw [hsame]; exact hc0)
       omega
@@ -489,7 +520,7 @@ theorem noRefill_one (hglam : fork ≥ .glamsterdam) {c y y1 e : Evm fork Nat}
   generalize hK : key.toBeBytes = k at ho hcur
   have hoc : c.state.getStorageOriginal a k = 0 := by rw [← ocy]; exact ho
   have hy1 : y1.state.getStorage a k = 0 := by
-    rcases step_sstore hy.1 hlt hop hst with ⟨hr1, he1⟩ | hw
+    rcases step_sstore hy.1 hlt hop hst with ⟨hr1, he1, -⟩ | hw
     · have := reaches_stopped (reaches_toStep hye) hr1
       rw [this] at herr
       exact absurd herr he1
@@ -576,6 +607,16 @@ theorem HoareG.toI {P Q : Evm fork Nat → Prop} (h : HoareG fork P Q)
   obtain ⟨e, hr, hq⟩ := h c hp
   obtain ⟨hg, herr, hs⟩ := hc c e hp hq
   exact ⟨e, reaches_liftI hr fun y y1 hcy hy hye => noRefill_cheap hcy hy hye herr hg hs, hq⟩
+
+/-- `HoareG.toI` for ends that have no error or have gas left (round 39), such as a revert. -/
+theorem HoareG.toIE {P Q : Evm fork Nat → Prop} (h : HoareG fork P Q)
+    (hc : ∀ c e, P c → Q e → c.gas < e.gas + STORAGE_SET_STATE_GAS ∧
+      (e.error = none ∨ 0 < e.gas) ∧
+      ∀ a k, e.state.getStorage a k = c.state.getStorage a k) : HoareI fork P Q := by
+  intro c hp
+  obtain ⟨e, hr, hq⟩ := h c hp
+  obtain ⟨hg, herr, hs⟩ := hc c e hp hq
+  exact ⟨e, reaches_liftI hr fun y y1 hcy hy hye => noRefill_cheapE hcy hy hye herr hg hs, hq⟩
 
 /-- `HoareG.toI` for a specification. -/
 theorem SpecG.toI {P Q : Evm fork Nat → Prop} (h : SpecG fork P Q)
