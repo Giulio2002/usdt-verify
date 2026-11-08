@@ -33,6 +33,16 @@ The list:
   accepted authority. When no authorization of the list sets a code with the hash of `X`'s code,
   the authorizations keep the account of `X`, its storage and its code.
 - `fold_meter_pre`: before Glamsterdam the authorizations keep the meter.
+
+The meter of EIP-8037 (`StateGasMeter`):
+- `charge_bound`: from Glamsterdam, with at least `authMax` (227790) execution gas left and the
+  pre-state code of the authority in the state, `chargeAuthorization` succeeds and takes at most
+  `authMax` execution gas.
+- `apply_exists`, `fold_exists`: in a state where every account's code hash, now and before the
+  transaction, has a code (`Resolves`, `PreResolves`), and from Glamsterdam with at least
+  `authMax` execution gas left per authorization, the authorizations end with `.ok d` for some `d`.
+  They keep both facts and take at most `authMax` execution gas each. Any authorities: no
+  hypothesis on `recoverAuthority`.
 -/
 
 namespace UsdtVerify.Auth
@@ -364,5 +374,241 @@ theorem prepareFirstFrame_auths_error (chainId : Nat) (message : Message fork)
     prepareFirstFrame (Meter := Meter) chainId message state substate auths paidWrites =
       .error e := by
   simp only [prepareFirstFrame, ht, herr, bind, Except.bind]
+
+/-! ## The meter of EIP-8037 and the existence of the result -/
+
+/-- The most execution gas that one authorization takes from Glamsterdam: a new account, the
+first write and a new delegation indicator (183600 + 9000 + 35190). -/
+abbrev authMax : Nat :=
+  GasCosts.NEW_ACCOUNT_STATE_GAS + GasCosts.ACCOUNT_WRITE + GasCosts.AUTH_BASE_STATE_GAS
+
+theorem authMax_eq : authMax = 227790 := rfl
+
+/-- Every account's code hash has a code in the state. -/
+def Resolves (s : TransactionState) : Prop :=
+  ∀ x, ∃ c, s.getCode (s.getAccount x).codeHash = .ok c
+
+/-- Every account's code hash before the transaction has a code in the state. -/
+def PreResolves (s : TransactionState) : Prop :=
+  ∀ x, ∃ c, s.getCode (s.getPreStateAccount x).codeHash = .ok c
+
+theorem chargeState_ok (m : StateGasMeter) {n : Nat} (h : n ≤ m.gasLeft) :
+    ∃ m', StateGasMeter.chargeState m n = .ok m' ∧ m.gasLeft - n ≤ m'.gasLeft ∧
+      m'.gasLeft ≤ m.gasLeft := by
+  unfold StateGasMeter.chargeState
+  by_cases h1 : n ≤ m.reservoir
+  · simp only [h1, ↓reduceIte]
+    exact ⟨_, rfl, Nat.sub_le_of_le_add (Nat.le_add_right _ _), Nat.le_refl _⟩
+  · have h2 : n ≤ m.reservoir + m.gasLeft := by omega
+    simp only [h1, h2, ↓reduceIte]
+    exact ⟨_, rfl, by simp only; omega, by simp only; omega⟩
+
+theorem charge_ok (m : StateGasMeter) {n : Nat} (h : n ≤ m.gasLeft) :
+    ∃ m', StateGasMeter.charge m n = .ok m' ∧ m.gasLeft - n ≤ m'.gasLeft ∧
+      m'.gasLeft ≤ m.gasLeft := by
+  unfold StateGasMeter.charge
+  have h1 : ¬m.gasLeft < n := by omega
+  simp only [h1, ↓reduceIte]
+  exact ⟨_, rfl, by simp only; omega, by simp only; omega⟩
+
+theorem ok_bind {ε α β : Type} (x : α) (f : α → Except ε β) : (Except.ok x >>= f) = f x := rfl
+
+/-- `chargeAuthorization` as three charges in a row. -/
+theorem chargeAuthorization_eq (done : Delegations Meter) (a : Address) (auth : Authorization) :
+    chargeAuthorization done a auth =
+      ((if done.state.accountExists a then pure done.meter
+        else GasMeter.chargeState done.meter GasCosts.NEW_ACCOUNT_STATE_GAS :
+          Except EvmError Meter) >>= fun m1 =>
+      (if a ∈ done.paidWrites then pure m1 else GasMeter.charge m1 GasCosts.ACCOUNT_WRITE :
+          Except EvmError Meter) >>= fun m2 =>
+      (done.state.getCode (done.state.getPreStateAccount a).codeHash).mapError EvmError.state >>=
+        fun before =>
+      if auth.address ≠ NULL_ADDRESS ∧ !isValidDelegation before ∧ a ∉ done.delegated then
+        GasMeter.chargeState m2 GasCosts.AUTH_BASE_STATE_GAS else pure m2) := by
+  unfold chargeAuthorization
+  by_cases he : done.state.accountExists a = true <;> by_cases hp : a ∈ done.paidWrites <;>
+    simp only [he, hp, ↓reduceIte, Bool.false_eq_true] <;> rfl
+
+/-- From Glamsterdam, with `authMax` execution gas left and the pre-state code of the authority
+in the state, `chargeAuthorization` succeeds and takes at most `authMax` execution gas. -/
+theorem charge_bound (done : Delegations StateGasMeter) (a : Address) (auth : Authorization)
+    (hpre : ∃ c, done.state.getCode (done.state.getPreStateAccount a).codeHash = .ok c)
+    (hg : authMax ≤ done.meter.gasLeft) :
+    ∃ m, chargeAuthorization done a auth = .ok m ∧ done.meter.gasLeft - authMax ≤ m.gasLeft ∧
+      m.gasLeft ≤ done.meter.gasLeft := by
+  obtain ⟨c, hc⟩ := hpre
+  have eA : GasCosts.NEW_ACCOUNT_STATE_GAS = 183600 := rfl
+  have eW : GasCosts.ACCOUNT_WRITE = 9000 := rfl
+  have eB : GasCosts.AUTH_BASE_STATE_GAS = 35190 := rfl
+  have hg' : 227790 ≤ done.meter.gasLeft := authMax_eq ▸ hg
+  obtain ⟨m1, h1, l1, u1⟩ : ∃ m1, (if done.state.accountExists a then pure done.meter
+      else GasMeter.chargeState done.meter GasCosts.NEW_ACCOUNT_STATE_GAS :
+        Except EvmError StateGasMeter) = .ok m1 ∧
+      done.meter.gasLeft - 183600 ≤ m1.gasLeft ∧ m1.gasLeft ≤ done.meter.gasLeft := by
+    split
+    · exact ⟨_, rfl, Nat.sub_le _ _, Nat.le_refl _⟩
+    · rw [eA]; exact chargeState_ok done.meter (by omega)
+  obtain ⟨m2, h2, l2, u2⟩ : ∃ m2, (if a ∈ done.paidWrites then pure m1
+      else GasMeter.charge m1 GasCosts.ACCOUNT_WRITE : Except EvmError StateGasMeter) = .ok m2 ∧
+      m1.gasLeft - 9000 ≤ m2.gasLeft ∧ m2.gasLeft ≤ m1.gasLeft := by
+    split
+    · exact ⟨_, rfl, Nat.sub_le _ _, Nat.le_refl _⟩
+    · rw [eW]; exact charge_ok m1 (by omega)
+  obtain ⟨m3, h3, l3, u3⟩ : ∃ m3, (if auth.address ≠ NULL_ADDRESS ∧
+      !isValidDelegation c ∧ a ∉ done.delegated then GasMeter.chargeState m2
+        GasCosts.AUTH_BASE_STATE_GAS else pure m2 : Except EvmError StateGasMeter) = .ok m3 ∧
+      m2.gasLeft - 35190 ≤ m3.gasLeft ∧ m3.gasLeft ≤ m2.gasLeft := by
+    split
+    · rw [eB]; exact chargeState_ok m2 (by omega)
+    · exact ⟨_, rfl, Nat.sub_le _ _, Nat.le_refl _⟩
+  refine ⟨m3, ?_, ?_, by omega⟩
+  · rw [chargeAuthorization_eq]
+    simp only [h1, ok_bind]
+    simp only [h2, ok_bind]
+    simp only [hc, Except.mapError, ok_bind]
+    exact h3
+  · show done.meter.gasLeft - 227790 ≤ m3.gasLeft
+    calc done.meter.gasLeft - 227790
+        = done.meter.gasLeft - 183600 - 9000 - 35190 := by simp only [Nat.sub_sub]
+      _ ≤ m1.gasLeft - 9000 - 35190 := Nat.sub_le_sub_right (Nat.sub_le_sub_right l1 _) _
+      _ ≤ m2.gasLeft - 35190 := Nat.sub_le_sub_right l2 _
+      _ ≤ m3.gasLeft := l3
+
+/-- A change of an account keeps the block of the state. -/
+theorem parent_modifyState {tx tx' : TransactionState} {address : Address}
+    {f : State.Account → Except State.StateError State.Account}
+    (h : tx.modifyState fork address f = .ok tx') : tx'.parent = tx.parent := by
+  obtain ⟨account, -, rfl⟩ := TransactionState.modifyState_eq_ok_iff.mp h
+  split <;> rfl
+
+/-- `delegate` keeps the block of the state. -/
+theorem delegate_parent {state st : TransactionState} {a : Address} {auth : Authorization}
+    {r : Nat} (h : delegate fork state a auth = .ok (st, r)) : st.parent = state.parent := by
+  obtain ⟨s1, h1⟩ := TransactionState.setCode_isOk fork state a (delegationCode auth)
+  obtain ⟨s2, h2⟩ := TransactionState.incrementNonce_isOk fork s1 a
+  have hd : delegate fork state a auth = .ok (s2, delegateRefund fork state a) := by
+    simp only [delegate, h1, h2, bind, Except.bind, pure, Except.pure, delegateRefund]
+  rw [hd] at h
+  obtain ⟨rfl, -⟩ := Prod.mk.inj (Except.ok.inj h).symm
+  have hp1 : s1.parent = state.parent := by
+    dsimp only [TransactionState.setCode] at h1
+    split at h1
+    · exact parent_modifyState h1
+    · exact (parent_modifyState h1).trans rfl
+  exact (parent_modifyState h2).trans hp1
+
+/-- The empty code hash always has a code. -/
+theorem getCode_empty (s : TransactionState) : s.getCode State.EMPTY_CODE_HASH = .ok .empty := by
+  unfold TransactionState.getCode
+  simp
+
+/-- `delegate` keeps `Resolves` and `PreResolves`. -/
+theorem delegate_res {state st : TransactionState} {a : Address} {auth : Authorization} {r : Nat}
+    (h : delegate fork state a auth = .ok (st, r)) (hR : Resolves state)
+    (hP : PreResolves state) : Resolves st ∧ PreResolves st := by
+  obtain ⟨st', hd, hself, hsame, hcodes, hnew⟩ := delegate_ok fork state a auth
+  rw [hd] at h
+  obtain ⟨rfl, -⟩ := Prod.mk.inj (Except.ok.inj h)
+  have hmono : ∀ hash : Hash32, (∃ c, state.getCode hash = .ok c) → ∃ c, st'.getCode hash = .ok c := by
+    intro hash ⟨c, hc⟩
+    by_cases hh : hash = hashOf (delegationCode auth)
+    · subst hh
+      by_cases he : hashOf (delegationCode auth) = State.EMPTY_CODE_HASH
+      · rw [he]; exact ⟨_, getCode_empty _⟩
+      · exact ⟨_, hnew he⟩
+    · exact ⟨c, (hcodes hash hh).trans hc⟩
+  have hpar := delegate_parent hd
+  refine ⟨fun x => ?_, fun x => ?_⟩
+  · by_cases hx : x = a
+    · subst hx
+      rw [hself]
+      by_cases he : hashOf (delegationCode auth) = State.EMPTY_CODE_HASH
+      · simp only; rw [he]; exact ⟨_, getCode_empty _⟩
+      · exact ⟨_, hnew he⟩
+    · have hacc : st'.getAccount x = state.getAccount x := by
+        unfold TransactionState.getAccount
+        rw [(hsame x (by simpa using hx)).1]
+      rw [hacc]
+      exact hmono _ (hR x)
+  · have hpre : st'.getPreStateAccount x = state.getPreStateAccount x := by
+      simp only [TransactionState.getPreStateAccount, TransactionState.getPreStateAccountOptional,
+        hpar]
+    rw [hpre]
+    exact hmono _ (hP x)
+
+/-- **One authorization over the meter of EIP-8037 succeeds.** In a state where every code hash,
+now and before the transaction, has a code, and from Glamsterdam with at least `authMax`
+execution gas left: `applyAuthorization` is `.ok`, keeps those facts, and takes at most `authMax`
+execution gas. -/
+theorem apply_exists (chainId : Nat) (done : Delegations StateGasMeter) (auth : Authorization)
+    (hR : Resolves done.state) (hP : PreResolves done.state)
+    (hg : fork ≥ .glamsterdam → authMax ≤ done.meter.gasLeft) :
+    ∃ d', applyAuthorization fork chainId done auth = .ok d' ∧ Resolves d'.state ∧
+      PreResolves d'.state ∧ done.meter.gasLeft - authMax ≤ d'.meter.gasLeft ∧
+      d'.meter.gasLeft ≤ done.meter.gasLeft := by
+  have keep : Resolves done.state ∧ PreResolves done.state ∧
+      done.meter.gasLeft - authMax ≤ done.meter.gasLeft ∧
+      done.meter.gasLeft ≤ done.meter.gasLeft := ⟨hR, hP, Nat.sub_le _ _, Nat.le_refl _⟩
+  cases hs : authorizationInScope chainId auth
+  · exact ⟨done, apply_out chainId done hs, keep⟩
+  cases hr : recoverAuthority auth with
+  | none => exact ⟨done, apply_none chainId done hr, keep⟩
+  | some a =>
+    have hR1 : Resolves (seen done a).state := hR
+    have hP1 : PreResolves (seen done a).state := hP
+    obtain ⟨c, hc⟩ := hR a
+    have hc' : (done.state.recordAccountRead a).getCode
+        (done.state.getAccount a).codeHash = .ok c := hc
+    cases hb : ((c.size = 0 || isValidDelegation c) &&
+        (done.state.getAccount a).nonce = auth.nonce.toNat)
+    · have hacc : authorityAccepts (done.state.recordAccountRead a) a auth = .ok false := by
+        simp only [authorityAccepts, hc', bind, Except.bind, pure, Except.pure,
+          TransactionState.getAccount_recordAccountRead]
+        exact congrArg Except.ok hb
+      exact ⟨_, apply_refused chainId done hs hr hacc, hR1, hP1, Nat.sub_le _ _, Nat.le_refl _⟩
+    · have hacc : authorityAccepts (done.state.recordAccountRead a) a auth = .ok true := by
+        simp only [authorityAccepts, hc', bind, Except.bind, pure, Except.pure,
+          TransactionState.getAccount_recordAccountRead]
+        exact congrArg Except.ok hb
+      obtain ⟨d, hp, hdst, l, u⟩ : ∃ d, payAuthorization fork (seen done a) a auth = .ok d ∧
+          d.state = (seen done a).state ∧ done.meter.gasLeft - authMax ≤ d.meter.gasLeft ∧
+          d.meter.gasLeft ≤ done.meter.gasLeft := by
+        by_cases hf : fork ≥ .glamsterdam
+        · obtain ⟨m, hm, l, u⟩ := charge_bound (seen done a) a auth (hP1 a) (hg hf)
+          exact ⟨_, pay_glam hf hm, rfl, l, u⟩
+        · exact ⟨_, pay_pre (Nat.lt_of_not_le hf) _ a auth, rfl, Nat.sub_le _ _, Nat.le_refl _⟩
+      obtain ⟨st, hdel, -⟩ := delegate_ok fork d.state a auth
+      have hres := delegate_res hdel (hdst ▸ hR1) (hdst ▸ hP1)
+      exact ⟨_, apply_accepted chainId done hs hr hacc hp hdel, hres.1, hres.2, l, u⟩
+
+/-- **The authorizations over the meter of EIP-8037 succeed.** From a state where every code hash,
+now and before the transaction, has a code, and from Glamsterdam with at least `authMax` execution
+gas left per authorization: the authorizations end with `.ok d`, and take at most `authMax`
+execution gas each. -/
+theorem fold_exists {chainId : Nat} :
+    ∀ (auths : List Authorization) (d0 : Delegations StateGasMeter),
+      Resolves d0.state → PreResolves d0.state →
+      (fork ≥ .glamsterdam → authMax * auths.length ≤ d0.meter.gasLeft) →
+      ∃ d, auths.foldlM (applyAuthorization fork chainId) d0 = .ok d ∧
+        d0.meter.gasLeft - authMax * auths.length ≤ d.meter.gasLeft ∧
+        d.meter.gasLeft ≤ d0.meter.gasLeft
+  | [], d0, _, _, _ => ⟨d0, rfl, Nat.sub_le _ _, Nat.le_refl _⟩
+  | auth :: rest, d0, hR, hP, hg => by
+    have hg1 : fork ≥ .glamsterdam → authMax ≤ d0.meter.gasLeft := fun hf => by
+      have := hg hf
+      simp only [List.length_cons, Nat.mul_succ] at this
+      omega
+    obtain ⟨d1, h1, hR1, hP1, l1, u1⟩ := apply_exists chainId d0 auth hR hP hg1
+    have hg2 : fork ≥ .glamsterdam → authMax * rest.length ≤ d1.meter.gasLeft := fun hf => by
+      have := hg hf
+      simp only [List.length_cons, Nat.mul_succ] at this
+      generalize authMax * rest.length = k at this ⊢
+      omega
+    obtain ⟨d, h, l, u⟩ := fold_exists (chainId := chainId) rest d1 hR1 hP1 hg2
+    refine ⟨d, ?_, ?_, by omega⟩
+    · simp only [List.foldlM_cons, h1, bind, Except.bind, h]
+    · simp only [List.length_cons, Nat.mul_succ]
+      generalize authMax * rest.length = k at l ⊢
+      omega
 
 end UsdtVerify.Auth

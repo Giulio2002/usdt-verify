@@ -25,6 +25,7 @@ import UsdtVerify.Usdt.Sanity.ProcessMeterR
 import UsdtVerify.Usdt.Sanity.MirrorStateS
 import UsdtVerify.Usdt.Sanity.MirrorCallS
 import UsdtVerify.Evm.Auth
+import UsdtVerify.Usdt.Sanity.MirrorAuth
 import UsdtVerify.Usdt.Meter
 import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.MeterOwner
@@ -1455,3 +1456,33 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Auth.fold_meter_pre
 #print axioms UsdtVerify.Auth.prepareFirstFrame_auths
 #print axioms UsdtVerify.Auth.prepareFirstFrame_auths_error
+
+-- Round 46: the authorizations over StateGasMeter (existence, gas)
+#print axioms UsdtVerify.Auth.authMax_eq
+#print axioms UsdtVerify.Auth.chargeState_ok
+#print axioms UsdtVerify.Auth.charge_ok
+#print axioms UsdtVerify.Auth.ok_bind
+#print axioms UsdtVerify.Auth.chargeAuthorization_eq
+#print axioms UsdtVerify.Auth.charge_bound
+#print axioms UsdtVerify.Auth.parent_modifyState
+#print axioms UsdtVerify.Auth.delegate_parent
+#print axioms UsdtVerify.Auth.getCode_empty
+#print axioms UsdtVerify.Auth.delegate_res
+#print axioms UsdtVerify.Auth.apply_exists
+#print axioms UsdtVerify.Auth.fold_exists
+
+-- Round 46: the concrete deprecated call to USDT with authorizations
+#print axioms UsdtVerify.Sanity.code_CODE
+#print axioms UsdtVerify.Sanity.code_MIRROR
+#print axioms UsdtVerify.Sanity.getAccount_S3_C
+#print axioms UsdtVerify.Sanity.getAccount_S3_UA
+#print axioms UsdtVerify.Sanity.getAccount_S3_other
+#print axioms UsdtVerify.Sanity.getPreStateAccount_S3
+#print axioms UsdtVerify.Sanity.resolves_S3
+#print axioms UsdtVerify.Sanity.preResolves_S3
+#print axioms UsdtVerify.Sanity.apply_usdt
+#print axioms UsdtVerify.Sanity.apply_fresh
+#print axioms UsdtVerify.Sanity.getAccountOptional_S3_other
+#print axioms UsdtVerify.Sanity.apply_caller_S3
+#print axioms UsdtVerify.Sanity.prepareFirstFrame_S3
+#print axioms UsdtVerify.Sanity.destroy_mirror_call_auths
