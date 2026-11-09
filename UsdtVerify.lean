@@ -29,7 +29,6 @@ import UsdtVerify.Usdt.Refill.ChainOwner
 import UsdtVerify.Usdt.Refill.ChainTransfer
 import UsdtVerify.Usdt.Refill.ChainFee
 import UsdtVerify.Usdt.Refill.TransferFromS
-import UsdtVerify.Evm.Local.Rules
 import UsdtVerify.Evm.MemRev
 import UsdtVerify.Evm.Route
 import UsdtVerify.Evm.Runners

@@ -98,7 +98,7 @@ theorem stopRunner_ok {ua : Address} {caller : Evm fork Nat} {msg : Message fork
     simp only [processRunner, htg] at h
     obtain ⟨stopped, hq, hmap⟩ := processMessage_of_spec (state := caller.state)
       (substate := caller.substate.child)
-      (At.stop (code := STOP_CODE) (pc := 0) (by decide) rfl) hnv hnp
+      (liftPre fun _ => Logic.stop (code := STOP_CODE) (pc := 0) (by decide) rfl) hnv hnp
       (At.startFrame hcode _ _)
     rw [h] at hmap
     have hc : child.1 = rollbackOnError caller.state stopped := by

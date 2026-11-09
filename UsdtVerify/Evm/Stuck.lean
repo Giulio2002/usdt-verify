@@ -6,7 +6,7 @@ import EthLib.Base.Proofs.MapM
 
 A frame is `Stuck` when it is running and its step, from it or from the same frame with any less
 gas, fails: an error, or a halt with an error. A run that reaches such a frame along `StepG` (from
-a start with more gas, as in `no_ok`) does not end with no error (`no_ok_stuck`): every frame
+a start with more gas, as in `no_ok`) does not end with no error (`no_ok_stuckE`): every frame
 with less gas fails earlier or at that frame.
 
 `sstore_stuck`: SSTORE in a static frame, or when the current target has no account in the
@@ -25,7 +25,7 @@ Round 26:
 - `NoWrite message state g`: a static frame, no account for the current target, or (from
   Istanbul) at most `g ≤ 2300` gas; `sstoreNoWrite`: an SSTORE where `NoWrite` holds is `Stuck`.
 - `no_ok_stuck_at`: a run that reaches a `Stuck` frame along `StepG` from a start with its own gas
-  does not end with no error (used for a gas below a stipend bound, where `no_ok_stuck`, which
+  does not end with no error (used for a gas below a stipend bound, where `no_ok_stuckE`, which
   starts with more gas, does not apply).
 
 Round 48: EthLib's Logic/LessGas.lean (#1615) has `Stuck`, `not_ok_of_reaches`, `no_ok_stuck`,
@@ -35,6 +35,10 @@ meter link uses them for a loop over `StateGasMeter`), so they stay. The SSTORE 
 are now EthLib's (`sstoreStep_halts`, `sstoreStep_of_isStatic`, `sstoreStep_of_gasLeft_le`), and
 the local `sstoreStep_bad` and `sstoreStep_low` are removed. `At.stuck`: EthLib's `At.stuck` for
 the local `At` and `Stuck`.
+
+Round 50: the local `not_ok_of_reaches` and `no_ok_stuck` (with a `runFrame` equation) had no
+use and are removed. Each is EthLib's lemma of the same name, applied to the steps of the local
+`StepG` without `SimAt` and to the local `Stuck` without `SimAt` (EthLib's `Stuck`).
 -/
 
 namespace UsdtVerify.Gas
@@ -89,16 +93,6 @@ theorem not_ok_of_reachesE {hi z : Evm fork Nat} (hr : Reaches (StepG fork) hi z
         rw [hh] at hn
         cases hn
 
-/-- Along a chain of `StepG` from `addGas k l` to a `Stuck` frame, the loop run from `l` does not end
-with no error. -/
-theorem not_ok_of_reaches {hi z : Evm fork Nat} (hr : Reaches (StepG fork) hi z)
-    (hz : Stuck z) :
-    ∀ (k : Nat) (l : Evm fork Nat), hi = addGas k l →
-      ∀ (within : GasMeter.gasHeld l.gas ≤ bound) {s : Evm fork Nat},
-        Evm.runFrame (step fork) (step_decreases fork) bound runChild l within = .ok s →
-        s.error ≠ none :=
-  fun k l h _ _ hrun => not_ok_of_reachesE hr hz k l h (Ends.run hrun)
-
 variable {code : ByteArray} {message : Message fork} {pc : Nat} {stack : List U256}
   {memory : ByteArray} {state : State.TransactionState} {substate : Substate}
   {evm s : Evm fork Nat}
@@ -120,16 +114,6 @@ theorem no_ok_stuck_atE {gas : Nat}
     (hrun : Ends fork evm s) (hok : s.error = none) : False := by
   obtain ⟨z, hr, hz⟩ := h evm start
   exact not_ok_of_reachesE hr hz 0 evm (by simp [addGas]) hrun hok
-
-/-- No successful run from a frame where, with any gas from `B` on, the frames reach a `Stuck`
-frame along `StepG`. -/
-theorem no_ok_stuck {B : Nat}
-    (h : ∀ g, B ≤ g → HoareG fork (At code message pc stack memory g state substate) Stuck)
-    {gas : Nat} (start : At code message pc stack memory gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
-    (hok : s.error = none) : False :=
-  no_ok_stuckE h start (Ends.run hrun) hok
 
 /-- No successful run from a frame that, with its own gas, reaches a `Stuck` frame along
 `StepG`. -/

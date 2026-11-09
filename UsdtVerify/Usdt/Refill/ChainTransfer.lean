@@ -136,7 +136,7 @@ theorem bodyW3 {nt v a sel : U256} (hstatic : message.isStatic = false) {M : Byt
   step popR
   step pushR 1 (0 : U256)
   step dupR 3
-  step binR 0x11 Local.instruction_gt
+  step binR 0x11 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step pushR 2 (0x2997 : U256)
   step jumpiR (by decide)

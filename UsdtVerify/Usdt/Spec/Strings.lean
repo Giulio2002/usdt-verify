@@ -164,16 +164,16 @@ theorem body1 {b r : Nat} {k : U256} (hp : (b, k, r) ∈ BODY) (hfork : .berlin 
     step pushR 1 (1 : U256)
     step dupR 1
     step pushR 1 (1 : U256)
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step unR 0x15 instruction_iszero
     step pushR 2 (0x0100 : U256)
-    step binR 0x02 Local.instruction_mul
+    step binR 0x02 (instruction_of_stackOnlyStep rfl)
     step binR 0x03 instruction_sub
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step pushR 1 (2 : U256)
     step swapR 0
     norm
-    step binR 0x04 Local.instruction_div
+    step binR 0x04 (instruction_of_stackOnlyStep rfl)
     rw [lenWord hn]
     step dupR 0
     step pushR 1 (0x1f : U256)
@@ -182,8 +182,8 @@ theorem body1 {b r : Nat} {k : U256} (hp : (b, k, r) ∈ BODY) (hfork : .berlin 
     step dupR 0
     step swapR 1
     norm
-    step binR 0x04 Local.instruction_div
-    step binR 0x02 Local.instruction_mul
+    step binR 0x04 (instruction_of_stackOnlyStep rfl)
+    step binR 0x02 (instruction_of_stackOnlyStep rfl)
     step pushR 1 (0x20 : U256)
     step binR 0x01 instruction_add
     step Gas.reshapeG (s' := [64, BitVec.ofNat 256 n, _, _, x]) (g' := gas - (81 + slotCost ck))
@@ -254,16 +254,16 @@ theorem body2 {b r : Nat} {k : U256} (hp : (b, k, r) ∈ BODY) (hfork : .berlin 
     step pushR 1 (1 : U256)
     step dupR 1
     step pushR 1 (1 : U256)
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step unR 0x15 instruction_iszero
     step pushR 2 (0x0100 : U256)
-    step binR 0x02 Local.instruction_mul
+    step binR 0x02 (instruction_of_stackOnlyStep rfl)
     step binR 0x03 instruction_sub
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step pushR 1 (2 : U256)
     step swapR 0
     norm
-    step binR 0x04 Local.instruction_div
+    step binR 0x04 (instruction_of_stackOnlyStep rfl)
     rw [lenWord hn]
     step dupR 0
     step unR 0x15 instruction_iszero
@@ -271,7 +271,7 @@ theorem body2 {b r : Nat} {k : U256} (hp : (b, k, r) ∈ BODY) (hfork : .berlin 
     step jumpi0R (isZero_n h1 h31)
     step dupR 0
     step pushR 1 (0x1f : U256)
-    step binR 0x10 Local.instruction_lt
+    step binR 0x10 (instruction_of_stackOnlyStep rfl)
     step pushAnyR 2
     step jumpi0R (lt_n h31)
     exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
@@ -297,8 +297,8 @@ theorem body3 {b r : Nat} {k : U256} (hp : (b, k, r) ∈ BODY) (hfork : .berlin 
     step Gas.sloadG hfork (cold := false) (by code_fact) (by code_fact) hck
       (by gas_ok)
     rw [getStorage_eq]
-    step binR 0x04 Local.instruction_div
-    step binR 0x02 Local.instruction_mul
+    step binR 0x04 (instruction_of_stackOnlyStep rfl)
+    step binR 0x02 (instruction_of_stackOnlyStep rfl)
     step dupR 3
     have hext2 : extendMemory (MEM1 ++ wordBytes (BitVec.ofNat 256 n)).size
         [((0x80 : U256), (32 : U256))] = ⟨3, 32⟩ := by
@@ -614,7 +614,7 @@ theorem retL {r : Nat} (hp : r ∈ RETS) {n : Nat} (h1 : 1 ≤ n) (h31 : n ≤ 3
     step jumpdestR
     step dupR 3
     step dupR 1
-    step binR 0x10 Local.instruction_lt
+    step binR 0x10 (instruction_of_stackOnlyStep rfl)
     step unR 0x15 instruction_iszero
     step pushAnyR 2
     step jumpi0R (lt0_n h1 h31)
@@ -663,7 +663,7 @@ theorem retE1 {r : Nat} (hp : r ∈ RETS) {n : Nat} (h1 : 1 ≤ n) (h31 : n ≤ 
     step jumpdestR
     step dupR 3
     step dupR 1
-    step binR 0x10 Local.instruction_lt
+    step binR 0x10 (instruction_of_stackOnlyStep rfl)
     step unR 0x15 instruction_iszero
     step pushAnyR 2
     step jumpiR (lt32_n h31)
@@ -683,7 +683,7 @@ theorem retE1 {r : Nat} (hp : r ∈ RETS) {n : Nat} (h1 : 1 ≤ n) (h31 : n ≤ 
     step swapR 0
     norm
     step pushR 1 (0x1f : U256)
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     rw [and31_n h31]
     step dupR 0
     step unR 0x15 instruction_iszero
@@ -739,8 +739,8 @@ theorem retE2 (hfork : .berlin ≤ fork) {r : Nat} (hp : r ∈ RETS) {n : Nat} (
       (by rw [expBytes' h1 h31]; gas_ok)
     rw [expBytes' h1 h31]
     step binR 0x03 instruction_sub
-    step unR 0x19 Local.instruction_not
-    step binR 0x16 Local.instruction_and
+    step unR 0x19 (instruction_of_stackOnlyStep rfl)
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step dupR 1
     step Gas.mstoreG (by code_fact) (by code_fact) (by rw [e0]; gas_ok)
     step Gas.reshapeG (s' := [0xe0, BitVec.ofNat 256 n, add (BitVec.ofNat 256 n) 0xe0, 0xa0, 0xa0,
@@ -1224,7 +1224,7 @@ theorem retLG {r : Nat} (hp : r ∈ RETS) {Mb : ByteArray} {P N : Nat} (hP : Mb.
     step jumpdestR
     step dupR 3
     step dupR 1
-    step binR 0x10 Local.instruction_lt
+    step binR 0x10 (instruction_of_stackOnlyStep rfl)
     step unR 0x15 instruction_iszero
     step pushAnyR 2
     step jumpi0R (isZero_lt hj (by omega))
@@ -1341,7 +1341,7 @@ theorem retXZ {r : Nat} (hp : r ∈ RETS) {M : ByteArray} {P N W : Nat} (hNW : N
     step jumpdestR
     step dupR 3
     step dupR 1
-    step binR 0x10 Local.instruction_lt
+    step binR 0x10 (instruction_of_stackOnlyStep rfl)
     step unR 0x15 instruction_iszero
     step pushAnyR 2
     step jumpiR (isZero_ge hNW (by omega))
@@ -1362,7 +1362,7 @@ theorem retXZ {r : Nat} (hp : r ∈ RETS) {M : ByteArray} {P N W : Nat} (hNW : N
     step swapR 0
     norm
     step pushR 1 (0x1f : U256)
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     rw [and31w (by omega), hm]
     step dupR 0
     step unR 0x15 instruction_iszero
@@ -1384,7 +1384,7 @@ theorem retXP {r : Nat} (hp : r ∈ RETS) {M : ByteArray} {P N W : Nat} (hNW : N
     step jumpdestR
     step dupR 3
     step dupR 1
-    step binR 0x10 Local.instruction_lt
+    step binR 0x10 (instruction_of_stackOnlyStep rfl)
     step unR 0x15 instruction_iszero
     step pushAnyR 2
     step jumpiR (isZero_ge hNW (by omega))
@@ -1405,7 +1405,7 @@ theorem retXP {r : Nat} (hp : r ∈ RETS) {M : ByteArray} {P N W : Nat} (hNW : N
     step swapR 0
     norm
     step pushR 1 (0x1f : U256)
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     rw [and31w (by omega)]
     step dupR 0
     step unR 0x15 instruction_iszero
@@ -1512,8 +1512,8 @@ theorem retPG (hfork : .berlin ≤ fork) {r : Nat} (hp : r ∈ RETS) {A : ByteAr
       (by rw [expBytes' h1 h31]; gas_ok)
     rw [expBytes' h1 h31]
     step binR 0x03 instruction_sub
-    step unR 0x19 Local.instruction_not
-    step binR 0x16 Local.instruction_and
+    step unR 0x19 (instruction_of_stackOnlyStep rfl)
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step dupR 1
     step mstoreIn (by code_fact) (by code_fact) (by rw [sA, toNat_wd (by omega)] <;> omega)
       (by rw [sA]; omega) (by gas_ok)
@@ -1696,16 +1696,16 @@ theorem body1G {b r : Nat} {k : U256} (hp : (b, k, r) ∈ BODY) (hfork : .berlin
     step pushR 1 (1 : U256)
     step dupR 1
     step pushR 1 (1 : U256)
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step unR 0x15 instruction_iszero
     step pushR 2 (0x0100 : U256)
-    step binR 0x02 Local.instruction_mul
+    step binR 0x02 (instruction_of_stackOnlyStep rfl)
     step binR 0x03 instruction_sub
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step pushR 1 (2 : U256)
     step swapR 0
     norm
-    step binR 0x04 Local.instruction_div
+    step binR 0x04 (instruction_of_stackOnlyStep rfl)
     rw [hL]
     step dupR 0
     step pushR 1 (0x1f : U256)
@@ -1714,8 +1714,8 @@ theorem body1G {b r : Nat} {k : U256} (hp : (b, k, r) ∈ BODY) (hfork : .berlin
     step dupR 0
     step swapR 1
     norm
-    step binR 0x04 Local.instruction_div
-    step binR 0x02 Local.instruction_mul
+    step binR 0x04 (instruction_of_stackOnlyStep rfl)
+    step binR 0x02 (instruction_of_stackOnlyStep rfl)
     step pushR 1 (0x20 : U256)
     step binR 0x01 instruction_add
     rw [roundW hN]
@@ -1778,16 +1778,16 @@ theorem body2E {b r : Nat} {k : U256} (hp : (b, k, r) ∈ BODY) (hfork : .berlin
     step pushR 1 (1 : U256)
     step dupR 1
     step pushR 1 (1 : U256)
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step unR 0x15 instruction_iszero
     step pushR 2 (0x0100 : U256)
-    step binR 0x02 Local.instruction_mul
+    step binR 0x02 (instruction_of_stackOnlyStep rfl)
     step binR 0x03 instruction_sub
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step pushR 1 (2 : U256)
     step swapR 0
     norm
-    step binR 0x04 Local.instruction_div
+    step binR 0x04 (instruction_of_stackOnlyStep rfl)
     rw [hL]
     step dupR 0
     step unR 0x15 instruction_iszero
@@ -1946,16 +1946,16 @@ theorem body2L {b r : Nat} {k : U256} (hp : (b, k, r) ∈ BODY) (hfork : .berlin
     step pushR 1 (1 : U256)
     step dupR 1
     step pushR 1 (1 : U256)
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step unR 0x15 instruction_iszero
     step pushR 2 (0x0100 : U256)
-    step binR 0x02 Local.instruction_mul
+    step binR 0x02 (instruction_of_stackOnlyStep rfl)
     step binR 0x03 instruction_sub
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step pushR 1 (2 : U256)
     step swapR 0
     norm
-    step binR 0x04 Local.instruction_div
+    step binR 0x04 (instruction_of_stackOnlyStep rfl)
     rw [hL]
     step dupR 0
     step unR 0x15 instruction_iszero
@@ -1963,7 +1963,7 @@ theorem body2L {b r : Nat} {k : U256} (hp : (b, k, r) ∈ BODY) (hfork : .berlin
     step jumpi0R (isZero_wd_ne (by omega) (by omega))
     step dupR 0
     step pushR 1 (0x1f : U256)
-    step binR 0x10 Local.instruction_lt
+    step binR 0x10 (instruction_of_stackOnlyStep rfl)
     step pushAnyR 2
     step jumpiR (isZero_wd_lt (a := 31) (by omega) (by omega))
     first | at_pc 2595 | at_pc 5313
@@ -2077,7 +2077,7 @@ theorem roundC {b r : Nat} {k : U256} (hp : (b, k, r) ∈ BODY) (hfork : .berlin
     rw [add20]
     step dupR 0
     step dupR 3
-    step binR 0x11 Local.instruction_gt
+    step binR 0x11 (instruction_of_stackOnlyStep rfl)
     step pushAnyR 2
     step jumpiR (gt_ne (by omega) (by omega))
     exact restate (by decide) (by rw [e1]) (by rw [cat, ByteArray.append_assoc]) (by gas_ok) rfl rfl
@@ -2123,7 +2123,7 @@ theorem roundX {b r : Nat} {k : U256} (hp : (b, k, r) ∈ BODY) (hfork : .berlin
     rw [add20]
     step dupR 0
     step dupR 3
-    step binR 0x11 Local.instruction_gt
+    step binR 0x11 (instruction_of_stackOnlyStep rfl)
     step pushAnyR 2
     step jumpi0R (gt_eq (by omega) (by omega))
     step dupR 2
@@ -2131,7 +2131,7 @@ theorem roundX {b r : Nat} {k : U256} (hp : (b, k, r) ∈ BODY) (hfork : .berlin
     norm
     step binR 0x03 instruction_sub
     step pushR 1 (0x1f : U256)
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step dupR 2
     step binR 0x01 instruction_add
     step swapR 1

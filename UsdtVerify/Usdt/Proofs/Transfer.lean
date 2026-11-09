@@ -60,7 +60,7 @@ theorem entry (hv : message.value = 0) {x : U256} {gas : Nat} (hg : 98 ≤ gas) 
   step dupR 0
   step Gas.calldataloadG (by code_fact) (by code_fact) (by gas_ok)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step swapR 0
   norm
   step pushR 1 (0x20 : U256)
@@ -110,9 +110,9 @@ theorem pausedRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 1 (0xff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
@@ -150,9 +150,9 @@ theorem notPaused (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.le
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 1 (0xff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
@@ -232,9 +232,9 @@ theorem blackLookup (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.
   step pushR 1 (0 : U256)
   step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step dupR 1
   step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
   step Gas.reshapeG (m' := memoryWrite MEM0 0 (wordBytes (callerKey message))) rfl
@@ -267,9 +267,9 @@ theorem blackLookup (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 1 (0xff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
@@ -334,9 +334,9 @@ theorem depInline (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.le
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 1 (0xff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step pushR 2 (0x168f : U256)
   step jumpiR (isZero_flag_ne hdep)
@@ -373,7 +373,7 @@ theorem shortRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.
   step swapR 0
   norm
   step popR
-  step binR 0x10 Local.instruction_lt
+  step binR 0x10 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
@@ -450,7 +450,7 @@ theorem payloadOk (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 
   step swapR 0
   norm
   step popR
-  step binR 0x10 Local.instruction_lt
+  step binR 0x10 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
@@ -481,7 +481,7 @@ theorem feeCall (hfork : .berlin ≤ fork) {v a : U256} {rest : List U256}
   step swapR 0
   norm
   step pushR 4 (0xffffffff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step jumpR
   exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
 
@@ -499,7 +499,7 @@ theorem divCall {m r : U256} {rest : List U256} (hrest : rest.length ≤ 20) {ga
   step swapR 0
   norm
   step pushR 4 (0xffffffff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step jumpR
   exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
 
@@ -527,7 +527,7 @@ theorem capBlock (hfork : .berlin ≤ fork) {f0 v a : U256} {rest : List U256}
   step pushR 1 (0x04 : U256)
   step Gas.sloadG hfork (cold := c4) (by code_fact) (by code_fact) hc4 (by gas_ok)
   step dupR 3
-  step binR 0x11 Local.instruction_gt
+  step binR 0x11 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step pushR 2 (0x26f1 : U256)
   by_cases hcap : f0.toNat > (storageAt state message.currentTarget 4).toNat
@@ -563,7 +563,7 @@ theorem sendCall {fee v a : U256} {rest : List U256} (hrest : rest.length ≤ 20
   step swapR 0
   norm
   step pushR 4 (0xffffffff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step jumpR
   exact (repc (by decide)).seq (Gas.reshapeG rfl rfl (by gas_ok))
 
@@ -620,9 +620,9 @@ theorem hashTail {p : Nat} (hp : p ∈ HASH_PCS) {x base : U256}
     rfl | rfl | rfl | rfl | rfl
   all_goals
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step dupR 1
     step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
     step Gas.reshapeG (m' := memoryWrite M 0 (wordBytes ((bitwiseAnd ADDR_MASK (bitwiseAnd ADDR_MASK x))))) rfl
@@ -682,7 +682,7 @@ theorem debitCall (hfork : .berlin ≤ fork) {send fee v a : U256} {rest : List 
   step swapR 0
   norm
   step pushR 4 (0xffffffff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step jumpR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
@@ -768,7 +768,7 @@ theorem creditCall (hfork : .berlin ≤ fork) {send fee v a : U256} {rest : List
   step swapR 0
   norm
   step pushR 4 (0xffffffff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step jumpR
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
@@ -806,7 +806,7 @@ theorem creditStore (hfork : .berlin ≤ fork) {nt send v a : U256}
   step popR
   step pushR 1 (0 : U256)
   step dupR 3
-  step binR 0x11 Local.instruction_gt
+  step binR 0x11 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step pushR 2 (0x2997 : U256)
   step jumpiR (by decide)
@@ -871,10 +871,10 @@ theorem logBlock {send fee v a : U256} {rest : List U256} (hrest : rest.length �
   step jumpdestR
   step dupR 4
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 32 TRANSFER_TOPIC
   step dupR 4
   step pushR 1 (0x40 : U256)

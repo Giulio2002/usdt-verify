@@ -97,7 +97,7 @@ theorem creditStoreFee (hfork : .berlin ≤ fork)
   step popR
   step pushR 1 (0 : U256)
   step dupR 3
-  step binR 0x11 Local.instruction_gt
+  step binR 0x11 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step pushR 2 (0x2997 : U256)
   step jumpi0R (by simp [greaterThan, isZero, hpos])
@@ -146,9 +146,9 @@ theorem ownerCall (hfork : .berlin ≤ fork) {w0 : U256}
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   at_pc 10340
   step hashTail (by decide) (by simp; omega) hM (by gas_ok)
   at_pc 10398
@@ -162,7 +162,7 @@ theorem ownerCall (hfork : .berlin ≤ fork) {w0 : U256}
   step swapR 0
   norm
   step pushR 4 (0xffffffff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step jumpR
   exact restate (by decide) (by eqs) rfl (by gas_ok) (by eqs) (by eqs)
 
@@ -214,9 +214,9 @@ theorem ownerStore (hfork : .berlin ≤ fork) {w0 : U256}
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   at_pc 10451
   step hashTail (by decide) (by simp; omega) hM (by gas_ok)
   at_pc 10509
@@ -276,14 +276,14 @@ theorem ownerLog (hfork : .berlin ≤ fork) {w0 : U256}
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 32 TransferOk.TRANSFER_TOPIC
   step dupR 5
   step pushR 1 (0x40 : U256)
@@ -363,10 +363,10 @@ theorem logBlock128 {send fee v a : U256} {rest : List U256} (hrest : rest.lengt
   step jumpdestR
   step dupR 4
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 32 TransferOk.TRANSFER_TOPIC
   step dupR 4
   step pushR 1 (0x40 : U256)
@@ -789,9 +789,9 @@ theorem hashTailF {p : Nat} (hp : p ∈ HASH_PCS_F) {x base : U256}
   rcases hp with rfl | rfl
   all_goals
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step dupR 1
     step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
     step Gas.reshapeG (m' := memoryWrite M 0 (wordBytes ((bitwiseAnd ADDR_MASK (bitwiseAnd ADDR_MASK x))))) rfl
@@ -854,7 +854,7 @@ theorem creditStoreFeeF (hfork : .berlin ≤ fork)
   step popR
   step pushR 1 (0 : U256)
   step dupR 3
-  step binR 0x11 Local.instruction_gt
+  step binR 0x11 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step pushR 2 (0x25e4 : U256)
   step jumpi0R (by simp [greaterThan, isZero, hpos])
@@ -896,9 +896,9 @@ theorem ownerCallF (hfork : .berlin ≤ fork) {w0 : U256}
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   at_pc 9393
   step hashTailF (by decide) (by simp; omega) hM (by gas_ok)
   at_pc 9451
@@ -911,7 +911,7 @@ theorem ownerCallF (hfork : .berlin ≤ fork) {w0 : U256}
   step swapR 0
   norm
   step pushR 4 (0xffffffff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step jumpR
   exact restate (by decide) (by eqs) rfl (by gas_ok) (by eqs) (by eqs)
 
@@ -956,9 +956,9 @@ theorem ownerStoreF (hfork : .berlin ≤ fork) {w0 : U256}
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   at_pc 9504
   step hashTailF (by decide) (by simp; omega) hM (by gas_ok)
   at_pc 9562
@@ -1017,14 +1017,14 @@ theorem ownerLogF (hfork : .berlin ≤ fork) {w0 : U256}
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step dupR 7
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 32 TransferOk.TRANSFER_TOPIC
   step dupR 5
   step pushR 1 (0x40 : U256)
@@ -1103,10 +1103,10 @@ theorem logBlock128F {send fee A v t f : U256} {rest : List U256} (hrest : rest.
   step jumpdestR
   step dupR 5
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step dupR 7
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 32 TransferOk.TRANSFER_TOPIC
   step dupR 4
   step pushR 1 (0x40 : U256)

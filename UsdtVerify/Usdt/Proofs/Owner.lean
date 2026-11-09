@@ -75,14 +75,14 @@ theorem ownerTest (hfork : .berlin ≤ fork) {s : Nat} (hs : s ∈ CHECKS) {rest
     step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
     step swapR 0
     norm
-    step binR 0x04 Local.instruction_div
+    step binR 0x04 (instruction_of_stackOnlyStep rfl)
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step binR 0x14 instruction_eq
     step unR 0x15 instruction_iszero
     step unR 0x15 instruction_iszero

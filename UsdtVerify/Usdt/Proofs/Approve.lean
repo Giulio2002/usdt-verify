@@ -47,7 +47,7 @@ theorem entry (hv : message.value = 0) {x : U256} {gas : Nat} (hg : 98 ≤ gas) 
   step dupR 0
   step Gas.calldataloadG (by code_fact) (by code_fact) (by gas_ok)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step swapR 0
   norm
   step pushR 1 (0x20 : U256)
@@ -99,7 +99,7 @@ theorem payload {p d : Nat} (hp : (p = 2931 ∧ d = 2955) ∨ (p = 8206 ∧ d = 
     step swapR 0
     norm
     step popR
-    step binR 0x10 Local.instruction_lt
+    step binR 0x10 (instruction_of_stackOnlyStep rfl)
     step unR 0x15 instruction_iszero
     step unR 0x15 instruction_iszero
     step unR 0x15 instruction_iszero
@@ -128,9 +128,9 @@ theorem notDeprecated (hfork : .berlin ≤ fork) {rest : List U256} (hrest : res
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 1 (0xff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step pushR 2 (0x0cb1 : U256)
   step jumpiR (isZero_flag_ne hdep)
@@ -317,10 +317,10 @@ theorem logApproval {v s : U256} {rest : List U256} (hrest : rest.length ≤ 900
   have hlog : logCost (3 : Fin 5).val (0x20 : U256) = 1756 := by decide
   step dupR 2
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 32 APPROVAL_TOPIC
   step dupR 4
   step pushR 1 (0x40 : U256)

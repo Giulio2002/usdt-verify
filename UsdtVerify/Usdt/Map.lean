@@ -1,6 +1,7 @@
 import UsdtVerify.Evm.Calldata
 import UsdtVerify.Evm.GasRules
-import UsdtVerify.Evm.Local.Rules
+import EthLib.Execution.Proofs.Evm.Logic.Branch
+import EthLib.Execution.Proofs.Evm.Logic.Stack
 import UsdtVerify.Usdt.Steps
 
 /-!
@@ -64,7 +65,7 @@ theorem prelude (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 
   step Gas.reshapeG rfl (by rw [hext]) (show _ = gas - 18 by simp only [hext]; omega)
   step push1R 0x04
   step Gas.calldatasizeG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
-  step binR 0x10 Local.instruction_lt
+  step binR 0x10 (instruction_of_stackOnlyStep rfl)
   step pushR 2 0x0196
   refine Triple.seq (Gas.jumpi_of_eq_zeroG (by code_fact) (by code_fact) (by gas_ok) ?_) ?_
   · have h4 : (BitVec.ofNat 256 (UInt8.toNat 4) : U256).toNat = 4 := by decide
@@ -74,9 +75,9 @@ theorem prelude (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 
   step Gas.calldataloadG (by code_fact) (by code_fact) (by gas_ok)
   step pushR 29 (BitVec.ofNat 256 (2 ^ 224))
   step swapR 0
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 4 (BitVec.ofNat 256 0xffffffff)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   refine Gas.reshapeG ?_ (by rfl) (by gas_ok)
   have h0 : (BitVec.ofNat 256 (UInt8.toNat 0) : U256).toNat = 0 := by decide
   simp only [h0, List.cons.injEq, and_true]

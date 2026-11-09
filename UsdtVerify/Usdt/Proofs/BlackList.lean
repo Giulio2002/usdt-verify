@@ -51,18 +51,18 @@ macro "list_pre" : tactic => `(tactic| (
     storageAt state message.currentTarget (mapSlot (mkey a) 6) from rfl]
   step dupR 1
   step pushR 1 (0xff : U256)
-  step binR 0x02 Local.instruction_mul
+  step binR 0x02 (instruction_of_stackOnlyStep rfl)
   rw [hff]
-  step unR 0x19 Local.instruction_not
-  step binR 0x16 Local.instruction_and
+  step unR 0x19 (instruction_of_stackOnlyStep rfl)
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step swapR 0
   norm
   step dupR 3
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
-  step binR 0x02 Local.instruction_mul
+  step binR 0x02 (instruction_of_stackOnlyStep rfl)
   rw [hv']
-  step binR 0x17 Local.instruction_or
+  step binR 0x17 (instruction_of_stackOnlyStep rfl)
   step swapR 0
   norm))
 
@@ -183,9 +183,9 @@ theorem listLog {q : Nat} {t : U256} {r : Nat}
     step dupR 0
     step dupR 2
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step dupR 1
     step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
     step Gas.reshapeG (m' := M ++ wordBytes (mkey a)) rfl (by rw [hext1]; exact hmem1) (by rw [hext1])

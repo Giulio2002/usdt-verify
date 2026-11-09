@@ -73,9 +73,9 @@ theorem depSet (hfork : .berlin ≤ fork) {p q : Nat}
     step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
     step swapR 0
     norm
-    step binR 0x04 Local.instruction_div
+    step binR 0x04 (instruction_of_stackOnlyStep rfl)
     step pushR 1 (0xff : U256)
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step unR 0x15 instruction_iszero
     step pushAnyR 2
     step jumpi0R (isZero_flag_set hdep)
@@ -145,11 +145,11 @@ theorem fwdArgs (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.leng
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step Gas.reshapeG (s' := [upWord (storageAt state message.currentTarget 10), 0] ++ rest)
     (m' := MEM0) (g' := gas - 145)
     (by rw [up_eq, ← storageAt_readSlot state message.currentTarget message.currentTarget 10 10]
@@ -183,9 +183,9 @@ theorem fwdArgs (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.leng
     (by rw [hx2, memoryExtend_zero]) (by rw [hx2]; gas_ok)
   step dupR 1
   step pushR 4 (0xffffffff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 29 (0x0100000000000000000000000000000000000000000000000000000000 : U256)
-  step binR 0x02 Local.instruction_mul
+  step binR 0x02 (instruction_of_stackOnlyStep rfl)
   step dupR 1
   have hx3 : extendMemory M1.size [((0x60 : U256), (32 : U256))] = ⟨0, 0⟩ := by
     rw [size_M1]; decide
@@ -842,8 +842,8 @@ theorem noCode (hfork : .berlin ≤ fork) {p : Nat}
     step jumpi0R (by decide)
     step pushR 1 (0 : U256)
     step dupR 0
-    refine (At.revert (Nat.le_trans (by decide) hfork) (by code_fact)
-      (by code_fact) (by rw [hz]; gas_ok)).consequence (fun _ h => h) ?_
+    refine (Gas.SpecG.toSpec (Gas.revertG (Nat.le_trans (by decide) hfork) (by code_fact)
+      (by code_fact) (by rw [hz]; gas_ok))).consequence (fun _ h => h) ?_
     rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
     refine ⟨hr, he, ?_, ?_, hs, hss⟩
     · rw [ho]; simp [memoryReadBytes]

@@ -121,11 +121,11 @@ theorem fwdArgsD (hfork : .berlin ≤ fork) {a : U256} (ha : bitwiseAnd ADDR_MAS
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step Gas.reshapeG (s' := [upWord (storageAt state message.currentTarget 10), 0, a] ++ rest)
     (m' := M) (g' := gas - 145)
     (by rw [up_eq, ← storageAt_readSlot state message.currentTarget message.currentTarget 10 10]
@@ -161,9 +161,9 @@ theorem fwdArgsD (hfork : .berlin ≤ fork) {a : U256} (ha : bitwiseAnd ADDR_MAS
     (by rw [hx2, memoryExtend_zero]) (by rw [hx2]; gas_ok)
   step dupR 2
   step pushR 4 (0xffffffff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 29 (0x0100000000000000000000000000000000000000000000000000000000 : U256)
-  step binR 0x02 Local.instruction_mul
+  step binR 0x02 (instruction_of_stackOnlyStep rfl)
   step dupR 1
   have hx3 : extendMemory (D1 M).size [((0x60 : U256), (32 : U256))] = ⟨0, 0⟩ := by
     rw [size_D1 hM]; decide
@@ -179,9 +179,9 @@ theorem fwdArgsD (hfork : .berlin ≤ fork) {a : U256} (ha : bitwiseAnd ADDR_MAS
   step dupR 0
   step dupR 2
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   rw [ha, ha]
   step dupR 1
   have hx4 : extendMemory (D2 M).size [((0x64 : U256), (32 : U256))] = ⟨0, 0⟩ := by
@@ -303,9 +303,9 @@ theorem hashTail160 {x base : U256} {rest : List U256} (hrest : rest.length ≤ 
       (b := wordBytes base) (s := 0) (by simp [hM, size_wordBytes])
     simpa [size_wordBytes, mapMem] using h
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step dupR 1
   step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
   step Gas.reshapeG (m' := memoryWrite M 0 (wordBytes (mkey x))) rfl
@@ -463,9 +463,9 @@ theorem logBlockD {a b x : U256} (hstatic : message.isStatic = false) {M : ByteA
   step dupR 0
   step dupR 3
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step dupR 1
   step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
   step Gas.reshapeG (m' := memoryWrite M 96 (wordBytes (mkey a))) rfl

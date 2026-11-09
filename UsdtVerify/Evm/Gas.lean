@@ -27,7 +27,10 @@ state:
   reach a running frame that is not `SimAt`. `Ends.run`: every end of `runFrame` meets it. The
   `E` forms (`low_of_reachesE`, `SpecG.lowE`, ...) take it in place of a `runFrame` equation, so
   that Evm/Meter.lean can use them for a loop over the meter `StateGasMeter`. EthLib's
-  `low_of_reaches`, `SpecG.low` (Logic/LessGas.lean) take only a `runFrame` equation.
+  `low_of_reaches`, `SpecG.low`, `SpecG.halted`, `SpecG.not_ok` (Logic/LessGas.lean) take only a
+  `runFrame` equation. Round 50: the local forms with a `runFrame` equation (`low_of_reaches`,
+  `SpecG.low`, `SpecG.halted`, `SpecG.not_ok`) had no use and are removed; each is EthLib's
+  lemma of the same name applied to `HoareG.toLogic` or `SpecG.toLogic` of the local triple.
 - `At.ruleG`: the rule of one opcode, as EthLib's `At.ruleG`, for `At` (the local predicate with
   no condition on the return data, Evm/At.lean) and this `StepG`.
 
@@ -340,16 +343,6 @@ theorem low_of_reachesE {hi z : Evm fork Nat} (hr : Reaches (StepG fork) hi z)
         rw [hh] at hn
         cases hn
 
-/-- Along a chain of `StepG` from `addGas k l` to a stopped frame `z`: if the loop of the interpreter
-run from `l` ends with no error in `s`, then `z = addGas k s`. -/
-theorem low_of_reaches {hi z : Evm fork Nat} (hr : Reaches (StepG fork) hi z)
-    (hz : z.running = false) :
-    ∀ (k : Nat) (l : Evm fork Nat), hi = addGas k l →
-      ∀ (within : GasMeter.gasHeld l.gas ≤ bound) {s : Evm fork Nat},
-        Evm.runFrame (step fork) (step_decreases fork) bound runChild l within = .ok s →
-        s.error = none → z = addGas k s :=
-  fun k l h _ _ hrun hok => low_of_reachesE hr hz k l h (Ends.run hrun) hok
-
 /-- A specification over `StepG` from `addGas k l`, and a loop from `l` that ends in `s` with no
 error (`Ends`): the postcondition holds of `addGas k s`. -/
 theorem SpecG.lowE {P Q : Evm fork Nat → Prop} (h : SpecG fork P Q) {k : Nat} {l : Evm fork Nat}
@@ -358,14 +351,6 @@ theorem SpecG.lowE {P Q : Evm fork Nat → Prop} (h : SpecG fork P Q) {k : Nat} 
   obtain ⟨z, hr, hz, hq⟩ := h _ hp
   rw [← low_of_reachesE hr hz k l rfl hs hok]
   exact hq
-
-/-- A specification over `StepG` from `addGas k l`, and a run from `l` that ends with no error in
-`s`: the postcondition holds of `addGas k s`. -/
-theorem SpecG.low {P Q : Evm fork Nat → Prop} (h : SpecG fork P Q) {k : Nat} {l : Evm fork Nat}
-    (hp : P (addGas k l)) (within : GasMeter.gasHeld l.gas ≤ bound) {s : Evm fork Nat}
-    (hs : Evm.runFrame (step fork) (step_decreases fork) bound runChild l within = .ok s)
-    (hok : s.error = none) : Q (addGas k s) :=
-  SpecG.lowE h hp (Ends.run hs) hok
 
 end Loop
 
@@ -390,21 +375,6 @@ theorem SpecG.haltedE {code : ByteArray} {message : Message fork} {pc : Nat} {st
   obtain ⟨hr, -, ho, hg, hst, hss⟩ := SpecG.lowE h (at_addGas hl k) hs hok
   exact ⟨hr, ho, hg, hst, hss⟩
 
-/-- A run that ends with no error in `s`, from a frame where a `SpecG` to a normal halt holds
-with `k` more gas: `s` is that halt, with `k` less gas. -/
-theorem SpecG.halted {code : ByteArray} {message : Message fork} {pc : Nat} {stack : List U256}
-    {memory : ByteArray} {gas : Nat} {state : State.TransactionState} {substate : Substate}
-    {out : ByteArray} {g' : Nat} {st' : State.TransactionState} {ss' : Substate} {k : Nat}
-    (h : SpecG fork (At code message pc stack memory (gas + k) state substate)
-      (Halted false out g' st' ss'))
-    {bound : Nat} {runChild : MessageRunner fork Nat bound} {l : Evm fork Nat}
-    (hl : At code message pc stack memory gas state substate l)
-    (within : GasMeter.gasHeld l.gas ≤ bound) {s : Evm fork Nat}
-    (hs : Evm.runFrame (step fork) (step_decreases fork) bound runChild l within = .ok s)
-    (hok : s.error = none) :
-    s.running = false ∧ s.output = out ∧ s.gas + k = g' ∧ s.state = st' ∧ s.substate = ss' :=
-  SpecG.haltedE h hl (Ends.run hs) hok
-
 /-- A loop that ends with no error (`Ends`) is impossible from a frame where a `SpecG` to a frame
 with an error holds with `k` more gas. -/
 theorem SpecG.not_okE {P Q : Evm fork Nat → Prop} (h : SpecG fork P Q)
@@ -412,15 +382,5 @@ theorem SpecG.not_okE {P Q : Evm fork Nat → Prop} (h : SpecG fork P Q)
     {s : Evm fork Nat} (hs : Ends fork l s) : s.error ≠ none := by
   intro hok
   exact herr _ (SpecG.lowE h hp hs hok) (by simpa using hok)
-
-/-- A run with no error is impossible from a frame where a `SpecG` to a frame with an error
-holds with `k` more gas. -/
-theorem SpecG.not_ok {P Q : Evm fork Nat → Prop} (h : SpecG fork P Q)
-    (herr : ∀ e, Q e → e.error ≠ none) {k : Nat} {l : Evm fork Nat} (hp : P (addGas k l))
-    {bound : Nat} {runChild : MessageRunner fork Nat bound}
-    (within : GasMeter.gasHeld l.gas ≤ bound) {s : Evm fork Nat}
-    (hs : Evm.runFrame (step fork) (step_decreases fork) bound runChild l within = .ok s) :
-    s.error ≠ none :=
-  SpecG.not_okE h herr hp (Ends.run hs)
 
 end UsdtVerify.Gas

@@ -1203,3 +1203,14 @@ lemmas keep their statements, which stay incomparable. T4: `keepsInvAt_of_acc_ha
 A second, fresh independent review of f66e08b: PASS. No headline result is weaker than at round
 48, and each old end result about one top-level message was re-derived in Lean from the new
 one-step theorems.
+
+**Resolution note (round 50).** No audit finding is about the code changed in round 50, and no
+statement of a USDT theorem changed. Evm/Local/Rules.lean is removed: the seven instruction
+table entries it held are EthLib's `instruction_of_stackOnlyStep rfl` at each use. The rules over
+`StepG` of PUSH, CALLDATALOAD, MSTORE, KECCAK256, SLOAD and RETURN now follow from their forms
+over `StepGA`, with the same statements. `At.caller`, `At.stop`, `At.revert`, `At.invalid_fe` and
+six unused lemmas with a `runFrame` equation (`low_of_reaches`, `SpecG.low`, `SpecG.halted`,
+`SpecG.not_ok`, `not_ok_of_reaches`, `no_ok_stuck`) are removed; each of the six follows from
+EthLib's lemma of the same name. The local `At`, `StepG` with `SimAt`, the triples over it and the
+opcode rules over the local `At` stay, for the reasons in docs/STATUS.md (round 50). The trust
+assumptions of "What is trusted" in docs/RESULTS.md are unchanged.

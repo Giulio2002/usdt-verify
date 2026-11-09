@@ -92,7 +92,7 @@ theorem mulBlock {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20
     step jumpdestR
     step dupR 2
     step dupR 4
-    step binR 0x02 Local.instruction_mul
+    step binR 0x02 (instruction_of_stackOnlyStep rfl)
     step swapR 0
     norm
     step popR
@@ -106,7 +106,7 @@ theorem mulBlock {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20
     step jumpiR (by simp [isZero]; exact ha)
     at_pc 10793
     step jumpdestR
-    step binR 0x04 Local.instruction_div
+    step binR 0x04 (instruction_of_stackOnlyStep rfl)
     step binR 0x14 instruction_eq
     step unR 0x15 instruction_iszero
     step unR 0x15 instruction_iszero
@@ -147,7 +147,7 @@ theorem divBlock {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20
   step jumpiR (by simp [isZero]; exact hb)
   at_pc 10963
   step jumpdestR
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step swapR 0
   norm
   step popR
@@ -176,7 +176,7 @@ theorem subBlock {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20
   step pushR 1 (0 : U256)
   step dupR 2
   step dupR 2
-  step binR 0x11 Local.instruction_gt
+  step binR 0x11 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
@@ -220,7 +220,7 @@ theorem addBlock {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20
   step popR
   step dupR 3
   step dupR 1
-  step binR 0x10 Local.instruction_lt
+  step binR 0x10 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero

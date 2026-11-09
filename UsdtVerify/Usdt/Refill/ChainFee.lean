@@ -54,9 +54,9 @@ theorem ownerToW (hfork : .berlin ≤ fork) {w0 : U256}
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   at_pc 10451
   step hashTail (by decide) (by simp; omega) hM (by gas_ok)
   at_pc 10509
@@ -159,7 +159,7 @@ theorem feeW3 (hfork : .berlin ≤ fork) {nt send fee v a sel : U256} (hfee : fe
   step popR
   step pushR 1 (0 : U256)
   step dupR 3
-  step binR 0x11 Local.instruction_gt
+  step binR 0x11 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step pushR 2 (0x2997 : U256)
   step jumpi0R (by simp [greaterThan, isZero, hpos])

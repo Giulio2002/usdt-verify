@@ -9,7 +9,7 @@ more whose selector is no key of the table; or the selector is the key of entry 
 table, for some `i : Fin 32`.
 
 The fallback and nonpayable reverts of `Usdt/Spec/Dispatch.lean` are stated over `StepG`; with
-`SpecG.not_ok` they cover every gas, out of gas included.
+`SpecG.not_okE` they cover every gas, out of gas included.
 
 - `runFrame_ok_dispatch`: from Berlin, for a fresh frame of `CODE` at pc 0 with call data of
   size below `2^256`, any gas, any gas bound and any message runner: if the loop of the

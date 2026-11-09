@@ -180,9 +180,9 @@ theorem depSetW (hfork : .berlin ≤ fork) {p q : Nat}
     step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
     step swapR 0
     norm
-    step binR 0x04 Local.instruction_div
+    step binR 0x04 (instruction_of_stackOnlyStep rfl)
     step pushR 1 (0xff : U256)
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step unR 0x15 instruction_iszero
     step pushAnyR 2
     step jumpi0R (isZero_flag_set hdep)
@@ -213,11 +213,11 @@ theorem upLoad (hfork : .berlin ≤ fork) {p q : Nat}
     step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
     step swapR 0
     norm
-    step binR 0x04 Local.instruction_div
+    step binR 0x04 (instruction_of_stackOnlyStep rfl)
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     exact restate (by decide)
       (by rw [up_eq, ← storageAt_readSlot state message.currentTarget message.currentTarget 10 10])
       rfl (by gas_ok) (readSlot_readSlot state message.currentTarget 10)
@@ -262,9 +262,9 @@ theorem encode3 {p q : Nat} (hp : (p = 5568 ∧ q = 5739) ∨ (p = 3042 ∧ q = 
       (by rw [hx0, memoryExtend_zero]) (by rw [hx0]; gas_ok)
     step dupR 4
     step pushR 4 (0xffffffff : U256)
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step pushR 29 (0x0100000000000000000000000000000000000000000000000000000000 : U256)
-    step binR 0x02 Local.instruction_mul
+    step binR 0x02 (instruction_of_stackOnlyStep rfl)
     step dupR 1
     step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hx1]; gas_ok)
     step Gas.reshapeG (s' := [0x60, w, b, C, sel, U] ++ rest) (m' := W1 M sel) (g' := gas - 32) rfl
@@ -275,9 +275,9 @@ theorem encode3 {p q : Nat} (hp : (p = 5568 ∧ q = 5739) ∨ (p = 3042 ∧ q = 
     step dupR 0
     step dupR 4
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step dupR 1
     step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hx2]; gas_ok)
     step Gas.reshapeG (s' := [0x64, 0x64, w, b, C, sel, U] ++ rest) (m' := W2 M sel (mkey C))
@@ -287,9 +287,9 @@ theorem encode3 {p q : Nat} (hp : (p = 5568 ∧ q = 5739) ∨ (p = 3042 ∧ q = 
     rw [h84]
     step dupR 3
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step dupR 1
     step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hx3]; gas_ok)
     step Gas.reshapeG (s' := [0x84, 0x64, w, b, C, sel, U] ++ rest)
@@ -456,7 +456,7 @@ theorem preCallT (hfork : .berlin ≤ fork)
     (blackSlot message)) hfork (Or.inl ⟨rfl, rfl⟩) (by simp) (by gas_ok)
   rw [storageAt_readSlot, storageAt_readSlot]
   step pushR 4 (0x6e18980a : U256)
-  step At.caller (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   step dupR 4
   step dupR 4
   step encode3 (Or.inl ⟨rfl, rfl⟩) (size_MEMK _ _) (ptr_MEMK _ _)
@@ -792,7 +792,7 @@ theorem spec_depTNoCode (hfork : .berlin ≤ fork)
     (blackSlot message)) hfork (Or.inl ⟨rfl, rfl⟩) (by simp) (by gas_ok)
   rw [storageAt_readSlot, storageAt_readSlot]
   step pushR 4 (0x6e18980a : U256)
-  step At.caller (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   step dupR 4
   step dupR 4
   step encode3 (Or.inl ⟨rfl, rfl⟩) (size_MEMK _ _) (ptr_MEMK _ _)
@@ -836,7 +836,7 @@ theorem okTailA {sel U v s x : U256} {M : ByteArray} {gas : Nat} (hg : 53 ≤ ga
   step jumpR
   step repcH (pc' := 674) (by decide)
   step jumpdestR
-  refine (At.stop (by code_fact) (by code_fact)).consequence (fun _ h => h) ?_
+  refine (Gas.SpecG.toSpec (Gas.stopG (by code_fact) (by code_fact))).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
@@ -921,7 +921,7 @@ theorem preExtA (hfork : .berlin ≤ fork) (hlong : 68 ≤ message.data.size)
   step depSetW hfork (Or.inr (Or.inl ⟨rfl, rfl⟩)) (by simp) hdep hc10 (by gas_ok)
   step upLoad hfork (Or.inr (Or.inl ⟨rfl, rfl⟩)) (by simp) (by gas_ok)
   step pushR 4 (0xaee92d33 : U256)
-  step At.caller (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   step dupR 5
   step dupR 5
   step encode3 (Or.inr ⟨rfl, rfl⟩) size_MEM0 mload_MEM0

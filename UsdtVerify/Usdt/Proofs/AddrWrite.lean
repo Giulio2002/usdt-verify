@@ -86,18 +86,18 @@ macro "addr_pre" : tactic => `(tactic| (
   rw [getStorage_eq]
   step dupR 1
   step pushR 20 ADDR_MASK
-  step binR 0x02 Local.instruction_mul
+  step binR 0x02 (instruction_of_stackOnlyStep rfl)
   rw [mul_mask_one]
-  step unR 0x19 Local.instruction_not
-  step binR 0x16 Local.instruction_and
+  step unR 0x19 (instruction_of_stackOnlyStep rfl)
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step swapR 0
   norm
   step dupR 3
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
-  step binR 0x02 Local.instruction_mul
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
+  step binR 0x02 (instruction_of_stackOnlyStep rfl)
   rw [mul_one']
-  step binR 0x17 Local.instruction_or
+  step binR 0x17 (instruction_of_stackOnlyStep rfl)
   step swapR 0
   norm))
 
@@ -148,17 +148,17 @@ macro "dep_pre" : tactic => `(tactic| (
   rw [getStorage_eq]
   step dupR 1
   step pushR 1 (0xff : U256)
-  step binR 0x02 Local.instruction_mul
-  step unR 0x19 Local.instruction_not
-  step binR 0x16 Local.instruction_and
+  step binR 0x02 (instruction_of_stackOnlyStep rfl)
+  step unR 0x19 (instruction_of_stackOnlyStep rfl)
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step swapR 0
   norm
   step dupR 3
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   rw [hb]
-  step binR 0x02 Local.instruction_mul
-  step binR 0x17 Local.instruction_or
+  step binR 0x02 (instruction_of_stackOnlyStep rfl)
+  step binR 0x17 (instruction_of_stackOnlyStep rfl)
   step swapR 0
   norm))
 
@@ -241,10 +241,10 @@ theorem ownTest {n : U256} {rest : List U256} (hrest : rest.length ≤ 16) {M : 
   step jumpdestR
   step pushR 1 (0 : U256)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step dupR 1
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step binR 0x14 instruction_eq
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero

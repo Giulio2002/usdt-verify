@@ -21,13 +21,15 @@ form: the same twelve conditions, with no condition on the return data. Inside t
 - `meets_of_specAt`: EthLib's `meets_of_spec` (the runner of the interpreter meets the
   specification of a callee), for a specification from `At`.
 - `At.rule`: EthLib's `At.rule` for `At`.
-- `At.extcodesize`, `At.gas_rule`, `At.caller`, `At.reshape`: EthLib's `extcodesize_of_berlin_le`
-  (EXTCODESIZE at every fork from Berlin), `gas_rule` (GAS), `caller` (CALLER) and `reshape`
-  (equal stack, memory and gas), for `At`. `At.stop`, `At.revert`, `At.invalid_fe`: EthLib's
-  `stop`, `revert` and `invalid_fe`, from `At`.
+- `At.extcodesize`, `At.gas_rule`, `At.reshape`: EthLib's `extcodesize_of_berlin_le`
+  (EXTCODESIZE at every fork from Berlin), `gas_rule` (GAS) and `reshape` (equal stack, memory
+  and gas), for `At`.
 
 The other opcode rules of this repository are proved from `At.rule` and `Gas.At.ruleG`
-(Evm/Gas.lean, Evm/GasRules.lean), so they need no lift.
+(Evm/Gas.lean, Evm/GasRules.lean), so they need no lift. Round 50: `At.caller`, `At.stop`,
+`At.revert` and `At.invalid_fe` are removed. Their uses take `Gas.callerG`, `Gas.stopG`,
+`Gas.revertG` (with `SpecG.toSpec`) or `liftPre` of EthLib's `stop`, and `Gas.invalid_feG` has
+the same statement over `StepG`.
 -/
 
 namespace UsdtVerify
@@ -155,42 +157,11 @@ theorem At.gas_rule (hlt : pc < code.size) (hbyte : code[pc] = 0x5a) (hgas : 2 �
         substate) :=
   liftAt fun _ => Logic.gas_rule hlt hbyte hgas hstack
 
-/-- CALLER pushes the address of the caller for 2 gas: EthLib's `caller`, for `At`. -/
-theorem At.caller (hlt : pc < code.size) (hbyte : code[pc] = 0x33) (hgas : 2 ≤ gas)
-    (hstack : stack.length < STACK_LIMIT) :
-    Logic.Hoare fork (At code message pc stack memory gas state substate)
-      (At code message (pc + 1) (message.caller.toU256 :: stack) memory (gas - 2) state
-        substate) :=
-  liftAt fun _ => Logic.caller hlt hbyte hgas hstack
-
 /-- A frame is also a frame with an equal stack, memory and gas: EthLib's `reshape`, for `At`. -/
 theorem At.reshape {s s' : List U256} {m m' : ByteArray} {g g' : Nat}
     (hs : s = s') (hm : m = m') (hg : g = g') :
     Logic.Hoare fork (At code message pc s m g state substate)
       (At code message pc s' m' g' state substate) :=
   liftAt fun _ => Logic.reshape hs hm hg
-
-/-- STOP halts with no output: EthLib's `stop`, from `At`. -/
-theorem At.stop (hlt : pc < code.size) (hbyte : code[pc] = 0x00) :
-    Logic.Spec fork (At code message pc stack memory gas state substate)
-      (Logic.Halted false .empty gas state substate) :=
-  liftPre fun _ => Logic.stop hlt hbyte
-
-/-- REVERT halts with the bytes of memory it names: EthLib's `revert`, from `At`. -/
-theorem At.revert (hfork : .byzantium ≤ fork) {start size : U256} {rest : List U256}
-    (hlt : pc < code.size) (hbyte : code[pc] = 0xfd)
-    (hgas : (extendMemory memory.size [(start, size)]).cost ≤ gas) :
-    Logic.Spec fork (At code message pc (start :: size :: rest) memory gas state substate)
-      (Logic.Halted true
-        (memoryReadBytes (memoryExtend memory (extendMemory memory.size [(start, size)]).expandBy)
-          start.toNat size.toNat)
-        (gas - (extendMemory memory.size [(start, size)]).cost) state substate) :=
-  liftPre fun _ => Logic.revert hfork hlt hbyte hgas
-
-/-- The byte `0xfe` halts the frame as an invalid opcode: EthLib's `invalid_fe`, from `At`. -/
-theorem At.invalid_fe (hlt : pc < code.size) (hbyte : code[pc] = 0xfe) :
-    Logic.Spec fork (At code message pc stack memory gas state substate)
-      (Logic.Faulted (.invalidOpcode 0xfe) state substate) :=
-  liftPre fun _ => Logic.invalid_fe hlt hbyte
 
 end UsdtVerify

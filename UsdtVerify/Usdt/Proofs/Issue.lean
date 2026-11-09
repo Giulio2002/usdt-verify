@@ -82,9 +82,9 @@ theorem ownerLookup (hfork : .berlin ≤ fork) {p : Nat}
     step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
     step swapR 0
     norm
-    step binR 0x04 Local.instruction_div
+    step binR 0x04 (instruction_of_stackOnlyStep rfl)
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step hashTail7 (by decide) (by omega) hM (by gas_ok)
     rw [mkey_owner]
     exact restate rfl rfl rfl (by gas_ok) rfl rfl
@@ -257,7 +257,7 @@ theorem issueTest1 (hfork : .berlin ≤ fork) {a : U256} {rest : List U256}
   step Gas.sloadG hfork (cold := false) (by code_fact) (by code_fact)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
   step binR 0x01 instruction_add
-  step binR 0x11 Local.instruction_gt
+  step binR 0x11 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   refine restate (by decide) ?_ rfl (by gas_ok) (readSlot_readSlot _ _ _)
@@ -309,7 +309,7 @@ theorem issueTest2 (hfork : .berlin ≤ fork) {a : U256} {rest : List U256}
   step Gas.sloadG hfork (cold := false) (by code_fact) (by code_fact)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
   step binR 0x01 instruction_add
-  step binR 0x11 Local.instruction_gt
+  step binR 0x11 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   refine restate (by decide) ?_ rfl (by gas_ok) (readSlot_readSlot _ _ _)
@@ -579,7 +579,7 @@ theorem redeemTest1 (hfork : .berlin ≤ fork) {a : U256} {rest : List U256}
   step dupR 0
   step pushR 1 (0x01 : U256)
   step Gas.sloadG hfork (cold := c1) (by code_fact) (by code_fact) hc1 (by gas_ok)
-  step binR 0x10 Local.instruction_lt
+  step binR 0x10 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
@@ -606,7 +606,7 @@ theorem redeemTest2 (hfork : .berlin ≤ fork) {a : U256} {rest : List U256}
   step ownerLookup hfork (by decide) (by simp; omega) hM hc0 (gas := gas - 1 - 3) (by gas_ok)
   step Gas.sloadG hfork (cold := cO) (by code_fact) (by code_fact) hcO (by gas_ok)
   rw [getStorage_eq, storageAt_readSlot]
-  step binR 0x10 Local.instruction_lt
+  step binR 0x10 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero

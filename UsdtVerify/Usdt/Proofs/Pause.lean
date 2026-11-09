@@ -97,9 +97,9 @@ theorem pauseTest (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.le
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 1 (0xff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
@@ -127,9 +127,9 @@ theorem unpauseTest (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 1 (0xff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
@@ -240,17 +240,17 @@ macro "flag_pre" : tactic => `(tactic| (
     storageAt state message.currentTarget 0 from rfl]
   step dupR 1
   step pushR 1 (0xff : U256)
-  step binR 0x02 Local.instruction_mul
-  step unR 0x19 Local.instruction_not
-  step binR 0x16 Local.instruction_and
+  step binR 0x02 (instruction_of_stackOnlyStep rfl)
+  step unR 0x19 (instruction_of_stackOnlyStep rfl)
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step swapR 0
   norm
   step dupR 3
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   rw [hb]
-  step binR 0x02 Local.instruction_mul
-  step binR 0x17 Local.instruction_or
+  step binR 0x02 (instruction_of_stackOnlyStep rfl)
+  step binR 0x17 (instruction_of_stackOnlyStep rfl)
   step swapR 0
   norm))
 

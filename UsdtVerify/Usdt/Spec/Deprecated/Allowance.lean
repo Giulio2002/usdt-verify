@@ -61,9 +61,9 @@ theorem depSetA (hfork : .berlin ≤ fork) {M : ByteArray} {rest : List U256}
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 1 (0xff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step pushAnyR 2
   step jumpi0R (isZero_flag_set hdep)
@@ -148,11 +148,11 @@ theorem fwdArgsA (hfork : .berlin ≤ fork) {a b : U256} (ha : bitwiseAnd ADDR_M
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step Gas.reshapeG (s' := [upWord (storageAt state message.currentTarget 10), 0, b, a, r, x])
     (m' := MEM0) (g' := gas - 145)
     (by rw [up_eq, ← storageAt_readSlot state message.currentTarget message.currentTarget 10 10])
@@ -188,9 +188,9 @@ theorem fwdArgsA (hfork : .berlin ≤ fork) {a b : U256} (ha : bitwiseAnd ADDR_M
     (by rw [hx2, memoryExtend_zero]) (by rw [hx2]; gas_ok)
   step dupR 3
   step pushR 4 (0xffffffff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 29 (0x0100000000000000000000000000000000000000000000000000000000 : U256)
-  step binR 0x02 Local.instruction_mul
+  step binR 0x02 (instruction_of_stackOnlyStep rfl)
   step dupR 1
   have hx3 : extendMemory M1.size [((0x60 : U256), (32 : U256))] = ⟨0, 0⟩ := by
     rw [size_M1]; decide
@@ -205,9 +205,9 @@ theorem fwdArgsA (hfork : .berlin ≤ fork) {a b : U256} (ha : bitwiseAnd ADDR_M
   step dupR 0
   step dupR 3
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   rw [ha, ha]
   step dupR 1
   have hx4 : extendMemory M1A.size [((0x64 : U256), (32 : U256))] = ⟨0, 0⟩ := by
@@ -222,9 +222,9 @@ theorem fwdArgsA (hfork : .berlin ≤ fork) {a b : U256} (ha : bitwiseAnd ADDR_M
   rw [h84]
   step dupR 2
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   rw [hb, hb]
   step dupR 1
   have hx5 : extendMemory (M2A a).size [((0x84 : U256), (32 : U256))] = ⟨3, 32⟩ := by
@@ -316,8 +316,8 @@ theorem noCodeA (hfork : .berlin ≤ fork) {U : U256}
   step jumpi0R (by decide)
   step pushR 1 (0 : U256)
   step dupR 0
-  refine (At.revert (Nat.le_trans (by decide) hfork) (by code_fact)
-    (by code_fact) (by rw [hz]; gas_ok)).consequence (fun _ h => h) ?_
+  refine (Gas.SpecG.toSpec (Gas.revertG (Nat.le_trans (by decide) hfork) (by code_fact)
+    (by code_fact) (by rw [hz]; gas_ok))).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   refine ⟨hr, he, ?_, ?_, hs, hss⟩
   · rw [ho]; simp [memoryReadBytes]

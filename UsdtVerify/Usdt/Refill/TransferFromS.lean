@@ -103,7 +103,7 @@ theorem allowMax {fee v t f : U256} {rest : List U256} (hrest : rest.length ≤ 
   step jumpdestR
   step pushR 32 MAX_UINT
   step dupR 4
-  step binR 0x10 Local.instruction_lt
+  step binR 0x10 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step pushR 2 (0x233e : U256)
   step jumpiR (by decide)
@@ -245,7 +245,7 @@ theorem creditPostF {nt A v t f sel : U256} (hstatic : message.isStatic = false)
   step popR
   step pushR 1 (0 : U256)
   step dupR 3
-  step binR 0x11 Local.instruction_gt
+  step binR 0x11 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step pushR 2 (0x25e4 : U256)
   step jumpiR (by decide)
@@ -857,9 +857,9 @@ theorem ownerToWF (hfork : .berlin ≤ fork) {no send fee A v t f : U256} {rest 
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   at_pc 9504
   step hashTailF (by decide) (by simp; omega) hM (by gas_ok)
   at_pc 9562
@@ -900,7 +900,7 @@ theorem creditToOwnerW (hfork : .berlin ≤ fork) {nt send fee A v t f sel : U25
   step popR
   step pushR 1 (0 : U256)
   step dupR 3
-  step binR 0x11 Local.instruction_gt
+  step binR 0x11 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step pushR 2 (0x25e4 : U256)
   step jumpi0R (by simp [greaterThan, isZero, hpos])

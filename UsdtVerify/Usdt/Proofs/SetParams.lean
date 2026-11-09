@@ -93,7 +93,7 @@ theorem test1 {b m : U256} {rest : List U256} (hrest : rest.length ≤ 16) {M : 
   step jumpdestR
   step pushR 1 (0x14 : U256)
   step dupR 2
-  step binR 0x10 Local.instruction_lt
+  step binR 0x10 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
@@ -107,7 +107,7 @@ theorem test2 {b m : U256} {rest : List U256} (hrest : rest.length ≤ 16) {M : 
   step jumpdestR
   step pushR 1 (0x32 : U256)
   step dupR 1
-  step binR 0x10 Local.instruction_lt
+  step binR 0x10 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
@@ -214,7 +214,7 @@ theorem mulCall (hfork : .berlin ≤ fork) {b m x : U256} {c9 : Bool}
   step swapR 0
   norm
   step pushR 4 (0xffffffff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step jumpR
   at_pc 10755
   step mulBlock (by simp) (by valid_dest) hov (by gas_ok)

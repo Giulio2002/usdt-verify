@@ -649,7 +649,7 @@ unchanged.
   - the call data has at least 4 bytes;
   - its selector is the key of one of the 32 entries of the table;
   - the call value is 0.
-- Out of gas is included. `Gas.SpecG.low` says: if a run with `k` more gas follows the steps of
+- Out of gas is included. `Gas.SpecG.lowE` says: if a run with `k` more gas follows the steps of
   a specification, then a run with less gas that ends with no error ends in the same frame, with
   exactly `k` less gas left. The specifications used for this are re-proved over `Gas.StepG`
   (steps from frames whose instruction gives the same result with more gas, or fails with less;
@@ -679,7 +679,7 @@ unchanged.
   frame that is not static or an account for the contract. On every path that remains after the checks, the run
   reaches an SSTORE; in a static frame, or with no account, that SSTORE fails or halts with an
   error at any gas (`Gas.sstore_stuck`, UsdtVerify/Evm/Stuck.lean), so no such run ends with no
-  error (`Gas.no_ok_stuck`, the per-path `bad_*` lemmas). Each `ok_X` of a writing path now also
+  error (`Gas.no_ok_stuckE`, the per-path `bad_*` lemmas). Each `ok_X` of a writing path now also
   concludes `message.isStatic = false` and `hasAccount state C` (transferOwnership: on the
   `a ≠ 0` path, the only one that writes). `transferFrom`'s INVALID specifications
   `spec_feeGtF`/`spec_balLow` take these two facts only when the allowance `A` is not `MAX_UINT`
@@ -1443,8 +1443,10 @@ ends with no error and the contract has an account in its end state".
 - The bytecode file is the deployed code. The interpreted hash check ties `CODE` to the file,
   and `data/SOURCE.md` ties the file to the chain.
 - A few generic rules are proved locally in this repository, and EthLib's model is not
-  modified. These rules are some instruction table entries (`UsdtVerify/Evm/Local/`) and EXP with
-  its price worked out (`Gas.expLG`, `UsdtVerify/Evm/GasRules.lean`). STOP, GAS, EXTCODESIZE at
+  modified. These rules are EXP with its price worked out (`Gas.expLG`,
+  `UsdtVerify/Evm/GasRules.lean`) and the opcode rules over the local `Gas.StepG`, which is
+  EthLib's `StepG` with `SimAt` (round 50: the instruction table entries of `UsdtVerify/Evm/Local/`
+  are EthLib's `instruction_of_stackOnlyStep` at each use, and that folder is removed). STOP, GAS, EXTCODESIZE at
   every fork from Berlin (`extcodesize_of_berlin_le`, used as `At.extcodesize`) and the fact
   that every message keeps the block of the state (Call/Parent.lean) come from EthLib (round 47).
   The frame predicate `At` is defined in this repository (`UsdtVerify/Evm/At.lean`): the

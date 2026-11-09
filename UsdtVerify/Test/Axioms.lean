@@ -319,10 +319,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Invariant.reach_redeem
 #print axioms UsdtVerify.Invariant.reach_destroy
 #print axioms UsdtVerify.Invariant.transfer_ok_keeps
-#print axioms UsdtVerify.Gas.low_of_reaches
-#print axioms UsdtVerify.Gas.SpecG.low
-#print axioms UsdtVerify.Gas.SpecG.not_ok
-#print axioms UsdtVerify.Gas.SpecG.halted
 #print axioms UsdtVerify.Gas.At.ruleG
 #print axioms UsdtVerify.Complete.selector_cases
 #print axioms UsdtVerify.Gas.branchTableG
@@ -416,11 +412,7 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.At.rule
 #print axioms UsdtVerify.At.extcodesize
 #print axioms UsdtVerify.At.gas_rule
-#print axioms UsdtVerify.At.caller
 #print axioms UsdtVerify.At.reshape
-#print axioms UsdtVerify.At.stop
-#print axioms UsdtVerify.At.revert
-#print axioms UsdtVerify.At.invalid_fe
 #print axioms UsdtVerify.Complete.ok_step_bad
 #print axioms UsdtVerify.Gas.writeCost_le
 #print axioms UsdtVerify.DeprecatedDestroy.TAIL_MAX_of_lt

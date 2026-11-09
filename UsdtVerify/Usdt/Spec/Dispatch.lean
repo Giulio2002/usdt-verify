@@ -206,7 +206,7 @@ theorem spec_short (hfork : .berlin ≤ fork) (hsize : message.data.size < 4)
   step Gas.reshapeG rfl (by rw [hext]) (show _ = gas - 18 by simp only [hext]; omega)
   step push1R 0x04
   step Gas.calldatasizeG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
-  step binR 0x10 Local.instruction_lt
+  step binR 0x10 (instruction_of_stackOnlyStep rfl)
   step pushR 2 0x0196
   step jumpiR (by
     have h4 : (BitVec.ofNat 256 (UInt8.toNat 4) : U256).toNat = 4 := by decide

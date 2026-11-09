@@ -100,9 +100,9 @@ theorem encode4 {M : ByteArray} (hM : M.size = 96)
     (by rw [hx0, memoryExtend_zero]) (by rw [hx0]; gas_ok)
   step dupR 5
   step pushR 4 (0xffffffff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 29 (0x0100000000000000000000000000000000000000000000000000000000 : U256)
-  step binR 0x02 Local.instruction_mul
+  step binR 0x02 (instruction_of_stackOnlyStep rfl)
   step dupR 1
   step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hx1]; gas_ok)
   step Gas.reshapeG (s' := [0x60, w, t, f, C, sel, U] ++ rest) (m' := W1 M sel) (g' := gas - 32) rfl
@@ -113,9 +113,9 @@ theorem encode4 {M : ByteArray} (hM : M.size = 96)
   step dupR 0
   step dupR 5
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step dupR 1
   step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hx2]; gas_ok)
   step Gas.reshapeG (s' := [0x64, 0x64, w, t, f, C, sel, U] ++ rest) (m' := W2 M sel (mkey C))
@@ -125,9 +125,9 @@ theorem encode4 {M : ByteArray} (hM : M.size = 96)
   rw [h84]
   step dupR 4
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step dupR 1
   step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hx3]; gas_ok)
   step Gas.reshapeG (s' := [0x84, 0x64, w, t, f, C, sel, U] ++ rest)
@@ -139,9 +139,9 @@ theorem encode4 {M : ByteArray} (hM : M.size = 96)
   rw [ha4]
   step dupR 3
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step dupR 1
   step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hx4]; gas_ok)
   step Gas.reshapeG (s' := [0xa4, 0x64, w, t, f, C, sel, U] ++ rest)
@@ -333,7 +333,7 @@ theorem preExtF (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
     (blackFrom (fromArg message))) hfork (Or.inr (Or.inr ⟨rfl, rfl⟩)) (by simp) (by gas_ok)
   rw [storageAt_readSlot, storageAt_readSlot]
   step pushR 4 (0x8b477adb : U256)
-  step At.caller (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+  step Gas.callerG (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
   step dupR 5
   step dupR 5
   step dupR 5

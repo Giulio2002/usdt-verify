@@ -142,9 +142,9 @@ theorem spec_notListed (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.si
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 1 (0xff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step pushR 2 (0x1f3f : U256)
@@ -260,9 +260,9 @@ theorem toGetter (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 1 (0xff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step pushR 2 (0x1f3f : U256)
@@ -442,9 +442,9 @@ theorem logBlock {a b x : U256} (hstatic : message.isStatic = false) {M : ByteAr
   step dupR 0
   step dupR 3
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step dupR 1
   step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
   step Gas.reshapeG (m' := M ++ wordBytes (mkey a)) rfl (by rw [hext1]; exact hmem1) (by rw [hext1])

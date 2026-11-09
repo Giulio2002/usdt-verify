@@ -462,7 +462,7 @@ theorem payloadRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : res
   step swapR 0
   norm
   step popR
-  step binR 0x10 Local.instruction_lt
+  step binR 0x10 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero

@@ -287,9 +287,9 @@ theorem pausedRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 1 (0xff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
@@ -337,9 +337,9 @@ theorem blackRevert (hfork : .berlin ≤ fork) {v t f : U256} {rest : List U256}
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 1 (0xff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
@@ -374,7 +374,7 @@ theorem shortRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.
   step swapR 0
   norm
   step popR
-  step binR 0x10 Local.instruction_lt
+  step binR 0x10 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
   step unR 0x15 instruction_iszero
@@ -410,7 +410,7 @@ theorem allowFault {fee A v t f : U256} {rest : List U256} (hrest : rest.length 
   step jumpdestR
   step pushR 32 MAX_UINT
   step dupR 4
-  step binR 0x10 Local.instruction_lt
+  step binR 0x10 (instruction_of_stackOnlyStep rfl)
   step unR 0x15 instruction_iszero
   step pushR 2 (0x233e : U256)
   step jumpi0R (by simp [lessThan, isZero]; omega)
@@ -425,7 +425,7 @@ theorem allowFault {fee A v t f : U256} {rest : List U256} (hrest : rest.length 
   step swapR 0
   norm
   step pushR 4 (0xffffffff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step jumpR
   exact subFault (by simp; omega) hlt (by gas_ok)
 

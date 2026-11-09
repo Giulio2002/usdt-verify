@@ -53,9 +53,9 @@ theorem hashTail7 {p : Nat} (hp : p ∈ HASH_PCS7) {x base : U256}
   rcases hp with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
   all_goals
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step dupR 1
     step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
     step Gas.reshapeG (m' := memoryWrite M 0 (wordBytes (mkey x))) rfl
@@ -107,7 +107,7 @@ theorem entry1 {e r b : Nat} (hp : (e, r, b) ∈ ENTRY1) (hv : message.value = 0
     step dupR 0
     step Gas.calldataloadG (by code_fact) (by code_fact) (by gas_ok)
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step swapR 0
     norm
     step pushR 1 (0x20 : U256)

@@ -45,7 +45,7 @@ theorem entry (hv : message.value = 0) {x : U256} {gas : Nat} (hg : 74 ≤ gas) 
   step dupR 0
   step Gas.calldataloadG (by code_fact) (by code_fact) (by gas_ok)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step swapR 0
   norm
   step pushR 1 (0x20 : U256)
@@ -132,9 +132,9 @@ theorem lookup (hfork : .berlin ≤ fork) {a r1 : U256} {rest : List U256}
   step pushR 1 (0 : U256)
   step dupR 3
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step dupR 1
   step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
   step Gas.reshapeG (m' := memoryWrite M 0 (wordBytes (key a))) rfl

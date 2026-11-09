@@ -393,7 +393,7 @@ theorem mulCallFault (hfork : .berlin ≤ fork) {b m x : U256} {c9 : Bool}
   step swapR 0
   norm
   step pushR 4 (0xffffffff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step jumpR
   at_pc 10755
   exact mulFault (by simp) hov (by gas_ok)

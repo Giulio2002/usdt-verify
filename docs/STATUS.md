@@ -13,6 +13,10 @@ facts, and `Route`, `Routes` and the route functions. The local `StepG`, `HoareG
 Round 49, same pin: EthLib's `ReadsAs`, `SentVia` and `KeepsOn` (#1613) replace Evm/Keeps.lean
 (removed). The runner assumptions of the deprecated theorems are weaker, so those theorems are
 stronger (round 49 below).
+Round 50, same pin: Evm/Local/Rules.lean is removed (EthLib's `instruction_of_stackOnlyStep` at
+each use), the rules over `StepG` of six opcodes follow from their forms over `StepGA`, and lifts
+and unused lemmas that EthLib already states are removed. The local `At`, `StepG` (with `SimAt`)
+and the rules over them stay (round 50 below says why).
 Previous pin: 0c34dc001 (master after #1608; includes #1597, #1599 and #1605; commit
 0c34dc0010f6ff1b3d5f1c7614af10faa85fb685, round 47). Re-pinned in round 47: EthLib's `At` names
 the return data of a frame (#1351), so `At` in this repository is now the local predicate of Evm/At.lean, with the same twelve
@@ -2371,6 +2375,79 @@ removed, Evm/Route.lean 327 to 407), 68,565 after the one-step theorems below.
   `sentVia_reservoir`, `inv_of_local`, the `EffectD.*` and `*.toR` conversions, ...) are
   incomparable and are used only inside the theorems above.
 
+### Round 50: the adapters to EthLib shrunk (same pin bc16ee428)
+
+Built and checked: clean rebuild of 6c7c573 (the last commit that changes Lean; the commits after it change
+docs/ only) in a fresh clone (empty build directory, safe.sh 9G, LEAN_NUM_THREADS=2,
+`lake build UsdtVerify UsdtVerify.Test.Axioms`), exit 0, 1468 jobs, 0 "error:" lines, 220.95 s
+wall, 478.50 s user; hash check 11075 bytes, keccak256 b44fb4e9...ea55; `#print axioms` on the
+1338 entries of UsdtVerify/Test/Axioms.lean gives [propext, Classical.choice, Quot.sound] or a
+subset (1286 the three, 35 [propext, Quot.sound], 8 [propext], 9 none), with no `sorryAx`,
+`ofReduceBool` or `trustCompiler`; no `sorry`, `admit`, `axiom`, `native_decide`, `bv_decide` or
+`decide +native` in UsdtVerify/ (grep exit 1). Each intermediate commit of the round built
+(incremental build, exit 0).
+Independent read-only review (a fresh reviewer, 771ec8f against 6c7c573): PASS, no finding to
+fix. It built both trees (exit 0) and dumped every constant of `UsdtVerify` with its type and,
+for definitions, its body, as text and as expression hash: 3296 before, 3278 after, 3278 shared
+and identical, 0 differing, 18 removed, 0 added. The moved constants keep their full names, and
+the six rules over `StepG` now proved from their `StepGA` forms keep their types. Each of the 18
+removed constants has no use in the new build, and each was proved again in the new build with
+its old statement copied verbatim (types equal by text and hash). The EthLib pin, lakefile and
+manifest are unchanged. All axioms of the 12842 constants of `UsdtVerify` are within propext,
+Classical.choice and Quot.sound, and the grep for banned constructs has no hit. The trust
+assumptions of "What is trusted" in docs/RESULTS.md are unchanged.
+Lines of Lean in UsdtVerify/: 68,565 after round 49, 68,346 after round 50 (219 fewer;
+Evm/Local/Rules.lean 74 removed, Evm/At.lean 196 to 167, Evm/Gas.lean 426 to 386,
+Evm/Stuck.lean 240 to 224, Evm/NoAbort.lean 252 to 70 and Evm/GasRules.lean 752 to 879, after
+the rules over `StepGA` moved from the one to the other). No new USDT theorem, and no statement
+of a USDT theorem changed.
+
+- Instruction table. Evm/Local/Rules.lean is removed, and Evm/Local/ with it. Its entries for LT,
+  GT, DIV, AND, OR, MUL and NOT were each `instruction_of_stackOnlyStep rfl`. The 279 use sites
+  (`step binR 0x10 ...`) now pass EthLib's `instruction_of_stackOnlyStep rfl` directly.
+- Rules over `StepGA`. `StepGA`, `HoareGA`, `SpecGA`, `At.ruleGA` and the six rules
+  `pushGA`, `calldataloadGA`, `mstoreGA`, `keccak256GA`, `sloadGA`, `returnGA` move from
+  Evm/NoAbort.lean to Evm/GasRules.lean. As in EthLib, `pushG`, `calldataloadG`, `mstoreG`,
+  `keccak256G`, `sloadG` and `returnG` now follow from them (`Triple.lift`, `SpecGA.toG`), with
+  the same statements, so each of these six opcodes is proved once. `push_of_decodeG` (used only
+  by `pushG`) is removed.
+- Evm/At.lean. `At.caller`, `At.stop`, `At.revert` and `At.invalid_fe` (lifts of EthLib's rules
+  to the local `At`) are removed. Their uses take `Gas.callerG`, `Gas.stopG` or `Gas.revertG`
+  (the same rules over `StepG`, with `SpecG.toSpec`), or `liftPre` of EthLib's `stop` (in
+  Evm/Runners.lean, which does not import the rules over `StepG`). `At.invalid_fe` had no use.
+- Unused forms with a `runFrame` equation. `Gas.low_of_reaches`, `Gas.SpecG.low`,
+  `Gas.SpecG.halted`, `Gas.SpecG.not_ok` (Evm/Gas.lean), `Gas.not_ok_of_reaches` and
+  `Gas.no_ok_stuck` (Evm/Stuck.lean) had no use: every proof uses the `Ends` forms
+  (`SpecG.lowE`, `SpecG.not_okE`, `no_ok_stuckE`, ...), which stay. Each removed lemma, with its
+  old statement, is one application of EthLib's lemma of the same name (Logic/LessGas.lean) to
+  `HoareG.toLogic` or `SpecG.toLogic` of the local triple, the local `Stuck` without `SimAt`, and
+  `At.toLogic`; this was checked in Lean against the round 50 build.
+- Migrating to EthLib's `At` (thirteen arguments, with the return data): assessed and not done.
+  `At` occurs about 1,880 times in UsdtVerify/. The migration would remove at most the adapters
+  of Evm/At.lean (`At.toLogic`, `At.ofLogic`, `At.iff_logic`, `liftPre`, `liftAt`, `lowerPre` and
+  the one-line lifts `At.rule`, `At.extcodesize`, `At.gas_rule`, `At.reshape`, `At.startFrame`,
+  `meets_of_specAt`), about 120 lines. It would not remove the rules over the local `StepG`
+  (below), which would each carry the return data. After every CALL of a deprecated path the
+  frame's return data is the output of the child (`resumeCall_eq`), so every specification past a
+  CALL would have to name it. To keep their meaning, the headline statements would quantify over
+  the return data of the start frame, and `At.iff_logic` already shows that `At` is exactly
+  EthLib's `At` with the frame's own return data. The payoff is small and the edit touches every
+  specification, so `UsdtVerify.At` stays.
+- What stays local, and why.
+  `StepG`, `HoareG`, `SpecG`, `StepGA`, `HoareGA`, `SpecGA` and `Stuck` are EthLib's with `SimAt`
+  added. The meter link (Evm/Shadow.lean, Evm/Meter.lean) relates a step over `StateGasMeter` to
+  a step over `Nat` only at the opcodes of `simulated`. Without `SimAt` it would need that
+  relation at every opcode, which neither EthLib nor this repository proves.
+  The opcode rules of Evm/GasRules.lean over the local `StepG` and `StepGA`: EthLib's `pushG`,
+  `binaryGA`, ... are triples over `Logic.StepG` from EthLib's `At`, and a triple does not show
+  `SimAt` along its steps, so they cannot be turned into these. Each local rule is `At.ruleG` or
+  `At.ruleGA` with the computation of EthLib's rule.
+  The `Ends` forms (`low_of_reachesE`, `SpecG.lowE`, `no_ok_stuckE`, ...): EthLib's take a
+  `runFrame` equation of the meter `Nat` only, and the meter link needs a loop over
+  `StateGasMeter`.
+  `instruction_gas'` and `instruction_extcodesize'` (Evm/Call.lean, by `rfl`): EthLib has no
+  lemma for these two table entries.
+
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
   Glamsterdam (third audit, T1; rounds 33 to 36 above). Round 36 covers, not deprecated: the
@@ -2483,6 +2560,8 @@ removed, Evm/Route.lean 327 to 407), 68,565 after the one-step theorems below.
    LT/GT/DIV/AND/OR/SUB/MUL/NOT, JUMPI on a condition *proved* 0, and EXP with its EIP-160 price
    worked out (a corollary of EthLib's `exp`, whose price is `gasSchedule fork`).
    Round 47: SUB comes from EthLib (`instruction_sub`). The local entry is removed.
+   Round 50: the entries of LT, GT, DIV, AND, OR, MUL and NOT are EthLib's
+   `instruction_of_stackOnlyStep rfl` at each use, and Evm/Local/Rules.lean is removed (CLOSED).
    POP/DUPn/SWAPn/EXP now come from EthLib (#1223). Round 27: the `Step` form `Local.exp` was
    unused and is removed; the EXP rule with its price worked out is `Gas.expLG` (over `StepG`,
    Evm/GasRules.lean).
@@ -2587,6 +2666,10 @@ removed, Evm/Route.lean 327 to 407), 68,565 after the one-step theorems below.
    Evm/Route.lean while their upstreaming is in flight.)
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+Round 50: clean project build of the tree of commit 6c7c573 (a fresh clone, empty build
+directory, safe.sh 9G, LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`) 220.95 s
+wall, 478.50 s user, 1816117248 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines,
+1468 jobs.
 Round 49 (final): clean project build of the tree of commit f66e08b (a fresh clone, empty build
 directory, safe.sh 9G, LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`) 153.18 s
 wall, 406.88 s user, 1784840192 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines,

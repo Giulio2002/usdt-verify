@@ -1,4 +1,5 @@
-import UsdtVerify.Evm.Local.Rules
+import EthLib.Execution.Proofs.Evm.Logic.Branch
+import EthLib.Execution.Proofs.Evm.Logic.Stack
 import EthLib.Execution.Proofs.Evm.Logic.Steps
 import EthLib.Execution.Proofs.State.Tracker
 

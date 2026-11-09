@@ -237,9 +237,9 @@ theorem spec_flag (hfork : .berlin ≤ fork) {sel t e r b k : Nat}
     step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
     step swapR 0
     norm
-    step binR 0x04 Local.instruction_div
+    step binR 0x04 (instruction_of_stackOnlyStep rfl)
     step pushR 1 (0xff : U256)
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step dupR 1
     step jumpR
     first | at_pc 695 | at_pc 1430
@@ -303,9 +303,9 @@ theorem spec_upgradedAddress (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.d
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step dupR 1
   step jumpR
   at_pc 935
@@ -340,9 +340,9 @@ theorem spec_owner (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step dupR 1
   step jumpR
   at_pc 1658
@@ -378,9 +378,9 @@ theorem spec_getOwner (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.siz
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 20 ADDR_MASK
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step swapR 0
   norm
   step popR
@@ -454,7 +454,7 @@ theorem entry1m {e r b : Nat} (hp : (e, r, b) ∈ ENTRY1M) (hv : message.value =
     step dupR 0
     step Gas.calldataloadG (by code_fact) (by code_fact) (by gas_ok)
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step swapR 0
     norm
     step pushR 1 (0x20 : U256)
@@ -497,7 +497,7 @@ theorem entry2 {e r b : Nat} (hp : (e, r, b) ∈ ENTRY2) (hv : message.value = 0
     step dupR 0
     step Gas.calldataloadG (by code_fact) (by code_fact) (by gas_ok)
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step swapR 0
     norm
     step pushR 1 (0x20 : U256)
@@ -511,7 +511,7 @@ theorem entry2 {e r b : Nat} (hp : (e, r, b) ∈ ENTRY2) (hv : message.value = 0
     step dupR 0
     step Gas.calldataloadG (by code_fact) (by code_fact) (by gas_ok)
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step swapR 0
     norm
     step pushR 1 (0x20 : U256)
@@ -674,9 +674,9 @@ theorem spec_isBlackListed (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.dat
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 1 (0xff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step dupR 1
   step jumpR
   at_pc 2250
@@ -721,9 +721,9 @@ theorem spec_getBlackListStatus (hfork : .berlin ≤ fork) (hsize : 4 ≤ messag
   step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
   step swapR 0
   norm
-  step binR 0x04 Local.instruction_div
+  step binR 0x04 (instruction_of_stackOnlyStep rfl)
   step pushR 1 (0xff : U256)
-  step binR 0x16 Local.instruction_and
+  step binR 0x16 (instruction_of_stackOnlyStep rfl)
   step swapR 0
   norm
   step popR

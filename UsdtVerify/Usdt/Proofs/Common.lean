@@ -229,9 +229,9 @@ theorem retA {p : Nat} (hp : p ∈ ADDR_PCS) {M : ByteArray} (hM : M.size = 96)
     step dupR 0
     step dupR 2
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step pushR 20 ADDR_MASK
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step dupR 1
     step Gas.mstoreG (by code_fact) (by code_fact) (by rw [hext1]; gas_ok)
     step Gas.reshapeG (s' := (0x60 : U256) :: 0x60 :: v :: rest) (m' := M ++ wordBytes (bitwiseAnd ADDR_MASK (bitwiseAnd ADDR_MASK v))) (g' := gas - 34) rfl
@@ -357,9 +357,9 @@ theorem depCheck (hfork : .berlin ≤ fork) {p d : Nat}
     step Gas.expLG (Nat.le_trans (by decide) hfork) (by code_fact) (by code_fact) (by gas_ok)
     step swapR 0
     norm
-    step binR 0x04 Local.instruction_div
+    step binR 0x04 (instruction_of_stackOnlyStep rfl)
     step pushR 1 (0xff : U256)
-    step binR 0x16 Local.instruction_and
+    step binR 0x16 (instruction_of_stackOnlyStep rfl)
     step unR 0x15 instruction_iszero
     step pushAnyR 2
     step jumpiR (isZero_flag_ne hdep)

@@ -672,7 +672,7 @@ covered.
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas
 bound and any message runner: if the loop of the interpreter ends with no error, then the call
 data has at least 4 bytes, its selector is the key of one of the 32 entries of the table, and the
-call value is 0. Out of gas is covered by `Gas.SpecG.low`: a run with less gas that ends with no
+call value is 0. Out of gas is covered by `Gas.SpecG.lowE`: a run with less gas that ends with no
 error ends as the run with more gas, with exactly that much less gas left (the steps it follows
 are steps of `Gas.StepG`, from frames whose instruction is `Gas.RunMono`).
 
@@ -697,7 +697,7 @@ Hypotheses of each: Berlin ≤ fork (Glamsterdam included), size < 2^256, the se
 coldness flags as named in the specs, and `hdep` (not deprecated) for approve, transferFrom and
 destroyBlackFunds. A static frame or a contract with no account needs no hypothesis: each writing
 path reaches an SSTORE that is then `Gas.Stuck` (Evm/Stuck.lean, the `bad_*` lemmas), so no such run
-ends with no error (`Gas.no_ok_stuck`), and each of these conclusions (for transferOwnership, its
+ends with no error (`Gas.no_ok_stuckE`), and each of these conclusions (for transferOwnership, its
 `a ≠ 0` case) states `message.isStatic = false` and an account of the contract.
 
 Getters (round 13): `decimals_complete`, `maximumFee_complete`, `totalSupplyVar_complete`,
