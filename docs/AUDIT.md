@@ -1436,3 +1436,22 @@ This does not change what is trusted: all of them are kernel-checked.
   hashes, which the model allows, and the README calls it a variant.
 
 **Resolution.** Open. V1 to V5 are recorded for the main session.
+
+**Resolution (round 51).** V1 to V3 are closed by new theorems. No existing statement changed.
+- V1: `Exact.ok_X_any` for the ten owner functions (Usdt/MeterOwnerAny.lean): a run over
+  `StateGasMeter` at any reservoir, refills allowed, that ends with no error meets the condition of
+  the function, with an empty output and the state and substate of `Complete.ok_X`. With the
+  exact forms of Usdt/Refill/OwnerS.lean and ChainOwner.lean this gives both directions at any
+  reservoir.
+- V2: the reviewer's `keepsInvAtSR_process_mirror` and `destroy_mirror_stepDR`, and the joint
+  instance `joint_S2_R`, are in Usdt/Sanity/MirrorJointS.lean.
+- V3: `destroy_mirror_call_authsN` (Usdt/Sanity/MirrorAuthN.lean): from Paris and before
+  Glamsterdam, EthLib's `processMessageCall` over the meter `Nat` of the concrete deprecated call in
+  `S3` with any list of authorizations gives an output with no error. It rests on
+  `Auth.fold_exists_pre` (Evm/Auth.lean): before Glamsterdam the authorizations of any list
+  succeed over any meter, with no hypothesis on `recoverAuthority`.
+- V4, V5: about the README, kept outside this repository. Replacement sentences were sent to the
+  main session.
+Evidence (docs/STATUS.md, round 51): clean rebuild of 2a96c23, exit 0, 1471 jobs; every new
+theorem depends on [propext, Classical.choice, Quot.sound]; independent read-only review PASS (no statement changed, 28 constants added, none
+removed).

@@ -52,6 +52,13 @@ The meter of EIP-8037 (`StateGasMeter`):
   of the list in execution gas left, the authorizations end with `.ok d`. They take at most
   `authMax` times the length of the list in execution gas.
 - Neither takes a hypothesis on `recoverAuthority`.
+
+Before Glamsterdam, over any meter (round 51):
+- `apply_exists_of`: the case split of `apply_exists`, for any meter and any property `Q` of the
+  meter that `payAuthorization` keeps.
+- `apply_exists_pre`, `fold_exists_pre`: in a state with `Resolves` and `PreResolves`, one
+  authorization, and the authorizations of any list, end with `.ok`. Neither takes a hypothesis
+  on `recoverAuthority` or on the gas.
 -/
 
 namespace UsdtVerify.Auth
@@ -551,23 +558,21 @@ theorem delegate_res {state st : TransactionState} {a : Address} {auth : Authori
     rw [hpre]
     exact hmono _ (hP x)
 
-/-- **One authorization over the meter of EIP-8037 succeeds.** In a state where every code hash,
-now and before the transaction, has a code, and from Glamsterdam with at least `authMax`
-execution gas left: `applyAuthorization` is `.ok`, keeps those facts, and takes at most `authMax`
-execution gas. -/
-theorem apply_exists (chainId : Nat) (done : Delegations StateGasMeter) (auth : Authorization)
-    (hR : Resolves done.state) (hP : PreResolves done.state)
-    (hg : fork ≥ .glamsterdam → authMax ≤ done.meter.gasLeft) :
+/-- One authorization succeeds in a state where every code hash, now and before the transaction,
+has a code, when `payAuthorization` of every authority succeeds, keeps the state and leaves a meter
+that meets `Q`, and the meter of `done` meets `Q`. The result keeps both facts on the state, and
+its meter meets `Q`. -/
+theorem apply_exists_of (chainId : Nat) (done : Delegations Meter) (auth : Authorization)
+    (hR : Resolves done.state) (hP : PreResolves done.state) (Q : Meter → Prop)
+    (hQ : Q done.meter)
+    (hpay : ∀ a, ∃ d, payAuthorization fork (seen done a) a auth = .ok d ∧
+      d.state = (seen done a).state ∧ Q d.meter) :
     ∃ d', applyAuthorization fork chainId done auth = .ok d' ∧ Resolves d'.state ∧
-      PreResolves d'.state ∧ done.meter.gasLeft - authMax ≤ d'.meter.gasLeft ∧
-      d'.meter.gasLeft ≤ done.meter.gasLeft := by
-  have keep : Resolves done.state ∧ PreResolves done.state ∧
-      done.meter.gasLeft - authMax ≤ done.meter.gasLeft ∧
-      done.meter.gasLeft ≤ done.meter.gasLeft := ⟨hR, hP, Nat.sub_le _ _, Nat.le_refl _⟩
+      PreResolves d'.state ∧ Q d'.meter := by
   cases hs : authorizationInScope chainId auth
-  · exact ⟨done, apply_out chainId done hs, keep⟩
+  · exact ⟨done, apply_out chainId done hs, hR, hP, hQ⟩
   cases hr : recoverAuthority auth with
-  | none => exact ⟨done, apply_none chainId done hr, keep⟩
+  | none => exact ⟨done, apply_none chainId done hr, hR, hP, hQ⟩
   | some a =>
     have hR1 : Resolves (seen done a).state := hR
     have hP1 : PreResolves (seen done a).state := hP
@@ -580,21 +585,57 @@ theorem apply_exists (chainId : Nat) (done : Delegations StateGasMeter) (auth : 
         simp only [authorityAccepts, hc', bind, Except.bind, pure, Except.pure,
           TransactionState.getAccount_recordAccountRead]
         exact congrArg Except.ok hb
-      exact ⟨_, apply_refused chainId done hs hr hacc, hR1, hP1, Nat.sub_le _ _, Nat.le_refl _⟩
+      exact ⟨_, apply_refused chainId done hs hr hacc, hR1, hP1, hQ⟩
     · have hacc : authorityAccepts (done.state.recordAccountRead a) a auth = .ok true := by
         simp only [authorityAccepts, hc', bind, Except.bind, pure, Except.pure,
           TransactionState.getAccount_recordAccountRead]
         exact congrArg Except.ok hb
-      obtain ⟨d, hp, hdst, l, u⟩ : ∃ d, payAuthorization fork (seen done a) a auth = .ok d ∧
-          d.state = (seen done a).state ∧ done.meter.gasLeft - authMax ≤ d.meter.gasLeft ∧
-          d.meter.gasLeft ≤ done.meter.gasLeft := by
-        by_cases hf : fork ≥ .glamsterdam
-        · obtain ⟨m, hm, l, u⟩ := charge_bound (seen done a) a auth (hP1 a) (hg hf)
-          exact ⟨_, pay_glam hf hm, rfl, l, u⟩
-        · exact ⟨_, pay_pre (Nat.lt_of_not_le hf) _ a auth, rfl, Nat.sub_le _ _, Nat.le_refl _⟩
+      obtain ⟨d, hp, hdst, hq⟩ := hpay a
       obtain ⟨st, hdel, -⟩ := delegate_ok fork d.state a auth
       have hres := delegate_res hdel (hdst ▸ hR1) (hdst ▸ hP1)
-      exact ⟨_, apply_accepted chainId done hs hr hacc hp hdel, hres.1, hres.2, l, u⟩
+      exact ⟨_, apply_accepted chainId done hs hr hacc hp hdel, hres.1, hres.2, hq⟩
+
+/-- **One authorization over the meter of EIP-8037 succeeds.** In a state where every code hash,
+now and before the transaction, has a code, and from Glamsterdam with at least `authMax`
+execution gas left: `applyAuthorization` is `.ok`, keeps those facts, and takes at most `authMax`
+execution gas. -/
+theorem apply_exists (chainId : Nat) (done : Delegations StateGasMeter) (auth : Authorization)
+    (hR : Resolves done.state) (hP : PreResolves done.state)
+    (hg : fork ≥ .glamsterdam → authMax ≤ done.meter.gasLeft) :
+    ∃ d', applyAuthorization fork chainId done auth = .ok d' ∧ Resolves d'.state ∧
+      PreResolves d'.state ∧ done.meter.gasLeft - authMax ≤ d'.meter.gasLeft ∧
+      d'.meter.gasLeft ≤ done.meter.gasLeft :=
+  apply_exists_of chainId done auth hR hP
+    (fun m => done.meter.gasLeft - authMax ≤ m.gasLeft ∧ m.gasLeft ≤ done.meter.gasLeft)
+    ⟨Nat.sub_le _ _, Nat.le_refl _⟩ (fun a => by
+      by_cases hf : fork ≥ .glamsterdam
+      · obtain ⟨m, hm, l, u⟩ := charge_bound (seen done a) a auth (hP a) (hg hf)
+        exact ⟨_, pay_glam hf hm, rfl, l, u⟩
+      · exact ⟨_, pay_pre (Nat.lt_of_not_le hf) _ a auth, rfl, Nat.sub_le _ _, Nat.le_refl _⟩)
+
+/-- **One authorization before Glamsterdam succeeds, over any meter.** In a state where every code
+hash, now and before the transaction, has a code: `applyAuthorization` is `.ok` and keeps those
+facts. -/
+theorem apply_exists_pre (hf : fork < .glamsterdam) (chainId : Nat) (done : Delegations Meter)
+    (auth : Authorization) (hR : Resolves done.state) (hP : PreResolves done.state) :
+    ∃ d', applyAuthorization fork chainId done auth = .ok d' ∧ Resolves d'.state ∧
+      PreResolves d'.state := by
+  obtain ⟨d', h, hR', hP', -⟩ := apply_exists_of chainId done auth hR hP (fun _ => True) trivial
+    (fun a => ⟨_, pay_pre hf _ a auth, rfl, trivial⟩)
+  exact ⟨d', h, hR', hP'⟩
+
+/-- **The authorizations before Glamsterdam succeed, over any meter.** From a state where every
+code hash, now and before the transaction, has a code, the authorizations of any list end with
+`.ok d`. `fold_meter_pre` says that `d` has the meter of `d0`. -/
+theorem fold_exists_pre (hf : fork < .glamsterdam) {chainId : Nat} :
+    ∀ (auths : List Authorization) (d0 : Delegations Meter),
+      Resolves d0.state → PreResolves d0.state →
+      ∃ d, auths.foldlM (applyAuthorization fork chainId) d0 = .ok d
+  | [], d0, _, _ => ⟨d0, rfl⟩
+  | auth :: rest, d0, hR, hP => by
+    obtain ⟨d1, h1, hR1, hP1⟩ := apply_exists_pre hf chainId d0 auth hR hP
+    obtain ⟨d, h⟩ := fold_exists_pre hf (chainId := chainId) rest d1 hR1 hP1
+    exact ⟨d, by simp only [List.foldlM_cons, h1, bind, Except.bind, h]⟩
 
 /-- **The authorizations over the meter of EIP-8037 succeed.** From a state where every code hash,
 now and before the transaction, has a code, and from Glamsterdam with at least `authMax` execution

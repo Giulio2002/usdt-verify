@@ -667,6 +667,28 @@ Glamsterdam. `Sanity.destroy_mirror_call_auths`: from Paris, in `S3`, EthLib's
 authorizations (no `delegationCode` hashing to the code hashes of `S3`) and enough gas gives an
 output with no error. The type-4 transaction around the message (`processTransaction`) is not
 covered.
+Round 51 (fifth audit, V1; Usdt/MeterOwnerAny.lean): `Exact.ok_X_any` for the ten owner
+functions, as `Exact.ok_approve_any`: a run over `StateGasMeter` that ends with no error, at any
+reservoir and with refills allowed, meets the condition of the function, with an empty output and
+the state and substate of `Complete.ok_X`.
+Round 51 (fifth audit, V2; Usdt/Sanity/MirrorJointS.lean): `Sanity.keepsInvAtSR_process_mirror`:
+EthLib's runner over `StateGasMeter` meets `KeepsInvAtSR` with `MIRROR` at the upgraded address,
+so with `honestBalanceAtSR_process_mirror` both runner assumptions of the deprecated theorems hold
+together (`Sanity.joint_S2_R`). `Sanity.destroy_mirror_stepDR`: from Paris, in `S2`, from any
+starting meter with execution gas left in [1000000, 2^255), the deprecated destroyBlackFunds
+`processMessage` over `StateGasMeter` ends with no error and `Inv` holds after
+(`Complete.process_stepDR_inv` applied), under `SepOn` of the call's keys and `StrForm` of slots 7
+and 8.
+Round 51 (fifth audit, V3; Evm/Auth.lean, Usdt/Sanity/MirrorAuthN.lean): before Glamsterdam
+EthLib runs a transaction over the meter `Nat`, and type-4 transactions exist from Pectra.
+`Auth.fold_exists_pre`: before Glamsterdam, over any meter, the authorizations of any list succeed
+when every code hash resolves (no hypothesis on the authorities or on the gas).
+`Sanity.destroy_mirror_call_authsN`: from Paris and before Glamsterdam, in `S3`, EthLib's
+`processMessageCall` of the deprecated destroyBlackFunds call over `Nat` with any list of
+authorizations (no `delegationCode` hashing to the code hashes of `S3`) and a gas field in
+[1000000, 2^255) gives an output with no error. `Sanity.destroy_mirror_processN` and
+`Sanity.destroy_mirror_runsN` are its `processMessage` and loop forms. The type-4 transaction
+around the message (`processTransaction`) is not covered.
 
 ## Completeness of the dispatcher, for every gas — `dispatch_complete` (UsdtVerify/Complete/)
 From Berlin, a fresh frame of `CODE` at pc 0, call data of size below 2^256, ANY gas, any gas

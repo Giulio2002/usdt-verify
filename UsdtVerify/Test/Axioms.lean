@@ -26,9 +26,12 @@ import UsdtVerify.Usdt.Sanity.MirrorStateS
 import UsdtVerify.Usdt.Sanity.MirrorCallS
 import UsdtVerify.Evm.Auth
 import UsdtVerify.Usdt.Sanity.MirrorAuth
+import UsdtVerify.Usdt.Sanity.MirrorJointS
+import UsdtVerify.Usdt.Sanity.MirrorAuthN
 import UsdtVerify.Usdt.Meter
 import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.MeterOwner
+import UsdtVerify.Usdt.MeterOwnerAny
 import UsdtVerify.Usdt.MeterGas
 import UsdtVerify.Usdt.Invariant.SeqMeter
 import UsdtVerify.Usdt.Sanity.Strings
@@ -1468,3 +1471,23 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Security.allowKept_processSR
 #print axioms UsdtVerify.Security.supply_processS
 #print axioms UsdtVerify.Security.supply_processSR
+#print axioms UsdtVerify.Exact.ok_pause_any
+#print axioms UsdtVerify.Exact.ok_unpause_any
+#print axioms UsdtVerify.Exact.ok_addBlackList_any
+#print axioms UsdtVerify.Exact.ok_removeBlackList_any
+#print axioms UsdtVerify.Exact.ok_issue_any
+#print axioms UsdtVerify.Exact.ok_redeem_any
+#print axioms UsdtVerify.Exact.ok_setParams_any
+#print axioms UsdtVerify.Exact.ok_deprecate_any
+#print axioms UsdtVerify.Exact.ok_transferOwnership_any
+#print axioms UsdtVerify.Exact.ok_destroyBlackFunds_any
+#print axioms UsdtVerify.Sanity.keepsInvAtSR_process_mirror
+#print axioms UsdtVerify.Sanity.joint_S2_R
+#print axioms UsdtVerify.Sanity.destroy_mirror_stepDR
+#print axioms UsdtVerify.Auth.apply_exists_of
+#print axioms UsdtVerify.Auth.apply_exists_pre
+#print axioms UsdtVerify.Auth.fold_exists_pre
+#print axioms UsdtVerify.Sanity.destroy_tail_bounds
+#print axioms UsdtVerify.Sanity.destroy_mirror_runsN
+#print axioms UsdtVerify.Sanity.destroy_mirror_processN
+#print axioms UsdtVerify.Sanity.destroy_mirror_call_authsN

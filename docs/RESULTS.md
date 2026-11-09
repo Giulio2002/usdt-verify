@@ -641,6 +641,42 @@ unchanged.
   `HC` is assumed, not proved.
 - Evidence: Clean rebuild of fb104c2 from an empty build directory, exit 0, 1454 jobs, 188.85 s wall, 483 s user; `#print axioms` on each new theorem gives [propext, Classical.choice, Quot.sound] or a subset (UsdtVerify/Test/Axioms.lean); independent read-only review (round 46) PASS WITH FIXES, fixes applied in 5e376ee (docstrings, one proof step; incremental build exit 0, 1454 jobs) and in these docs (the scope, the `buyGas` caveat).
 
+## Round 51: the fifth audit, V1 to V3 closed by theorems
+
+The trust assumptions of "What is trusted" apply unchanged. No existing statement changed.
+
+- Owner functions at any reservoir (Usdt/MeterOwnerAny.lean). `Exact.ok_X_any` for the ten owner
+  functions, as `ok_approve_any`: a run of the loop over `StateGasMeter`, at any reservoir, for
+  any gas bound and message runner, with SSTORE refills allowed, that ends with no error meets the
+  condition of the function (Usdt/Spec/Guards.lean); its output is empty and its state and
+  substate (the logs included) are those of `Complete.ok_X`. With the exact forms of
+  Usdt/Refill/OwnerS.lean and ChainOwner.lean, which take the condition as hypotheses, each owner
+  function succeeds at any reservoir, refills allowed, exactly when its condition holds and the
+  gas condition of those forms holds.
+- Both deprecated runner assumptions together over `StateGasMeter` (Usdt/Sanity/MirrorJointS.lean).
+  `keepsInvAtSR_process_mirror`: EthLib's `processRunner` meets `KeepsInvAtSR` at every
+  reservoir with `MIRROR` at the upgraded address, so with `honestBalanceAtSR_process_mirror` both
+  hold together (`joint_S2_R`, in `S2`). `destroy_mirror_stepDR`: from Paris, in `S2`, from any
+  starting meter with execution gas left in [1000000, 2^255), the deprecated destroyBlackFunds
+  `processMessage` over `StateGasMeter` ends with no error and `Inv` holds after, under `SepOn` of
+  the call's keys and `StrForm` of slots 7 and 8.
+- The type-4 call over the one-counter meter (Evm/Auth.lean, Usdt/Sanity/MirrorAuthN.lean).
+  EthLib runs a transaction over `Nat` before Glamsterdam, so from Pectra to BPO5 a type-4
+  message runs over `Nat`. `fold_exists_pre`: before Glamsterdam, over any meter, the
+  authorizations of any list succeed when every code hash resolves, with no hypothesis on the
+  recovered authorities or on the gas. `destroy_mirror_call_authsN`: from Paris and before
+  Glamsterdam, in `S3`, EthLib's `processMessageCall` over `Nat` of the deprecated
+  destroyBlackFunds call with any list of authorizations (no `delegationCode` hashing to `H` or
+  `HC`), any paid writes, any reservoir field and substate, and a gas field in [1000000, 2^255)
+  gives an output with no error. `destroy_mirror_runsN` and `destroy_mirror_processN` are its
+  loop and `processMessage` forms.
+- Not covered: the transaction around the message (`processTransaction`), anything about the
+  output beyond "no error", and the recovery of any concrete signature.
+- Evidence: clean rebuild of 2a96c23 from an empty build directory, exit 0, 1471 jobs, 193.35 s
+  wall, 414.95 s user; `#print axioms` on each new theorem gives [propext, Classical.choice,
+  Quot.sound] (UsdtVerify/Test/Axioms.lean); independent read-only review (round 51) PASS: no
+  statement changed, 28 constants added, none removed.
+
 ## Completeness of the dispatcher, for every gas
 
 - `runFrame_ok_dispatch` (`UsdtVerify/Usdt/Complete/Dispatch.lean`, alias `Summary.dispatch_complete`):
@@ -1496,7 +1532,8 @@ ends with no error and the contract has an account in its end state".
   `prepareFirstFrame_of_value_eq_zero` since round 47); round 46 covers it
   with authorizations, with the recovered authorities as hypotheses, and a concrete deprecated call
   with any list of authorizations (`destroy_mirror_call_auths`). Still not covered after round 46:
-  the type-4 transaction around the message (`processTransaction`).
+  the type-4 transaction around the message (`processTransaction`). Round 51 covers the same call over the
+  meter `Nat`, which EthLib uses before Glamsterdam (`destroy_mirror_call_authsN`).
 
 ## The EIP-8037 meter (round 34; UsdtVerify/Evm/Meter.lean, UsdtVerify/Usdt/Meter.lean)
 

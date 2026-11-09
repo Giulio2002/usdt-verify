@@ -78,6 +78,7 @@ import UsdtVerify.Usdt.Refill.TransferFrom
 import UsdtVerify.Usdt.Refill.Owner
 import UsdtVerify.Usdt.MeterIff
 import UsdtVerify.Usdt.MeterOwner
+import UsdtVerify.Usdt.MeterOwnerAny
 import UsdtVerify.Usdt.MeterGas
 import UsdtVerify.Usdt.Invariant.SeqMeter
 import UsdtVerify.Usdt.Invariant.DepMeter
@@ -142,6 +143,8 @@ import UsdtVerify.Usdt.Sanity.ProcessMeterR
 import UsdtVerify.Usdt.Sanity.MirrorStateS
 import UsdtVerify.Usdt.Sanity.MirrorCallS
 import UsdtVerify.Usdt.Sanity.MirrorAuth
+import UsdtVerify.Usdt.Sanity.MirrorJointS
+import UsdtVerify.Usdt.Sanity.MirrorAuthN
 import UsdtVerify.Usdt.Sanity.ProcessExact
 import UsdtVerify.Usdt.Sanity.Mirror
 import UsdtVerify.Evm.Mirror

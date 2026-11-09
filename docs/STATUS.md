@@ -17,6 +17,8 @@ Round 50, same pin: Evm/Local/Rules.lean is removed (EthLib's `instruction_of_st
 each use), the rules over `StepG` of six opcodes follow from their forms over `StepGA`, and lifts
 and unused lemmas that EthLib already states are removed. The local `At`, `StepG` (with `SimAt`)
 and the rules over them stay (round 50 below says why).
+Round 51, same pin: the fifth audit's findings V1 to V3 are closed by new theorems (round 51
+below). No existing statement changed.
 Previous pin: 0c34dc001 (master after #1608; includes #1597, #1599 and #1605; commit
 0c34dc0010f6ff1b3d5f1c7614af10faa85fb685, round 47). Re-pinned in round 47: EthLib's `At` names
 the return data of a frame (#1351), so `At` in this repository is now the local predicate of Evm/At.lean, with the same twelve
@@ -2448,6 +2450,76 @@ of a USDT theorem changed.
   `instruction_gas'` and `instruction_extcodesize'` (Evm/Call.lean, by `rfl`): EthLib has no
   lemma for these two table entries.
 
+### Round 51: the fifth audit, V1 to V3 closed by theorems (Usdt/MeterOwnerAny.lean, Usdt/Sanity/MirrorJointS.lean, Usdt/Sanity/MirrorAuthN.lean, Evm/Auth.lean)
+
+Built and checked: clean rebuild of 2a96c23 (the last commit that changes a Lean statement or
+proof; the commit after it changes docs/ and one module doc comment of
+Usdt/Sanity/MirrorAuthN.lean, incremental build exit 0, 1470 jobs) in a fresh clone (empty build directory, safe.sh 9G, LEAN_NUM_THREADS=2,
+`lake build UsdtVerify UsdtVerify.Test.Axioms`), exit 0, 1471 jobs, 0 "error:" lines, 193.35 s
+wall, 414.95 s user; hash check 11075 bytes, keccak256 b44fb4e9...ea55; `#print axioms` on the
+1358 entries of UsdtVerify/Test/Axioms.lean gives [propext, Classical.choice, Quot.sound] or a
+subset (1306 the three, 35 [propext, Quot.sound], 8 [propext], 9 none), with no `sorryAx`,
+`ofReduceBool` or `trustCompiler`; no `sorry`, `admit`, `axiom`, `native_decide`, `bv_decide` or
+`decide +native` in UsdtVerify/ (grep exit 1). Each commit of the round built (incremental build
+of `UsdtVerify` and `UsdtVerify.Test.Axioms`, exit 0).
+Independent read-only review: PASS (a fresh reviewer, d0625a2 against 2a96c23). It built both
+trees (exit 0, 1467 and 1470 jobs, 0 "error:" lines) and dumped every constant of the `UsdtVerify`
+modules with a hash of its type and, for definitions, of its body: 13012 before, 13040 after,
+13012 shared and identical, 0 changed, 0 removed, 28 added (the 20 new theorems and 8 auxiliary
+constants). `Auth.apply_exists` keeps its type. The 20 new theorems depend on [propext,
+Classical.choice, Quot.sound], and the grep for banned constructs has no hit. It found the
+hypotheses of each new theorem satisfiable together and the doc comments within the statements.
+Its one wording nit ("from Prague" in the module doc of Usdt/Sanity/MirrorAuthN.lean, where EthLib
+names the fork Pectra) is fixed in the docs commit of this round. The reviewer read the Lean at
+2a96c23, before these docs were written, so the docs were checked against the statements by the
+author only.
+Lines of Lean in UsdtVerify/: 68,346 after round 50, 68,984 after round 51.
+
+- V1 (Usdt/MeterOwnerAny.lean). `Exact.ok_X_any` for the ten owner functions (`pause`,
+  `unpause`, `addBlackList`, `removeBlackList`, `issue`, `redeem`, `setParams`, `deprecate`,
+  `transferOwnership`, `destroyBlackFunds` when not deprecated), as `ok_approve_any`: a run of the
+  loop over `StateGasMeter`, from a frame whose `toNat` is the fresh frame of `CODE`, at any
+  reservoir, for any gas bound and message runner, with SSTORE refills allowed, that ends with no
+  error meets the condition of the function (Usdt/Spec/Guards.lean), its output is empty, and its
+  state and substate (the logs included) are those of `Complete.ok_X`. No hypothesis on the
+  reservoir or on refills. With the exact forms of Usdt/Refill/OwnerS.lean and ChainOwner.lean,
+  which take the condition as hypotheses, both directions of the success condition of each owner
+  function hold at any reservoir. The gas left at the end is not stated by these theorems
+  (`X_gas_any` states it under its own hypotheses).
+- V2 (Usdt/Sanity/MirrorJointS.lean). `keepsInvAtSR_process_mirror`: from Paris, EthLib's
+  `processRunner` over `StateGasMeter`, at any bound, meets `KeepsInvAtSR` at every reservoir when
+  the upgraded address holds `MIRROR` and is no precompile. `joint_S2_R`: in `S2`, for the message
+  `mDO`, it meets `KeepsInvAtSR` and `HonestBalanceAtSR` together. `destroy_mirror_stepDR`: from
+  Paris, in `S2` with `C` no precompile, for `mDOG` with any gas and reservoir fields, any
+  substate and any starting meter with execution gas left in [1000000, 2^255), `processMessage`
+  over `StateGasMeter` ends with no error and `Inv C` holds in its state. It applies
+  `process_stepDR_inv` and assumes only `SepOn` of the call's keys and `StrForm` of slots 7 and 8
+  of `C` in `S2`. The proofs are the fifth reviewer's, cleaned up.
+- V3 (Evm/Auth.lean, Usdt/Sanity/MirrorAuthN.lean). EthLib's `processTransaction` runs a
+  transaction over the meter `Nat` before Glamsterdam, and type-4 transactions exist from Pectra,
+  so from Pectra to BPO5 their message runs over `Nat`. `Auth.apply_exists_of` is the case split
+  of `apply_exists` for any meter and any property of the meter that `payAuthorization` keeps;
+  `apply_exists` is now proved from it, with the same statement. `Auth.apply_exists_pre`,
+  `Auth.fold_exists_pre`: before Glamsterdam, over any meter, in a state where every code hash,
+  now and before the transaction, has a code, one authorization and the authorizations of any
+  list end with `.ok` (no hypothesis on `recoverAuthority` or on the gas; `fold_meter_pre` gives
+  the meter). `Sanity.destroy_tail_bounds`: before Glamsterdam, with gas in [1000000, 2^255), at
+  every coldness, the CALL of deprecated destroyBlackFunds gives `MIRROR` its gas and the gas
+  after it covers `TAIL_MAX`. `Sanity.destroy_mirror_runsN`: from Paris and before Glamsterdam,
+  from any state with the facts of `destroy_mirror_runsT` and the mirrored balance slot, the loop
+  over `Nat` with `processRunner` ends with no error at every gas in [1000000, 2^255).
+  `Sanity.destroy_mirror_processN`: the same as `processMessage` over `Nat`.
+  `Sanity.destroy_mirror_call_authsN`: from Paris and before Glamsterdam, in `S3` with the
+  hypotheses of `destroy_mirror_call_auths`, for any list of authorizations no `delegationCode` of
+  which hashes to `H` or `HC`, any paid writes, any reservoir field and substate, and a gas field
+  in [1000000, 2^255), EthLib's `processMessageCall` over `Nat` gives an output with no error.
+  Together with `destroy_mirror_call_auths` (over `StateGasMeter`, from Paris), the concrete
+  type-4 call is covered over the meter EthLib uses at every fork from Pectra to Glamsterdam.
+  Still not covered: the transaction around the message (`processTransaction`), anything about
+  the output beyond "no error", and the recovery of any concrete signature.
+- V4 and V5 are about the README, which is kept outside this repository. README sentences were
+  sent to the main session.
+
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
   Glamsterdam (third audit, T1; rounds 33 to 36 above). Round 36 covers, not deprecated: the
@@ -2501,6 +2573,9 @@ of a USDT theorem changed.
   (`destroy_mirror_call_auths`), see the round 46 entry above. Still open: the type-4 transaction
   around the message (`processTransaction`), and the keccak hypothesis that no `delegationCode`
   hashes to the code hashes of `S3`.
+  Round 51: the same call over the meter `Nat` from Paris to before Glamsterdam
+  (`destroy_mirror_call_authsN`), the meter with which EthLib runs type-4 transactions from Pectra
+  to BPO5.
 - Security properties when deprecated without the runner assumptions of round 23 (`KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`); none is proved for a concrete upgraded
   contract (round 24: concrete runners meet them, `Sanity/Runner.lean`). `transferFrom_bound` has
