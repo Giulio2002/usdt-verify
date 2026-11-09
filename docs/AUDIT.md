@@ -1214,3 +1214,225 @@ six unused lemmas with a `runFrame` equation (`low_of_reaches`, `SpecG.low`, `Sp
 EthLib's lemma of the same name. The local `At`, `StepG` with `SimAt`, the triples over it and the
 opcode rules over the local `At` stay, for the reasons in docs/STATUS.md (round 50). The trust
 assumptions of "What is trusted" in docs/RESULTS.md are unchanged.
+
+# Fifth audit (USDT-AUDIT-5)
+
+A fifth independent reviewer, who wrote none of this code, audited the whole state at head
+`e548cb7` (rounds 41 to 50 included: exact refill gas over `StateGasMeter`, deprecated paths from
+any reservoir, the concrete deprecated runs `S2` and `S3`, the type-4 authorizations, the `RunC`
+bridge, and the cleanup rounds 47 to 50 with EthLib's `KeepsOn`, `SentVia` and `ReadsAs`), and
+every claim of the public README against the Lean statements. EthLib was read at the pin
+`bc16ee428` (the local checkout `../ethlib-usdt-pin7`, clean, an ancestor of `origin/master`) and
+not modified. Scratch files lived outside the repository and are not committed. No theorem
+statement or README sentence was changed. README replacements were sent to the main session.
+Every Lean command ran under `safe.sh -m 9G`. `lake build`: exit 0, 1467 jobs (replayed),
+`CODE` 11075 bytes, keccak256 `b44fb4e9…ea55` (also recomputed by `scripts/keccak.py`), 1329
+`depends on axioms` entries and 9 `does not depend` entries, none with `sorryAx`.
+
+## Summary
+
+| # | Severity | Finding | Touches |
+|---|---|---|---|
+| V1 | Low | At any reservoir with refills, the ten owner functions have the exact gas condition only for a call that meets its condition. No theorem says that a successful run meets the condition (only the owner part, `owner_only_any`). The README says every writing function "succeeds exactly when its condition holds" there | README, statements (optional) |
+| V2 | Low | No instance of `KeepsInvAtS(R)` and `HonestBalanceAtS(R)` together for one runner and state, and no Sanity file applies any `inv_call_depR`, `process_stepD*` or `_processS*` theorem. The reviewer proved both, and an end-to-end instance of `process_stepDR_inv` in `S2` | Sanity |
+| V3 | Low | The type-4 result runs `processMessageCall` over `StateGasMeter` from Paris. EthLib uses that meter only from Glamsterdam. From Prague to BPO5, where type-4 transactions run over `Nat`, no `processMessageCall` theorem exists | README |
+| V4 | Low | README: "apart from two entries proved by `rfl`". There are seven local instruction-table lemmas (six by `rfl`, one by `simp`), and many entries come from EthLib's named lemmas, not `instruction_of_stackOnlyStep` | README |
+| V5 | Info | Smaller README points: the caller-state set of `KeepsInvAt` is described as "the storage and code" (it is `ReadsAs` since round 49), the `KeepsInvAcc` sentence predates `keepsInvAt_of_acc_hasAccount`, "assumes only" omits `G < 2^255`, and `lakefile.lean` at HEAD uses a local path | README |
+| V6 | Info | Checked and found sound (below) | none |
+
+## V1. Owner functions at any reservoir: one direction is missing (Low)
+
+**Evidence.** `pause_sgm`, `unpause_sgm`, `addBlackList_sgm`, `removeBlackList_sgm`,
+`transferOwnership_sgm` (Usdt/Refill/OwnerS.lean) and the two-write forms of
+Usdt/Refill/ChainOwner.lean (for example `issue_sgm`) take the guard as hypotheses (`hown`,
+`hnp`, `hT`, `hB`, `hstatic`, `hacc`, ...) and state `RunsOkS ↔` the gas chain. That is: for a call
+that meets its condition, success is exactly the gas condition. The converse, that a successful
+run meets the condition, is stated at any reservoir only for `approve`, `transfer` and
+`transferFrom` (`ok_approve_any`, `ok_transfer_any`, `ok_transferFrom_any` in Usdt/MeterIff.lean).
+For the owner functions it is stated only at reservoir 0 without refills (`X_iff_gas_sgm`, which
+takes `hres`), plus the owner check at any reservoir (`owner_only_any`). The README says, for
+approve, that "at any reservoir, it succeeds exactly when its condition holds, ..." and then "The
+same exact result, at any reservoir with refills allowed, holds for every other writing function
+except `transferFrom`", and "So every writing function of USDT has a proved exact success
+condition ... at any reservoir and with refills allowed". For the ten owner functions the
+success-implies-condition half is not stated. For approve the full iff follows from two theorems
+(`ok_approve_any` with `approve_zero_sgm` or `approve_set_sgm`), of which the README cites only the
+second.
+
+**The gap is small.** The forward half of `pause_iff_gas_sgm` never uses `hres`. Machine-checked
+in scratch (exit 0, axioms `[propext, Classical.choice, Quot.sound]`):
+
+```lean
+theorem ok_pause_any (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
+    (hsel : selector message.data = 0x8456cb59)
+    (start : At CODE message 0 [] .empty gas state substate (toNat m))
+    {within : GasMeter.gasHeld m.gas ≤ bound}
+    (hs : Evm.runFrame (step fork) (step_decreases fork) bound runChild m within = .ok s)
+    (hok : s.error = none) : PauseGuard state message := by
+  obtain ⟨G, hE⟩ := shadow_ends hfork hs hok
+  have st' := at_addGas start (budget m)
+  obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' st' hE hok
+  obtain ⟨hst, hacc, hown, hp, -⟩ := ok_pause hfork hsize' hsel rfl st' hE hok
+  exact ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hp⟩
+```
+
+**Suggested fix.** Add `ok_X_any` for the ten owner functions (the first half of each
+`X_iff_gas_sgm` with `hres` dropped), or reword the README (replacement sent).
+
+## V2. No joint instance of the deprecated runner assumptions over `StateGasMeter` (Low)
+
+**Evidence.** Deprecated `destroyBlackFunds` over `StateGasMeter` needs `KeepsInvAtS` (or
+`KeepsInvAtSR`) and `HonestBalanceAtS` (or `HonestBalanceAtSR`) for the same runner and state
+(`inv_call_depS`, `inv_call_depR`, `process_stepDS`, `process_stepDR`, their `_inv` forms). The
+repository proves `KeepsInvAtS(R)` for `processRunner` only with `STOP` and `HonestBalanceAtS(R)`
+only with `MIRROR` (Sanity/ProcessMeter.lean, ProcessMeterR.lean). `STOP` leaves the output word at
+0x60 as it was, so it does not meet `HonestBalanceAtS` in general. No file proves `KeepsInvAtS`
+with `MIRROR`, and `grep` finds no Sanity file that applies `process_step_inv`, `process_stepS`,
+`process_stepDS`, `process_stepDR`, `inv_callsS`, `inv_call_any`, an `_sgm` theorem, a `dep_X_exactR`
+or a `_processS` theorem. The Nat analogue exists (`process_step_dep_hyps2`, `destroy_mirror_inv`).
+
+**Reviewer's instances (scratch, exit 0, axioms `[propext, Classical.choice, Quot.sound]`).**
+
+```lean
+theorem keepsInvAtSR_process_mirror (hparis : .paris ≤ fork) {bound : Nat}
+    {message : Message fork} {S : State.TransactionState}
+    (hcode : S.getCode (S.getAccount (upAddr S message)).codeHash = .ok MIRROR)
+    (hnp : Precompiles.isPrecompile fork (upAddr S message).toU256.toNat = false) (r : Nat) :
+    KeepsInvAtSR (processRunner (Meter := StateGasMeter) fork bound) message S r
+  -- process_mirrorS, then DepInv.inv_congr with storageAt_readSlot
+
+theorem destroy_mirror_stepDR {fork : Fork} (hparis : .paris ≤ fork)
+    (b : BlockEnvironment fork) (t : TransactionEnvironment fork) (C : Address) (a : U256)
+    (ss : Substate) (H : Hash32) (hH : H ≠ State.EMPTY_CODE_HASH)
+    (hnp : Precompiles.isPrecompile fork C.toU256.toNat = false) (G R : Nat)
+    (meter : StateGasMeter) (hg : 1000000 ≤ meter.gasLeft) (hg' : meter.gasLeft < 2 ^ 255)
+    (held : GasMeter.gasHeld meter ≤ (mDOG b t C a G R).gas)
+    (K : SepOn (callKeys (mDOG b t C a G R) (S2 C H a)))
+    (h7 : StrForm (storageAt (S2 C H a) C 7)) (h8 : StrForm (storageAt (S2 C H a) C 8)) :
+    ∃ ended, processMessage fork (mDOG b t C a G R) (S2 C H a) ss meter held = .ok ended ∧
+      ended.1.error = none ∧ Invariant.Inv C ended.1.state
+  -- destroy_mirror_processS, inv_S2, and process_stepDR_inv with
+  -- keepsInvAtSR_process_mirror and honestBalanceAtSR_process_mirror at meter.reservoir
+```
+
+So the hypotheses of `process_stepDR_inv` hold together, under EthLib's runner, at every fork
+from Paris (Glamsterdam included) and from any starting meter with enough execution gas, apart
+from the keccak hypothesis `SepOn` and the string-slot facts `StrForm` of slots 7 and 8 (both 0 in
+`S2` unless a keccak slot of `S2` is 7 or 8). The theorems are not vacuous. The repository does
+not show it.
+
+**Suggested fix.** Add the two theorems above to Usdt/Sanity/ (for example MirrorStateS.lean).
+
+## V3. The type-4 result is over the meter EthLib uses from Glamsterdam (Low)
+
+**Evidence.** `destroy_mirror_call_auths` (Usdt/Sanity/MirrorAuth.lean) and `destroy_mirror_callS`
+take `.paris ≤ fork` and state `processMessageCall (Meter := StateGasMeter)`. EthLib's
+`processTransaction` (Transactions/Process.lean:434-439) runs `runTransaction StateGasMeter` only
+for `glamsterdam ≤ fork < hegota` and `runTransaction Nat` before. Type-4 transactions exist from
+Prague, so from Prague to BPO5 EthLib runs them with the one-counter meter, and no theorem here
+runs `processMessageCall` over `Nat`. The README says "Type-4 calls are covered too" and "From
+Paris, for any authorization list ... EthLib's `processMessageCall` of that call over the EIP-8037
+meter returns with no error". Both are literally true, but before Glamsterdam they describe a
+combination EthLib does not run, and the forks where type-4 transactions are live on mainnet today
+are not covered. The same holds for "at every fork from Paris" in the `destroy_mirror_runsS`
+sentence, which is less likely to mislead.
+
+**Suggested fix.** Either a `Nat` form of `destroy_mirror_call_auths` before Glamsterdam (the
+authorizations keep a `Nat` meter there, `fold_meter_pre`), or the README replacement sent.
+
+## V4. The instruction-table sentence (Low)
+
+**Evidence.** The README says the entries are "proved at each use by EthLib's
+`instruction_of_stackOnlyStep`, apart from two entries proved by `rfl`". The repository has seven
+local table lemmas: `instruction_extcodesizeS`, `instruction_extcodesizeN`, `instruction_gasN`,
+`instruction_gasS` (Evm/StepSim.lean), `instruction_gas'`, `instruction_extcodesize'`
+(Evm/Call.lean), all by `rfl`, and `instruction_sstoreM` (Evm/Shadow.lean) by `simp`. It also uses
+EthLib's named lemmas `instruction_iszero`, `instruction_add`, `instruction_sub`, `instruction_eq`,
+`instruction_sstore`, `instruction_call` and others (EthLib Logic/Rules.lean, Logic/Call.lean).
+This does not change what is trusted: all of them are kernel-checked.
+
+**Suggested fix.** README replacement sent.
+
+## V5. Smaller README points (Info)
+
+- Lines on `KeepsInvAt` ("from a caller state with the storage and code of the start state", in
+  "How it is done" and in "Every call, deprecated or not"): since round 49 the set is EthLib's
+  `SentVia`, whose caller state `ReadsAs` the start state (accounts, storage, transient storage
+  and code). The README describes a larger set than the hypothesis asks for, so it overstates the
+  burden of the assumption, not the result. The later paragraph of "What you have to trust" is
+  right.
+- "`KeepsInvAcc` gives `KeepsInv` only together with `KeepsInvNoAcc`": true, but since round 49
+  `keepsInvAt_of_acc_hasAccount` gives `KeepsInvAt` from `KeepsInvAcc` alone when the start state
+  has an account of `C`.
+- "This assumes only that no authorization's delegation code hashes to the code hash of USDT or of
+  the upgraded contract": the theorem also takes `G < 2^255`, `C ≠ UA`, `C` no precompile and the
+  hash facts of `S3`. The sentence is about the list, so this is Info.
+- "Building": `lakefile.lean` at HEAD is `require EthLib from "../ethlib-usdt-pin7"`, a local
+  path. That checkout is at `bc16ee428`, clean and an ancestor of `origin/master`. The git pin the
+  README describes is that of the published copy (finding 6 of the first audit). The build time
+  and memory figures were not re-measured.
+- `apply_usdt` and `apply_caller_S3` assume `recoverAuthority auth = some C` (or `CALLER_A`).
+  `recoverAuthority` is EthLib's concrete ECDSA recovery, so a witness needs a signature that
+  recovers to that address, which nothing here can exhibit. These are illustrations. The headline
+  `destroy_mirror_call_auths` takes no hypothesis on recovery, so the README sentence "The list may
+  include authorizations whose authority is USDT's address or the caller" is about that theorem and
+  is right.
+
+## V6. Checked and found sound (Info)
+
+- **Name resolution of `At`.** A scan of every constant of `UsdtVerify` (scratch meta program):
+  8 types mention EthLib's `Logic.At`, all in Evm/At.lean (`At.toLogic`, `At.ofLogic`,
+  `At.iff_logic`, `liftPre`, `liftAt`, `lowerPre` and two matchers), and 1352 mention
+  `UsdtVerify.At`. No other statement resolves to `Logic.At`. The other local names that EthLib
+  also defines and that a file may open together are `Gas.StepG`, `Gas.SpecG`, `Gas.HoareG`,
+  `Gas.Stuck` (EthLib's with the extra conjunct `SimAt`, so the local forms are stronger
+  triples), `Deprecated.Fails` and `Invariant.Step` (different types, so a swap cannot
+  elaborate), and `TransferOk.TRANSFER_TOPIC` (a `U256` equal to keccak of
+  `Transfer(address,address,uint256)`, checked in Python). An ambiguous bare name would not
+  elaborate, so the build shows each use resolved to one of them, and the scan shows which for
+  `At`. No statement changes meaning through resolution.
+- **Axioms.** A traversal of every constant of `UsdtVerify` (12842, types and values) reaches only
+  `propext`, `Classical.choice` and `Quot.sound`. There is no `opaque` or `axiom` declaration in
+  the repository, and no `Lean.ofReduceBool`. `decide +kernel` appears 35 times, on closed facts
+  (sizes and bytes of fixed memory images, selectors, `exp` and `mul` of constants, the jump
+  destination walk) or a bounded `∀ m < 32`, and the kernel checks each.
+- **Fork ranges.** A scan of the 2657 theorems of `UsdtVerify` for hypotheses `F ≤ fork`,
+  `fork < F` (and `≥`, `>`) with a constant fork: none has an empty range (1224 have a lower bound,
+  16 an upper bound).
+- **Numbers.** `authMax = 227790` by `rfl` (183600 + 9000 + 35190, EthLib's
+  `NEW_ACCOUNT_STATE_GAS`, `ACCOUNT_WRITE`, `AUTH_BASE_STATE_GAS`). `STORAGE_SET_STATE_GAS = 97920`
+  (EthLib `storageSetStateGas_eq`). `TX_MAX_GAS_LIMIT = 16777216`, and `allocateGas` gives
+  reservoir 0 for a gas limit of at most 2^24. 1000000 is the hypothesis of every `destroy_mirror`
+  theorem cited. 773 and 46 are `spec_unknown` and `spec_short`. 2^180 is the bound of
+  `name_long`. 11075 bytes and the hash are checked by Test/Hash.lean.
+- **Paths and names.** Every path in the README exists at HEAD (short names are relative to the
+  folder named just before). Every theorem and definition named in the README exists, as do the
+  13 `X_ok_dom`, 13 `X_gas_any`, 13 `X_iff_gas_sgm`, 7 `dep_X_completeS`, 7 `dep_X_completeR` and
+  7 `dep_X_exactR`. `StaticCode` is EthLib's.
+- **`KeepsOn`, `SentVia`, `ReadsAs`.** The local definitions `KeepsInvAt`, `KeepsSlots` are
+  `KeepsOn` over `SentVia` and `HonestBalanceAt`, `KeepsInvAtS(R)`, `HonestBalanceAtS(R)`,
+  `KeepsAtS(R)` quantify over `SentVia` of the `toNat` caller. `ReadsAs` fixes accounts, storage,
+  transient storage and code but not the original storage, so the assumptions quantify over caller
+  states with any original storage. That makes them harder to meet, not vacuous: the `STOP` and
+  `MIRROR` instances hold for all of them, and V2 shows the deprecated hypotheses together.
+- **Authorizations.** `hk` (no `delegationCode` hashes to `H` or `HC`) is satisfiable: `H` and
+  `HC` are free, and for the real code hashes it is a collision hypothesis on 23-byte inputs.
+  `fold_exists` and `destroy_mirror_call_auths` take no hypothesis on `recoverAuthority`.
+  `chargeState_ok` and `charge_bound` match EthLib's `chargeAuthorization`
+  (Transactions/Authorization.lean:172-182).
+- **Refill-exact theorems.** `wOk`, `wMeter`, `sstoreBump` and `sstoreMeter` are explicit
+  arithmetic over the meter fields, not defined through a run, and `sgm_sstore_charges` ties them
+  to EthLib's `refill`, `charge` and `chargeState`. The truncated `g.gasLeft - P` in `wMeter` is
+  guarded by `P + 2301 ≤ g.gasLeft` in the same `wOk`. In `dep_X_exactR` and `dep_destroy_exactR`,
+  `gas - preCost - cost` is guarded by the conjunct `preCost + 100 + routeCost ≤ gas`, and the
+  CALL's cost is at most the gas left once its extra cost is paid.
+- **"Any reservoir".** The `_sgm`, `_ok_dom`, `_gas_any`, `ok_X_any`, `inv_call_any`, security
+  `_any`, `dep_X_completeR`, `dep_X_exactR`, `dep_destroy_exactR`, `owner_only_allSR` and the
+  `DepMeterR` theorems take no hypothesis `reservoir = 0`. The `= 0` in MeterR.lean and
+  DepMeterR.lean are conclusions or conditions on the caller after the CALL, which passes its
+  whole reservoir to the callee.
+- **`S2` and `S3`.** `inv_S2` uses only `SepOn [kD a]`, whose `fixed`, `uniq` and `list` parts are
+  what the proof uses for the five slots of `KD a`. `S3` has the code of `C` and `UA` under free
+  hashes, which the model allows, and the README calls it a variant.
+
+**Resolution.** Open. V1 to V5 are recorded for the main session.
