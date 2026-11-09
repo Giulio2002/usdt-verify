@@ -362,7 +362,8 @@ Every successful call, not deprecated, static or not, with or without an account
 `Complete.inv_call`. Deprecated or not: `Complete.inv_call_ns` (Usdt/Invariant/All.lean, from
 Berlin, Glamsterdam included; when deprecated, under the named assumptions `KeepsInvAt` on the
 runner and `HonestBalanceAt` for destroyBlackFunds (round 29: about the calls the code makes from
-the start state, `SentVia`; through round 28 `KeepsInv`, `HonestBalance`, over every message), and since round 20 with no account of the
+the start state, `SentVia`, EthLib's since round 49; through round 28 `KeepsInv`, `HonestBalance`,
+over every message), and since round 20 with no account of the
 contract assumed; the upgraded code may be an EIP-7702 delegation). Static or not:
 `Complete.inv_call_all` (Usdt/Invariant/Static.lean; "not static" replaced by `hstat`: when static,
 `message.code = CODE`, `StaticCode` and `StaticKeeps`; a static frame keeps the state, EthLib's `staticStep_runFrame`, under the named runner
@@ -516,7 +517,7 @@ with the upgraded code `MIRROR`, whose success depends on its gas (the second un
 after the CALL plus what `MIRROR` returns covers the code after it.
 Round 33: the forwarded message of every deprecated path (`SendsVia`) has the block and
 transaction environments of `message`, as EthLib's CALL gives them, so `hans`, `NoFailOn`,
-`hfail` and the `KeepsAt` forms are no longer asked under other environments.
+`hfail` and the `SentVia` forms are no longer asked under other environments.
 Round 33: `Sanity.process_step_dep_hyps2` and `Sanity.destroy_mirror_runs`
 (Usdt/Sanity/MirrorState.lean): a deprecated state with `MIRROR` where the caller is the owner,
 `a` is blacklisted and `balances[a]` is not 0. There `processRunner` meets `KeepsInvAt` and
@@ -612,6 +613,13 @@ any meter, for any gas bound and message runner, under the guard of the Nat spec
 no refill hypothesis, the run ends with no error if and only if the chain condition holds, and every
 successful run ends as the Nat specification says with `gasLeft + cost = gas` plus the bumps of the
 writes and the meter after the last write.
+Round 49: one top-level message straight to its end property, under the runner hypotheses on
+`processRunner` (EthLib's `SentVia`): `Complete.process_step_inv`, `Complete.process_stepDS_inv`,
+`Complete.process_stepSD_inv`, their `_start` forms, `Complete.process_stepDR_inv`,
+`Complete.process_stepSDR_inv` (`Inv` at the end), and `Security.nonOwner_processS`,
+`paused_processS`, `listed_processS`, `allowKept_processS`, `supply_processS` with their `SR`
+forms (each security property). `Complete.keepsInvAt_of_acc_hasAccount`: `KeepsInvAcc` alone gives
+`KeepsInvAt` when the start state has an account of `C`.
 Round 44 (READY for this scope; Usdt/Invariant/DepMeterR.lean, Usdt/Security/DepMeterR.lean,
 Usdt/Sanity/ProcessMeterR.lean, Evm/FwdS.lean, Usdt/Complete/Deprecated/CallS.lean, DestroyS.lean,
 Usdt/Refill/DestroyDepS.lean, Usdt/Sanity/MirrorStateS.lean): when deprecated, from any reservoir,

@@ -308,10 +308,13 @@ theorem writes_tail {C : Address} {Y : State.TransactionState} (hacc : hasAccoun
     (.inr rfl) _
 
 /-- The runner assumption of the allowance property when deprecated: every call from `C` to
-the upgraded address that the code of `C` makes from `S` (`SentVia`, round 29: the caller state has the view of `S`, the message runs the code the upgraded address holds in `S`; through round 28 every message from `C` to `ua`), and that the runner ends with no error keeps every slot of `allowed` of `C`. -/
+the upgraded address that the code of `C` makes from `S` (`SentVia`, round 29, EthLib's since round
+49: the caller state reads as `S`, the message runs the code the upgraded address holds in `S`;
+through round 28 every message from `C` to `ua`), and that the runner ends with no error keeps every
+slot of `allowed` of `C`. -/
 def KeepsAllow {fork : Fork} {bound : Nat} (runChild : MessageRunner fork Nat bound)
     (message : Message fork) (S : State.TransactionState) : Prop :=
-  KeepsAt runChild message S (upAddr S message) (AllowKept message.currentTarget)
+  KeepsOn runChild (SentVia message S (upAddr S message)) (AllowKept message.currentTarget)
 
 theorem EffectD.allowKept {y z : U256} {S S' : State.TransactionState}
     (K : SecSep (y :: z :: callKeys message S)) (h : EffectD runChild message S S')
@@ -321,11 +324,11 @@ theorem EffectD.allowKept {y z : U256} {S S' : State.TransactionState}
     AllowKeptAt y z message.currentTarget S S' := by
   cases h with
   | loc h => exact h.allowKept K hsel
-  | fwd hdep _ _ _ X hX hf => exact ((hk hdep).fwd hf y z).trans (hX _)
+  | fwd hdep _ _ _ X hX hf => exact (hf.keeps (hk hdep) y z).trans (hX _)
   | dfwd hdep _ _ _ X Y d hX hf hacc hst =>
     have hbo : ¬ BalOrOne (mapSlot y (mapSlot z 5)) := not_balOrOne K.allowYZ.1 K.allowYZ.2.1
     unfold AllowKeptAt
-    rw [hst, writes_tail hacc (bal_arg _ _) d _ hbo, (hk hdep).fwd hf y z, hX]
+    rw [hst, writes_tail hacc (bal_arg _ _) d _ hbo, hf.keeps (hk hdep) y z, hX]
 
 /-- **Allowances, one call, deprecated or not.** As `allowKept_call` without `hdep`: when
 deprecated, the runner meets `KeepsAllow` for the calls to the upgraded address (`hkeeps`). If

@@ -77,14 +77,14 @@ theorem fwdSR_of {ua : Address} {c : ByteArray} {r : Route} {d : ByteArray} {q :
     {child : { child : Evm fork StateGasMeter // GasMeter.gasHeld child.gas ≤ msg.gas }}
     {S' : State.TransactionState}
     (hcode : state.getCode (state.getAccount ua).codeHash = .ok c) (hroute : Routes fork state c r)
-    (hfwd : SendsVia message ua c r d msg) (hv : SameView caller.state state)
+    (hfwd : SendsVia message ua c r d msg) (hv : ReadsAs caller.state state)
     (hcr : caller.gas.reservoir = 0) (hmr : msg.reservoir = q)
     (hch : runS caller msg lt = .ok child) (he : child.1.error = none)
     (hst : S' = (incorporateChild fork caller child.1).state) :
     ∃ X, (∀ n, storageAt X message.currentTarget n = storageAt state message.currentTarget n) ∧
       FwdAtSR runS message state ua q X S' :=
-  ⟨caller.state, fun n => hv.1 _ n, caller, msg, lt, child,
-    ⟨c, r, hcode, hroute, sendsVia_data hfwd, hv⟩, hcr, hmr, hch, he, rfl,
+  ⟨caller.state, fun n => storageAt_of_readsAs hv _ n, caller, msg, lt, child,
+    sentVia_of_sendsVia hcode hroute hfwd hv, hcr, hmr, hch, he, rfl,
     by rw [hst, state_incorporateChildS]⟩
 
 /-- **The effect of every successful call over the EIP-8037 meter, deprecated or not, any
@@ -114,60 +114,51 @@ theorem effect_allSR (hfork : .berlin ≤ fork)
   · obtain ⟨c, r, hcode, hroute, -, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, hfwd, -, hcs, -, -,
       -, hst, -⟩ := dep_approve_completeR hfork hsize' h hdep rfl rfl start hrun hok
     obtain ⟨X, hX, hF⟩ := fwdSR_of hcode hroute hfwd (by
-      rw [hcs]; exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [callState], fun a => rfl⟩ _) r) _) hcr hmr hch he hst
+      rw [hcs]; reads_as) hcr hmr hch he hst
     exact .fwd hdep (.inl h) (fun e => absurd e (ne h (by decide)))
       (fun e => absurd e (ne h (by decide))) X hX hF
   · obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, hfwd, -, hcs, -, -,
       -, hst, -⟩ := dep_totalSupply_completeR hfork hsize' h hdep start hrun hok
     obtain ⟨X, hX, hF⟩ := fwdSR_of hcode hroute hfwd (by
-      rw [hcs]; exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [callState], fun a => rfl⟩ _) r) _) hcr hmr hch he hst
+      rw [hcs]; reads_as) hcr hmr hch he hst
     exact .fwd hdep (.inr (.inl h)) (fun e => absurd e (ne h (by decide)))
       (fun e => absurd e (ne h (by decide))) X hX hF
   · obtain ⟨c, r, hcode, hroute, hpause, hblack, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, hfwd, -,
       hcs, -, -, -, hst, -⟩ :=
       dep_transferFrom_completeR hfork hsize' h hdep rfl rfl rfl rfl start hrun hok
     obtain ⟨X, hX, hF⟩ := fwdSR_of hcode hroute hfwd (by
-      rw [hcs]; exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [DeprecatedTransferFrom.callStateF,
-        TransferFrom.checkState], fun a => rfl⟩ _) r) _) hcr hmr hch he hst
+      rw [hcs]; reads_as) hcr hmr hch he hst
     exact .fwd hdep (.inr (.inr (.inl h))) (fun e => absurd e (ne h (by decide)))
       (fun _ => ⟨hpause, hblack⟩) X hX hF
   · obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, hfwd, -, hcs, -, -,
       -, hst, -⟩ := dep_balanceOf_completeR hfork hsize' h hdep start hrun hok
     obtain ⟨X, hX, hF⟩ := fwdSR_of hcode hroute hfwd (by
-      rw [hcs]; exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [callState], fun a => rfl⟩ _) r) _) hcr hmr hch he hst
+      rw [hcs]; reads_as) hcr hmr hch he hst
     exact .fwd hdep (.inr (.inr (.inr (.inl h)))) (fun e => absurd e (ne h (by decide)))
       (fun e => absurd e (ne h (by decide))) X hX hF
   · obtain ⟨c, r, hcode, hroute, hpause, hblack, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, hfwd, -,
       hcs, -, -, -, hst, -⟩ :=
       dep_transfer_completeR hfork hsize' h hdep rfl rfl rfl rfl start hrun hok
     obtain ⟨X, hX, hF⟩ := fwdSR_of hcode hroute hfwd (by
-      rw [hcs]; exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [DeprecatedTransfer.callStateT,
-        Transfer.shortState], fun a => rfl⟩ _) r) _) hcr hmr hch he hst
+      rw [hcs]; reads_as) hcr hmr hch he hst
     exact .fwd hdep (.inr (.inr (.inr (.inr (.inl h))))) (fun _ => ⟨hpause, hblack⟩)
       (fun e => absurd e (ne h (by decide))) X hX hF
   · obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, hfwd, -, hcs, -, -,
       -, hst, -⟩ := dep_allowance_completeR hfork hsize' h hdep rfl rfl start hrun hok
     obtain ⟨X, hX, hF⟩ := fwdSR_of hcode hroute hfwd (by
-      rw [hcs]; exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [callState], fun a => rfl⟩ _) r) _) hcr hmr hch he hst
+      rw [hcs]; reads_as) hcr hmr hch he hst
     exact .fwd hdep (.inr (.inr (.inr (.inr (.inr h))))) (fun e => absurd e (ne h (by decide)))
       (fun e => absurd e (ne h (by decide))) X hX hF
   · obtain ⟨c, r, hcode, hroute, howner, hlisted, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, -,
       hacc', hfwd, -, hcs, -, -, -, hst, -⟩ :=
       dep_destroy_completeR hfork hsize' h hdep rfl rfl rfl rfl start hrun hok
-    have hv : SameView caller.state state := by
+    have hv : ReadsAs caller.state state := by
       rw [hcs]
-      exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [DeprecatedDestroy.callStateD, DestroySpec.preState], fun a => rfl⟩ _) r) _
+      reads_as
     refine .dfwd hdep h howner hlisted caller.state child.1.state
       (resWord (DeprecatedBalance.outMemOf (DeprecatedDestroy.memD message) child.1.output))
-      (fun n => hv.1 _ n)
-      ⟨caller, msg, lt, child, ⟨c, r, hcode, hroute, sendsVia_data hfwd, hv⟩, hcr, hmr, hch, he,
+      (fun n => storageAt_of_readsAs hv _ n)
+      ⟨caller, msg, lt, child, sentVia_of_sendsVia hcode hroute hfwd hv, hcr, hmr, hch, he,
         rfl, rfl⟩
       hacc' ?_
     rw [hst, state_incorporateChildS]
@@ -533,5 +524,143 @@ theorem process_stepSecDR {fork : Fork} (hparis : .paris ≤ fork)
     · exact .inl (runOkRSR_process hparis hmc ht noPrecompile hsize hkeeps hproc herr)
   · exact .inr fun _ =>
       getStorage_processMessage_of_error hproc (Option.isSome_iff_ne_none.mpr herr) _ _
+
+
+/-! ## One top-level message, to each security property (round 49) -/
+
+/-- A top-level message as a `SeqRSR` sequence of one step (or none), under the hypotheses of
+`process_stepSecDR` and the condition `Q` of the sequence at its start. -/
+theorem seqRSR_process {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    {R : State.TransactionState → State.TransactionState → Prop}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256)
+    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsAtSR (processRunner fork message.gas) message state
+        (upAddr state message) meter.reservoir R)
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate meter held = .ok ended)
+    {Q : ∀ {fork : Fork}, Message fork → State.TransactionState → Prop} (hq : Q message state) :
+    SeqRSR message.currentTarget R Q state ended.val.state := by
+  rcases process_stepSecDR hparis hmc noPrecompile hsize hkeeps hproc with h | h
+  · exact .callS h hq (.nil _)
+  · exact .other h (.nil _)
+
+/-- **`nonOwner` for one top-level message over the EIP-8037 meter, any reservoir, round 49.**
+`nonOwner_seq_allSR` for the sequence of `seqRSR_process`: the property from the start state of the
+message to its end state, under the runner hypothesis of `process_stepSecDR` for this property and
+the condition of the sequence. -/
+theorem nonOwner_processSR {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256)
+    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsAtSR (processRunner fork message.gas) message state
+        (upAddr state message) meter.reservoir
+        (ProtKept message.currentTarget))
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate meter held = .ok ended)
+    (hq : NotOwnerS message state) :
+    ProtKept message.currentTarget state ended.val.state :=
+  nonOwner_seq_allSR (seqRSR_process (R := (ProtKept message.currentTarget))
+    (Q := NotOwnerS)
+    hparis hmc noPrecompile hsize hkeeps hproc hq)
+
+/-- **`paused` for one top-level message over the EIP-8037 meter, any reservoir, round 49.**
+`paused_seq_allSR` for the sequence of `seqRSR_process`: the property from the start state of the
+message to its end state, under the runner hypothesis of `process_stepSecDR` for this property and
+the condition of the sequence. -/
+theorem paused_processSR {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256)
+    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsAtSR (processRunner fork message.gas) message state
+        (upAddr state message) meter.reservoir
+        (fun X Y => ProtKept message.currentTarget X Y ∧ BalKept message.currentTarget X Y))
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate meter held = .ok ended)
+    (hq : NotOwnerS message state)
+    (hpaused : byte20 (storageAt state message.currentTarget 0) ≠ 0) :
+    BalKept message.currentTarget state ended.val.state :=
+  paused_seq_allSR (seqRSR_process (R := (fun X Y => ProtKept message.currentTarget X Y ∧
+      BalKept message.currentTarget X Y))
+    (Q := NotOwnerS)
+    hparis hmc noPrecompile hsize hkeeps hproc hq) hpaused
+
+/-- **`listed` for one top-level message over the EIP-8037 meter, any reservoir, round 49.**
+`listed_seq_allSR` for the sequence of `seqRSR_process`: the property from the start state of the
+message to its end state, under the runner hypothesis of `process_stepSecDR` for this property and
+the condition of the sequence. -/
+theorem listed_processSR {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256)
+    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsAtSR (processRunner fork message.gas) message state
+        (upAddr state message) meter.reservoir
+        (fun X Y => ProtKept message.currentTarget X Y ∧ ListedNoDec message.currentTarget X Y))
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate meter held = .ok ended)
+    (hq : NotOwnerS message state)
+    {a : U256} (ha : a.toNat < 2 ^ 160) (hl : Listed message.currentTarget state a) :
+    NoDec message.currentTarget (mapSlot a 2) state ended.val.state :=
+  listed_seq_allSR (seqRSR_process (R := (fun X Y => ProtKept message.currentTarget X Y ∧
+      ListedNoDec message.currentTarget X Y))
+    (Q := NotOwnerS)
+    hparis hmc noPrecompile hsize hkeeps hproc hq) ha hl
+
+/-- **`allowKept` for one top-level message over the EIP-8037 meter, any reservoir, round 49.**
+`allowKept_seq_allSR` for the sequence of `seqRSR_process`: the property from the start state of the
+message to its end state, under the runner hypothesis of `process_stepSecDR` for this property and
+the condition of the sequence. -/
+theorem allowKept_processSR {y z : U256} {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256)
+    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsAtSR (processRunner fork message.gas) message state
+        (upAddr state message) meter.reservoir
+        (AllowKept message.currentTarget))
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate meter held = .ok ended)
+    (hq : NoAllowFnS y z message state) :
+    AllowKeptAt y z message.currentTarget state ended.val.state :=
+  allowKept_seq_allSR (seqRSR_process (R := (AllowKept message.currentTarget))
+    (Q := @NoAllowFnS y z)
+    hparis hmc noPrecompile hsize hkeeps hproc hq)
+
+/-- **`supply` for one top-level message over the EIP-8037 meter, any reservoir, round 49.**
+`supply_seq_allSR` for the sequence of `seqRSR_process`: the property from the start state of the
+message to its end state, under the runner hypothesis of `process_stepSecDR` for this property and
+the condition of the sequence. -/
+theorem supply_processSR {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256)
+    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsAtSR (processRunner fork message.gas) message state
+        (upAddr state message) meter.reservoir
+        (SupplyKept message.currentTarget))
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate meter held = .ok ended)
+    (hq : NoSupplyFnS message state) :
+    storageAt ended.val.state message.currentTarget 1 =
+      storageAt state message.currentTarget 1 :=
+  supply_seq_allSR (seqRSR_process (R := (SupplyKept message.currentTarget))
+    (Q := NoSupplyFnS)
+    hparis hmc noPrecompile hsize hkeeps hproc hq)
 
 end UsdtVerify.Security

@@ -183,11 +183,14 @@ theorem transferFrom_checks_all (hfork : .berlin ≤ fork) (hsize' : message.dat
       dep_transferFrom_complete hfork hsize' hsel hdep rfl rfl rfl rfl start within hrun hok
     exact ⟨hpause, hblack⟩
 
-/-- The runner assumption of the pause property when deprecated: every call from `C` to the upgraded address that the code of `C` makes from `S` (`SentVia`, round 29: the caller state has the view of `S`, the message runs the code the upgraded address holds in `S`; through round 28 every message from `C` to `ua`), and
+/-- The runner assumption of the pause property when deprecated: every call from `C` to the upgraded
+address that the code of `C` makes from `S` (`SentVia`, round 29, EthLib's since round 49: the
+caller state reads as `S`, the message runs the code the upgraded address holds in `S`; through
+round 28 every message from `C` to `ua`), and
 that the runner ends with no error keeps every balance of `C`. -/
 def KeepsBal {fork : Fork} {bound : Nat} (runChild : MessageRunner fork Nat bound)
     (message : Message fork) (S : State.TransactionState) : Prop :=
-  KeepsAt runChild message S (upAddr S message) (BalKept message.currentTarget)
+  KeepsOn runChild (SentVia message S (upAddr S message)) (BalKept message.currentTarget)
 
 theorem EffectD.paused {S S' : State.TransactionState} (K : SepOn (callKeys message S))
     (h : EffectD runChild message S S')
@@ -205,7 +208,7 @@ theorem EffectD.paused {S S' : State.TransactionState} (K : SepOn (callKeys mess
     · exact absurd (hT e1).1 hp
     by_cases e2 : selector message.data = 0x23b872dd
     · exact absurd (hF e2).1 hp
-    exact .inl fun x hx => ((hk hdep).fwd hf x hx).trans (hX _)
+    exact .inl fun x hx => (hf.keeps (hk hdep) x hx).trans (hX _)
   | dfwd _ hsel howner => exact .inr ⟨howner, .inr (.inr hsel)⟩
 
 /-- **Pause, one call, deprecated or not.** As `paused_call` without `hdep`: when deprecated, the
@@ -233,7 +236,8 @@ theorem paused_call_all (K : SepOn (callKeys message state)) (hfork : .berlin �
 
 /-- **Pause over a sequence, deprecated or not.** Along a finite sequence of successful calls to
 `C` by callers other than the owner (of each call's start state, with slots 7 and 8 of `StrForm`
-there), whose runner, when `C` is deprecated at that state, meets `Keeps` for both `ProtKept C`
+there), whose runner, when `C` is deprecated at that state, meets `KeepsOn … (SentVia …)` for both
+`ProtKept C`
 and `BalKept C` (that is, `KeepsSlots` and `KeepsBal`), and of `Untouched` steps, from a state
 where `C` is paused, each call with `SecSep` of its keys: every balance keeps its word. -/
 theorem paused_seq_all {C : Address}
@@ -248,9 +252,10 @@ theorem paused_seq_all {C : Address}
   have hC : message.currentTarget = C := by obtain ⟨_, _, _, _, _, _, _, hC, -⟩ := hr; exact hC
   subst hC
   obtain ⟨-, bound, runChild, he, hk⟩ := hr.effect h7 h8
-  have hprot := he.protKept K hno (fun hd => (hk hd).mono fun _ _ h => h.1)
+  have hprot := he.protKept K hno (fun hd => (hk hd).mono (fun _ _ => id) fun _ _ h => h.1)
   refine ⟨?_, by rw [hprot 0 (.inl rfl)]; exact hp⟩
-  rcases he.paused K.toSepOn hp (fun hd => (hk hd).mono fun _ _ h => h.2) with hb | ⟨howner, -⟩
+  rcases he.paused K.toSepOn hp (fun hd => (hk hd).mono (fun _ _ => id) fun _ _ h => h.2) with
+    hb | ⟨howner, -⟩
   · exact hb
   · exact absurd howner hno
 

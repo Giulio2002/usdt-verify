@@ -95,7 +95,7 @@ theorem sentVia_process_stopS (hparis : .paris ≤ fork) {bound : Nat}
     (hsv : SentVia message S (upAddr S message) (Meter.toNat caller) msg)
     (hch : processRunner fork bound caller msg lt = .ok child) :
     child.1.error = none ∧ child.1.state = caller.state := by
-  obtain ⟨c, r, hc, hroute, hsv, _⟩ := hsv
+  obtain ⟨c, r, hc, hroute, hsv, _⟩ := sendsVia_of_sentVia hsv
   rw [hcode] at hc
   cases hc
   obtain ⟨-, -, htg, hca, hmc, -, -, hval, -, -⟩ := hsv
@@ -191,7 +191,8 @@ theorem honestBalanceAtS_process_mirror (hparis : .paris ≤ fork) {bound : Nat}
     (hmirror : storageAt S (upAddr S message) (balSlot message) =
       storageAt S message.currentTarget (balSlot message)) :
     HonestBalanceAtS (processRunner (Meter := StateGasMeter) fork bound) message S := by
-  rintro caller msg lt child ⟨c, r, hc, hroute, hsv, hview⟩ _ _ hch hmd he
+  intro caller msg lt child hs _ _ hch hmd he
+  obtain ⟨c, r, hc, hroute, hsv, hview⟩ := sendsVia_of_sentVia hs
   rw [hcode] at hc
   cases hc
   rcases r with _ | ⟨d, c'⟩
@@ -201,9 +202,10 @@ theorem honestBalanceAtS_process_mirror (hparis : .paris ≤ fork) {bound : Nat}
     have hk : loadWord msg.data 4 32 = addrArg message.data 0 := by
       rw [hmd]; exact loadWord_append_wordBytes SEL_B _
     obtain ⟨ho, hs⟩ := process_mirrorS hparis caller lt hmc htg hval hpre hk hch he
-    have hview' : SameView caller.state S := hview
+    have hview' : ReadsAs caller.state S := hview
     rw [ho, hs, resWord_outMemOf (size_memD message) (by rw [size_wordBytes]; omega),
-      loadWord_wordBytes_zero, storageAt_readSlot, hmt, hview'.1, hview'.1]
+      loadWord_wordBytes_zero, storageAt_readSlot, hmt, storageAt_of_readsAs hview',
+      storageAt_of_readsAs hview']
     exact hmirror
   · exact absurd hroute.2.1 (by rw [delegatedAddress_mirror]; exact fun h => by cases h)
 

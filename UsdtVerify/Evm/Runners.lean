@@ -1,12 +1,15 @@
-import UsdtVerify.Evm.Keeps
+import UsdtVerify.Evm.Frame
+import UsdtVerify.Evm.Route
 import EthLib.Execution.Proofs.Evm.Logic.Callee
 import EthLib.Execution.Proofs.Evm.Instructions.MemoryData
 
 /-!
 # Concrete message runners
 
-For any code. `stopRunner` and `answerRunner` keep the storage of every account; they show that a runner assumption of the form `Keeps runChild C ua R` can hold
-when `R` holds between two states with the same storage at `C` (`SameStore C`).
+For any code. `stopRunner` and `answerRunner` keep the storage of every account. They show that a
+runner assumption of the form `KeepsOn runChild (FromTo C ua) R` (EthLib's `KeepsOn` over every
+message from `C` to `ua`, the local `Keeps` before round 49) can hold when `R` holds between two
+states with the same storage at `C` (`SameStore C`).
 
 - `stopRunner fork bound ua`: on a message to `ua` whose code is the one byte STOP
   (`STOP_CODE`), that has a target, moves no value and calls no precompile (`StopMsg`), it is
@@ -21,9 +24,9 @@ when `R` holds between two states with the same storage at `C` (`SameStore C`).
   (`answerRunnerAt_ok`); it does not keep storage in general.
 - `failRunner e` (round 26): fails on every message with the error `e`.
 
-`Keeps` asks its relation of every message to `ua` that the runner ends with no error, whatever
-the code of the message; `stopRunner` meets it by failing the messages to `ua` that do not run
-STOP. Nothing here is claimed of `processRunner` on those messages.
+`KeepsOn … (FromTo C ua)` asks its relation of every message to `ua` that the runner ends with no
+error, whatever the code of the message; `stopRunner` meets it by failing the messages to `ua` that
+do not run STOP. Nothing here is claimed of `processRunner` on those messages.
 
 `loadWord_append_wordBytes`: the word at `A.size` of `A ++ wordBytes w` is `w`.
 -/
@@ -40,6 +43,20 @@ variable {fork : Fork} {bound : Nat}
 /-- `S'` has the storage of `S` at `C`: every slot of `C` holds the same word. -/
 def SameStore (C : Address) (S S' : State.TransactionState) : Prop :=
   ∀ n, storageAt S' C n = storageAt S C n
+
+/-- Every message from `C` to `ua` (round 49: the set over which the removed local `Keeps` asked
+its relation, now given to EthLib's `KeepsOn`). -/
+def FromTo (C ua : Address) (_ : Evm fork Nat) (msg : Message fork) : Prop :=
+  msg.caller = C ∧ msg.currentTarget = ua
+
+/-- A call of EthLib's `SentVia` from `message` to `ua` is a message from its current target to
+`ua`: so `KeepsOn … (FromTo message.currentTarget ua)` gives `KeepsOn … (SentVia message S ua)`
+(`KeepsOn.mono`). -/
+theorem fromTo_of_sentVia {message : Message fork} {S : State.TransactionState} {ua : Address}
+    {caller : Evm fork Nat} {msg : Message fork} (h : SentVia message S ua caller msg) :
+    FromTo message.currentTarget ua caller msg := by
+  obtain ⟨-, -, -, -, -, hmc, hmt, -⟩ := h
+  exact ⟨hmc, hmt⟩
 
 /-- The code of one byte, STOP. -/
 def STOP_CODE : ByteArray := ⟨#[0x00]⟩
@@ -95,8 +112,8 @@ theorem stopRunner_ok {ua : Address} {caller : Evm fork Nat} {msg : Message fork
 /-- Every message to `ua` that `stopRunner` ends with no error keeps the storage of every
 account `C`. -/
 theorem stopRunner_keeps (ua C : Address) :
-    Keeps (stopRunner fork bound ua) C ua (SameStore C) := by
-  intro caller msg lt child h _ ht _ n
+    KeepsOn (stopRunner fork bound ua) (FromTo C ua) (SameStore C) := by
+  intro caller msg lt child h ⟨_, ht⟩ _ n
   rw [(stopRunner_ok h ht).2, storageAt_startState]
 
 /-- The runner that ends every message at once with no error, gas 0, the output
@@ -120,8 +137,8 @@ theorem answerRunner_ok {f : Evm fork Nat → Message fork → ByteArray} {calle
 
 /-- Every message that `answerRunner f` ends keeps the storage of every account `C`. -/
 theorem answerRunner_keeps (f : Evm fork Nat → Message fork → ByteArray) (ua C : Address) :
-    Keeps (answerRunner (bound := bound) f) C ua (SameStore C) := by
-  intro caller msg lt child h _ _ _ n
+    KeepsOn (answerRunner (bound := bound) f) (FromTo C ua) (SameStore C) := by
+  intro caller msg lt child h _ _ n
   rw [(answerRunner_ok h).2.1]
 
 /-- The runner that fails on every message with the error `e` (round 26). -/

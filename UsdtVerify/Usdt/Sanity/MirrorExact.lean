@@ -279,9 +279,7 @@ theorem destroyBlackFunds_dep_ok_iff_gas_process_mirror (hparis : .paris ≤ for
       message.currentTarget) (upAddr state message) (balSlot message) =
       storageAt state message.currentTarget (balSlot message) := by
     rw [← hmirror]
-    exact (sameView_recordAccountRead (sameView_recordAccountRead (sameView_recordAccountRead
-      (sameView_readSlot (sameView_readSlot (sameView_readSlot (SameView.refl state) _ _) _ _)
-        _ _) _) _) _).1 _ _
+    exact storageAt_of_readsAs (by reads_as) _ _
   rw [hw] at h
   exact h
 

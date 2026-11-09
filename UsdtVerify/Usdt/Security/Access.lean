@@ -212,11 +212,14 @@ theorem nonOwner_seq {C : Address} {S S' : State.TransactionState}
 def ProtKept (C : Address) (S S' : State.TransactionState) : Prop :=
   ∀ n, Protected n → storageAt S' C n = storageAt S C n
 
-/-- The runner assumption of access control when deprecated: every call from `C` to the upgraded address that the code of `C` makes from `S` (`SentVia`, round 29: the caller state has the view of `S`, the message runs the code the upgraded address holds in `S`; through round 28 every message from `C` to `ua`), and that the
+/-- The runner assumption of access control when deprecated: every call from `C` to the upgraded
+address that the code of `C` makes from `S` (`SentVia`, round 29, EthLib's since round 49: the
+caller state reads as `S`, the message runs the code the upgraded address holds in `S`; through
+round 28 every message from `C` to `ua`), and that the
 runner ends with no error leaves every `Protected` slot of `C` as it was in the caller state. -/
 def KeepsSlots {fork : Fork} {bound : Nat} (runChild : MessageRunner fork Nat bound)
     (message : Message fork) (S : State.TransactionState) : Prop :=
-  KeepsAt runChild message S (upAddr S message) (ProtKept message.currentTarget)
+  KeepsOn runChild (SentVia message S (upAddr S message)) (ProtKept message.currentTarget)
 
 theorem EffectD.protKept {S S' : State.TransactionState} (K : SecSep (callKeys message S))
     (h : EffectD runChild message S S')
@@ -226,7 +229,7 @@ theorem EffectD.protKept {S S' : State.TransactionState} (K : SecSep (callKeys m
     ProtKept message.currentTarget S S' := by
   cases h with
   | loc h => exact fun n hn => h.nonOwnerK K.toSepOn hno n (protected_not_kba K hn)
-  | fwd hdep _ _ _ X hX hf => exact fun n hn => ((hk hdep).fwd hf n hn).trans (hX n)
+  | fwd hdep _ _ _ X hX hf => exact fun n hn => (hf.keeps (hk hdep) n hn).trans (hX n)
   | dfwd _ _ howner => exact absurd howner hno
 
 /-- **Access control, one call, deprecated or not.** As `nonOwner_call` without `hdep`: when

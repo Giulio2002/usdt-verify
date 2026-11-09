@@ -167,11 +167,14 @@ theorem supply_seq {C : Address} {S S' : State.TransactionState}
 def SupplyKept (C : Address) (S S' : State.TransactionState) : Prop :=
   storageAt S' C 1 = storageAt S C 1
 
-/-- The runner assumption of the supply property when deprecated: every call from `C` to the upgraded address that the code of `C` makes from `S` (`SentVia`, round 29: the caller state has the view of `S`, the message runs the code the upgraded address holds in `S`; through round 28 every message from `C` to `ua`), and
+/-- The runner assumption of the supply property when deprecated: every call from `C` to the
+upgraded address that the code of `C` makes from `S` (`SentVia`, round 29, EthLib's since round 49:
+the caller state reads as `S`, the message runs the code the upgraded address holds in `S`; through
+round 28 every message from `C` to `ua`), and
 that the runner ends with no error keeps slot 1 of `C`. -/
 def KeepsSupply {fork : Fork} {bound : Nat} (runChild : MessageRunner fork Nat bound)
     (message : Message fork) (S : State.TransactionState) : Prop :=
-  KeepsAt runChild message S (upAddr S message) (SupplyKept message.currentTarget)
+  KeepsOn runChild (SentVia message S (upAddr S message)) (SupplyKept message.currentTarget)
 
 /-- `SupplyStep`, or the owner's destroyBlackFunds when deprecated: slot 1 becomes `T - d` (a
 256-bit subtraction), `T` slot 1 at the start and `d` some word (the answer of the forwarded
@@ -188,14 +191,14 @@ theorem EffectD.supply {S S' : State.TransactionState} (K : SepOn (callKeys mess
     SupplyStepD message S S' := by
   cases h with
   | loc h => exact .inl (h.supply K)
-  | fwd hdep _ _ _ X hX hf => exact .inl (.inl (((hk hdep).fwd hf).trans (hX 1)))
+  | fwd hdep _ _ _ X hX hf => exact .inl (.inl ((hf.keeps (hk hdep)).trans (hX 1)))
   | dfwd hdep hsel howner _ X Y d hX hf hacc hst =>
     refine .inr ⟨hsel, howner, d, ?_⟩
     rw [hst]
     simp only [DeprecatedDestroy.tailState]
     rw [storageAt_writeSlot_self (hasAccount_writeSlot hacc),
-      storageAt_writeSlot_of_ne hacc (Ne.symm (bal_ne_one K.fixed (addrArg_lt _ _))), (hk hdep).fwd hf,
-      hX]
+      storageAt_writeSlot_of_ne hacc (Ne.symm (bal_ne_one K.fixed (addrArg_lt _ _))),
+      hf.keeps (hk hdep), hX]
 
 /-- **Supply, one call, deprecated or not.** As `supply_call` without `hdep`: when deprecated, the
 runner meets `KeepsSupply` for the calls to the upgraded address (`hkeeps`). If the run ends with

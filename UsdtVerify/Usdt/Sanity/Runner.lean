@@ -11,9 +11,11 @@ The theorems deprecated or not take named assumptions on the message runner when
 This file shows that each of them holds for some runner, so none of them is false for every runner.
 
 - `keeps*_of_same`: a runner whose messages from `C` to the upgraded address keep the storage of
-  `C` (`SameFor`, a `Keeps … (SameStore C)` over every message) meets `KeepsSlots`, `KeepsBal`,
+  `C` (`SameFor`, `KeepsOn … (FromTo C ua) (SameStore C)`, over every message) meets `KeepsSlots`,
+  `KeepsBal`,
   `KeepsListed`, `KeepsAllow`, `KeepsSupply` and `KeepsInvAt` (round 29: the assumptions are
-  about the calls the code makes, `KeepsAt`; `Keeps.at` gives them from the old form).
+  about the calls the code makes, `SentVia`; `KeepsOn.mono` with `fromTo_of_sentVia` gives
+  them from the old form).
 - `stop_keeps_all`: `stopRunner fork bound ua` (Evm/Runners.lean: EthLib's `processRunner` on the
   messages to `ua` whose code is the one byte STOP, with a target, no value and no precompile; any
   other message to `ua` fails) meets all six, for every `C`, at every fork.
@@ -51,25 +53,27 @@ variable {message : Message fork} {S : State.TransactionState}
 /-- A runner whose messages from `C` to the upgraded address keep the storage of `C`. -/
 abbrev SameFor (runChild : MessageRunner fork Nat bound) (message : Message fork)
     (S : State.TransactionState) : Prop :=
-  Keeps runChild message.currentTarget (upAddr S message) (SameStore message.currentTarget)
+  KeepsOn runChild (FromTo message.currentTarget (upAddr S message))
+    (SameStore message.currentTarget)
 
 theorem keepsSlots_of_same (h : SameFor runChild message S) : KeepsSlots runChild message S :=
-  h.at.mono fun _ _ hs n _ => hs n
+  h.mono (fun _ _ => fromTo_of_sentVia) fun _ _ hs n _ => hs n
 
 theorem keepsBal_of_same (h : SameFor runChild message S) : KeepsBal runChild message S :=
-  h.at.mono fun _ _ hs _ _ => hs _
+  h.mono (fun _ _ => fromTo_of_sentVia) fun _ _ hs _ _ => hs _
 
 theorem keepsListed_of_same (h : SameFor runChild message S) : KeepsListed runChild message S :=
-  h.at.mono fun _ _ hs a _ _ => by unfold NoDec; rw [hs]; exact Nat.le_refl _
+  h.mono (fun _ _ => fromTo_of_sentVia) fun _ _ hs a _ _ => by
+    unfold NoDec; rw [hs]; exact Nat.le_refl _
 
 theorem keepsAllow_of_same (h : SameFor runChild message S) : KeepsAllow runChild message S :=
-  h.at.mono fun _ _ hs _ _ => hs _
+  h.mono (fun _ _ => fromTo_of_sentVia) fun _ _ hs _ _ => hs _
 
 theorem keepsSupply_of_same (h : SameFor runChild message S) : KeepsSupply runChild message S :=
-  h.at.mono fun _ _ hs => hs 1
+  h.mono (fun _ _ => fromTo_of_sentVia) fun _ _ hs => hs 1
 
 theorem keepsInv_of_same (h : SameFor runChild message S) : KeepsInvAt runChild message S :=
-  h.at.mono fun _ _ hs hI => (DepInv.inv_congr hs).2 hI
+  h.mono (fun _ _ => fromTo_of_sentVia) fun _ _ hs hI => (DepInv.inv_congr hs).2 hI
 
 end Same
 

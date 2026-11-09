@@ -3,6 +3,8 @@ import EthLib.Execution.Proofs.Evm.Logic.Callee
 import UsdtVerify.Evm.At
 import EthLib.Execution.Proofs.Evm.Logic.FailsOn
 import EthLib.Execution.Proofs.Evm.Logic.Route
+import EthLib.Execution.Proofs.Evm.Logic.Keeps
+import UsdtVerify.Evm.Storage
 
 /-!
 # The route of a CALL to the upgraded address
@@ -325,3 +327,81 @@ theorem callWithR (hfork : .berlin ≤ fork)
   (callWithRS hfork hlt hbyte hcode hroute hdepth hcold hgas).toUnder
 
 end UsdtVerify.Complete
+
+/-! ## The calls the code makes, in EthLib's terms (round 49)
+
+Round 49: the runner assumptions of the deprecated theorems quantify over EthLib's `SentVia`
+(Logic/Keeps.lean, #1613): the caller state reads as the start state (`ReadsAs`: the same
+accounts, storage and transient storage at every address, and the same code at every code hash).
+The local `SentVia` of rounds 29 to 48 (Evm/Keeps.lean, removed) asked only the same storage and
+code (`SameView`), so EthLib's set of calls is smaller and the assumptions over it are weaker.
+
+- `sentVia_of_sendsVia`: the message of a deprecated path (`SendsVia`), from a caller state that
+  reads as `S`, is in EthLib's `SentVia`. `sendsVia_of_sentVia`: the converse.
+- `storageAt_of_readsAs`: a state that reads as `S` has the storage of `S`.
+- `FwdAt`: one call of `SentVia`, ended with no error, from `X` to `Y`; `FwdAt.keeps`: EthLib's
+  `KeepsOn` over `SentVia` gives its relation.
+- `reads_as`: proves `ReadsAs X S` when `X` is `S` with reads recorded and a route followed.
+-/
+
+namespace UsdtVerify
+
+open EthLib.Base (Fork U256 Address)
+open EthLib.Execution
+open EthLib.Execution.Evm
+open Logic (Route Routes ReadsAs SentVia KeepsOn)
+open Complete (SendsVia)
+
+variable {fork : Fork} {Meter : Type}
+
+/-- The message of a deprecated path, sent from a caller state that reads as `S`, is a call of
+EthLib's `SentVia`. -/
+theorem sentVia_of_sendsVia {message msg : Message fork} {S : State.TransactionState}
+    {ua : Address} {c : ByteArray} {r : Route} {d : ByteArray} {caller : Evm fork Meter}
+    (hcode : S.getCode (S.getAccount ua).codeHash = .ok c) (hroute : Routes fork S c r)
+    (h : SendsVia message ua c r d msg) (hv : ReadsAs caller.state S) :
+    SentVia message S ua caller msg := by
+  obtain ⟨h1, h2, h3, h4, h5, h6, -, h8, h9, h10, h11, h12, h13⟩ := h
+  exact ⟨c, r, hcode, hroute, hv, h1, h2, h3, h4, h5, h6, h8, h13, h9, h10, h11, h12⟩
+
+/-- A call of EthLib's `SentVia` is the message of a deprecated path (`SendsVia`, with its own
+data), from a caller state that reads as `S`. -/
+theorem sendsVia_of_sentVia {message msg : Message fork} {S : State.TransactionState}
+    {ua : Address} {caller : Evm fork Meter} (h : SentVia message S ua caller msg) :
+    ∃ c r, S.getCode (S.getAccount ua).codeHash = .ok c ∧ Routes fork S c r ∧
+      SendsVia message ua c r msg.data msg ∧ ReadsAs caller.state S := by
+  obtain ⟨c, r, hcode, hroute, hv, h1, h2, h3, h4, h5, h6, h8, h13, h9, h10, h11, h12⟩ := h
+  exact ⟨c, r, hcode, hroute, ⟨h1, h2, h3, h4, h5, h6, rfl, h8, h9, h10, h11, h12, h13⟩, hv⟩
+
+/-- A state that reads as `S` has the storage of `S` at every address. -/
+theorem storageAt_of_readsAs {X S : State.TransactionState} (h : ReadsAs X S) (a : Address)
+    (n : U256) : storageAt X a n = storageAt S a n :=
+  (h.1 a List.not_mem_nil).2.1 _
+
+/-- One call that the code of `C` makes from `S` to `ua` (EthLib's `SentVia`), ended with no
+error, from `X` to `Y`. -/
+def FwdAt {bound : Nat} (runChild : MessageRunner fork Nat bound) (message : Message fork)
+    (S : State.TransactionState) (ua : Address) (X Y : State.TransactionState) : Prop :=
+  ∃ caller msg lt child, SentVia message S ua caller msg ∧
+    runChild caller msg lt = .ok child ∧ child.1.error = none ∧ caller.state = X ∧
+    child.1.state = Y
+
+/-- EthLib's `KeepsOn` over the calls of `SentVia` gives its relation for each such call. -/
+theorem FwdAt.keeps {bound : Nat} {runChild : MessageRunner fork Nat bound}
+    {message : Message fork} {S : State.TransactionState} {ua : Address}
+    {R : State.TransactionState → State.TransactionState → Prop} {X Y : State.TransactionState}
+    (hk : KeepsOn runChild (SentVia message S ua) R) (h : FwdAt runChild message S ua X Y) :
+    R X Y := by
+  obtain ⟨caller, msg, lt, child, hs, hch, he, rfl, rfl⟩ := h
+  exact hk caller msg lt child hch hs he
+
+/-- Proves `ReadsAs X S` when `X` is `S` with account and storage reads recorded and routes
+followed. -/
+macro "reads_as" : tactic =>
+  `(tactic| repeat (first
+    | with_reducible exact Logic.ReadsAs.refl _
+    | with_reducible apply Logic.ReadsAs.recordAccountRead
+    | with_reducible apply Logic.ReadsAs.recordStorageRead
+    | with_reducible apply Logic.ReadsAs.routeState))
+
+end UsdtVerify

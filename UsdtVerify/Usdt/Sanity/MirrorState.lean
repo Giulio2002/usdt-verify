@@ -64,7 +64,8 @@ theorem keepsInvAt_process_mirror (hparis : .paris ≤ fork) {bound : Nat}
     (hcode : S.getCode (S.getAccount (upAddr S message)).codeHash = .ok MIRROR)
     (hnp : Precompiles.isPrecompile fork (upAddr S message).toU256.toNat = false) :
     KeepsInvAt (processRunner fork bound) message S := by
-  intro caller msg lt child ⟨c, r, hc, hroute, hsv, _⟩ hch he hI
+  intro caller msg lt child hch hs he hI
+  obtain ⟨c, r, hc, hroute, hsv, _⟩ := sendsVia_of_sentVia hs
   rw [hcode] at hc
   cases hc
   obtain rfl := route_mirror hroute

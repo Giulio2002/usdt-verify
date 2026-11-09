@@ -10,6 +10,9 @@ copies of `addGas` (was `Gas.sh`), `Fails`, `Follows` (was `Gas.Rel`), `RunMono`
 (was `Gas.RelS`), every `runMono_*` fact, `NoAbort` and its facts, `NoAbortLow`, the SSTORE stuck
 facts, and `Route`, `Routes` and the route functions. The local `StepG`, `HoareG`, `SpecG`,
 `Stuck`, `StepGA` and the rules over the local `At` stay (round 48 below says why).
+Round 49, same pin: EthLib's `ReadsAs`, `SentVia` and `KeepsOn` (#1613) replace Evm/Keeps.lean
+(removed). The runner assumptions of the deprecated theorems are weaker, so those theorems are
+stronger (round 49 below).
 Previous pin: 0c34dc001 (master after #1608; includes #1597, #1599 and #1605; commit
 0c34dc0010f6ff1b3d5f1c7614af10faa85fb685, round 47). Re-pinned in round 47: EthLib's `At` names
 the return data of a frame (#1351), so `At` in this repository is now the local predicate of Evm/At.lean, with the same twelve
@@ -2245,11 +2248,128 @@ Evm/Stuck.lean 321 to 240, Evm/Gas.lean 454 to 426).
   and code (`SameView`). The runner assumptions of the deprecated theorems (`KeepsAt`, `FwdAt`,
   `HonestBalanceAt`, `KeepsInvAt`, ...) are stated with the local `SentVia`, so they stay. With
   EthLib's `SentVia` they would quantify over fewer calls, and the theorems would be stronger. That
-  change touches about twenty files and is left open.
+  change touches about twenty files and is left open. (Done in round 49.)
   `accCost`, `extCost`, `SendsVia`, `CallFrom`, `atCallState`, `atCallSub`, `callWithRS` and
   `callWithR` (Evm/Route.lean) are about the deprecated paths of this contract and stay. The
   CALL steps over `StateGasMeter` (Evm/CallMeter.lean, Evm/CallSim.lean) stay, since EthLib's
   `callStep_child_of_routes` is for the meter `Nat` only.
+
+### Round 49: EthLib's `KeepsOn`, `ReadsAs` and `SentVia` replace Evm/Keeps.lean (same pin bc16ee428)
+
+Built and checked (final tree): clean rebuild of f66e08b in a fresh clone (empty build
+directory, safe.sh 9G, LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`), exit 0,
+1468 jobs, 0 "error:" lines, 153.18 s wall, 406.88 s user; hash check 11075 bytes, keccak256
+b44fb4e9...ea55; `#print axioms` on the 1346 entries of UsdtVerify/Test/Axioms.lean gives
+[propext, Classical.choice, Quot.sound] or a subset (1291 the three, 35 [propext, Quot.sound],
+8 [propext], 9 none), with no `sorryAx`, `ofReduceBool` or `trustCompiler`; no `sorry`, `admit`,
+`axiom`, `native_decide`, `bv_decide` or `decide +native` in UsdtVerify/ (grep exit 1). The first
+tree of the round (356c002, the switch alone) also rebuilt clean: exit 0, 1468 jobs, 1326 axiom
+entries, the same kinds.
+Lines of Lean in UsdtVerify/: 68,074 after round 48, 68,035 after the switch (Evm/Keeps.lean 145
+removed, Evm/Route.lean 327 to 407), 68,565 after the one-step theorems below.
+
+- The change. The local Evm/Keeps.lean is removed. The runner assumptions of the deprecated
+  theorems quantify over EthLib's `SentVia` (Logic/Keeps.lean, #1613) with EthLib's `KeepsOn`.
+  `KeepsAt runChild message S ua R` is now written `KeepsOn runChild (SentVia message S ua) R`
+  (the same quantifier with the hypotheses `runChild … = .ok child` and `SentVia …` in the other
+  order). `Keeps runChild C ua R` (over every message from `C` to `ua`) is now
+  `KeepsOn runChild (FromTo C ua) R`, the same statement up to that order.
+- Why it is stronger. EthLib's `SentVia` has the twelve message conditions of the local one (the
+  local `SendsVia` with the data free) and asks `ReadsAs caller.state S` where the local one asked
+  `SameView caller.state S`. `ReadsAs` is `SameOutside [] S caller.state` (the same optional
+  account, storage and transient storage at every address) and the same code at every code hash.
+  It gives the same storage (`storageAt_of_readsAs`) and, through the same accounts and code
+  table, the same code at every address, so it implies `SameView`. The converse fails (a caller
+  state with another balance, nonce or transient storage has the view of `S`). So EthLib's set of
+  calls is contained in the old one.
+- Statements, by the position of `SentVia`.
+  Hypotheses (a universal over `SentVia`): `KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`,
+  `KeepsSupply`, `KeepsInvAt`, `HonestBalanceAt`, `KeepsInvAtC`, `HonestBalanceAtC`, `KeepsInvAtS`,
+  `HonestBalanceAtS`, `KeepsInvAtSR`, `HonestBalanceAtSR`, `KeepsAtS`, `KeepsAtSR`, and the
+  assumption of `RunOkR` and of the `SeqR` steps. Each is implied by its old form, so every
+  theorem that takes them only as hypotheses (`inv_call_ns`, `inv_call_all`, `inv_dep_destroy`,
+  the security `*_call_all`, `*_seq_all`, `*_allS`, `*_allSR` and the invariant forms over
+  `StateGasMeter`) is at least as strong as before. The `process_step` forms also repeat them in
+  their conclusion and are incomparable, and the one-step theorems below replace them as end
+  results.
+  Conclusions (an existential over `SentVia`): `LocalForward`, `LocalForwardC`, `FwdAt`, `FwdAtS`,
+  `FwdAtSR`, so `EffectD` and the `EffectDF` of `effect_allS` and `effect_allSR`, and the
+  conclusions of `dep_*_local`, `dep_destroy_local`, `inv_dep_destroy_iff` and their `C` forms.
+  Each implies its old form, so these theorems are at least as strong as before.
+  Bridges and non-vacuity instances (a universal over `SentVia` in the conclusion): `keepsInv_at`,
+  `honest_at`, `keepsInvAt_of_acc`, `keeps*_of_same`, `stop_keeps_all`, `bal_keeps_all`,
+  `processRunner_stop_keepsAt`, `processRunner_stop_keepsAll`, `keepsInvAt_process_stop`,
+  `keepsInvAt_process_mirror`, `honestBalanceAt_process_mirror`, `keepsInvAtS_process_stop`,
+  `keepsAtS_process_stop`, `honestBalanceAtS_process_mirror`, their `SR` forms and
+  `process_step_dep_hyps`, `process_step_dep_hyps2`. Each is implied by its old form, and states
+  exactly the new hypotheses, so the instances still show that the assumptions can hold. The
+  STOP and `MIRROR` instances under `processRunner` are re-proved: they read the message
+  conditions through `sendsVia_of_sentVia` and the storage of the caller state through
+  `storageAt_of_readsAs`.
+- One-step theorems (f66e08b, after the first review below). The certificate lemmas
+  (`goodCall_process`, `process_step`, `process_stepDS`, `process_stepDS_start`, `process_stepSD`,
+  `process_stepSD_start`, `process_stepDR`, `process_stepSDR`, `Security.runOkRS_process`,
+  `Security.runOkRSR_process`, `Security.process_stepSecD`, `Security.process_stepSecDR`) keep
+  their statements. Each turns one top-level message under `processRunner` into a certificate
+  (`GoodCall`, `GoodCallDS`, `GoodCallDR`, `RunOkRS`, `RunOkRSR`) whose runner conjunct is the
+  runner hypothesis itself. Both got weaker, so each such lemma's own statement is incomparable
+  with its round 48 statement. Its conclusion cannot imply the old one without the old `SentVia`.
+  New theorems go from the same hypotheses straight to the end property, with no certificate in
+  between: `Complete.process_step_inv`, `process_stepDS_inv`, `process_stepSD_inv`,
+  `process_stepDS_start_inv`, `process_stepSD_start_inv`, `process_stepDR_inv`,
+  `process_stepSDR_inv` (from `Inv` at the start to `Inv` at the end; `process_step_inv` also
+  covers `goodCall_process`, with no hypothesis on the value and none that the run succeeds), and
+  `Security.nonOwner_processS`, `paused_processS`, `listed_processS`, `allowKept_processS`,
+  `supply_processS` and their `SR` forms (each security property from the start to the end of
+  the message, through `seqRS_process` and `seqRSR_process`, a sequence of one step). They take
+  the round 49 runner hypotheses, which the round 48 ones imply, and conclude what the round 48
+  certificate lemma followed by its consumer concluded. So each end result about one top-level
+  message is at least as strong as before.
+- `keepsInvAt_of_acc_hasAccount` (new): when the start state has an account of `C`, `KeepsInvAcc`
+  alone gives `KeepsInvAt`. EthLib's `SentVia` gives the caller state the accounts of the start
+  state, so the case of `KeepsInvNoAcc` does not arise there.
+- Removed (docs/LAYOUT.md has the table): `Forwarded`, `Keeps`, `Keeps.fwd`, `Keeps.mono`,
+  `SameView`, `SameView.refl`, `sameView_recordAccountRead`, `sameView_readSlot`, `sameView_route`,
+  `SentVia`, `sendsVia_data`, `KeepsAt`, `KeepsAt.fwd`, `KeepsAt.mono`, `Keeps.at`.
+  New: `sentVia_of_sendsVia`, `sendsVia_of_sentVia`, `storageAt_of_readsAs`, `FwdAt.keeps`, the
+  tactic `reads_as` (Evm/Route.lean, with `FwdAt` moved there over EthLib's `SentVia`), `FromTo`,
+  `fromTo_of_sentVia` (Evm/Runners.lean). `NoDec.congr_left` moved to Evm/Frame.lean.
+- Second independent read-only review (a fresh reviewer, of f66e08b): PASS, no finding to fix. It
+  dumped every constant of `UsdtVerify` at 4930260 and f66e08b (3284 before, 3296 after, 3269
+  shared, 3234 identical by text and expression hash, 35 differing, 15 removed, 27 added). After
+  unfolding, 140 shared theorems reach a changed definition: 3 equivalent, 69 stronger (every
+  `inv_call_*`, `inv_calls*`, `inv_goodCall*`, `inv_dep_destroy*`, `*_call_all*`, `*_seq_all*`,
+  `effect_all*`, `dep_*_local*`), 28 weaker (bridges, `localForward_noAcc` and 24 Sanity
+  witnesses), 40 incomparable (the certificate lemmas and intermediate lemmas whose headline
+  consumers are stronger). No headline result is weaker. In Lean, with the old definitions
+  restated, it proved that EthLib's `SentVia` implies the old one and not conversely, that each
+  old runner hypothesis implies its new form, and that each old end result (a round 48
+  certificate lemma followed by its consumer, for `Inv` and for the five security properties, Nat
+  and both meter forms, and `goodCall_process`) follows from the new one-step theorem. All axioms
+  of the 12678 constants under `UsdtVerify` are within the standard three. EthLib is unchanged.
+- First independent read-only review (of 356c002): FAIL under the strict criterion, one finding,
+  fixed in f66e08b (the one-step theorems above). It dumped every constant of `UsdtVerify` at 4930260 (sources equal to c981dcc) and at
+  356c002: 3284 before, 3276 after, 3269 shared, 3234 identical (text and expression hash), 35
+  differing, 15 removed, 7 added. It unfolded every definition and checked that each occurrence
+  of `SentVia` keeps its polarity, and proved in Lean that EthLib's `SentVia` implies the old one
+  (not conversely, a caller with another nonce is a counterexample), that old `KeepsAt` implies
+  the new `KeepsOn`, that old `Keeps` is equivalent to `KeepsOn (FromTo C ua)` and that the new
+  `FwdAt` implies the old one. Stronger or equivalent: every `*_call_all`, `*_seq_all`, `_allS`,
+  `_allSR` form, `effect_all` and its meter forms, every `inv_call_*`, `inv_calls*`,
+  `inv_goodCall*`, `dep_*_local`, `inv_dep_destroy*`. Every removed constant is accounted for.
+  EthLib is unchanged, and no banned construct appears.
+  The finding: `process_step`, `process_stepDS`, `process_stepDS_start`, `process_stepSD`,
+  `process_stepSD_start`, `process_stepDR`, `process_stepSDR`, `Security.process_stepSecD`,
+  `process_stepSecDR` (and `goodCall_process`, `runOkRS_process`, `runOkRSR_process`) are
+  incomparable with their old statements. Their hypotheses on `processRunner` are weaker, but
+  their conclusion (`GoodCall`, `RunOkRS`, ...) repeats those hypotheses as a conjunct for the
+  runner of the step, so the conclusion is weaker too. Each of these theorems states, before and
+  after, that a step under `processRunner` is a certificate whose runner conjunct is exactly the
+  hypothesis. The theorems that consume the certificates (`inv_calls*`, `inv_goodCall*`, the
+  `_seq_all` forms) are stronger. The fix states the composed one-step theorems. Intermediate lemmas with both a
+  weaker hypothesis and a stronger or weaker conclusion (`RunOkR.effect`, `fwdS_of`, `fwdSR_of`,
+  `sentVia_reservoir`, `inv_of_local`, the `EffectD.*` and `*.toR` conversions, ...) are
+  incomparable and are used only inside the theorems above.
 
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
@@ -2467,6 +2587,14 @@ Evm/Stuck.lean 321 to 240, Evm/Gas.lean 454 to 426).
    Evm/Route.lean while their upstreaming is in flight.)
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+Round 49 (final): clean project build of the tree of commit f66e08b (a fresh clone, empty build
+directory, safe.sh 9G, LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`) 153.18 s
+wall, 406.88 s user, 1784840192 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines,
+1468 jobs.
+Round 49 (the switch alone): clean project build of the tree of commit 356c002 (a fresh clone, empty build
+directory, safe.sh 9G, LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`) 154.08 s
+wall, 408.58 s user, 1827454976 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines,
+1468 jobs.
 Round 48: clean project build of the tree of commit 4930260 (a fresh clone, empty build
 directory, safe.sh 9G, LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`) 174.83 s
 wall, 468.17 s user, 1832681472 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines,

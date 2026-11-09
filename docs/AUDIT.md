@@ -1173,3 +1173,33 @@ were sent to the main session.
 **Resolution (round 41).** No change needed. The statements U5 lists are unchanged, except that
 the U1 forms now take any starting meter and the U3 runner assumptions ask reservoir 0 of the
 caller and the message.
+
+**Resolution note (round 49).** Finding 2 (round 29), T4 (third audit) and U3 (fourth audit)
+are about the set `SentVia` of the runner assumptions. Since round 49 that set is EthLib's
+`Logic.SentVia` (#1613), and Evm/Keeps.lean is removed. The caller state now reads as the start
+state (`ReadsAs`: the same account, storage and transient storage at every address, and the same
+code at every code hash) where it had only the same storage and code (`SameView`). The message
+conditions are unchanged. The set is smaller, so each runner assumption is implied by its old
+form, and each theorem that takes one is at least as strong as before. The conclusions that
+exhibit a call of the set (`LocalForward`, `FwdAt`, `EffectD`, `EffectDF`) say more. The
+non-vacuity instances under `processRunner` (STOP, `MIRROR`, every reservoir over
+`StateGasMeter`) are proved for the new set. On T4: the caller state now has the accounts of the
+start state, so the case `KeepsInvNoAcc` covers arises only when the start state has no account
+of `C` (`keepsInvAt_of_acc_hasAccount`). U3 is unchanged: the `S` and `SR` forms still ask reservoir 0 of
+the caller and the given reservoir of the message.
+
+**Review note (round 49).** The independent review of round 49 found one point. The theorems that
+turn a step under `processRunner` into a certificate (`goodCall_process`, `process_step` and its
+meter and security forms `process_stepDS`, `process_stepSD`, `process_stepDR`, `process_stepSDR`,
+`process_stepSecD`, `process_stepSecDR`, `runOkRS_process`, `runOkRSR_process`) are incomparable
+with their round 48 statements: the certificate carries the runner hypothesis as a conjunct, and
+both got weaker. The consumers of the certificates got stronger, so every composed result is at
+least as strong. Fixed in f66e08b: the one-step theorems `Complete.process_step_inv` (and its
+`DS`, `SD`, `DR`, `SDR`, `_start` forms) and `Security.*_processS`, `*_processSR` go from the
+round 49 hypotheses on `processRunner` straight to `Inv` or to each security property, and are at
+least as strong as the round 48 certificate lemma followed by its consumer. The certificate
+lemmas keep their statements, which stay incomparable. T4: `keepsInvAt_of_acc_hasAccount` gives
+`KeepsInvAt` from `KeepsInvAcc` alone when the start state has an account of `C`.
+A second, fresh independent review of f66e08b: PASS. No headline result is weaker than at round
+48, and each old end result about one top-level message was re-derived in Lean from the new
+one-step theorems.

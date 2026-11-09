@@ -797,7 +797,8 @@ contract is deprecated, also assume (through round 19 also an account for the co
 How these changed (round 29, docs/AUDIT.md finding 2). Through round 28 they were `KeepsInv` and
 `HonestBalance`, which quantify over every caller frame and every message from `C` to `ua`,
 including the message's code; EthLib's runner `processRunner` runs that code, so it met them for
-no `ua`. `SentVia message state ua caller msg` (Evm/Keeps.lean) now restricts them to the calls
+no `ua`. `SentVia message state ua caller msg` (Evm/Keeps.lean through round 48, EthLib's
+`Logic.SentVia` since round 49, see below) now restricts them to the calls
 the code actually makes: the caller state has the storage and the code of `state` at every
 address (`SameView`; the code only records reads before its CALL), and `msg` is the message of
 `SendsVia`: from `C` to `ua`, with the code that `ua` holds in `state` (along its EIP-7702 route),
@@ -805,7 +806,31 @@ no value, the depth and static flag of the call to `C`; its data and gas are any
 theorems give these facts for every forwarding CALL (`dep_*_local`). The old forms imply the new
 ones (`keepsInv_at`, `honest_at`, `Keeps.at`). Round 33: `KeepsInvAcc` gives `KeepsInvAt` only
 together with `KeepsInvNoAcc` (`keepsInvAt_of_acc`), since `SameView` allows a caller state where
-`C` has no account. No theorem gives `KeepsInvAt` from `KeepsInvAcc` alone. EthLib's `processRunner` meets `KeepsInvAt` (and
+`C` has no account. No theorem gives `KeepsInvAt` from `KeepsInvAcc` alone.
+
+Round 49: `SentVia` is EthLib's (`Logic.SentVia`, #1613). The caller state reads as `state`
+(`ReadsAs`: the same account, storage and transient storage at every address, and the same code
+at every code hash), where through round 48 it had only the storage and the code of `state`
+(`SameView`). The message conditions are the same. So EthLib's set of calls is contained in the
+old one, and every runner assumption that quantifies over it (`KeepsInvAt`, `HonestBalanceAt`,
+the five `Keeps*` below, and the `C`, `S` and `SR` forms over `RunC` and `StateGasMeter`) is
+implied by its old form. Every theorem that takes them only as hypotheses is at least as strong
+as before. The `process_step` forms, `goodCall_process` and `runOkRS(R)_process` are
+certificate-producing lemmas: they repeat the runner hypotheses in their conclusion (`GoodCall`,
+`RunOkRS`, ...), so each one's own statement is incomparable with its old one. The end results
+about one top-level message are now stated directly: `Complete.process_step_inv` and its `DS`,
+`SD`, `DR`, `SDR` and `_start` forms (`Inv` at the end), and `Security.nonOwner_processS`,
+`paused_processS`, `listed_processS`, `allowKept_processS`, `supply_processS` and their `SR` forms
+(each security property). Their hypotheses are implied by the old ones, and they conclude what the
+old certificate lemma followed by its consumer concluded, so each is at least as strong as before.
+`Complete.keepsInvAt_of_acc_hasAccount`: when `state` has an account of `C`, `KeepsInvAcc` alone
+gives `KeepsInvAt`. An independent review (round 49, PASS) checked these directions mechanically. The
+conclusions that name a call of `SentVia` (`LocalForward`, `FwdAt`, `EffectD`, `EffectDF`,
+`dep_destroy_local`, `inv_dep_destroy_iff`) now say more. The non-vacuity instances
+(`processRunner` with STOP or `MIRROR`) are proved for the new form. Through round 48 the caller
+state could lack the accounts of `state`, which is why `KeepsInvNoAcc` was needed. With
+`ReadsAs` it has them, so `keepsInvAt_of_acc_hasAccount` needs only `KeepsInvAcc` when `state`
+has an account of `C`. EthLib's `processRunner` meets `KeepsInvAt` (and
 the five `Keeps*` of the security theorems) from Paris when `ua` holds the one byte STOP and is no
 precompile (`Sanity.processRunner_stop_keepsAll`, `Sanity.keepsInvAt_process_stop`).
 Round 30: `processRunner` meets `HonestBalanceAt` from Paris when `ua` holds `MIRROR` (a 25-byte
@@ -1009,8 +1034,9 @@ The effect of a run (Effect.lean):
   `tailState Y C a d`: `balances[a] := 0`, then slot 1 `:=` (slot 1 in that state) `- d`, for some
   word `d`; the proof uses the word the call returned, the statement does not record it).
 
-The runner assumptions (Evm/Keeps.lean, and one definition per property). Since round 29
-`KeepsAt runChild message S ua R`: every call that the code of `C` makes from `S` to `ua`
+The runner assumptions (one definition per property, over EthLib's `KeepsOn` and `SentVia` since
+round 49, Evm/Keeps.lean before). Since round 29 `KeepsAt runChild message S ua R` (since round 49
+EthLib's `KeepsOn runChild (SentVia message S ua) R`, see round 49 above): every call that the code of `C` makes from `S` to `ua`
 (`SentVia`, as for `KeepsInvAt` above) that the runner ends with no error goes from its caller
 state `X` to its child's end state `Y` with `R X Y`. It covers whatever the callee does (reentrant
 calls into `C` included). Each single-call theorem below takes it as `hkeeps : byte20 (slot 10) ≠ 0 →
@@ -1127,7 +1153,8 @@ Runner assumptions (`Sanity/Runner.lean`, `Evm/Runners.lean`):
 - `balRunner` is not the run of any code.
 - `Sanity/Process.lean` (round 29): `processRunner_stop_keepsAt`: from Paris, when the upgraded
   address of `message` in `S` holds `STOP_CODE` (the one byte STOP) and is no precompile, EthLib's
-  `processRunner` at any bound meets `KeepsAt … R` for every reflexive `R` (each call the code
+  `processRunner` at any bound meets `KeepsAt … R` (round 49: `KeepsOn … (SentVia …) R`) for
+  every reflexive `R` (each call the code
   makes ends with no error in its caller state, `process_stop`). So it meets all six `At` forms
   (`processRunner_stop_keepsAll`), and `KeepsInvAt (processRunner fork message.gas) message S`,
   the deprecated-case hypothesis of `goodCall_process` and `process_step`

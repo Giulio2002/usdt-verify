@@ -227,4 +227,34 @@ theorem process_step {fork : Fork} (hparis : .paris ≤ fork)
         hhonest hproc herr)
   · exact .inr (untouched_process_failed hproc herr _)
 
+
+/-- **One step, to `Inv`, round 49.** Under the hypotheses of `process_step` and `Inv` at the start,
+`Inv` holds at the end of the message, with no certificate in between. Its runner hypotheses are
+those of round 49 (EthLib's `SentVia`), so it is at least as strong as `process_step` followed by
+the consumer of its certificate at round 48. -/
+theorem process_step_inv {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hstat : message.isStatic = true → StaticCode state message)
+    (hsize : message.data.size < 2 ^ 256) (K : SepOn (callKeys message state))
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsInvAt (processRunner fork message.gas) message state)
+    (hhonest : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      selector message.data = 0xf3bdc228 →
+        HonestBalanceAt (processRunner fork message.gas) message state)
+    {ended : { evm : Evm fork Nat // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate = .ok ended)
+    (hI : Inv message.currentTarget state) : Inv message.currentTarget ended.val.state := by
+  rcases process_step hparis hmc noPrecompile hstat hsize K h7 h8 hkeeps hhonest hproc
+      with h | h <;>
+    first
+    | exact inv_goodCall h hI
+    | exact inv_goodCallS h hI
+    | exact inv_goodCallDS h hI
+    | exact inv_goodCallDR h hI
+    | exact (DepInv.inv_congr h).mpr hI
+
 end UsdtVerify.Complete

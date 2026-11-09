@@ -85,4 +85,9 @@ theorem NoDec.wr_add {k m w d : U256} (h : NoDec C k S S') (hacc : hasAccount S'
     NoDec C k S (writeSlot S' C m (add w d)) := by
   subst hw; exact h.trans (NoDec.write_add hacc hov)
 
+/-- `NoDec` depends on the storage of `C` only (round 49: moved from the removed Evm/Keeps.lean). -/
+theorem NoDec.congr_left {k : U256} {X : State.TransactionState}
+    (hX : ∀ n, storageAt X C n = storageAt S C n) (h : NoDec C k X S') : NoDec C k S S' := by
+  unfold NoDec at *; rw [← hX k]; exact h
+
 end UsdtVerify

@@ -9,7 +9,7 @@ The `_call_all` theorems of Usdt/Security/ (deprecated or not) for a run of the 
 reservoir is 0 when `C` is deprecated (no hypothesis on the reservoir otherwise).
 
 - `FwdAtS runS message S ua X Y`: `FwdAt` for a runner over `StateGasMeter` (`SentVia` of the
-  `toNat` caller). `KeepsAtS runS message S ua R`: `KeepsAt` for such a runner;
+  `toNat` caller). `KeepsAtS runS message S ua R`: `KeepsOn … (SentVia …)` for such a runner;
   `KeepsAtS.fwd`. Since round 41 both are about calls from a caller and with a message of
   reservoir 0, as the CALL from reservoir 0 sends them (`callStep_child_res0`).
 - `EffectDF F message S S'`: `EffectD` with the forwarded call given by a relation `F` on the
@@ -52,7 +52,8 @@ def FwdAtS (runS : MessageRunner fork StateGasMeter bound) (message : Message fo
     caller.gas.reservoir = 0 ∧ msg.reservoir = 0 ∧
     runS caller msg lt = .ok child ∧ child.1.error = none ∧ caller.state = X ∧ child.1.state = Y
 
-/-- `KeepsAt` for a message runner over `StateGasMeter`, for the calls from a caller and with a
+/-- `KeepsOn … (SentVia …)` for a message runner over `StateGasMeter`, for the calls from a caller
+and with a
 message of reservoir 0, as the CALL from reservoir 0 sends them. -/
 def KeepsAtS (runS : MessageRunner fork StateGasMeter bound) (message : Message fork)
     (S : State.TransactionState) (ua : Address)
@@ -103,14 +104,14 @@ theorem fwdS_of {ua : Address} {c : ByteArray} {r : Route} {d : ByteArray}
     {child : { child : Evm fork StateGasMeter // GasMeter.gasHeld child.gas ≤ msg.gas }}
     {S' : State.TransactionState}
     (hcode : state.getCode (state.getAccount ua).codeHash = .ok c) (hroute : Routes fork state c r)
-    (hfwd : SendsVia message ua c r d msg) (hv : SameView caller.state state)
+    (hfwd : SendsVia message ua c r d msg) (hv : ReadsAs caller.state state)
     (hcr : caller.gas.reservoir = 0) (hmr : msg.reservoir = 0)
     (hch : runS caller msg lt = .ok child) (he : child.1.error = none)
     (hst : S' = (incorporateChild fork caller child.1).state) :
     ∃ X, (∀ n, storageAt X message.currentTarget n = storageAt state message.currentTarget n) ∧
       FwdAtS runS message state ua X S' :=
-  ⟨caller.state, fun n => hv.1 _ n, caller, msg, lt, child,
-    ⟨c, r, hcode, hroute, sendsVia_data hfwd, hv⟩, hcr, hmr, hch, he, rfl,
+  ⟨caller.state, fun n => storageAt_of_readsAs hv _ n, caller, msg, lt, child,
+    sentVia_of_sendsVia hcode hroute hfwd hv, hcr, hmr, hch, he, rfl,
     by rw [hst, state_incorporateChildS]⟩
 
 /-- **The effect of every successful call over the EIP-8037 meter, deprecated or not.** From
@@ -140,61 +141,51 @@ theorem effect_allS (hfork : .berlin ≤ fork)
   · obtain ⟨c, r, hcode, hroute, -, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, hfwd, -, hcs, -, -,
       -, hst, -⟩ := dep_approve_completeS hfork hsize' h hdep rfl rfl start hr hrun hok
     obtain ⟨X, hX, hF⟩ := fwdS_of hcode hroute hfwd (by
-      rw [hcs]; exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _) hcr hmr hch he hst
+      rw [hcs]; reads_as) hcr hmr hch he hst
     exact .fwd hdep (.inl h) (fun e => absurd e (ne h (by decide)))
       (fun e => absurd e (ne h (by decide))) X hX hF
   · obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, hfwd, -, hcs, -, -,
       -, hst, -⟩ := dep_totalSupply_completeS hfork hsize' h hdep start hr hrun hok
     obtain ⟨X, hX, hF⟩ := fwdS_of hcode hroute hfwd (by
-      rw [hcs]; exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _) hcr hmr hch he hst
+      rw [hcs]; reads_as) hcr hmr hch he hst
     exact .fwd hdep (.inr (.inl h)) (fun e => absurd e (ne h (by decide)))
       (fun e => absurd e (ne h (by decide))) X hX hF
   · obtain ⟨c, r, hcode, hroute, hpause, hblack, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, hfwd, -,
       hcs, -, -, -, hst, -⟩ :=
       dep_transferFrom_completeS hfork hsize' h hdep rfl rfl rfl rfl start hr hrun hok
     obtain ⟨X, hX, hF⟩ := fwdS_of hcode hroute hfwd (by
-      rw [hcs]; exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [DeprecatedTransferFrom.callStateF,
-        TransferFrom.checkState, storageAt_readSlot], fun a => rfl⟩ _) r) _) hcr hmr hch he hst
+      rw [hcs]; reads_as) hcr hmr hch he hst
     exact .fwd hdep (.inr (.inr (.inl h))) (fun e => absurd e (ne h (by decide)))
       (fun _ => ⟨hpause, hblack⟩) X hX hF
   · obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, hfwd, -, hcs, -, -,
       -, hst, -⟩ := dep_balanceOf_completeS hfork hsize' h hdep start hr hrun hok
     obtain ⟨X, hX, hF⟩ := fwdS_of hcode hroute hfwd (by
-      rw [hcs]; exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _) hcr hmr hch he hst
+      rw [hcs]; reads_as) hcr hmr hch he hst
     exact .fwd hdep (.inr (.inr (.inr (.inl h)))) (fun e => absurd e (ne h (by decide)))
       (fun e => absurd e (ne h (by decide))) X hX hF
   · obtain ⟨c, r, hcode, hroute, hpause, hblack, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, hfwd, -,
       hcs, -, -, -, hst, -⟩ :=
       dep_transfer_completeS hfork hsize' h hdep rfl rfl rfl rfl start hr hrun hok
     obtain ⟨X, hX, hF⟩ := fwdS_of hcode hroute hfwd (by
-      rw [hcs]; exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [DeprecatedTransfer.callStateT,
-        Transfer.shortState, storageAt_readSlot], fun a => rfl⟩ _) r) _) hcr hmr hch he hst
+      rw [hcs]; reads_as) hcr hmr hch he hst
     exact .fwd hdep (.inr (.inr (.inr (.inr (.inl h))))) (fun _ => ⟨hpause, hblack⟩)
       (fun e => absurd e (ne h (by decide))) X hX hF
   · obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, hfwd, -, hcs, -, -,
       -, hst, -⟩ := dep_allowance_completeS hfork hsize' h hdep rfl rfl start hr hrun hok
     obtain ⟨X, hX, hF⟩ := fwdS_of hcode hroute hfwd (by
-      rw [hcs]; exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _) hcr hmr hch he hst
+      rw [hcs]; reads_as) hcr hmr hch he hst
     exact .fwd hdep (.inr (.inr (.inr (.inr (.inr h))))) (fun e => absurd e (ne h (by decide)))
       (fun e => absurd e (ne h (by decide))) X hX hF
   · obtain ⟨c, r, hcode, hroute, howner, hlisted, -, -, -, caller, msg, lt, child, hch, he, hcr, hmr, -,
       hacc', hfwd, -, hcs, -, -, -, hst, -⟩ :=
       dep_destroy_completeS hfork hsize' h hdep rfl rfl rfl rfl start hr hrun hok
-    have hv : SameView caller.state state := by
+    have hv : ReadsAs caller.state state := by
       rw [hcs]
-      exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [DeprecatedDestroy.callStateD, DestroySpec.preState,
-        storageAt_readSlot], fun a => rfl⟩ _) r) _
+      reads_as
     refine .dfwd hdep h howner hlisted caller.state child.1.state
       (resWord (DeprecatedBalance.outMemOf (DeprecatedDestroy.memD message) child.1.output))
-      (fun n => hv.1 _ n)
-      ⟨caller, msg, lt, child, ⟨c, r, hcode, hroute, sendsVia_data hfwd, hv⟩, hcr, hmr, hch, he,
+      (fun n => storageAt_of_readsAs hv _ n)
+      ⟨caller, msg, lt, child, sentVia_of_sendsVia hcode hroute hfwd hv, hcr, hmr, hch, he,
         rfl, rfl⟩
       hacc' ?_
     rw [hst, state_incorporateChildS]

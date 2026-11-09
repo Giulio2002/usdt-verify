@@ -197,12 +197,15 @@ lower than in `S`. -/
 def ListedNoDec (C : Address) (S S' : State.TransactionState) : Prop :=
   ∀ a : U256, a.toNat < 2 ^ 160 → Listed C S a → NoDec C (mapSlot a 2) S S'
 
-/-- The runner assumption of the blacklist property when deprecated: every call from `C` to the upgraded address that the code of `C` makes from `S` (`SentVia`, round 29: the caller state has the view of `S`, the message runs the code the upgraded address holds in `S`; through round 28 every message from `C` to `ua`), and
+/-- The runner assumption of the blacklist property when deprecated: every call from `C` to the
+upgraded address that the code of `C` makes from `S` (`SentVia`, round 29, EthLib's since round 49:
+the caller state reads as `S`, the message runs the code the upgraded address holds in `S`; through
+round 28 every message from `C` to `ua`), and
 that the runner ends with no error lowers the balance of no address blacklisted in the caller
 state. -/
 def KeepsListed {fork : Fork} {bound : Nat} (runChild : MessageRunner fork Nat bound)
     (message : Message fork) (S : State.TransactionState) : Prop :=
-  KeepsAt runChild message S (upAddr S message) (ListedNoDec message.currentTarget)
+  KeepsOn runChild (SentVia message S (upAddr S message)) (ListedNoDec message.currentTarget)
 
 theorem EffectD.listed {S S' : State.TransactionState} (K : SepOn (callKeys message S))
     (h : EffectD runChild message S S')
@@ -215,7 +218,7 @@ theorem EffectD.listed {S S' : State.TransactionState} (K : SepOn (callKeys mess
   cases h with
   | loc h => exact h.listed K ha hl hsel
   | fwd hdep _ _ _ X hX hf =>
-    exact NoDec.congr_left hX ((hk hdep).fwd hf a ha (by unfold Listed; rw [hX]; exact hl))
+    exact NoDec.congr_left hX (hf.keeps (hk hdep) a ha (by unfold Listed; rw [hX]; exact hl))
   | dfwd _ hs howner =>
     rcases hsel with ⟨-, hd⟩ | hno
     · exact absurd hs hd
@@ -244,7 +247,8 @@ theorem listed_call_all (K : SepOn (callKeys message state)) (hfork : .berlin �
 
 /-- **Blacklist over a sequence, deprecated or not.** Along a finite sequence of successful calls
 to `C` by callers other than the owner (of each call's start state, with slots 7 and 8 of
-`StrForm` there), whose runner, when `C` is deprecated at that state, meets `Keeps` for both
+`StrForm` there), whose runner, when `C` is deprecated at that state, meets `KeepsOn … (SentVia …)`
+for both
 `ProtKept C` and `ListedNoDec C` (that is, `KeepsSlots` and `KeepsListed`), and of `Untouched`
 steps, from a state where the address word `a < 2^160` is blacklisted, each call with `SecSep` of
 its keys: `balances[a]` is not lower at the end. -/
@@ -261,8 +265,9 @@ theorem listed_seq_all {C : Address}
   have hC : message.currentTarget = C := by obtain ⟨_, _, _, _, _, _, _, hC, -⟩ := hr; exact hC
   subst hC
   obtain ⟨-, bound, runChild, he, hk⟩ := hr.effect h7 h8
-  have hprot := he.protKept K hno (fun hd => (hk hd).mono fun _ _ h => h.1)
-  refine ⟨he.listed K.toSepOn ha hl (.inr hno) (fun hd => (hk hd).mono fun _ _ h => h.2), ?_⟩
+  have hprot := he.protKept K hno (fun hd => (hk hd).mono (fun _ _ => id) fun _ _ h => h.1)
+  refine ⟨he.listed K.toSepOn ha hl (.inr hno)
+    (fun hd => (hk hd).mono (fun _ _ => id) fun _ _ h => h.2), ?_⟩
   unfold Listed
   rw [hprot _ (.inr (.inr (.inr (.inr (.inr ⟨a, ha, rfl⟩)))))]
   exact hl

@@ -73,8 +73,8 @@ theorem honestBalanceAtSR_zero :
 theorem sentVia_reservoir {ua : Address} {caller : Evm fork Nat} {msg : Message fork} (r : Nat)
     (h : SentVia message state ua caller msg) :
     SentVia message state ua caller { msg with reservoir := r } := by
-  obtain ⟨c, rt, hc, hr, ⟨h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12, h13⟩, hv⟩ := h
-  exact ⟨c, rt, hc, hr, ⟨h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12, h13⟩, hv⟩
+  obtain ⟨c, rt, hc, hr, hv, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12⟩ := h
+  exact ⟨c, rt, hc, hr, hv, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12⟩
 
 theorem keepsInvAtC_of_SR {g0 : StateGasMeter} {E : Nat}
     (h : KeepsInvAtSR runChild message state g0.reservoir) :
@@ -326,5 +326,66 @@ theorem process_stepSDR {fork : Fork} (hparis : .paris ≤ fork)
     · exact .inr (.inr h)
   · exact .inr (process_stepDR hparis hmc noPrecompile hsize K h7 h8 hdep (hkeeps hdep)
       (hhonest hdep) hproc)
+
+
+/-- **One step, to `Inv`, round 49.** Under the hypotheses of `process_stepDR` and `Inv` at the
+start, `Inv` holds at the end of the message, with no certificate in between. Its runner hypotheses
+are those of round 49 (EthLib's `SentVia`), so it is at least as strong as `process_stepDR` followed
+by the consumer of its certificate at round 48. -/
+theorem process_stepDR_inv {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256) (K : SepOn (callKeys message state))
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
+    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
+    (hkeeps : KeepsInvAtSR (processRunner fork message.gas) message state
+      meter.reservoir)
+    (hhonest : selector message.data = 0xf3bdc228 →
+      HonestBalanceAtSR (processRunner fork message.gas) message state
+        meter.reservoir)
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate meter held = .ok ended)
+    (hI : Inv message.currentTarget state) : Inv message.currentTarget ended.val.state := by
+  rcases process_stepDR hparis hmc noPrecompile hsize K h7 h8 hdep hkeeps hhonest hproc
+      with h | h <;>
+    first
+    | exact inv_goodCall h hI
+    | exact inv_goodCallS h hI
+    | exact inv_goodCallDS h hI
+    | exact inv_goodCallDR h hI
+    | exact (DepInv.inv_congr h).mpr hI
+
+/-- **One step, to `Inv`, round 49.** Under the hypotheses of `process_stepSDR` and `Inv` at the
+start, `Inv` holds at the end of the message, with no certificate in between. Its runner hypotheses
+are those of round 49 (EthLib's `SentVia`), so it is at least as strong as `process_stepSDR`
+followed by the consumer of its certificate at round 48. -/
+theorem process_stepSDR_inv {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256) (K : SepOn (callKeys message state))
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsInvAtSR (processRunner fork message.gas) message state meter.reservoir)
+    (hhonest : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      selector message.data = 0xf3bdc228 →
+      HonestBalanceAtSR (processRunner fork message.gas) message state
+        meter.reservoir)
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate meter held = .ok ended)
+    (hI : Inv message.currentTarget state) : Inv message.currentTarget ended.val.state := by
+  rcases process_stepSDR hparis hmc noPrecompile hsize K h7 h8 hkeeps hhonest hproc
+      with h | h | h <;>
+    first
+    | exact inv_goodCall h hI
+    | exact inv_goodCallS h hI
+    | exact inv_goodCallDS h hI
+    | exact inv_goodCallDR h hI
+    | exact (DepInv.inv_congr h).mpr hI
 
 end UsdtVerify.Complete

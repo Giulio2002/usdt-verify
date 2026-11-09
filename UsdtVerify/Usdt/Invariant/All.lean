@@ -1,5 +1,6 @@
 import UsdtVerify.Usdt.Invariant.Calls
-import UsdtVerify.Evm.Keeps
+import UsdtVerify.Evm.Frame
+import UsdtVerify.Evm.Route
 import UsdtVerify.Usdt.Invariant.DeprecatedDestroy
 import UsdtVerify.Usdt.Complete.Deprecated.Destroy
 
@@ -110,12 +111,12 @@ def HonestBalance (runChild : MessageRunner fork Nat bound) (message : Message f
         storageAt child.1.state message.currentTarget (balSlot message)
 
 /-- Round 29 (docs/AUDIT.md, finding 2): `KeepsInv` restricted to the calls the code of `C`
-actually makes from `state` (`SentVia`: the caller state has the storage and code of `state`, the
+actually makes from `state` (`SentVia`: the caller state reads as `state` since round 49, the
 message runs the code that the upgraded address holds in `state`, no value). `KeepsInv` implies it
 (`keepsInv_at`); unlike `KeepsInv`, EthLib's `processRunner` can meet it (Sanity/Process.lean). -/
 def KeepsInvAt (runChild : MessageRunner fork Nat bound) (message : Message fork)
     (state : State.TransactionState) : Prop :=
-  KeepsAt runChild message state (upAddr state message)
+  KeepsOn runChild (SentVia message state (upAddr state message))
     (fun X Y => Inv message.currentTarget X → Inv message.currentTarget Y)
 
 /-- Round 29: `HonestBalance` restricted in the same way (`SentVia`). -/
@@ -128,25 +129,39 @@ def HonestBalanceAt (runChild : MessageRunner fork Nat bound) (message : Message
 
 theorem keepsInv_at (h : KeepsInv runChild message.currentTarget (upAddr state message)) :
     KeepsInvAt runChild message state := by
-  intro caller msg lt child ⟨_, _, _, _, hv, _⟩ hch he hI
-  exact h caller msg lt child hch hv.1 hv.2.1 he hI
+  intro caller msg lt child hch ⟨_, _, _, _, _, hmc, hmt, _⟩ he hI
+  exact h caller msg lt child hch hmc hmt he hI
 
 /-- Round 33 (docs/AUDIT.md, third audit, T4): `KeepsInvAcc` gives `KeepsInvAt` together with
-`KeepsInvNoAcc`, the case of a caller state where `C` has no account. `SentVia` fixes only the
-storage and code of the caller state, so that case is not excluded. -/
+`KeepsInvNoAcc`, the case of a caller state where `C` has no account. Through round 48 `SentVia`
+fixed only the storage and code of the caller state, so that case was not excluded. Since round 49
+(EthLib's `SentVia`) the caller state reads as `state`, with its accounts. -/
 theorem keepsInvAt_of_acc
     (hacc : KeepsInvAcc runChild message.currentTarget (upAddr state message))
     (hno : KeepsInvNoAcc runChild message.currentTarget (upAddr state message)) :
     KeepsInvAt runChild message state :=
   keepsInv_at (keepsInv_of_acc hacc hno)
 
+/-- Round 49: when `state` has an account of `C`, `KeepsInvAcc` alone gives `KeepsInvAt`. EthLib's
+`SentVia` asks the caller state to read as `state` (`ReadsAs`), so it has the account of `C`
+that `state` has, and the case `KeepsInvNoAcc` covers does not arise. -/
+theorem keepsInvAt_of_acc_hasAccount
+    (hacc : KeepsInvAcc runChild message.currentTarget (upAddr state message))
+    (hS : hasAccount state message.currentTarget) :
+    KeepsInvAt runChild message state := by
+  intro caller msg lt child hch hs he hI
+  obtain ⟨-, -, -, -, hv, hmc, hmt, -⟩ := hs
+  have hc : hasAccount caller.state message.currentTarget := by
+    unfold hasAccount; rw [(hv.1 message.currentTarget List.not_mem_nil).1]; exact hS
+  exact (hacc caller msg lt child hch hmc hmt he hc hI).2
+
 theorem honest_at (h : HonestBalance runChild message state) :
     HonestBalanceAt runChild message state := by
-  intro caller msg lt child ⟨_, _, _, _, hv, _⟩ hch hmd he
-  exact h caller msg lt child hch hv.1 hv.2.1 hmd he
+  intro caller msg lt child ⟨_, _, _, _, _, hmc, hmt, _⟩ hch hmd he
+  exact h caller msg lt child hch hmc hmt hmd he
 
 /-- What a deprecated forwarding function does to the local storage: one call that the code
-makes (`SentVia`: from a caller state with the view of the start state, to the upgraded address,
+makes (`SentVia`: from a caller state that reads as the start state, to the upgraded address,
 running its code), and the end state is the child's end state. `C` has an account in the caller
 state iff it has one in the start state. -/
 def LocalForward (runChild : MessageRunner fork Nat bound) (message : Message fork)
@@ -179,10 +194,10 @@ theorem inv_of_local (hkeeps : KeepsInvAt runChild message state)
     (hI : Inv message.currentTarget state)
     (h : LocalForward runChild message state s) : Inv message.currentTarget s.state := by
   obtain ⟨caller, msg, lt, child, hsv, hch, he, -, hst⟩ := h
-  have hv := hsv.choose_spec.choose_spec.2.2.2
+  have hv := hsv.choose_spec.choose_spec.2.2.1
   rw [hst]
-  exact hkeeps caller msg lt child hsv hch he
-    ((DepInv.inv_congr (fun n => hv.1 message.currentTarget n)).2 hI)
+  exact hkeeps caller msg lt child hch hsv he
+    ((DepInv.inv_congr (fun n => storageAt_of_readsAs hv message.currentTarget n)).2 hI)
 
 /-- With no account of `C` in the start state, a `LocalForward` call is sent from a caller state
 with no account of `C` either: that is the case `KeepsInvNoAcc` covers. -/
@@ -191,8 +206,8 @@ theorem localForward_noAcc (hno : ¬hasAccount state message.currentTarget)
     ∃ caller msg lt child, runChild caller msg lt = .ok child ∧ child.1.error = none ∧
       msg.caller = message.currentTarget ∧ msg.currentTarget = upAddr state message ∧
       ¬hasAccount caller.state message.currentTarget ∧ s.state = child.1.state := by
-  obtain ⟨caller, msg, lt, child, ⟨_, _, _, _, hv, _⟩, hch, he, hac, hst⟩ := h
-  exact ⟨caller, msg, lt, child, hch, he, hv.1, hv.2.1, fun h => hno (hac.1 h), hst⟩
+  obtain ⟨caller, msg, lt, child, ⟨_, _, _, _, _, hmc, hmt, _⟩, hch, he, hac, hst⟩ := h
+  exact ⟨caller, msg, lt, child, hch, he, hmc, hmt, fun h => hno (hac.1 h), hst⟩
 
 /-! ## The six forwarding functions -/
 
@@ -205,10 +220,9 @@ theorem dep_totalSupply_local (hfork : .berlin ≤ fork)
     (hok : s.error = none) : LocalForward runChild message state s := by
   obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
     dep_totalSupply_complete hfork hsize' hsel hdep start within hrun hok
-  refine ⟨caller, msg, lt, child, ⟨c, r, hcode, hroute, sendsVia_data hfwd, ?_⟩, hch, he, ?_, ?_⟩
+  refine ⟨caller, msg, lt, child, sentVia_of_sendsVia hcode hroute hfwd ?_, hch, he, ?_, ?_⟩
   · rw [hcs]
-    exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-      ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _
+    reads_as
   · rw [hcs]
     exact hasAccount_caller_iff _ Iff.rfl
   · rw [hst, state_incorporateChild]
@@ -222,10 +236,9 @@ theorem dep_balanceOf_local (hfork : .berlin ≤ fork)
     (hok : s.error = none) : LocalForward runChild message state s := by
   obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
     dep_balanceOf_complete hfork hsize' hsel hdep start within hrun hok
-  refine ⟨caller, msg, lt, child, ⟨c, r, hcode, hroute, sendsVia_data hfwd, ?_⟩, hch, he, ?_, ?_⟩
+  refine ⟨caller, msg, lt, child, sentVia_of_sendsVia hcode hroute hfwd ?_, hch, he, ?_, ?_⟩
   · rw [hcs]
-    exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-      ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _
+    reads_as
   · rw [hcs]
     exact hasAccount_caller_iff _ Iff.rfl
   · rw [hst, state_incorporateChild]
@@ -239,10 +252,9 @@ theorem dep_allowance_local (hfork : .berlin ≤ fork)
     (hok : s.error = none) : LocalForward runChild message state s := by
   obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
     dep_allowance_complete hfork hsize' hsel hdep rfl rfl start within hrun hok
-  refine ⟨caller, msg, lt, child, ⟨c, r, hcode, hroute, sendsVia_data hfwd, ?_⟩, hch, he, ?_, ?_⟩
+  refine ⟨caller, msg, lt, child, sentVia_of_sendsVia hcode hroute hfwd ?_, hch, he, ?_, ?_⟩
   · rw [hcs]
-    exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-      ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _
+    reads_as
   · rw [hcs]
     exact hasAccount_caller_iff _ Iff.rfl
   · rw [hst, state_incorporateChild]
@@ -256,10 +268,9 @@ theorem dep_approve_local (hfork : .berlin ≤ fork)
     (hok : s.error = none) : LocalForward runChild message state s := by
   obtain ⟨c, r, hcode, hroute, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
     dep_approve_complete hfork hsize' hsel hdep rfl rfl start within hrun hok
-  refine ⟨caller, msg, lt, child, ⟨c, r, hcode, hroute, sendsVia_data hfwd, ?_⟩, hch, he, ?_, ?_⟩
+  refine ⟨caller, msg, lt, child, sentVia_of_sendsVia hcode hroute hfwd ?_, hch, he, ?_, ?_⟩
   · rw [hcs]
-    exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-      ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _
+    reads_as
   · rw [hcs]
     exact hasAccount_caller_iff _ Iff.rfl
   · rw [hst, state_incorporateChild]
@@ -274,11 +285,9 @@ theorem dep_transfer_local (hfork : .berlin ≤ fork)
   obtain ⟨c, r, hcode, hroute, -, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
     dep_transfer_complete hfork hsize' hsel hdep rfl rfl rfl rfl start within
       hrun hok
-  refine ⟨caller, msg, lt, child, ⟨c, r, hcode, hroute, sendsVia_data hfwd, ?_⟩, hch, he, ?_, ?_⟩
+  refine ⟨caller, msg, lt, child, sentVia_of_sendsVia hcode hroute hfwd ?_, hch, he, ?_, ?_⟩
   · rw [hcs]
-    exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-      ⟨fun a n => by simp only [DeprecatedTransfer.callStateT, Transfer.shortState,
-        storageAt_readSlot], fun a => rfl⟩ _) r) _
+    reads_as
   · rw [hcs]
     exact hasAccount_caller_iff _ Iff.rfl
   · rw [hst, state_incorporateChild]
@@ -293,11 +302,9 @@ theorem dep_transferFrom_local (hfork : .berlin ≤ fork)
   obtain ⟨c, r, hcode, hroute, -, -, -, -, -, caller, msg, lt, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
     dep_transferFrom_complete hfork hsize' hsel hdep rfl rfl rfl rfl start within
       hrun hok
-  refine ⟨caller, msg, lt, child, ⟨c, r, hcode, hroute, sendsVia_data hfwd, ?_⟩, hch, he, ?_, ?_⟩
+  refine ⟨caller, msg, lt, child, sentVia_of_sendsVia hcode hroute hfwd ?_, hch, he, ?_, ?_⟩
   · rw [hcs]
-    exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-      ⟨fun a n => by simp only [DeprecatedTransferFrom.callStateF, TransferFrom.checkState,
-        storageAt_readSlot], fun a => rfl⟩ _) r) _
+    reads_as
   · rw [hcs]
     exact hasAccount_caller_iff _ Iff.rfl
   · rw [hst, state_incorporateChild]
@@ -325,16 +332,15 @@ theorem dep_destroy_local (hfork : .berlin ≤ fork)
   obtain ⟨c, r, hcode, hroute, -, -, -, -, -, caller, msg, lt, child, hch, he, -, hacc', hfwd, -,
       hcs, -, -, -, -, -, hst, -⟩ :=
     dep_destroy_complete hfork hsize' hsel hdep rfl rfl rfl rfl start within hrun hok
-  have hv : SameView caller.state state := by
+  have hv : ReadsAs caller.state state := by
     rw [hcs]
-    exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-      ⟨fun a n => by simp only [callStateD, preState, storageAt_readSlot], fun a => rfl⟩ _) r) _
+    reads_as
   have hsv : SentVia message state (upAddr state message) caller msg :=
-    ⟨c, r, hcode, hroute, sendsVia_data hfwd, hv⟩
+    sentVia_of_sendsVia hcode hroute hfwd hv
   have hIc : Inv message.currentTarget caller.state :=
-    (DepInv.inv_congr (fun n => hv.1 message.currentTarget n)).2 hI
+    (DepInv.inv_congr (fun n => storageAt_of_readsAs hv message.currentTarget n)).2 hI
   refine ⟨caller, msg, lt, child, hch, he, hsv, hfwd.2.2.2.2.2.2.1, hacc',
-    hkeeps caller msg lt child hsv hch he hIc, ?_⟩
+    hkeeps caller msg lt child hch hsv he hIc, ?_⟩
   rw [hst, state_incorporateChild]
 
 /-- Deprecated destroyBlackFunds under `KeepsInv`: `Inv` holds at the end iff the answer `d` is

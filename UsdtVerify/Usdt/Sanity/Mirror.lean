@@ -22,7 +22,8 @@ That is the hypothesis `hmirror` on the start state `S`:
   error and `HonestBalanceAt` asks nothing of it; one that ends with no error answers the word
   (`process_mirror`).
 
-The caller frames are those of `SentVia` (their state has the storage and code of `S`), so the word
+The caller frames are those of `SentVia` (their state reads as `S`, so it has the storage of `S`),
+so the word
 the child reads is the word of `S`; the child only reads, so USDT's slot in its end state is the
 slot of `S`.
 -/
@@ -52,7 +53,8 @@ theorem honestBalanceAt_process_mirror (hparis : .paris ≤ fork) {bound : Nat}
     (hmirror : storageAt S (upAddr S message) (balSlot message) =
       storageAt S message.currentTarget (balSlot message)) :
     HonestBalanceAt (processRunner fork bound) message S := by
-  rintro caller msg lt child ⟨c, r, hc, hroute, hsv, hview⟩ hch hmd he
+  intro caller msg lt child hs hch hmd he
+  obtain ⟨c, r, hc, hroute, hsv, hview⟩ := sendsVia_of_sentVia hs
   rw [hcode] at hc
   cases hc
   rcases r with _ | ⟨d, c'⟩
@@ -63,7 +65,8 @@ theorem honestBalanceAt_process_mirror (hparis : .paris ≤ fork) {bound : Nat}
       rw [hmd]; exact loadWord_append_wordBytes SEL_B _
     obtain ⟨ho, hs⟩ := process_mirror hparis caller lt hmc htg hval hpre hk hch he
     rw [ho, hs, resWord_outMemOf (size_memD message) (by rw [size_wordBytes]; omega),
-      loadWord_wordBytes_zero, storageAt_readSlot, hmt, hview.1, hview.1]
+      loadWord_wordBytes_zero, storageAt_readSlot, hmt,
+      storageAt_of_readsAs hview, storageAt_of_readsAs hview]
     exact hmirror
   · exact absurd hroute.2.1 (by rw [delegatedAddress_mirror]; exact fun h => by cases h)
 

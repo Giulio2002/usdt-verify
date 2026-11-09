@@ -66,10 +66,10 @@ theorem inv_of_localC (hkeeps : KeepsInvAtC Run message state)
     (hI : Inv message.currentTarget state)
     (h : LocalForwardC Run message state s) : Inv message.currentTarget s.state := by
   obtain ⟨caller, msg, child, hsv, hch, he, -, hst⟩ := h
-  have hv := hsv.choose_spec.choose_spec.2.2.2
+  have hv := hsv.choose_spec.choose_spec.2.2.1
   rw [hst]
   exact hkeeps caller msg child hsv hch he
-    ((DepInv.inv_congr (fun n => hv.1 message.currentTarget n)).2 hI)
+    ((DepInv.inv_congr (fun n => storageAt_of_readsAs hv message.currentTarget n)).2 hI)
 
 theorem dep_totalSupply_localC (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x18160ddd)
@@ -79,10 +79,9 @@ theorem dep_totalSupply_localC (hfork : .berlin ≤ fork)
     LocalForwardC Run message state s := by
   obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
     dep_totalSupply_completeC hfork hsize' hsel hdep start hrun hE hok
-  refine ⟨caller, msg, child, ⟨c, r, hcode, hroute, sendsVia_data hfwd, ?_⟩, hch, he, ?_, ?_⟩
+  refine ⟨caller, msg, child, sentVia_of_sendsVia hcode hroute hfwd ?_, hch, he, ?_, ?_⟩
   · rw [hcs]
-    exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-      ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _
+    reads_as
   · rw [hcs]
     exact hasAccount_caller_iff _ Iff.rfl
   · rw [hst, state_incorporateChild]
@@ -96,10 +95,9 @@ theorem dep_balanceOf_localC (hfork : .berlin ≤ fork)
     LocalForwardC Run message state s := by
   obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
     dep_balanceOf_completeC hfork hsize' hsel hdep start hrun hE hok
-  refine ⟨caller, msg, child, ⟨c, r, hcode, hroute, sendsVia_data hfwd, ?_⟩, hch, he, ?_, ?_⟩
+  refine ⟨caller, msg, child, sentVia_of_sendsVia hcode hroute hfwd ?_, hch, he, ?_, ?_⟩
   · rw [hcs]
-    exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-      ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _
+    reads_as
   · rw [hcs]
     exact hasAccount_caller_iff _ Iff.rfl
   · rw [hst, state_incorporateChild]
@@ -113,10 +111,9 @@ theorem dep_allowance_localC (hfork : .berlin ≤ fork)
     LocalForwardC Run message state s := by
   obtain ⟨c, r, hcode, hroute, -, -, -, caller, msg, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
     dep_allowance_completeC hfork hsize' hsel hdep rfl rfl start hrun hE hok
-  refine ⟨caller, msg, child, ⟨c, r, hcode, hroute, sendsVia_data hfwd, ?_⟩, hch, he, ?_, ?_⟩
+  refine ⟨caller, msg, child, sentVia_of_sendsVia hcode hroute hfwd ?_, hch, he, ?_, ?_⟩
   · rw [hcs]
-    exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-      ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _
+    reads_as
   · rw [hcs]
     exact hasAccount_caller_iff _ Iff.rfl
   · rw [hst, state_incorporateChild]
@@ -130,10 +127,9 @@ theorem dep_approve_localC (hfork : .berlin ≤ fork)
     LocalForwardC Run message state s := by
   obtain ⟨c, r, hcode, hroute, -, -, -, -, caller, msg, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
     dep_approve_completeC hfork hsize' hsel hdep rfl rfl start hrun hE hok
-  refine ⟨caller, msg, child, ⟨c, r, hcode, hroute, sendsVia_data hfwd, ?_⟩, hch, he, ?_, ?_⟩
+  refine ⟨caller, msg, child, sentVia_of_sendsVia hcode hroute hfwd ?_, hch, he, ?_, ?_⟩
   · rw [hcs]
-    exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-      ⟨fun a n => by simp only [callState, storageAt_readSlot], fun a => rfl⟩ _) r) _
+    reads_as
   · rw [hcs]
     exact hasAccount_caller_iff _ Iff.rfl
   · rw [hst, state_incorporateChild]
@@ -147,11 +143,9 @@ theorem dep_transfer_localC (hfork : .berlin ≤ fork)
     LocalForwardC Run message state s := by
   obtain ⟨c, r, hcode, hroute, -, -, -, -, -, caller, msg, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
     dep_transfer_completeC hfork hsize' hsel hdep rfl rfl rfl rfl start hrun hE hok
-  refine ⟨caller, msg, child, ⟨c, r, hcode, hroute, sendsVia_data hfwd, ?_⟩, hch, he, ?_, ?_⟩
+  refine ⟨caller, msg, child, sentVia_of_sendsVia hcode hroute hfwd ?_, hch, he, ?_, ?_⟩
   · rw [hcs]
-    exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-      ⟨fun a n => by simp only [DeprecatedTransfer.callStateT, Transfer.shortState,
-        storageAt_readSlot], fun a => rfl⟩ _) r) _
+    reads_as
   · rw [hcs]
     exact hasAccount_caller_iff _ Iff.rfl
   · rw [hst, state_incorporateChild]
@@ -165,11 +159,9 @@ theorem dep_transferFrom_localC (hfork : .berlin ≤ fork)
     LocalForwardC Run message state s := by
   obtain ⟨c, r, hcode, hroute, -, -, -, -, -, caller, msg, child, hch, he, hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
     dep_transferFrom_completeC hfork hsize' hsel hdep rfl rfl rfl rfl start hrun hE hok
-  refine ⟨caller, msg, child, ⟨c, r, hcode, hroute, sendsVia_data hfwd, ?_⟩, hch, he, ?_, ?_⟩
+  refine ⟨caller, msg, child, sentVia_of_sendsVia hcode hroute hfwd ?_, hch, he, ?_, ?_⟩
   · rw [hcs]
-    exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-      ⟨fun a n => by simp only [DeprecatedTransferFrom.callStateF, TransferFrom.checkState,
-        storageAt_readSlot], fun a => rfl⟩ _) r) _
+    reads_as
   · rw [hcs]
     exact hasAccount_caller_iff _ Iff.rfl
   · rw [hst, state_incorporateChild]
@@ -191,14 +183,13 @@ theorem dep_destroy_localC (hfork : .berlin ≤ fork)
   obtain ⟨c, r, hcode, hroute, -, -, -, -, -, caller, msg, child, hch, he, -, hacc', hfwd, -,
       hcs, -, -, -, -, -, hst, -⟩ :=
     dep_destroy_completeC hfork hsize' hsel hdep rfl rfl rfl rfl start hrun hE hok
-  have hv : SameView caller.state state := by
+  have hv : ReadsAs caller.state state := by
     rw [hcs]
-    exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-      ⟨fun a n => by simp only [callStateD, preState, storageAt_readSlot], fun a => rfl⟩ _) r) _
+    reads_as
   have hsv : SentVia message state (upAddr state message) caller msg :=
-    ⟨c, r, hcode, hroute, sendsVia_data hfwd, hv⟩
+    sentVia_of_sendsVia hcode hroute hfwd hv
   have hIc : Inv message.currentTarget caller.state :=
-    (DepInv.inv_congr (fun n => hv.1 message.currentTarget n)).2 hI
+    (DepInv.inv_congr (fun n => storageAt_of_readsAs hv message.currentTarget n)).2 hI
   refine ⟨caller, msg, child, hch, he, hsv, hfwd.2.2.2.2.2.2.1, hacc',
     hkeeps caller msg child hsv hch he hIc, ?_⟩
   rw [hst, state_incorporateChild]
@@ -533,5 +524,122 @@ theorem process_stepSD_start {fork : Fork} (hparis : .paris ≤ fork)
   process_stepSD hparis hmc noPrecompile hsize K h7 h8 hkeeps hhonest hres hproc
 
 end Meter
+
+
+/-- **One step, to `Inv`, round 49.** Under the hypotheses of `process_stepDS` and `Inv` at the
+start, `Inv` holds at the end of the message, with no certificate in between. Its runner hypotheses
+are those of round 49 (EthLib's `SentVia`), so it is at least as strong as `process_stepDS` followed
+by the consumer of its certificate at round 48. -/
+theorem process_stepDS_inv {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256) (K : SepOn (callKeys message state))
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
+    (hkeeps : KeepsInvAtS (processRunner fork message.gas) message state)
+    (hhonest : selector message.data = 0xf3bdc228 →
+      HonestBalanceAtS (processRunner fork message.gas) message state)
+    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
+    (hres : meter.reservoir = 0)
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate meter held = .ok ended)
+    (hI : Inv message.currentTarget state) : Inv message.currentTarget ended.val.state := by
+  rcases process_stepDS hparis hmc noPrecompile hsize K h7 h8 hdep hkeeps hhonest hres hproc
+      with h | h <;>
+    first
+    | exact inv_goodCall h hI
+    | exact inv_goodCallS h hI
+    | exact inv_goodCallDS h hI
+    | exact inv_goodCallDR h hI
+    | exact (DepInv.inv_congr h).mpr hI
+
+/-- **One step, to `Inv`, round 49.** Under the hypotheses of `process_stepSD` and `Inv` at the
+start, `Inv` holds at the end of the message, with no certificate in between. Its runner hypotheses
+are those of round 49 (EthLib's `SentVia`), so it is at least as strong as `process_stepSD` followed
+by the consumer of its certificate at round 48. -/
+theorem process_stepSD_inv {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256) (K : SepOn (callKeys message state))
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsInvAtS (processRunner fork message.gas) message state)
+    (hhonest : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      selector message.data = 0xf3bdc228 →
+      HonestBalanceAtS (processRunner fork message.gas) message state)
+    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
+    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → meter.reservoir = 0)
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate meter held = .ok ended)
+    (hI : Inv message.currentTarget state) : Inv message.currentTarget ended.val.state := by
+  rcases process_stepSD hparis hmc noPrecompile hsize K h7 h8 hkeeps hhonest hres hproc
+      with h | h | h <;>
+    first
+    | exact inv_goodCall h hI
+    | exact inv_goodCallS h hI
+    | exact inv_goodCallDS h hI
+    | exact inv_goodCallDR h hI
+    | exact (DepInv.inv_congr h).mpr hI
+
+/-- **One step, to `Inv`, round 49.** Under the hypotheses of `process_stepDS_start` and `Inv` at
+the start, `Inv` holds at the end of the message, with no certificate in between. Its runner
+hypotheses are those of round 49 (EthLib's `SentVia`), so it is at least as strong as
+`process_stepDS_start` followed by the consumer of its certificate at round 48. -/
+theorem process_stepDS_start_inv {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256) (K : SepOn (callKeys message state))
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
+    (hres : message.reservoir = 0)
+    (hkeeps : KeepsInvAtS (processRunner fork message.gas) message state)
+    (hhonest : selector message.data = 0xf3bdc228 →
+      HonestBalanceAtS (processRunner fork message.gas) message state)
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate = .ok ended)
+    (hI : Inv message.currentTarget state) : Inv message.currentTarget ended.val.state := by
+  rcases process_stepDS_start hparis hmc noPrecompile hsize K h7 h8 hdep hres hkeeps hhonest hproc
+      with h | h <;>
+    first
+    | exact inv_goodCall h hI
+    | exact inv_goodCallS h hI
+    | exact inv_goodCallDS h hI
+    | exact inv_goodCallDR h hI
+    | exact (DepInv.inv_congr h).mpr hI
+
+/-- **One step, to `Inv`, round 49.** Under the hypotheses of `process_stepSD_start` and `Inv` at
+the start, `Inv` holds at the end of the message, with no certificate in between. Its runner
+hypotheses are those of round 49 (EthLib's `SentVia`), so it is at least as strong as
+`process_stepSD_start` followed by the consumer of its certificate at round 48. -/
+theorem process_stepSD_start_inv {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256) (K : SepOn (callKeys message state))
+    (h7 : StrForm (storageAt state message.currentTarget 7))
+    (h8 : StrForm (storageAt state message.currentTarget 8))
+    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → message.reservoir = 0)
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsInvAtS (processRunner fork message.gas) message state)
+    (hhonest : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      selector message.data = 0xf3bdc228 →
+      HonestBalanceAtS (processRunner fork message.gas) message state)
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate = .ok ended)
+    (hI : Inv message.currentTarget state) : Inv message.currentTarget ended.val.state := by
+  rcases process_stepSD_start hparis hmc noPrecompile hsize K h7 h8 hres hkeeps hhonest hproc
+      with h | h | h <;>
+    first
+    | exact inv_goodCall h hI
+    | exact inv_goodCallS h hI
+    | exact inv_goodCallDS h hI
+    | exact inv_goodCallDR h hI
+    | exact (DepInv.inv_congr h).mpr hI
 
 end UsdtVerify.Complete

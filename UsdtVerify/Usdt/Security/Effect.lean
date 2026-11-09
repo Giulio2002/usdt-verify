@@ -1,5 +1,6 @@
 import UsdtVerify.Usdt.Invariant.Seq
-import UsdtVerify.Evm.Keeps
+import UsdtVerify.Evm.Frame
+import UsdtVerify.Evm.Route
 import UsdtVerify.Evm.Shadow
 
 /-!
@@ -41,15 +42,15 @@ from `C` to the upgraded address, sent from a state with the start storage of `C
 and transferFrom, with the pause and blacklist checks the code makes before the call) or `dfwd`
 (deprecated destroyBlackFunds by the owner, `a` blacklisted: the same call, then the two writes
 `tailState` over the child's end state, with some word `d`). `effect_all` takes `StrForm` of
-slots 7 and 8 (`h7`, `h8`). `FwdAt` and `KeepsAt` (a runner assumption on the calls the code
-actually makes, round 29) are in `Evm/Keeps.lean`.
+slots 7 and 8 (`h7`, `h8`). `FwdAt` (Evm/Route.lean) and EthLib's `KeepsOn` over its `SentVia` (a
+runner assumption on the calls the code actually makes, round 29; EthLib's since round 49).
 
 `Seq C Q S S'`: a finite sequence of successful calls to `C` (each with a fresh frame of `CODE`,
 as `effect_call` takes it, and meeting the predicate `Q` on its message and start state) and of
 `Untouched` steps (any change that keeps every storage word of `C`). `seq_lift` lifts a reflexive
 and transitive relation, with an invariant, from one step to the sequence. `SeqR C R Q` and
-`seqR_lift`: the same with steps `RunOkR C R`, deprecated or not, whose runner meets `Keeps … R`
-when `C` is deprecated at the step's start state.
+`seqR_lift`: the same with steps `RunOkR C R`, deprecated or not, whose runner meets
+`KeepsOn … (SentVia …) R` when `C` is deprecated at the step's start state.
 
 Over the EIP-8037 meter (round 37): `effect_localE` is `effect_local` for a loop that ends
 (`Gas.Ends`). `ends_any`: a run of the loop over `StateGasMeter` that ends with no error, at any
@@ -755,8 +756,8 @@ theorem fwd_of_local (h : LocalForward runChild message state s) :
     ∃ X, (∀ n, storageAt X message.currentTarget n = storageAt state message.currentTarget n) ∧
       FwdAt runChild message state (upAddr state message) X s.state := by
   obtain ⟨caller, msg, lt, child, hsv, hch, he, -, hst⟩ := h
-  exact ⟨caller.state, fun n => hsv.choose_spec.choose_spec.2.2.2.1 _ n, caller, msg, lt, child,
-    hsv, hch, he, rfl, hst.symm⟩
+  exact ⟨caller.state, fun n => storageAt_of_readsAs hsv.choose_spec.choose_spec.2.2.1 _ n,
+    caller, msg, lt, child, hsv, hch, he, rfl, hst.symm⟩
 
 /-- **The effect of every successful call, deprecated or not.** From Berlin (Glamsterdam
 included), a fresh frame of `CODE` at pc 0, static or not, any call data below 2^256 bytes, any
@@ -807,15 +808,13 @@ theorem effect_all (hfork : .berlin ≤ fork)
   · obtain ⟨c, r, hcode, hroute, howner, hlisted, -, -, -, caller, msg, lt, child, hch, he, -, hacc',
         hfwd, -, hcs, -, -, -, -, -, hst, -⟩ :=
       dep_destroy_complete hfork hsize' h hdep rfl rfl rfl rfl start within hrun hok
-    have hv : SameView caller.state state := by
+    have hv : ReadsAs caller.state state := by
       rw [hcs]
-      exact sameView_recordAccountRead (sameView_route (sameView_recordAccountRead
-        ⟨fun a n => by simp only [DeprecatedDestroy.callStateD, DestroySpec.preState,
-          storageAt_readSlot], fun a => rfl⟩ _) r) _
+      reads_as
     refine .dfwd hdep h howner hlisted caller.state child.1.state
       (resWord (DeprecatedBalance.outMemOf (DeprecatedDestroy.memD message) child.1.output))
       (fun n => ?_)
-      ⟨caller, msg, lt, child, ⟨c, r, hcode, hroute, sendsVia_data hfwd, hv⟩, hch, he, rfl, rfl⟩
+      ⟨caller, msg, lt, child, sentVia_of_sendsVia hcode hroute hfwd hv, hch, he, rfl, rfl⟩
       hacc' ?_
     · rw [hcs]
       simp only [DeprecatedDestroy.callStateD, DestroySpec.preState, storageAt_rec,
@@ -876,14 +875,16 @@ theorem seq_lift {C : Address} {Q : ∀ {fork : Fork}, Message fork → State.Tr
 /-! ## Sequences of calls, deprecated or not -/
 
 /-- One successful run of `CODE` for a message to `C`, from `S` to `S'`, as `RunOk`, whose runner
-meets `KeepsAt … R` for the calls the code makes from `S` to the upgraded address when `C` is
-deprecated at `S` (round 29; `Keeps … R`, over every message, before). -/
+meets `KeepsOn … (SentVia …) R` for the calls the code makes from `S` to the upgraded address when
+`C` is deprecated at `S` (round 29; over every message before; EthLib's `KeepsOn` and `SentVia`
+since round 49). -/
 def RunOkR (C : Address) (R : State.TransactionState → State.TransactionState → Prop)
     (S S' : State.TransactionState) {fork : Fork} (message : Message fork) : Prop :=
   ∃ (substate : Substate) (gas bound : Nat) (runChild : MessageRunner fork Nat bound)
     (evm s : Evm fork Nat) (within : GasMeter.gasHeld evm.gas ≤ bound),
     message.currentTarget = C ∧ .berlin ≤ fork ∧ message.data.size < 2 ^ 256 ∧
-    (byte20 (storageAt S C 10) ≠ 0 → KeepsAt runChild message S (upAddr S message) R) ∧
+    (byte20 (storageAt S C 10) ≠ 0 →
+      KeepsOn runChild (SentVia message S (upAddr S message)) R) ∧
     At CODE message 0 [] .empty gas S substate evm ∧
     Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s ∧
     s.error = none ∧ S' = s.state
@@ -894,7 +895,8 @@ theorem RunOkR.effect {C : Address} {R : State.TransactionState → State.Transa
     (h7 : StrForm (storageAt S C 7)) (h8 : StrForm (storageAt S C 8)) :
     message.currentTarget = C ∧ ∃ (bound : Nat) (runChild : MessageRunner fork Nat bound),
       EffectD runChild message S S' ∧
-      (byte20 (storageAt S C 10) ≠ 0 → KeepsAt runChild message S (upAddr S message) R) := by
+      (byte20 (storageAt S C 10) ≠ 0 →
+        KeepsOn runChild (SentVia message S (upAddr S message)) R) := by
   obtain ⟨substate, gas, bound, runChild, evm, s, within, hC, hfork, hsize, hk, start, hrun, hok,
     rfl⟩ := h
   subst hC

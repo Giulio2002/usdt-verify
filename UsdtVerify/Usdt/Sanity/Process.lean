@@ -8,15 +8,17 @@ docs/AUDIT.md, finding 2: `KeepsInv` and the `Keeps*` assumptions of rounds 15 t
 over every caller frame and every message from `C` to the upgraded address, including its code,
 so EthLib's own runner `processRunner` met them for no upgraded address. Since round 29 the
 theorems take the `At` forms (`KeepsInvAt`, `KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`,
-`KeepsSupply`, all `KeepsAt`): only the calls that the code of `C` makes from the start state `S`
-(`SentVia`: the caller state has the storage and code of `S`, the message runs the code that the
-upgraded address holds in `S` along its route, no value; any data, any gas).
+`KeepsSupply`, all `KeepsOn … (SentVia …)` since round 49): only the calls that the code of `C`
+makes from the start state `S` (EthLib's `SentVia` since round 49: the caller state reads as `S`,
+the message runs the code that the upgraded address holds in `S` along its route, no value; any
+data, any gas).
 
 Here the upgraded address holds the one byte STOP (`STOP_CODE`), a real contract, and is no
 precompile. Then:
 
-- `processRunner_stop_keepsAt`: from Paris, `processRunner` at any bound meets `KeepsAt … R` for
-  every reflexive relation `R`: each such call ends with the caller state, unchanged.
+- `processRunner_stop_keepsAt`: from Paris, `processRunner` at any bound meets
+  `KeepsOn … (SentVia …) R` for every reflexive relation `R`: each such call ends with the caller
+  state, unchanged.
 - `processRunner_stop_keepsAll`: so it meets all six (`KeepsAll`), and in particular `KeepsInvAt`,
   the assumption that `goodCall_process` and `process_step` take for `processRunner`.
 
@@ -70,14 +72,16 @@ theorem process_stop (hparis : .paris ≤ fork) {bound : Nat} (caller : Evm fork
 
 /-- **`processRunner` meets the restated assumptions.** From Paris, when the upgraded address of
 `message` in `S` holds `STOP_CODE` and is no precompile, `processRunner` at any bound meets
-`KeepsAt … R` for every reflexive `R`. -/
+`KeepsOn … (SentVia …) R` for every reflexive `R`. -/
 theorem processRunner_stop_keepsAt (hparis : .paris ≤ fork) {bound : Nat}
     {message : Message fork} {S : State.TransactionState}
     (hcode : S.getCode (S.getAccount (upAddr S message)).codeHash = .ok STOP_CODE)
     (hnp : Precompiles.isPrecompile fork (upAddr S message).toU256.toNat = false)
     {R : State.TransactionState → State.TransactionState → Prop} (hR : ∀ X, R X X) :
-    KeepsAt (processRunner fork bound) message S (upAddr S message) R := by
-  intro caller msg lt child ⟨c, r, hc, hroute, hsv, _⟩ hch _
+    KeepsOn (processRunner (Meter := Nat) fork bound) (SentVia message S (upAddr S message))
+      R := by
+  intro caller msg lt child hch hs _
+  obtain ⟨c, r, hc, hroute, hsv, _⟩ := sendsVia_of_sentVia hs
   rw [hcode] at hc
   cases hc
   obtain ⟨-, -, htg, hca, hmc, -, -, hval, -, -⟩ := hsv

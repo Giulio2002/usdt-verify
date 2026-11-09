@@ -88,7 +88,7 @@ theorem RunOkR.effectF {C : Address} {R : State.TransactionState → State.Trans
   have hC : message.currentTarget = C := by obtain ⟨_, _, _, _, _, _, _, hC, -⟩ := h; exact hC
   subst hC
   obtain ⟨-, _, _, he, hk⟩ := h.effect h7 h8
-  exact ⟨rfl, _, he.toF, fun hd _ _ hf => (hk hd).fwd hf⟩
+  exact ⟨rfl, _, he.toF, fun hd _ _ hf => hf.keeps (hk hd)⟩
 
 /-- A finite sequence of calls to `C` over the meter `Nat` (`RunOkR`) or over `StateGasMeter`
 (`RunOkRS`), each meeting `Q` on its message and its start state, and of changes that keep every
@@ -146,7 +146,8 @@ theorem seqRS_lift {C : Address} {R0 : State.TransactionState → State.Transact
 for `SeqRS`: along a finite sequence of successful calls to `C` over the meter `Nat` or over
 `StateGasMeter` (reservoir 0 when deprecated), each by a caller other than the owner of its start
 state, with slots 7 and 8 of `StrForm` and `SecSep` of its keys there, whose runner meets
-`KeepsAt` (or `KeepsAtS`) for `ProtKept C` when `C` is deprecated at that state, and of `Untouched`
+`KeepsOn … (SentVia …)` (or `KeepsAtS`) for `ProtKept C` when `C` is deprecated at that state, and
+of `Untouched`
 steps: every `Protected` slot keeps its word. -/
 theorem nonOwner_seq_allS {C : Address} {S S' : State.TransactionState}
     (h : SeqRS C (ProtKept C) NotOwnerS S S') : ProtKept C S S' := by
@@ -162,7 +163,8 @@ theorem nonOwner_seq_allS {C : Address} {S S' : State.TransactionState}
 along a finite sequence of successful calls to `C` over the meter `Nat` or over `StateGasMeter`
 (reservoir 0 when deprecated) by callers other than the owner (of each call's start state, with
 slots 7 and 8 of `StrForm` and `SecSep` of its keys there), whose runner, when `C` is deprecated
-at that state, meets `KeepsAt` (or `KeepsAtS`) for both `ProtKept C` and `BalKept C`, and of
+at that state, meets `KeepsOn … (SentVia …)` (or `KeepsAtS`) for both `ProtKept C` and `BalKept C`,
+and of
 `Untouched` steps, from a state where `C` is paused: every balance keeps its word. -/
 theorem paused_seq_allS {C : Address} {S S' : State.TransactionState}
     (h : SeqRS C (fun X Y => ProtKept C X Y ∧ BalKept C X Y) NotOwnerS S S')
@@ -183,7 +185,8 @@ theorem paused_seq_allS {C : Address} {S S' : State.TransactionState}
 `SeqRS`: along a finite sequence of successful calls to `C` over the meter `Nat` or over
 `StateGasMeter` (reservoir 0 when deprecated) by callers other than the owner (of each call's
 start state, with slots 7 and 8 of `StrForm` and `SecSep` of its keys there), whose runner, when
-`C` is deprecated at that state, meets `KeepsAt` (or `KeepsAtS`) for both `ProtKept C` and
+`C` is deprecated at that state, meets `KeepsOn … (SentVia …)` (or `KeepsAtS`) for both `ProtKept C`
+and
 `ListedNoDec C`, and of `Untouched` steps, from a state where the address word `a < 2^160` is
 blacklisted: `balances[a]` is not lower at the end. -/
 theorem listed_seq_allS {C : Address} {S S' : State.TransactionState}
@@ -206,7 +209,8 @@ theorem listed_seq_allS {C : Address} {S S' : State.TransactionState}
 `SeqRS`: along a finite sequence of successful calls to `C` over the meter `Nat` or over
 `StateGasMeter` (reservoir 0 when deprecated) that are neither approve nor transferFrom (with
 slots 7 and 8 of `StrForm` and `SecSep` of its keys and `y`, `z` at each call's start state),
-whose runner meets `KeepsAt` (or `KeepsAtS`) for `AllowKept C` when `C` is deprecated at that
+whose runner meets `KeepsOn … (SentVia …)` (or `KeepsAtS`) for `AllowKept C` when `C` is deprecated
+at that
 state, and of `Untouched` steps: the slot of `allowed` keyed by `y` and `z` keeps its word.
 Callers may be the owner. -/
 theorem allowKept_seq_allS {y z : U256} {C : Address} {S S' : State.TransactionState}
@@ -222,7 +226,8 @@ theorem allowKept_seq_allS {y z : U256} {C : Address} {S S' : State.TransactionS
 along a finite sequence of successful calls to `C` over the meter `Nat` or over `StateGasMeter`
 (reservoir 0 when deprecated) that are none of issue, redeem and destroyBlackFunds (with slots 7
 and 8 of `StrForm` and `SepOn` of its keys at each call's start state), whose runner meets
-`KeepsAt` (or `KeepsAtS`) for `SupplyKept C` when `C` is deprecated at that state, and of
+`KeepsOn … (SentVia …)` (or `KeepsAtS`) for `SupplyKept C` when `C` is deprecated at that state, and
+of
 `Untouched` steps: slot 1 keeps its word. Callers may be the owner. -/
 theorem supply_seq_allS {C : Address} {S S' : State.TransactionState}
     (h : SeqRS C (SupplyKept C) NoSupplyFnS S S') : storageAt S' C 1 = storageAt S C 1 := by
@@ -314,5 +319,149 @@ theorem process_stepSecD {fork : Fork} (hparis : .paris ≤ fork)
     · exact .inl (runOkRS_process hparis hmc ht noPrecompile hsize hkeeps hres hproc herr)
   · exact .inr fun _ =>
       getStorage_processMessage_of_error hproc (Option.isSome_iff_ne_none.mpr herr) _ _
+
+
+/-! ## One top-level message, to each security property (round 49) -/
+
+/-- A top-level message as a `SeqRS` sequence of one step (or none), under the hypotheses of
+`process_stepSecD` and the condition `Q` of the sequence at its start. -/
+theorem seqRS_process {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    {R : State.TransactionState → State.TransactionState → Prop}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256)
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsAtS (processRunner fork message.gas) message state
+        (upAddr state message) R)
+    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
+    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → meter.reservoir = 0)
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate meter held = .ok ended)
+    {Q : ∀ {fork : Fork}, Message fork → State.TransactionState → Prop} (hq : Q message state) :
+    SeqRS message.currentTarget R Q state ended.val.state := by
+  rcases process_stepSecD hparis hmc noPrecompile hsize hkeeps hres hproc with h | h
+  · exact .callS h hq (.nil _)
+  · exact .other h (.nil _)
+
+/-- **`nonOwner` for one top-level message over the EIP-8037 meter, round 49.** `nonOwner_seq_allS`
+for the sequence of `seqRS_process`: the property from the start state of the message to its end
+state, under the runner hypothesis of `process_stepSecD` for this property and the condition of the
+sequence. -/
+theorem nonOwner_processS {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256)
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsAtS (processRunner fork message.gas) message state
+        (upAddr state message)
+        (ProtKept message.currentTarget))
+    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
+    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → meter.reservoir = 0)
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate meter held = .ok ended)
+    (hq : NotOwnerS message state) :
+    ProtKept message.currentTarget state ended.val.state :=
+  nonOwner_seq_allS (seqRS_process (R := (ProtKept message.currentTarget))
+    (Q := NotOwnerS)
+    hparis hmc noPrecompile hsize hkeeps hres hproc hq)
+
+/-- **`paused` for one top-level message over the EIP-8037 meter, round 49.** `paused_seq_allS` for
+the sequence of `seqRS_process`: the property from the start state of the message to its end state,
+under the runner hypothesis of `process_stepSecD` for this property and the condition of the
+sequence. -/
+theorem paused_processS {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256)
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsAtS (processRunner fork message.gas) message state
+        (upAddr state message)
+        (fun X Y => ProtKept message.currentTarget X Y ∧ BalKept message.currentTarget X Y))
+    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
+    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → meter.reservoir = 0)
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate meter held = .ok ended)
+    (hq : NotOwnerS message state)
+    (hpaused : byte20 (storageAt state message.currentTarget 0) ≠ 0) :
+    BalKept message.currentTarget state ended.val.state :=
+  paused_seq_allS (seqRS_process (R := (fun X Y => ProtKept message.currentTarget X Y ∧
+      BalKept message.currentTarget X Y))
+    (Q := NotOwnerS)
+    hparis hmc noPrecompile hsize hkeeps hres hproc hq) hpaused
+
+/-- **`listed` for one top-level message over the EIP-8037 meter, round 49.** `listed_seq_allS` for
+the sequence of `seqRS_process`: the property from the start state of the message to its end state,
+under the runner hypothesis of `process_stepSecD` for this property and the condition of the
+sequence. -/
+theorem listed_processS {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256)
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsAtS (processRunner fork message.gas) message state
+        (upAddr state message)
+        (fun X Y => ProtKept message.currentTarget X Y ∧ ListedNoDec message.currentTarget X Y))
+    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
+    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → meter.reservoir = 0)
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate meter held = .ok ended)
+    (hq : NotOwnerS message state)
+    {a : U256} (ha : a.toNat < 2 ^ 160) (hl : Listed message.currentTarget state a) :
+    NoDec message.currentTarget (mapSlot a 2) state ended.val.state :=
+  listed_seq_allS (seqRS_process (R := (fun X Y => ProtKept message.currentTarget X Y ∧
+      ListedNoDec message.currentTarget X Y))
+    (Q := NotOwnerS)
+    hparis hmc noPrecompile hsize hkeeps hres hproc hq) ha hl
+
+/-- **`allowKept` for one top-level message over the EIP-8037 meter, round 49.**
+`allowKept_seq_allS` for the sequence of `seqRS_process`: the property from the start state of the
+message to its end state, under the runner hypothesis of `process_stepSecD` for this property and
+the condition of the sequence. -/
+theorem allowKept_processS {y z : U256} {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256)
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsAtS (processRunner fork message.gas) message state
+        (upAddr state message)
+        (AllowKept message.currentTarget))
+    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
+    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → meter.reservoir = 0)
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate meter held = .ok ended)
+    (hq : NoAllowFnS y z message state) :
+    AllowKeptAt y z message.currentTarget state ended.val.state :=
+  allowKept_seq_allS (seqRS_process (R := (AllowKept message.currentTarget))
+    (Q := @NoAllowFnS y z)
+    hparis hmc noPrecompile hsize hkeeps hres hproc hq)
+
+/-- **`supply` for one top-level message over the EIP-8037 meter, round 49.** `supply_seq_allS` for
+the sequence of `seqRS_process`: the property from the start state of the message to its end state,
+under the runner hypothesis of `process_stepSecD` for this property and the condition of the
+sequence. -/
+theorem supply_processS {fork : Fork} (hparis : .paris ≤ fork)
+    {message : Message fork} {state : State.TransactionState} {substate : Substate}
+    (hmc : message.code = CODE)
+    (noPrecompile : precompileAddress fork message = none)
+    (hsize : message.data.size < 2 ^ 256)
+    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
+      KeepsAtS (processRunner fork message.gas) message state
+        (upAddr state message)
+        (SupplyKept message.currentTarget))
+    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
+    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → meter.reservoir = 0)
+    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
+    (hproc : processMessage fork message state substate meter held = .ok ended)
+    (hq : NoSupplyFnS message state) :
+    storageAt ended.val.state message.currentTarget 1 =
+      storageAt state message.currentTarget 1 :=
+  supply_seq_allS (seqRS_process (R := (SupplyKept message.currentTarget))
+    (Q := NoSupplyFnS)
+    hparis hmc noPrecompile hsize hkeeps hres hproc hq)
 
 end UsdtVerify.Security
