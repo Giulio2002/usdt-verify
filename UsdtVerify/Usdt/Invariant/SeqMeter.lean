@@ -1,5 +1,5 @@
 import UsdtVerify.Usdt.Invariant.Seq
-import UsdtVerify.Evm.ProcessMeter
+import UsdtVerify.Evm.Meter
 import UsdtVerify.Evm.Shadow
 
 /-!
@@ -38,7 +38,6 @@ open EthLib.Execution.Evm.Logic
 open UsdtVerify.Gas
 open UsdtVerify.Meter
 open UsdtVerify.Shadow
-open UsdtVerify.ProcessMeter
 open Invariant Deprecated
 
 /-- **Every successful call keeps the invariant, over the EIP-8037 meter, at any reservoir**
@@ -123,9 +122,9 @@ theorem goodCall_processS {fork : Fork} (hparis : .paris ≤ fork)
     simp only [startState, show ¬fork < Fork.paris from Nat.not_lt.mpr hparis, ite_false]
   have hberlin : Fork.berlin ≤ fork := Nat.le_trans (by decide) hparis
   generalize hres : runFrame (step fork) (step_decreases fork) message.gas
-    (processRunnerM fork message.gas)
+    (processRunner fork message.gas)
     (startFrame message (startState fork message state) substate meter) held = result
-  have hmap := processMessage_map_valM noValue noPrecompile hres
+  have hmap := processMessage_map_val noValue noPrecompile hres
   rw [hproc] at hmap
   rcases result with e | s
   · cases hmap
@@ -140,7 +139,7 @@ theorem goodCall_processS {fork : Fork} (hparis : .paris ≤ fork)
       simp [hse]
     have start := at_startFrameS hmc (startState fork message state) substate meter
     rw [hst] at start hres
-    exact ⟨fork, message, substate, _, message.gas, processRunnerM fork message.gas, _, s, _,
+    exact ⟨fork, message, substate, _, message.gas, processRunner fork message.gas, _, s, _,
       rfl, hberlin, hsize, K, h7, h8, hdep, start, hres, hse, by rw [hend]⟩
 
 /-- From Berlin, a top-level message whose code is `CODE` (no precompile, call data below 2^256
@@ -155,7 +154,7 @@ theorem process_value_failsS {fork : Fork} (hfork : .berlin ≤ fork) {message :
     ended.val.error ≠ none := by
   have key : ∀ (st : State.TransactionState) (ss : Substate)
       (result : Except EvmError (Evm fork StateGasMeter)),
-      runFrame (step fork) (step_decreases fork) message.gas (processRunnerM fork message.gas)
+      runFrame (step fork) (step_decreases fork) message.gas (processRunner fork message.gas)
         (startFrame message st ss meter) held = result →
       (processMessage fork message state substate meter held).map Subtype.val =
         result.map (rollbackOnError state) → ended.val.error ≠ none := by
@@ -181,8 +180,8 @@ theorem process_value_failsS {fork : Fork} (hfork : .berlin ≤ fork) {message :
       simp only [Except.map, ht, ne_eq, not_false_eq_true, and_self, ite_true, bind, pure,
         Except.bind, Except.pure, Except.mapError, hm] at hproc
       cases hproc
-    | ok moved => exact key moved _ _ rfl (processMessage_map_val_valueM ht hm noPrecompile rfl)
-  · exact key _ _ _ rfl (processMessage_map_valM ht noPrecompile rfl)
+    | ok moved => exact key moved _ _ rfl (processMessage_map_val_value ht hm noPrecompile rfl)
+  · exact key _ _ _ rfl (processMessage_map_val ht noPrecompile rfl)
 
 /-- From Paris, every top-level message to `C` whose code is `CODE` (no precompile, call data below
 2^256 bytes, not deprecated), run by EthLib's `processMessage` over `StateGasMeter` from any
@@ -206,7 +205,8 @@ theorem process_stepS {fork : Fork} (hparis : .paris ≤ fork)
     · exact absurd herr (process_value_failsS (Nat.le_trans (by decide) hparis) hmc noPrecompile
         hsize ht.2 hproc)
     · exact .inl (goodCall_processS hparis hmc ht noPrecompile hsize K h7 h8 hdep hproc herr)
-  · exact .inr (fun _ => Local.processMessage_failed_getStorage hproc herr _ _)
+  · exact .inr fun _ =>
+      getStorage_processMessage_of_error hproc (Option.isSome_iff_ne_none.mpr herr) _ _
 
 /-! ## The fresh meter of the message -/
 

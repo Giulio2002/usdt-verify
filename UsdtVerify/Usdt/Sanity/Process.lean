@@ -57,10 +57,10 @@ theorem process_stop (hparis : .paris ≤ fork) {bound : Nat} (caller : Evm fork
     simp only [processRunner, ht]
   have hspec := stop (fork := fork) (code := STOP_CODE) (message := msg) (pc := 0)
     (stack := []) (memory := .empty) (gas := msg.gas) (state := caller.state)
-    (substate := caller.substate.child) (by decide) rfl
+    (substate := caller.substate.child) (returnData := .empty) (by decide) rfl
   obtain ⟨stopped, hq, hmap⟩ := processMessage_of_spec (message := msg) (state := caller.state)
     (substate := caller.substate.child) hspec (fun h => h.2 hv) hpre
-    (by rw [hst]; exact at_startFrame hcode _ _)
+    (by rw [hst]; exact Logic.at_startFrame hcode _ _)
   obtain ⟨-, herr, -, -, hs, -⟩ := hq
   have herr' : stopped.error = none := by simpa using herr
   rw [rollbackOnError_of_error_eq_none herr', ← hp, hch] at hmap

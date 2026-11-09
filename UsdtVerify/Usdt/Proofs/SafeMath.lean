@@ -186,7 +186,7 @@ theorem subBlock {a b ret : U256} {rest : List U256} (hrest : rest.length ≤ 20
   step jumpdestR
   step dupR 1
   step dupR 3
-  step binR 0x03 Local.instruction_sub
+  step binR 0x03 instruction_sub
   step swapR 0
   norm
   step popR

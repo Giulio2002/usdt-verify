@@ -154,7 +154,7 @@ theorem amountLog {q : Nat} {t : U256} {r : Nat}
     step dupR 0
     step swapR 1
     norm
-    step binR 0x03 Local.instruction_sub
+    step binR 0x03 instruction_sub
     step swapR 0
     norm
     step Gas.reshapeG (s' := 0x60 :: 0x20 :: ([t] ++ [a, BitVec.ofNat 256 _, x])) rfl rfl rfl
@@ -395,7 +395,7 @@ theorem redeemTotal (hfork : .berlin ≤ fork) {a : U256}
   step dupR 0
   step pushR 1 (0x01 : U256)
   step pushR 1 (0 : U256)
-  op_write 0x03 Local.instruction_sub hc1
+  op_write 0x03 instruction_sub hc1
   exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
 -- The write of `balances[owner] op= a` after the lookup of the slot (issue and redeem), from
@@ -493,7 +493,7 @@ theorem redeemOwner (hfork : .berlin ≤ fork) {a : U256}
   step ownerLookup hfork (by decide) (by simp; omega) hM hc0 (gas := gas - 3) (by gas_ok)
   step pushR 1 (0 : U256)
   have hacc := hasAccount_readSlot (n := 0) (other := message.currentTarget) hacc
-  owner_pre 0x03 Local.instruction_sub
+  owner_pre 0x03 instruction_sub
   step Gas.sstoreWG hfork (by code_fact) (by code_fact) hstatic (hasAccount_readSlot hacc)
     (coldIn_accessSlot_self _ _ _) (by gas_ok)
     (by simp only [originalAt_readSlot, storageAt_readSlot]; gas_ok)
@@ -532,7 +532,7 @@ theorem redeemTotalBad (hfork : .berlin ≤ fork) {a : U256}
   step dupR 0
   step pushR 1 (0x01 : U256)
   step pushR 1 (0 : U256)
-  op_pre 0x03 Local.instruction_sub hc1
+  op_pre 0x03 instruction_sub hc1
   exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
 
 /-- At 6449 (issue), when the `SSTORE` of `_totalSupply` cannot complete (`NoWrite`): the run
@@ -561,7 +561,7 @@ theorem redeemOwnerBad (hfork : .berlin ≤ fork) {a : U256}
   step dupR 0
   step ownerLookup hfork (by decide) (by simp; omega) hM hc0 (gas := gas - 3) (by gas_ok)
   step pushR 1 (0 : U256)
-  owner_pre 0x03 Local.instruction_sub
+  owner_pre 0x03 instruction_sub
   exact Gas.sstoreNoWrite (by code_fact) (by code_fact) (hbad.le (by gas_ok))
 
 /-! ## redeem's tests -/

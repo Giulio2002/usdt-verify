@@ -103,7 +103,7 @@ theorem ret {p : Nat} (hp : p ∈ RET_PCS) {M : ByteArray} (hM : M.size = 96)
     step dupR 0
     step swapR 1
     norm
-    step binR 0x03 Local.instruction_sub
+    step binR 0x03 instruction_sub
     step swapR 0
     norm
     have hext3 : extendMemory (M ++ wordBytes v).size [((0x60 : U256), (0x20 : U256))] =
@@ -177,7 +177,7 @@ theorem retB {p : Nat} (hp : p ∈ BOOL_PCS) {M : ByteArray} (hM : M.size = 96)
     step dupR 0
     step swapR 1
     norm
-    step binR 0x03 Local.instruction_sub
+    step binR 0x03 instruction_sub
     step swapR 0
     norm
     have hext3 : extendMemory (M ++ wordBytes (isZero (isZero (isZero (isZero v))))).size [((0x60 : U256), (0x20 : U256))] =
@@ -251,7 +251,7 @@ theorem retA {p : Nat} (hp : p ∈ ADDR_PCS) {M : ByteArray} (hM : M.size = 96)
     step dupR 0
     step swapR 1
     norm
-    step binR 0x03 Local.instruction_sub
+    step binR 0x03 instruction_sub
     step swapR 0
     norm
     have hext3 : extendMemory (M ++ wordBytes (bitwiseAnd ADDR_MASK (bitwiseAnd ADDR_MASK v))).size [((0x60 : U256), (0x20 : U256))] =

@@ -370,6 +370,12 @@ it gives; a runner failure from another caller state no longer matters. The STOP
 instances (`noFailOn_process_stop`, `noFailOn_process_mirror`, for any caller condition) and every
 `X_dep_*_process_*` theorem are re-derived unchanged in their conclusions.
 
+**Resolution note (round 47).** The resolution above cites Evm/Sends.lean, now removed. Its
+definitions are EthLib's since #1605 (Execution/Proofs/Evm/Logic/FailsOn.lean), with the same
+bodies: `Sends.AbortsOn` is `FailsOn`, `Sends.HoareOn` and `Sends.SpecOn` are `HoareOn` and
+`SpecOn`, and `mono_S` is `HoareOn.mono`. The set `S` is still a condition on the caller frame and
+the message, so the resolution holds as stated.
+
 ## L1–L4, I1, I2
 
 - L1, L2: README text; reported to the main session for the README.
@@ -710,6 +716,10 @@ Three of the four items left open in round 43 are resolved. Evidence:
 - Evidence: clean rebuild of fd2e8e7 from an empty build directory, exit 0, 1452 jobs, 3:04 wall; `#print axioms` on each new theorem gives [propext, Classical.choice, Quot.sound] or a subset (UsdtVerify/Test/Axioms.lean); independent read-only review (round 45) PASS WITH FIXES, fixes applied in 6f779e5 (docstrings) and in these docs (the authorizations assessment). The trust assumptions are unchanged.
 - Still open under T1: `prepareFirstFrame` with authorizations (see above).
 
+**Resolution note (round 47).** `FirstFrame.prepareFirstFrame_call` (Evm/FirstFrame.lean, removed)
+is EthLib's `prepareFirstFrame_of_value_eq_zero` since #1599, the same statement.
+`destroy_mirror_callS` now uses it.
+
 **Resolution (round 46, READY): `prepareFirstFrame` with authorizations.**
 - With the recovered authorities as hypotheses (Evm/Auth.lean). `apply_out`, `apply_none`,
   `apply_refused` and `apply_accepted` state what one `applyAuthorization` returns once
@@ -992,6 +1002,11 @@ USDT through `processMessageCall` over `StateGasMeter`, with any list of authori
 output with no error (see T1, round 46). The transaction around the message
 (`processTransaction`) is still not stated for a type-4 transaction.
 
+**Resolution note (round 47).** `processMessage_map_valM` and `processMessage_map_val_valueM`
+(Evm/ProcessMeter.lean, removed) are EthLib's `processMessage_map_val` and
+`processMessage_map_val_value` since #1599, which take any lawful meter and any starting meter.
+`at_startFrameS` moved to Evm/Meter.lean (`Meter.at_startFrameS`), unchanged.
+
 ## U2. No instance of the runner assumptions over `StateGasMeter` (Low)
 
 **Evidence.** No file in Usdt/Sanity/ mentions `StateGasMeter`. `KeepsInvAtS`, `HonestBalanceAtS`
@@ -1048,6 +1063,11 @@ Paris, `processRunnerM` over `StateGasMeter`, at any bound, meets `HonestBalance
 upgraded address holds `MIRROR`, is no precompile, and its slot `balSlot message` holds in `S` the
 word of USDT's `balances[a]`. A concrete deprecated state over `StateGasMeter` where these hold
 together with a run of USDT that ends with no error is not shown.
+
+**Resolution note (round 47).** `ProcessMeter.processRunnerM` (Evm/ProcessMeter.lean, removed) is
+EthLib's `processRunner`, generic in the meter since #1599. The theorems of
+Usdt/Sanity/ProcessMeter.lean and ProcessMeterR.lean now name `processRunner` with the meter
+`StateGasMeter`, the same function.
 
 ## U3. The `…AtS` hypotheses leave the message reservoir and the caller meter free (Low)
 

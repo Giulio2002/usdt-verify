@@ -368,7 +368,7 @@ theorem paramsLogBlock {b m x : U256} (hstatic : message.isStatic = false)
   step dupR 0
   step swapR 1
   norm
-  step binR 0x03 Local.instruction_sub
+  step binR 0x03 instruction_sub
   step swapR 0
   norm
   step Gas.reshapeG (s' := 0x60 :: 0x40 :: ([PARAMS_TOPIC] ++ [m, b, 0x07b6, x])) rfl rfl rfl

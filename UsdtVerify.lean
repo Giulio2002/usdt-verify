@@ -1,3 +1,4 @@
+import UsdtVerify.Evm.At
 import UsdtVerify.Evm.Call
 import UsdtVerify.Evm.Calldata
 import UsdtVerify.Evm.Exact
@@ -11,8 +12,6 @@ import UsdtVerify.Evm.Refill
 import UsdtVerify.Evm.Shadow
 import UsdtVerify.Evm.Dom
 import UsdtVerify.Evm.NoState
-import UsdtVerify.Evm.ProcessMeter
-import UsdtVerify.Evm.FirstFrame
 import UsdtVerify.Evm.Auth
 import UsdtVerify.Evm.CallMeter
 import UsdtVerify.Evm.CallSim
@@ -31,8 +30,6 @@ import UsdtVerify.Usdt.Refill.ChainOwner
 import UsdtVerify.Usdt.Refill.ChainTransfer
 import UsdtVerify.Usdt.Refill.ChainFee
 import UsdtVerify.Usdt.Refill.TransferFromS
-import UsdtVerify.Evm.Local.Extcodesize
-import UsdtVerify.Evm.Local.Parent
 import UsdtVerify.Evm.Local.Rules
 import UsdtVerify.Evm.MemRev
 import UsdtVerify.Evm.Route

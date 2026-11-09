@@ -388,7 +388,7 @@ of `CODE`, deprecated, for any gas bound and message runner over `StateGasMeter`
   `paused_seq_allS`, `listed_seq_allS`, `allowKept_seq_allS`, `supply_seq_allS` state the five
   `_seq_all` properties over it, with the same predicates on each call and the same runner
   relations. `process_stepSecD`: from Paris, a top-level message over `StateGasMeter` from any
-  starting meter (reservoir 0 when deprecated, `KeepsAtS … R` of `processRunnerM` when
+  starting meter (reservoir 0 when deprecated, `KeepsAtS … R` of `processRunner` when
   deprecated) is a `RunOkRS` or an `Untouched` step.
 - `owner_only_allS` (Usdt/Security/DepMeter.lean): every run over `StateGasMeter` of one of the
   ten owner functions that ends with no error is a call by the owner, deprecated or not, with no
@@ -510,7 +510,7 @@ unchanged.
   the owner functions are called by the owner, over `StateGasMeter`, deprecated or not, with no
   hypothesis on the reservoir and no runner assumption.
 - These assumptions hold for EthLib's runner (Usdt/Sanity/ProcessMeterR.lean): from Paris,
-  `processRunnerM` meets `KeepsInvAtSR` and `KeepsAtSR … R` (`R` reflexive) at every reservoir
+  `processRunner` meets `KeepsInvAtSR` and `KeepsAtSR … R` (`R` reflexive) at every reservoir
   when the upgraded address holds STOP, and `HonestBalanceAtSR` at every reservoir when it holds
   `MIRROR` whose queried slot holds USDT's `balances[a]`.
 - Deprecated destroyBlackFunds, the exact gas after the CALL (`dep_destroy_exactR`,
@@ -527,7 +527,7 @@ unchanged.
   Usdt/Sanity/MirrorStateS.lean). From Paris, Glamsterdam included, in the state `S2 C H a` of
   round 33 (`MIRROR` at the upgraded address), `destroyBlackFunds(a)` from the owner `CALLER_A`,
   from a frame of `StateGasMeter` with any reservoir and at least 1000000 (below 2^255) execution
-  gas, any substate and gas bound: the run under `processRunnerM` ends with no error.
+  gas, any substate and gas bound: the run under `processRunner` ends with no error.
 - Not covered: the split of the gas after the CALL for the six other deprecated paths
   (`dep_X_completeR` states the sum), `Inv` in `S2`, a top-level `processMessage` form of the
   concrete run, and the preparation of the first frame (`prepareFirstFrame`).
@@ -570,8 +570,9 @@ unchanged.
   Paris, with `C` no precompile, EthLib's `processMessage` of that message over `StateGasMeter` in
   `S2`, from any substate and any starting meter with at least 1000000 and below 2^255 execution
   gas left, ends with a frame with no error.
-- The first frame (Evm/FirstFrame.lean, Usdt/Sanity/MirrorCallS.lean).
-  `FirstFrame.prepareFirstFrame_call`: for a call with no value and no authorization, whose
+- The first frame (Usdt/Sanity/MirrorCallS.lean, with EthLib's
+  `prepareFirstFrame_of_value_eq_zero`, which was `FirstFrame.prepareFirstFrame_call` in
+  Evm/FirstFrame.lean before round 47): for a call with no value and no authorization, whose
   recipient has code that is no delegation indicator (or before Pectra), over any meter, EthLib's
   `prepareFirstFrame` gives the message with that code and the gas the meter holds, the state with
   the read of the recipient recorded, the substate as given, no refund, and the meter
@@ -880,9 +881,11 @@ gas and runner) or `Untouched` (any change that keeps every storage word of `C`)
   every address. The rollback restores the storage of the start state because the run keeps the
   block of the state (`parent`). EthLib proves that only for static messages, from Paris
   (`processMessage_static`); the local
-  `Local.parent_process` (UsdtVerify/Evm/Local/Parent.lean) proves it for every message and every
+  `Local.parent_process` (UsdtVerify/Evm/Local/Parent.lean) proved it for every message and every
   creation, static or not, from any fork, by induction on the gas, from EthLib's semantics
-  (`Local.processMessage_failed_getStorage` then applies EthLib's `getStorage_restoreTxState`).
+  (`Local.processMessage_failed_getStorage` then applied EthLib's `getStorage_restoreTxState`).
+  Since round 47 both are in EthLib (#1597, Call/Parent.lean): `processMessage_parent` and
+  `getStorage_processMessage_of_error`, which the theorems here now use. The local file is removed.
 - Calls with value (round 18): `process_value_fails` proves that, from Berlin, a top-level message
   of the deployed code (no precompile, call data below 2^256 bytes) with a nonzero value ends
   with an error, whether the value is moved or not. `process_step` (from Paris, Glamsterdam
@@ -1378,7 +1381,8 @@ ends with no error and the contract has an account in its end state".
   holds if and only if the checks and `A` hold. So a runner may fail, on the forward or on any
   other message, and a failure on the forward is an outcome in which `A` is false. The
   `X_dep_ok_iff_gas` theorems are derived from these (`NoFail` gives `hfail`). Behind it: the
-  forward specifications `spec_dep*_g` and `spec_depD_g` are stated as `Sends.SpecOn` (Evm/Sends.lean):
+  forward specifications `spec_dep*_g` and `spec_depD_g` are stated as `SpecOn` (EthLib's Logic/FailsOn.lean,
+  #1605, since round 47, Evm/Sends.lean before):
   under every runner whose ended messages meet the callee assumption, with no assumption on its
   errors, the run ends in the postcondition or at a failure of the runner on a message that is the
   forward (`SendsVia`); EthLib's `SpecUnder` follows from it (`toUnder`). `Sanity.failRunner_hans`,
@@ -1390,7 +1394,8 @@ ends with no error and the contract has an account in its end state".
   state where that code is missing (argued). Since round 31 they too are asked only of the message
   the CALL sends from the caller frame at the CALL, with its gas (`CallFrom`): `NoFailOn` takes a
   condition on the caller frame and the message, `hfail` takes `CallFrom`, and the failure in
-  `X_dep_ok_or_fails` comes with `CallFrom`. Behind them, `Sends.AbortsOn` / `HoareOn` / `SpecOn`
+  `X_dep_ok_or_fails` comes with `CallFrom`. Behind them, `FailsOn` / `HoareOn` /
+  `SpecOn` (EthLib's since round 47, `Sends.AbortsOn` / `Sends.HoareOn` / `Sends.SpecOn` before)
   name the failing message by a condition on the caller frame and the message, and `callWithRS`
   gives the caller's state and substate and the message's gas in it.
 - Round 33 (docs/AUDIT.md, third audit, T2): `SendsVia` also fixes the block and transaction
@@ -1411,10 +1416,14 @@ ends with no error and the contract has an account in its end state".
 - The bytecode file is the deployed code. The interpreted hash check ties `CODE` to the file,
   and `data/SOURCE.md` ties the file to the chain.
 - A few generic rules are proved locally in this repository, and EthLib's model is not
-  modified. These rules are some instruction table entries, EXTCODESIZE at every fork from
-  Berlin (`Local.extcodesize`; EthLib's rule stops before Glamsterdam), and that every message
-  keeps the block of the state (`UsdtVerify/Evm/Local/`), and EXP with its price worked out
-  (`Gas.expLG`, `UsdtVerify/Evm/GasRules.lean`). STOP and GAS come from EthLib. The CALL step lemmas at every fork
+  modified. These rules are some instruction table entries (`UsdtVerify/Evm/Local/`) and EXP with
+  its price worked out (`Gas.expLG`, `UsdtVerify/Evm/GasRules.lean`). STOP, GAS, EXTCODESIZE at
+  every fork from Berlin (`extcodesize_of_berlin_le`, used as `At.extcodesize`) and the fact
+  that every message keeps the block of the state (Call/Parent.lean) come from EthLib (round 47).
+  The frame predicate `At` is defined in this repository (`UsdtVerify/Evm/At.lean`): the
+  conditions of EthLib's `At` other than the return data, which EthLib's `At` names since
+  EthLib #1351. `At.iff_logic` proves it equivalent to EthLib's `At` with the return data of the
+  frame. The CALL step lemmas at every fork
   (`callStep_child_r`, `callWithRS`, `callWithR`, `callStep_low_r`, `callStep_deep_r`, `callStep_missing`) are
   computed from EthLib's `callStep`. They are proved from EthLib's semantics, not assumed.
 
@@ -1454,7 +1463,8 @@ ends with no error and the contract has an account in its end state".
   other than 0; the gas of a run with a refill (only a lower bound, `Shadow.gas_ge_any`); the
   security properties. See docs/STATUS.md (rounds 33 to 36).
   Rounds 37 to 46 (sections above) cover most of these. Round 45 covers the first frame of a call
-  with no value and no authorization (`FirstFrame.prepareFirstFrame_call`); round 46 covers it
+  with no value and no authorization (`FirstFrame.prepareFirstFrame_call`, EthLib's
+  `prepareFirstFrame_of_value_eq_zero` since round 47); round 46 covers it
   with authorizations, with the recovered authorities as hypotheses, and a concrete deprecated call
   with any list of authorizations (`destroy_mirror_call_auths`). Still not covered after round 46:
   the type-4 transaction around the message (`processTransaction`).

@@ -213,7 +213,7 @@ theorem logStop {p : Nat} {t : U256} {r : Nat}
     step dupR 0
     step swapR 1
     norm
-    step binR 0x03 Local.instruction_sub
+    step binR 0x03 instruction_sub
     step swapR 0
     norm
     rw [hsub]

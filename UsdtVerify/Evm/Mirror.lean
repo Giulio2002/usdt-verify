@@ -189,10 +189,11 @@ theorem process_mirror_iff (hparis : .paris ≤ fork) {bound : Nat} (caller : Ev
         (accessSlot caller.substate.child msg.currentTarget (mapSlot k 2))) :=
     fun g hg => mirror_specA (state := startState fork msg caller.state)
       (substate := caller.substate.child) hberlin hk rfl hg
-  cases hr : runFrame (step fork) (step_decreases fork) msg.gas (processRunner fork msg.gas)
+  cases hr : runFrame (step fork) (step_decreases fork) msg.gas
+      (processRunner (Meter := Nat) fork msg.gas)
       (startFrame msg (startState fork msg caller.state) caller.substate.child
         (GasMeter.start msg.gas msg.reservoir)) (Nat.le_refl _) with
-  | error e => exact absurd hr (Gas.no_error_ga hspec (at_startFrame hcode _ _) _ e)
+  | error e => exact absurd hr (Gas.no_error_ga hspec (At.startFrame hcode _ _) _ e)
   | ok s =>
     have hm := processMessage_map_val (fun h => h.2 hv) hpre hr
     rw [← hp] at hm
@@ -205,9 +206,9 @@ theorem process_mirror_iff (hparis : .paris ≤ fork) {bound : Nat} (caller : Ev
         rw [hc]; unfold rollbackOnError; split <;> rfl
       refine ⟨child, rfl, ⟨fun he => ?_, fun hle => ?_⟩, fun he => ?_⟩
       · exact (Complete.ok_exact (Nat.le_refl _) (fun g hg => (hspec g hg).toG)
-          (at_startFrame hcode _ _) (Nat.le_refl _) hr (herr ▸ he)).1
+          (At.startFrame hcode _ _) (Nat.le_refl _) hr (herr ▸ he)).1
       · obtain ⟨stopped, hrun, -, hq⟩ := Gas.SpecG.runFrame (hspec msg.gas hle).toG
-          (bound := msg.gas) (runChild := processRunner fork msg.gas) (at_startFrame hcode _ _)
+          (bound := msg.gas) (runChild := processRunner fork msg.gas) (At.startFrame hcode _ _)
           (Nat.le_refl _)
         rw [hr] at hrun
         cases hrun
@@ -215,7 +216,7 @@ theorem process_mirror_iff (hparis : .paris ≤ fork) {bound : Nat} (caller : Ev
         simpa using hq.1
       · have hse : s.error = none := herr ▸ he
         obtain ⟨-, -, ho, hg, hs, hss⟩ := Complete.ok_exact (Nat.le_refl _)
-          (fun g hg => (hspec g hg).toG) (at_startFrame hcode _ _) (Nat.le_refl _) hr hse
+          (fun g hg => (hspec g hg).toG) (At.startFrame hcode _ _) (Nat.le_refl _) hr hse
         rw [hc, rollbackOnError_of_error_eq_none hse, ho, hg, hs, hss, hst]
         exact ⟨rfl, rfl, rfl, rfl⟩
 

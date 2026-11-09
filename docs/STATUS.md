@@ -3,7 +3,15 @@
 File paths in this page are those of the round-21 layout (docs/LAYOUT.md, which also maps the old
 paths to the new ones); the round entries keep the old file names only where a file no longer exists.
 
-Pinned EthLib: fd3457dbf (master after #1300; includes #1292, `At` names an empty output and STOP
+Pinned EthLib: 0c34dc001 (master after #1608; includes #1597, #1599 and #1605; commit
+0c34dc0010f6ff1b3d5f1c7614af10faa85fb685, round 47). Re-pinned in round 47: EthLib's `At` names
+the return data of a frame (#1351), so `At` in this repository is now the local predicate of Evm/At.lean, with the same twelve
+conditions as EthLib's `At` at the previous pin and no condition on the return data. EthLib's
+Call/Parent.lean (#1597), `extcodesize_of_berlin_le`, `processMessage_map_val` over any meter and
+`prepareFirstFrame_of_value_eq_zero` (#1599), Logic/FailsOn.lean (#1605) and `instruction_sub`
+replace Evm/Local/Parent.lean, Evm/Local/Extcodesize.lean, Evm/ProcessMeter.lean,
+Evm/FirstFrame.lean, Evm/Sends.lean and `Local.instruction_sub` (all removed).
+Previous pin: fd3457dbf (master after #1300; includes #1292, `At` names an empty output and STOP
 gives `Halted false .empty`, and #1299, DELEGATECALL/CALLCODE; commit fd3457dbfbf2118fd5d05fab5b42ffaafa07f28d).
 Re-pinned in round 9: EthLib's `stop` (#1272/#1292), `gas_rule` and `extcodesize` (#1280) replace the
 local `Local.stop`/`Stopped` (Local/Halt.lean) and `Local.extcodesize`/`gasOp` (Local/Account.lean),
@@ -2113,6 +2121,66 @@ as a hypothesis or hold for every authority.
   out running out of gas); the recovery of any concrete signature. The keccak hypothesis on `H`
   and `HC` is assumed, not proved.
 
+### Round 47: re-pin to EthLib 0c34dc001, the local copies of #1597, #1599 and #1605 removed (Evm/At.lean)
+
+Built, checked and reviewed: clean rebuild of 4cac964 with `.lake/build` removed
+first, exit 0, 1463 jobs, 156.20 s wall, 418.91 s user; `#print axioms` on the 1352 entries of
+UsdtVerify/Test/Axioms.lean gives [propext, Classical.choice, Quot.sound] or a subset; no `sorry`,
+`admit`, `axiom`, `native_decide` or `bv_decide` in UsdtVerify/ (grep exit 1). No new USDT
+theorem. The trust assumptions of "What is trusted" in docs/RESULTS.md are unchanged.
+Independent read-only review: PASS. It compared every statement and definition body of
+`UsdtVerify` at 8923ce5 (EthLib pin5) and at this round (pin6) after unfolding the renamed and
+shadowed names, and found no shared entry that differs. It checked that each EthLib replacement
+has the same or weaker hypotheses and the same conclusion, and that all 11,813 `UsdtVerify`
+theorems use only propext, Classical.choice and Quot.sound.
+
+- The pin. EthLib master 0c34dc001 holds the generic lemmas upstreamed from this repository:
+  #1597 (every message keeps the block of the state, a failed call keeps the state outside its
+  effects), #1599 (EXTCODESIZE and EXTCODECOPY at every fork from Berlin, `processMessage` over any
+  lawful meter, `prepareFirstFrame_of_value_eq_zero`) and #1605 (`FailsOn`, `MeetsOk`, `HoareOn`,
+  `SpecOn`).
+- `At` (Evm/At.lean). Since EthLib #1351 EthLib's `At` has a thirteenth argument, the return data
+  of the frame, and a thirteenth condition. Every rule of this repository was written for the
+  twelve conditions. `UsdtVerify.At` is that predicate, the body of EthLib's `At` at the previous
+  pin, with no condition on the return data. Inside the namespace `UsdtVerify` the name `At` is
+  this predicate, so the statements read as before and mean what they meant at the previous pin.
+  `At.iff_logic`: `At` holds of a frame exactly when EthLib's `At` holds with the return data of
+  that frame. `liftAt`, `liftPre`: an EthLib triple that holds from `Logic.At … rd` for every `rd`
+  is a triple from `At`. `lowerPre`: the converse direction for a precondition. The EthLib rules
+  this repository applies directly are restated for `At` by these lifts: `At.rule`,
+  `At.extcodesize`, `At.gas_rule`, `At.caller`, `At.reshape`, `At.stop`, `At.revert`,
+  `At.invalid_fe`, `At.startFrame`, `meets_of_specAt`. The other rules are proved here from
+  `At.rule` and `Gas.At.ruleG`, so they need no lift. Two Sanity files (Process.lean,
+  ProcessExact.lean) use EthLib's `At` with empty return data directly, for
+  `processMessage_of_spec`. `resumeCall_eq` (EthLib) now also states the return data after a
+  call, which the five uses discard.
+- Removed, now in EthLib (docs/LAYOUT.md has the table):
+  Evm/Local/Parent.lean (`Local.processMessage_failed_getStorage` is EthLib's
+  `getStorage_processMessage_of_error`, which takes `error.isSome = true` where the local lemma
+  took `error ≠ none`, bridged by `Option.isSome_iff_ne_none`);
+  Evm/Local/Extcodesize.lean (`Local.extcodesize` is `At.extcodesize`, EthLib's
+  `extcodesize_of_berlin_le` for `At`, same hypotheses);
+  Evm/ProcessMeter.lean (`processRunnerM`, `processMessage_map_valM`,
+  `processMessage_map_val_valueM` are EthLib's `processRunner`, `processMessage_map_val`,
+  `processMessage_map_val_value`, now generic in the meter. `at_startFrameS` is not in EthLib, it
+  is about this repository's `Meter.toNat`, and moves to Evm/Meter.lean as
+  `Meter.at_startFrameS`);
+  Evm/FirstFrame.lean (`FirstFrame.prepareFirstFrame_call` is EthLib's
+  `prepareFirstFrame_of_value_eq_zero`, the same statement);
+  Evm/Sends.lean (`Sends.AbortsOn`, `MeetsOk`, `HoareOn`, `SpecOn` are EthLib's `FailsOn`,
+  `MeetsOk`, `HoareOn`, `SpecOn` with the same bodies, `mono_S` is `HoareOn.mono`);
+  `Local.instruction_sub` is EthLib's `instruction_sub`.
+- Statements. No headline theorem changed its meaning. The statements that named
+  `ProcessMeter.processRunnerM` name `processRunner` (the same function: `processRunnerM` was
+  EthLib's `processRunner` restated over any meter), and those that named `Sends.SpecOn` name
+  EthLib's `SpecOn` (the same definition, `AbortsOn` renamed `FailsOn`). No EthLib lemma was weaker
+  than a proof here needed, so no local copy of the four groups is kept.
+- Kept local while their upstreaming is in flight: Evm/Route.lean, Evm/Keeps.lean, and the
+  less-gas framework (Evm/Gas.lean, Evm/Stuck.lean, Evm/GasRules.lean, Evm/NoAbort.lean). Evm/Local/
+  now holds only Rules.lean (the instruction-table lemmas of LT, GT, DIV, AND, OR, MUL, NOT).
+- `processRunner` is generic in the meter since #1599, so two `runFrame` equations (Evm/Mirror.lean,
+  Usdt/Invariant/Seq.lean) name the meter `Nat`.
+
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
   Glamsterdam (third audit, T1; rounds 33 to 36 above). Round 36 covers, not deprecated: the
@@ -2224,6 +2292,7 @@ as a hypothesis or hold for every authority.
    CALLVALUE, CALLDATASIZE (a generic "read a frame value" rule), instruction-table lemmas for
    LT/GT/DIV/AND/OR/SUB/MUL/NOT, JUMPI on a condition *proved* 0, and EXP with its EIP-160 price
    worked out (a corollary of EthLib's `exp`, whose price is `gasSchedule fork`).
+   Round 47: SUB comes from EthLib (`instruction_sub`). The local entry is removed.
    POP/DUPn/SWAPn/EXP now come from EthLib (#1223). Round 27: the `Step` form `Local.exp` was
    unused and is removed; the EXP rule with its price worked out is `Gas.expLG` (over `StepG`,
    Evm/GasRules.lean).
@@ -2314,14 +2383,23 @@ as a hypothesis or hold for every authority.
    not static. `parent_process` proves it for every message and creation from any fork.
    Candidates for EthLib: the per-group lemmas, `pResult_step`, `parent_runFrame`,
    `parent_process`, `processMessage_failed_getStorage`.
+   (CLOSED in round 47 by EthLib #1597, Call/Parent.lean: `parent_processMessage`,
+   `processMessage_sameOutside_of_error`, `getStorage_processMessage_of_error`. The local file is
+   removed.)
 18. Round 19 (LOCAL, UsdtVerify/Evm/Local/Extcodesize.lean, no sorry): EthLib's `Logic.extcodesize`
    and `Logic.callWith` (and `callBaseCost_of_berlin`, `externalBaseCost_of_berlin`) take
    `fork < .glamsterdam`. `Local.extcodesize` is the EXTCODESIZE rule from Berlin with the price
    `externalBaseCost fork cold`; `callStep_child_r` (Evm/Route.lean) is a CALL step lemma
    from Berlin, Glamsterdam included, with the price of the fork. Candidates for EthLib: both, and
    a fork-generic `callWith`.
+   (EXTCODESIZE CLOSED in round 47 by EthLib #1599, `extcodesize_of_berlin_le`, used through
+   `At.extcodesize`. Local/Extcodesize.lean is removed. The CALL step and the route stay local in
+   Evm/Route.lean while their upstreaming is in flight.)
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+Round 47: clean project build of the tree of commit 4cac964 (`.lake/build` removed first, safe.sh
+9G, LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`) 156.20 s wall, 418.91 s
+user, exit 0, 1463 jobs.
 Round 46: clean project build of the tree of commit fb104c2 (the build directory moved aside,
 safe.sh 9G, LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`) 188.85 s wall,
 483.10 s user, exit 0, 1454 jobs. The review fixes (5e376ee) built incrementally, exit 0, 1454 jobs.

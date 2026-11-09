@@ -1,4 +1,5 @@
-import UsdtVerify.Evm.FirstFrame
+import UsdtVerify.Evm.Meter
+import EthLib.Execution.Transactions.Process
 import EthLib.Execution.Proofs.State.Frame
 import EthLib.Execution.Proofs.State.Tracker
 

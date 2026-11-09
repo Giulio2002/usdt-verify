@@ -704,4 +704,14 @@ theorem allocateGas_reservoir (fork : Fork) (tx : EthLib.Execution.Transactions.
     omega
   · rfl
 
+/-- The frame at the start of a message over `StateGasMeter` with the meter `meter`, seen through
+`toNat`, is the fresh frame of its code with the execution gas left of `meter` (moved here from
+Evm/ProcessMeter.lean in round 47). -/
+theorem at_startFrameS {code : ByteArray} {message : Message fork} (hcode : message.code = code)
+    (state : State.TransactionState) (substate : Substate) (meter : StateGasMeter) :
+    At code message 0 [] .empty (GasMeter.gasLeft meter) state substate
+      (toNat (startFrame message state substate meter)) := by
+  subst hcode
+  exact ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
+
 end UsdtVerify.Meter

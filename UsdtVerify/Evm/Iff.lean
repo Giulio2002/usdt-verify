@@ -32,7 +32,7 @@ ending with no error (`RunsOk`), for a path that halts and for a path that forwa
   fails, gives `RunsOk`.
 - `fwd_ok_iff_fails` (round 26): for a path that forwards one message, under a runner that may
   fail with any error, from a specification that ends only at a failure of the runner on a
-  forwarded message (`Sends.SpecOn`): `RunsOk` holds exactly when `G` and `A` hold, if the runner
+  forwarded message (`SpecOn`): `RunsOk` holds exactly when `G` and `A` hold, if the runner
   ends each forwarded message in a frame meeting `Q` (a condition on the caller's frame and the
   ended frame) exactly when `A` holds, and a failure of the runner on a forwarded message excludes
   `A`. Under `NoFail` the last condition holds, which gives the form for a runner that never fails.
@@ -212,7 +212,7 @@ the hypotheses of `fwd_ok_iff_fails` but no `hfail`, a run that ends with no err
 theorem fwd_ok_or_fails {G A : Prop} {Q : Evm fork Nat → Evm fork Nat → Prop}
     {S : Message fork → Prop} {Cl : Evm fork Nat → Message fork → Prop}
     {P : Evm fork Nat → Prop}
-    (hspec : G → Sends.SpecOn fork (fun caller msg child => S msg → Cl caller msg → Q caller child)
+    (hspec : G → SpecOn fork (fun caller msg child => S msg → Cl caller msg → Q caller child)
       (fun caller msg => S msg ∧ Cl caller msg) P (fun e => e.error = none))
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =
@@ -242,7 +242,7 @@ theorem fwd_ok_or_fails {G A : Prop} {Q : Evm fork Nat → Evm fork Nat → Prop
 exactly when `G` and `A` hold, if `G` gives a specification to frames with no error that holds
 under every runner whose frames for messages of `S` sent from a caller frame meeting `Cl` meet `Q`
 (`Q` of the caller's frame and the ended frame) and that ends otherwise only at a failure of the
-runner on a message of `S` sent from a caller frame meeting `Cl` (`Sends.SpecOn`); every run that ends with no error meets `G` and had a
+runner on a message of `S` sent from a caller frame meeting `Cl` (`SpecOn`); every run that ends with no error meets `G` and had a
 message of `S`, sent from a caller frame meeting `Cl`, end in a frame meeting `Q`; the runner ends
 each message of `S` sent from a caller frame meeting `Cl` in a frame meeting `Q` exactly when `A`
 holds (`hans`); and a failure of the runner on a message of `S` from a caller frame meeting `Cl`
@@ -250,7 +250,7 @@ excludes `A` (`hfail`). -/
 theorem fwd_ok_iff_fails {G A : Prop} {Q : Evm fork Nat → Evm fork Nat → Prop}
     {S : Message fork → Prop} {Cl : Evm fork Nat → Message fork → Prop}
     {P : Evm fork Nat → Prop}
-    (hspec : G → Sends.SpecOn fork (fun caller msg child => S msg → Cl caller msg → Q caller child)
+    (hspec : G → SpecOn fork (fun caller msg child => S msg → Cl caller msg → Q caller child)
       (fun caller msg => S msg ∧ Cl caller msg) P (fun e => e.error = none))
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =

@@ -419,7 +419,22 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Deprecated.extCost_of_lt
 #print axioms UsdtVerify.Deprecated.callBaseCost_eq
 #print axioms UsdtVerify.Deprecated.extCost_ge
-#print axioms UsdtVerify.Local.extcodesize
+#print axioms UsdtVerify.At.toLogic
+#print axioms UsdtVerify.At.ofLogic
+#print axioms UsdtVerify.At.iff_logic
+#print axioms UsdtVerify.liftPre
+#print axioms UsdtVerify.liftAt
+#print axioms UsdtVerify.lowerPre
+#print axioms UsdtVerify.At.startFrame
+#print axioms UsdtVerify.meets_of_specAt
+#print axioms UsdtVerify.At.rule
+#print axioms UsdtVerify.At.extcodesize
+#print axioms UsdtVerify.At.gas_rule
+#print axioms UsdtVerify.At.caller
+#print axioms UsdtVerify.At.reshape
+#print axioms UsdtVerify.At.stop
+#print axioms UsdtVerify.At.revert
+#print axioms UsdtVerify.At.invalid_fe
 #print axioms UsdtVerify.Complete.ok_step_bad
 #print axioms UsdtVerify.Gas.writeCost_le
 #print axioms UsdtVerify.DeprecatedDestroy.TAIL_MAX_of_lt
@@ -478,13 +493,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Complete.inv_goodCall
 #print axioms UsdtVerify.Complete.inv_calls
 #print axioms UsdtVerify.Complete.goodCall_process
-#print axioms UsdtVerify.Local.parent_instruction
-#print axioms UsdtVerify.Local.pResult_step
-#print axioms UsdtVerify.Local.parent_runFrame
-#print axioms UsdtVerify.Local.parent_process
-#print axioms UsdtVerify.Local.parent_processMessage
-#print axioms UsdtVerify.Local.parent_runner
-#print axioms UsdtVerify.Local.processMessage_failed_getStorage
 #print axioms UsdtVerify.Complete.untouched_process_failed
 #print axioms UsdtVerify.Complete.process_value_fails
 #print axioms UsdtVerify.Complete.process_step
@@ -730,15 +738,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.DeprecatedDestroy.spec_depD_g
 #print axioms UsdtVerify.Exact.destroyBlackFunds_dep_ok_iff_gas
 #print axioms UsdtVerify.Sanity.answerRunnerAt_ans_gasD
-#print axioms UsdtVerify.Sends.HoareOn.of_hoare
-#print axioms UsdtVerify.Sends.HoareOn.of_child
-#print axioms UsdtVerify.Sends.HoareOn.seq
-#print axioms UsdtVerify.Sends.HoareOn.consequence
-#print axioms UsdtVerify.Sends.HoareOn.mono_S
-#print axioms UsdtVerify.Sends.HoareOn.toUnder
-#print axioms UsdtVerify.Sends.SpecOn.seq
-#print axioms UsdtVerify.Sends.SpecOn.consequence
-#print axioms UsdtVerify.Sends.SpecOn.toUnder
 #print axioms UsdtVerify.Complete.callWithRS
 #print axioms UsdtVerify.Exact.fwd_ok_iff_fails
 #print axioms UsdtVerify.Deprecated.spec_dep_g
@@ -1051,9 +1050,7 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Exact.destroyBlackFunds_specI
 #print axioms UsdtVerify.Exact.destroyBlackFunds_ok_sgm
 #print axioms UsdtVerify.Exact.destroyBlackFunds_iff_gas_sgm
-#print axioms UsdtVerify.ProcessMeter.processMessage_map_valM
-#print axioms UsdtVerify.ProcessMeter.processMessage_map_val_valueM
-#print axioms UsdtVerify.ProcessMeter.at_startFrameS
+#print axioms UsdtVerify.Meter.at_startFrameS
 #print axioms UsdtVerify.Complete.inv_call_any
 #print axioms UsdtVerify.Complete.inv_goodCallS
 #print axioms UsdtVerify.Complete.inv_callsS
@@ -1424,7 +1421,6 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Sanity.destroy_mirror_processS
 
 -- Round 45: the first frame of a call with no authorization; the concrete call through processMessageCall
-#print axioms UsdtVerify.FirstFrame.prepareFirstFrame_call
 #print axioms UsdtVerify.Sanity.destroy_mirror_runsT
 #print axioms UsdtVerify.Sanity.storageAt_S3
 #print axioms UsdtVerify.Sanity.hcodeU_S3

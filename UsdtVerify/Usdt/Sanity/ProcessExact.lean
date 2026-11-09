@@ -63,10 +63,10 @@ theorem process_stop_child (hparis : .paris ≤ fork) {bound : Nat} {message : M
       simp only [startState, show ¬fork < Fork.paris from Nat.not_lt.mpr hparis, ite_false]
     have hspec := stop (fork := fork) (code := STOP_CODE) (message := msg) (pc := 0)
       (stack := []) (memory := .empty) (gas := msg.gas) (state := caller.state)
-      (substate := caller.substate.child) (by decide) rfl
+      (substate := caller.substate.child) (returnData := .empty) (by decide) rfl
     obtain ⟨stopped, hq, hmap⟩ := processMessage_of_spec (message := msg) (state := caller.state)
       (substate := caller.substate.child) hspec (fun h => h.2 hval) hpre
-      (by rw [hst]; exact at_startFrame hmc _ _)
+      (by rw [hst]; exact Logic.at_startFrame hmc _ _)
     have hp : processRunner fork bound caller msg lt =
         processMessage fork msg caller.state caller.substate.child := by
       simp only [processRunner, htg]

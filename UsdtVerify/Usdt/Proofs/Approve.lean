@@ -350,7 +350,7 @@ theorem logApproval {v s : U256} {rest : List U256} (hrest : rest.length ≤ 900
   step dupR 0
   step swapR 1
   norm
-  step binR 0x03 Local.instruction_sub
+  step binR 0x03 instruction_sub
   step swapR 0
   norm
   step Gas.reshapeG (s' := 0x60 :: 0x20 :: ([APPROVAL_TOPIC, bitwiseAnd ADDR_MASK message.caller.toU256,

@@ -24,7 +24,7 @@ the calls from a caller of reservoir 0 with a message of reservoir `r`.
 - `GoodCallDR`, `inv_goodCallDR`, `CallsDR`, `inv_callsDR`: sequences. `GoodCallDS.toR`,
   `CallsDS.toR`: the round 39 forms are instances.
 - `process_stepDR`, `process_stepSDR`: from Paris, a top-level message run by `processMessage` over
-  `StateGasMeter` from any starting meter, with the runner assumptions of `processRunnerM` at the
+  `StateGasMeter` from any starting meter, with the runner assumptions of `processRunner` at the
   reservoir of that meter.
 -/
 
@@ -242,7 +242,7 @@ theorem CallsDS.toR {C : Address} {S S' : State.TransactionState} (h : CallsDS C
 top-level message to `C` (code `CODE`, no precompile, call data below 2^256 bytes, deprecated), with
 `SepOn` of the keys of the call and slots 7 and 8 of `StrForm`, run by EthLib's `processMessage`
 over `StateGasMeter` to the end from any starting meter, under
-`KeepsInvAtSR` and, for destroyBlackFunds, `HonestBalanceAtSR` of `processRunnerM` at the
+`KeepsInvAtSR` and, for destroyBlackFunds, `HonestBalanceAtSR` of `processRunner` at the
 reservoir of that meter, is a `GoodCallDR` when it ends with no error and an `Untouched` step when
 it ends with an error. -/
 theorem process_stepDR {fork : Fork} (hparis : .paris ≤ fork)
@@ -254,10 +254,10 @@ theorem process_stepDR {fork : Fork} (hparis : .paris ≤ fork)
     (h8 : StrForm (storageAt state message.currentTarget 8))
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
     {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
-    (hkeeps : KeepsInvAtSR (ProcessMeter.processRunnerM fork message.gas) message state
+    (hkeeps : KeepsInvAtSR (processRunner fork message.gas) message state
       meter.reservoir)
     (hhonest : selector message.data = 0xf3bdc228 →
-      HonestBalanceAtSR (ProcessMeter.processRunnerM fork message.gas) message state
+      HonestBalanceAtSR (processRunner fork message.gas) message state
         meter.reservoir)
     {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
     (hproc : processMessage fork message state substate meter held = .ok ended) :
@@ -272,9 +272,9 @@ theorem process_stepDR {fork : Fork} (hparis : .paris ≤ fork)
       simp only [startState, show ¬fork < Fork.paris from Nat.not_lt.mpr hparis, ite_false]
     have hberlin : Fork.berlin ≤ fork := Nat.le_trans (by decide) hparis
     generalize hres' : runFrame (step fork) (step_decreases fork) message.gas
-      (ProcessMeter.processRunnerM fork message.gas)
+      (processRunner fork message.gas)
       (startFrame message (startState fork message state) substate meter) held = result
-    have hmap := ProcessMeter.processMessage_map_valM ht noPrecompile hres'
+    have hmap := processMessage_map_val ht noPrecompile hres'
     rw [hproc] at hmap
     rcases result with e | s
     · cases hmap
@@ -287,12 +287,13 @@ theorem process_stepDR {fork : Fork} (hparis : .paris ≤ fork)
         rw [hmap]
         unfold rollbackOnError
         simp [hse]
-      have start := ProcessMeter.at_startFrameS hmc (startState fork message state) substate meter
+      have start := Meter.at_startFrameS hmc (startState fork message state) substate meter
       rw [hst] at start hres'
-      exact ⟨fork, message, substate, _, message.gas, ProcessMeter.processRunnerM fork message.gas,
+      exact ⟨fork, message, substate, _, message.gas, processRunner fork message.gas,
         _, s, _, rfl, hberlin, hsize, K, h7, h8, hdep, hkeeps, hhonest, start, hres', hse,
         by rw [hend]⟩
-  · exact .inr (fun _ => Local.processMessage_failed_getStorage hproc herr _ _)
+  · exact .inr fun _ =>
+      getStorage_processMessage_of_error hproc (Option.isSome_iff_ne_none.mpr herr) _ _
 
 /-- **Every top-level message over the EIP-8037 meter, deprecated or not, any reservoir.** From
 Paris, a top-level message to `C` (code `CODE`, no precompile, call data below 2^256 bytes), with
@@ -309,10 +310,10 @@ theorem process_stepSDR {fork : Fork} (hparis : .paris ≤ fork)
     (h8 : StrForm (storageAt state message.currentTarget 8))
     {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
     (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsInvAtSR (ProcessMeter.processRunnerM fork message.gas) message state meter.reservoir)
+      KeepsInvAtSR (processRunner fork message.gas) message state meter.reservoir)
     (hhonest : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
       selector message.data = 0xf3bdc228 →
-      HonestBalanceAtSR (ProcessMeter.processRunnerM fork message.gas) message state
+      HonestBalanceAtSR (processRunner fork message.gas) message state
         meter.reservoir)
     {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
     (hproc : processMessage fork message state substate meter held = .ok ended) :

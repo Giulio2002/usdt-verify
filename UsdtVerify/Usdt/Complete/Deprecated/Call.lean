@@ -81,7 +81,7 @@ theorem subG {p q : Nat} (hp : (p = 3735 ∧ q = 3736) ∨ (p = 4890 ∧ q = 489
       (At CODE message q (sub x y :: rest) M (g - 3) st ss) := by
   rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
   all_goals
-    step binR 0x03 Local.instruction_sub
+    step binR 0x03 instruction_sub
     exact Gas.reshapeG rfl rfl (by gas_ok)
 
 /-! ## The code of the upgraded account is found -/
@@ -172,7 +172,7 @@ theorem fromExt (hfork : .berlin ≤ fork) {p q : Nat}
   by_cases hlow : G < A
   · exact absurd hok (ok_step_error hr0 (extcodesize_low hfork h0 b0 hcode
       (by rw [hA]; exact hlow) start) hrun)
-  obtain ⟨z1, w1, hz1, hrun1⟩ := ok_hoare (Local.extcodesize hfork h0 b0 hcode rfl
+  obtain ⟨z1, w1, hz1, hrun1⟩ := ok_hoare (At.extcodesize hfork h0 b0 hcode rfl
     (by rw [← hA] at hlow; simp only [extCost] at hlow; omega)) start within hrun
   have hz1' : At CODE message (p + 1) (BitVec.ofNat 256 c.size :: U :: 0 :: i :: isz :: o :: osz ::
       rest) M (G - A) (st.recordAccountRead (toAddressMasked U))
@@ -188,7 +188,7 @@ theorem fromExt (hfork : .berlin ≤ fork) {p q : Nat}
   -- GAS
   by_cases hg2 : G - A - 23 < 2
   · exact absurd hok (ok_step_error hz2.2.2.2.2.2.2.2.1 (step_gas_low h15 b15 hg2 hz2) hrun2)
-  obtain ⟨z3, w3, hz3, hrun3⟩ := ok_hoare (Logic.gas_rule h15 b15 (by omega)
+  obtain ⟨z3, w3, hz3, hrun3⟩ := ok_hoare (At.gas_rule h15 b15 (by omega)
     (by simp [STACK_LIMIT]; omega)) hz2 w2 hrun2
   -- SUB
   obtain ⟨h3, z4, w4, hz4, hrun4⟩ := ok_split (c := 3) (B := 3) (Nat.le_refl _)

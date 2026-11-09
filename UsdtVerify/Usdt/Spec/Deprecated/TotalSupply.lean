@@ -1,4 +1,4 @@
-import UsdtVerify.Evm.Local.Extcodesize
+import UsdtVerify.Evm.At
 import UsdtVerify.Evm.Route
 import UsdtVerify.Evm.Write
 import UsdtVerify.Usdt.Spec.TotalSupply
@@ -209,7 +209,7 @@ theorem fwdArgs (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.leng
     (by rw [hx4, memoryExtend_zero]) (by rw [hx4]; gas_ok)
   step dupR 0
   step dupR 3
-  step binR 0x03 Local.instruction_sub
+  step binR 0x03 instruction_sub
   have h4 : sub (0x64 : U256) (0x60 : U256) = 0x04 := by decide
   rw [h4]
   step dupR 1
@@ -256,16 +256,16 @@ theorem toCall (hfork : .berlin ≤ fork) {p q : Nat}
       10 - 1 - 3 - 2 = g - (externalBaseCost fork cU + 25) := by intro g; gas_ok
   rcases hp with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
   all_goals
-    step Local.extcodesize hfork (by code_fact) (by code_fact) hcode hcold (by gas_ok)
+    step At.extcodesize hfork (by code_fact) (by code_fact) hcode hcold (by gas_ok)
     step unR 0x15 instruction_iszero
     step unR 0x15 instruction_iszero
     step pushAnyR 2
     step jumpiR (isZero2_ne (ofNat_size_ne hsz hszl))
     step jumpdestR
     step pushR 2 (0x02c6 : U256)
-    step Logic.gas_rule (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
-    step binR 0x03 Local.instruction_sub
-    refine (repcH (by decide)).seq (Logic.reshape ?_ rfl (by gas_ok))
+    step At.gas_rule (by code_fact) (by code_fact) (by gas_ok) (by stk_ok)
+    step binR 0x03 instruction_sub
+    refine (repcH (by decide)).seq (At.reshape ?_ rfl (by gas_ok))
     rw [he]
 
 /-- The return block at 797 on a memory of 160 bytes (no growth): it writes the top word at the
@@ -315,7 +315,7 @@ theorem retBig {p : Nat} (hp : p = 797 ∨ p = 1511) {M : ByteArray} (hM : M.siz
     step dupR 0
     step swapR 1
     norm
-    step binR 0x03 Local.instruction_sub
+    step binR 0x03 instruction_sub
     step swapR 0
     norm
     have hext3 : extendMemory (memoryWrite M 96 (wordBytes v)).size
@@ -468,14 +468,14 @@ theorem preCall (hfork : .berlin ≤ fork)
   step TotalSupply.entry hv (by gas_ok)
   step depSet hfork (Or.inl ⟨rfl, rfl⟩) (by simp) hdep hc10 (by gas_ok)
   step fwdArgs (state := state) hfork (by simp) (by gas_ok)
-  step Logic.reshape (g' := gas - (574 + slotCost c10)) rfl rfl (by gas_ok)
+  step At.reshape (g' := gas - (574 + slotCost c10)) rfl rfl (by gas_ok)
   refine (toCall (gas := gas - (574 + slotCost c10)) (st := readSlot state message.currentTarget 10)
     (ss := accessSlot substate message.currentTarget 10) (message := message) (M := M2)
     (rest := [upWord (storageAt state message.currentTarget 10), 0, 0x60, 4, 0x60, 0x20, 0x64,
       0x18160ddd, upWord (storageAt state message.currentTarget 10), 0, 0x031d,
       BitVec.ofNat 256 (selector message.data)]) hfork (Or.inl ⟨rfl, rfl⟩) (by simp) hcode
     hsz hszl hcU (by simp only [extCost]; gas_ok)).seq ?_
-  refine Logic.reshape ?_ rfl (by simp only [extCost]; gas_ok)
+  refine At.reshape ?_ rfl (by simp only [extCost]; gas_ok)
   simp only [List.cons.injEq, and_true]
   congr 1
   unfold extCost; omega
@@ -517,7 +517,7 @@ the gas of EIP-150 (`callGas`), and:
   wrote the first `min 32 (size of the output)` bytes of `child`'s output there (`resWord`);
 - otherwise it reverts with no output.
 Gas left, state and substate are given exactly.
-Stated as a `Sends.SpecOn` (round 26): the frames that end the runner's messages meet
+Stated as a `SpecOn` (round 26): the frames that end the runner's messages meet
 `callee`, the runner may fail with any error, and the run ends as stated or at a failure of the
 runner on a forwarded message (`SendsVia`); `.toUnder` gives EthLib's `SpecUnder`. -/
 theorem spec_dep_g (hfork : .berlin ≤ fork)
@@ -539,7 +539,7 @@ theorem spec_dep_g (hfork : .berlin ≤ fork)
         (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
       121 ≤ gas - preCost fork c10 cU -
         (callGas fork gas c10 cU (callR substate state message r)).cost + child.gas) :
-    Sends.SpecOn fork callee (fun caller msg => SendsVia message (upAddr state message) c r SEL_TS msg ∧
+    SpecOn fork callee (fun caller msg => SendsVia message (upAddr state message) c r SEL_TS msg ∧
       CallFrom (callGas fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)
       (At CODE message 0 [] .empty gas state substate)
       fun evm => ∃ caller msg child, callee caller msg child ∧
@@ -578,13 +578,13 @@ theorem spec_dep_g (hfork : .berlin ≤ fork)
     (by rw [hext, hR]; simp only [accCost_false]; omega)
   rw [hext, hR] at hcall
   simp only [accCost_false] at hcall
-  have hcall := hcall.mono_S (S' := (fun caller msg => SendsVia message (upAddr state message) c r SEL_TS msg ∧
+  have hcall := hcall.mono (S' := (fun caller msg => SendsVia message (upAddr state message) c r SEL_TS msg ∧
       CallFrom (callGas fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg))
     fun _ _ h => by
     obtain ⟨⟨a1, a2, a3, a4, a5, a6, a7, a8, a9, a10⟩, b1, b2, b3⟩ := h
     exact ⟨⟨a1, a2, a3, a4, a5, a6, by rw [a7]; exact data_M2, a8, a9, a10⟩, b3, b1, b2⟩
-  refine Sends.SpecOn.seq (Sends.HoareOn.of_hoare (preCall hfork hsize hsize' hsel hv hdep hcode hsz
-    hszl hc10 hcU (by omega))) (Sends.HoareOn.seq hcall (Sends.HoareOn.of_hoare ?_))
+  refine SpecOn.seq (HoareOn.of_hoare (preCall hfork hsize hsize' hsel hv hdep hcode hsz
+    hszl hc10 hcU (by omega))) (HoareOn.seq hcall (HoareOn.of_hoare ?_))
   rintro evm ⟨caller, msg, child, hcal, -, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd,
     hmv, hmdep, hmst, hat⟩
   have hfwd : SendsVia message (upAddr state message) c r SEL_TS msg := by
@@ -817,7 +817,7 @@ theorem runFrame_dep_process (hfork : .berlin ≤ fork)
     ∃ e, runFrame (step fork) (step_decreases fork) bound (processRunner fork bound) evm
         within = .error e ∧ e.aborts = true :=
   runFrame_dep_answers hfork hsize hsize' hsel hv hdep hcode hsz hszl hroute hdepth hc10 hcU
-    hg htail (answers_runsAs hQ hG hpre) ho (meets_of_spec hspec bound) start within
+    hg htail (answers_runsAs hQ hG hpre) ho (meets_of_specAt hspec bound) start within
 
 /-- From 3719 (totalSupply), 4874 (balanceOf), 5739 (transfer), 3213 (approve) or 4200
 (transferFrom), when the upgraded address has no code: EXTCODESIZE pushes 0 and the code reverts
@@ -836,14 +836,14 @@ theorem noCode (hfork : .berlin ≤ fork) {p : Nat}
     simp [extendMemory]
   rcases hp with rfl | rfl | rfl | rfl | rfl
   all_goals
-    step Local.extcodesize hfork (by code_fact) (by code_fact) hcode hcold (by gas_ok)
+    step At.extcodesize hfork (by code_fact) (by code_fact) hcode hcold (by gas_ok)
     step unR 0x15 instruction_iszero
     step unR 0x15 instruction_iszero
     step pushAnyR 2
     step jumpi0R (by decide)
     step pushR 1 (0 : U256)
     step dupR 0
-    refine (Logic.revert (Nat.le_trans (by decide) hfork) (by code_fact)
+    refine (At.revert (Nat.le_trans (by decide) hfork) (by code_fact)
       (by code_fact) (by rw [hz]; gas_ok)).consequence (fun _ h => h) ?_
     rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
     refine ⟨hr, he, ?_, ?_, hs, hss⟩
@@ -876,7 +876,7 @@ theorem spec_depNoCode (hfork : .berlin ≤ fork)
   step TotalSupply.entry hv (by gas_ok)
   step depSet hfork (Or.inl ⟨rfl, rfl⟩) (by simp) hdep hc10 (by gas_ok)
   step fwdArgs (state := state) hfork (by simp) (by gas_ok)
-  step Logic.reshape (g' := gas - (574 + slotCost c10)) rfl rfl (by gas_ok)
+  step At.reshape (g' := gas - (574 + slotCost c10)) rfl rfl (by gas_ok)
   refine (noCode (gas := gas - (574 + slotCost c10)) (st := readSlot state message.currentTarget 10)
     (ss := accessSlot substate message.currentTarget 10) (message := message) (M := M2)
     (rest := [upWord (storageAt state message.currentTarget 10), 0, 0x60, 4, 0x60, 0x20, 0x64,

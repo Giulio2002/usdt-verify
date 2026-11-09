@@ -44,7 +44,7 @@ Round 33 (third audit, T3): a state where deprecated destroyBlackFunds reaches t
   separation itself is assumed, not proved.
 
 Usdt/Sanity/MirrorStateS.lean (round 44) runs the same call over the EIP-8037 meter under
-`processRunnerM` (`destroy_mirror_runsS`).
+`processRunner` (`destroy_mirror_runsS`).
 -/
 
 namespace UsdtVerify.Sanity

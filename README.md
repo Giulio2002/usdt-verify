@@ -180,7 +180,9 @@ When the contract is deprecated, the invariant and the security properties over 
 
 Every main theorem uses only the standard axioms `propext`, `Classical.choice` and `Quot.sound`. There is no `sorry` and no new axiom. Neither `native_decide` nor `bv_decide` is used. `decide +kernel` is used, and the kernel checks it.
 
-A few general opcode rules are proved locally in `UsdtVerify/Evm/Local/` while they make their way into EthLib. They are proved from EthLib's semantics, not assumed.
+A few instruction-table entries (LT, GT, DIV, AND, OR, MUL, NOT) are proved locally in `UsdtVerify/Evm/Local/` while they make their way into EthLib. They are proved from EthLib's semantics, not assumed. Several general results first proved here now come from EthLib itself: EXTCODESIZE at every fork from Berlin, the fact that a failed call keeps every storage word, the meter-general message lemmas, the preparation of a first frame with no value, and the triples whose runner may fail on a named message.
+
+The frame predicate `At` is defined in `UsdtVerify/Evm/At.lean`. It has the conditions of EthLib's `At` other than the return data, which EthLib's `At` names since EthLib #1351, and `At.iff_logic` proves that the two agree when the return data is that of the frame. An independent review checked mechanically that every statement in this repository means the same as before this change.
 
 ## What is not covered
 
@@ -206,7 +208,7 @@ lake exe cache get
 lake build
 ```
 
-EthLib is fetched as a dependency at the git commit pinned in `lakefile.lean` (`fd3457dbf`). Building EthLib from source takes a long time and several GB of memory. Once EthLib is built, this project builds from clean in about 110 to 190 seconds and needs about 1.8 GB.
+EthLib is fetched as a dependency at the git commit pinned in `lakefile.lean` (`0c34dc001`). Building EthLib from source takes a long time and several GB of memory. Once EthLib is built, this project builds from clean in about 110 to 190 seconds and needs about 1.8 GB.
 
 ## Credits
 

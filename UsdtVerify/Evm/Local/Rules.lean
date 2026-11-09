@@ -8,7 +8,7 @@ GENERIC GAP. Nothing here is specific to USDT; each rule holds for every code.
 
 They belong in EthLib's program logic and are kept here only until it has them.
 
-The opcodes LT, GT, DIV, AND, OR, SUB, MUL, NOT: their entries of the instruction table.
+The opcodes LT, GT, DIV, AND, OR, MUL, NOT: their entries of the instruction table.
 (EXP with its price from Spurious Dragon worked out is `Gas.expLG`, over `StepG`.)
 
 The proofs follow the rules of `Logic/Rules.lean` line for line.
@@ -17,6 +17,11 @@ Checked again at the re-pin to fd3457dbf (#1300, after #1292 and #1299): EthLib 
 (`Logic.stop`, `Halted false .empty`), GAS (`gas_rule`) and EXTCODESIZE (`extcodesize`), which
 replaced the local Halt.lean and Account.lean; it still has no named instruction-table lemmas for
 the opcodes below and no EXP rule with the price of a fork worked out.
+
+Checked again at the re-pin to 0c34dc001 (round 47): EthLib now has SUB (`instruction_sub`), so
+the local SUB entry is removed. EXTCODESIZE at every fork from Berlin is EthLib's
+`extcodesize_of_berlin_le` (#1599), so Local/Extcodesize.lean is removed, and Local/Parent.lean
+is EthLib's Call/Parent.lean (#1597). The entries below are still missing.
 
 Removed at the re-pin to d4d422780: the frame-read rules (CALLVALUE, CALLDATASIZE; EthLib
 `push_of_readFrame`, #1258) and JUMPI on a condition proved 0 (EthLib `jumpi_of_eq_zero`).
@@ -54,10 +59,6 @@ theorem instruction_and :
 
 theorem instruction_or :
     instruction (Meter := Meter) fork .or = some (binaryOp OPCODE_OR bitwiseOr) :=
-  Logic.instruction_of_stackOnlyStep rfl
-
-theorem instruction_sub :
-    instruction (Meter := Meter) fork .sub = some (binaryOp OPCODE_SUB sub) :=
   Logic.instruction_of_stackOnlyStep rfl
 
 theorem instruction_mul :

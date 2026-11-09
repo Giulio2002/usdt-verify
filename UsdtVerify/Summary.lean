@@ -49,7 +49,8 @@ Glamsterdam included, since round 17: each SSTORE costs `Gas.writeCost` (`sstore
 state gas of a new slot, `sstoreStateGas`, 0 before Glamsterdam), by the local rule
 `Gas.sstoreWG`. The deprecated paths hold at the same forks since round 19: EXTCODESIZE costs
 `extCost fork` (EthLib's `externalBaseCost`: 2600 cold / 100 warm before Glamsterdam, the access
-plus 100 from Glamsterdam, EIP-8038; local rule `Local.extcodesize`), every account access
+plus 100 from Glamsterdam, EIP-8038; EthLib's rule `extcodesize_of_berlin_le`, as
+`At.extcodesize`), every account access
 `accCost fork` (3000 cold from Glamsterdam), and the CALL rules (`callStep_child_r`, `callWithR`
 and the step lemmas of Evm/Call.lean) cover the order of the charges at Glamsterdam. Each non-deprecated path is a `SpecG` (round 12: a `Spec` over
 the steps from frames where the same step with less gas fails or gives the same frame with that
@@ -495,7 +496,8 @@ an account of `C` in its end state, and the gas the CALL keeps plus the gas left
 gas left at each SSTORE of the tail). `Exact.X_dep_ok_iff_fails` (the seven paths, `hg` only): for a runner that may
 fail with any error, with the same `hans` and `hfail` (a failure of the runner on a forwarded
 message excludes `A`) in place of `NoFail`, `RunsOk` holds if and only if the checks and `A` hold;
-the `X_dep_ok_iff_gas` theorems follow from them. Behind them: `Sends.SpecOn` (Evm/Sends.lean), a
+the `X_dep_ok_iff_gas` theorems follow from them. Behind them: `SpecOn` (EthLib's
+Logic/FailsOn.lean since round 47, Evm/Sends.lean before), a
 specification under a runner that may fail whose runs end in the postcondition or at a failure on
 a forwarded message; the forward specifications `spec_dep*_g`, `spec_depD_g` are stated so.
 `Sanity.failRunner_hans`, `Sanity.failRunner_hfail`: the runner that fails on every message meets
@@ -570,7 +572,8 @@ reservoir 0 and leaves the caller with reservoir 0. `KeepsInvAtS`, `HonestBalanc
 `Security.KeepsAtS` ask their property only of such calls, and the `dep_X_completeS` conclusions
 state both facts.
 Round 41 (U2, Usdt/Sanity/ProcessMeter.lean): from Paris, EthLib's runner over `StateGasMeter`
-(`ProcessMeter.processRunnerM`) meets `KeepsInvAtS` (`Sanity.keepsInvAtS_process_stop`) and
+(`processRunner`, `ProcessMeter.processRunnerM` before round 47) meets `KeepsInvAtS`
+(`Sanity.keepsInvAtS_process_stop`) and
 `KeepsAtS` for every reflexive relation (`Sanity.keepsAtS_process_stop`) when the upgraded address
 holds STOP, and `HonestBalanceAtS` (`Sanity.honestBalanceAtS_process_mirror`) when it holds
 `MIRROR` whose queried slot holds USDT's `balances[a]` in the start state.
@@ -616,16 +619,16 @@ the invariant (`Complete.inv_call_depR`, `Complete.inv_call_anyDR`, `Complete.in
 `Complete.process_stepDR`, `Complete.process_stepSDR`) and the security properties
 (`Security.effect_allSR`, the `_call_allSR` and `_seq_allSR` forms, `Security.process_stepSecDR`)
 hold under the runner assumptions stated at the reservoir the CALL forwards (`KeepsInvAtSR`,
-`HonestBalanceAtSR`, `KeepsAtSR`), which `processRunnerM` meets with STOP or `MIRROR` at the
+`HonestBalanceAtSR`, `KeepsAtSR`), which `processRunner` meets with STOP or `MIRROR` at the
 upgraded address (`Sanity.keepsInvAtSR_process_stop`, `Sanity.keepsAtSR_process_stop`,
 `Sanity.honestBalanceAtSR_process_mirror`). `Security.owner_only_allSR` needs no reservoir
 hypothesis. `Complete.dep_destroy_exactR`: deprecated destroyBlackFunds, the meter after the CALL
 (`GasMeter.absorb` of the caller's and the child's meters) and the exact end through the two
 writes of the tail, refills included. `Sanity.destroy_mirror_runsS`: from Paris, a deprecated
 destroyBlackFunds call in the state `S2` with `MIRROR` ends with no error over `StateGasMeter` under
-`processRunnerM`, from any reservoir and at least 1000000 execution gas.
+`processRunner`, from any reservoir and at least 1000000 execution gas.
 Round 45 (READY for this scope; Usdt/Complete/Deprecated/CallS.lean, CallExactS.lean, PathsS.lean,
-Usdt/Sanity/MirrorState.lean, MirrorStateS.lean, MirrorCallS.lean, Evm/FirstFrame.lean):
+Usdt/Sanity/MirrorState.lean, MirrorStateS.lean, MirrorCallS.lean, Evm/FirstFrame.lean until round 47):
 `Complete.dep_totalSupply_exactR`, `dep_balanceOf_exactR`, `dep_allowance_exactR`,
 `dep_transfer_exactR`, `dep_approve_exactR`, `dep_transferFrom_exactR`: the six other deprecated
 paths over `StateGasMeter` from any reservoir, with the caller's meter, the meter after the CALL
@@ -635,7 +638,8 @@ under `SepOn` of its key; `Sanity.destroy_mirror_inv`: under `SepOn` of the call
 holds after every successful run of the deprecated destroyBlackFunds call there.
 `Sanity.destroy_mirror_processS`: that call as a `processMessage` over `StateGasMeter`, from any
 meter with execution gas left in [1000000, 2^255), ends with no error.
-`FirstFrame.prepareFirstFrame_call`: EthLib's `prepareFirstFrame` for a call with no value and no
+`FirstFrame.prepareFirstFrame_call` (since round 47 EthLib's `prepareFirstFrame_of_value_eq_zero`):
+EthLib's `prepareFirstFrame` for a call with no value and no
 authorization. `Sanity.destroy_mirror_callS`: in `S3` (`S2` with `CODE` at `C`), EthLib's
 `processMessageCall` of that call over `StateGasMeter` with no authorization gives an output with
 no error. Round 45 did not cover `prepareFirstFrame` with authorizations; round 46 does, below.
@@ -707,8 +711,8 @@ the three getters, empty for the three writes), gas, and the state and substate 
 follows a route `r`: no delegation, or (from Pectra) `c` is an EIP-7702 indicator to an address
 whose code is found, the message runs that code with the precompiles disabled, and the CALL pays
 the access to the delegate (`routeCost`). From Berlin on, Glamsterdam included (round 19:
-EXTCODESIZE at `extCost fork`, the accesses at `accCost fork`, Evm/Local/Extcodesize.lean and
-Evm/Route.lean). Named hypotheses
+EXTCODESIZE at `extCost fork`, the accesses at `accCost fork`, EthLib's
+`extcodesize_of_berlin_le` and Evm/Route.lean). Named hypotheses
 beyond the fork range, size, selector and flag: the coldness flags only.
 `destroyBlackFunds_dep_complete`: the owner's call, `a` blacklisted, the forward of
 `balanceOf(a)` answered with no error, then over the state `S` the call left and the word `d` at

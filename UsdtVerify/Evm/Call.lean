@@ -107,7 +107,7 @@ theorem step_sub_low {x y : U256} {rest : List U256} (hlt : pc < code.size)
     step fork evm = .error .outOfGas := by
   obtain ⟨hc, -, -, hpc, hst, -, hgas, -⟩ := h
   subst hc hpc hgas
-  rw [step_of_instruction hlt (by rw [hbyte]; exact ofByte_of_decode (op := .sub) rfl (Fork.frontier_le _)) Local.instruction_sub, binaryOp_cons hst]
+  rw [step_of_instruction hlt (by rw [hbyte]; exact ofByte_of_decode (op := .sub) rfl (Fork.frontier_le _)) instruction_sub, binaryOp_cons hst]
   simp [GasMeter.charge, show OPCODE_SUB = 3 from rfl, hg, Functor.map, Except.map]
 
 /-- EXTCODESIZE with less gas than its price fails (the code is found). -/
@@ -487,7 +487,7 @@ theorem call_ok (hfork : .berlin ≤ fork)
       rw [c5]
       simp at this
       omega
-    obtain ⟨after, hres, a1, a2, a3, a4, a5, a6, a7, a8, a9, ao, a10, a11⟩ :=
+    obtain ⟨after, hres, a1, a2, a3, a4, a5, a6, a7, a8, a9, ao, a10, a11, -⟩ :=
       resumeCall_eq (child := child.1) (o := o) (osz := osz) hlen
     rw [runFrame_of_step_eq_child hr hsent lt hch hres] at hrun
     refine ⟨caller, msg, lt, child, hch, c10, c11, by rw [m1, hcost], m2, m3, mt, mca, m4, mdp,

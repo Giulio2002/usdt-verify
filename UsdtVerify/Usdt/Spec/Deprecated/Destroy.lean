@@ -30,7 +30,7 @@ frame, the first SSTORE after the call is `Stuck` (`tailBadD`).
 Round 26: `tailStip` (the stipend bound of the code after the CALL), `tailD_g` (that code with its
 exact cost and stipend bound in place of `TAIL_MAX`), `tailMidD` (from the cost of the tail to below its
 stipend bound, an SSTORE with at most 2300 gas left is reached), `zeroBalNoWD`, and `spec_depD_g` (no `htail`, no `hkeep`;
-stated as a `Sends.SpecOn`, for the forwarded messages that end with no error).
+stated as a `SpecOn`, for the forwarded messages that end with no error).
 -/
 
 namespace UsdtVerify.DeprecatedDestroy
@@ -212,7 +212,7 @@ theorem fwdArgsD (hfork : .berlin ≤ fork) {a : U256} (ha : bitwiseAnd ADDR_MAS
     (by rw [hx5, memoryExtend_zero]) (by rw [hx5]; gas_ok)
   step dupR 0
   step dupR 3
-  step binR 0x03 Local.instruction_sub
+  step binR 0x03 instruction_sub
   have h24 : sub (0x84 : U256) (0x60 : U256) = 0x24 := by decide
   rw [h24]
   step dupR 1
@@ -495,7 +495,7 @@ theorem logBlockD {a b x : U256} (hstatic : message.isStatic = false) {M : ByteA
   step dupR 0
   step swapR 1
   norm
-  step binR 0x03 Local.instruction_sub
+  step binR 0x03 instruction_sub
   step swapR 0
   norm
   step Gas.reshapeG (s' := 0x60 :: 0x40 :: ([DESTROY_TOPIC] ++ [b, a, 0x09b6, x])) rfl rfl rfl
@@ -755,7 +755,7 @@ theorem preCallD (hfork : .berlin ≤ fork)
   step fwdArgsD (state := preState state message) hfork (by simp only [addrArg, mask_mask])
     (by simp) (size_mapMem size_MEM0 _ _) (ptr_mapMem size_MEM0 mload_MEM0 _ _) (by gas_ok)
   rw [hU]
-  step Logic.reshape (g' := gas - (1472 + slotCost c0 + slotCost cL + slotCost c10)) rfl rfl (by gas_ok)
+  step At.reshape (g' := gas - (1472 + slotCost c0 + slotCost cL + slotCost c10)) rfl rfl (by gas_ok)
   refine (toCall (gas := gas - (1472 + slotCost c0 + slotCost cL + slotCost c10))
     (st := readSlot (preState state message) message.currentTarget 10)
     (ss := accessSlot (preSub substate message) message.currentTarget 10) (message := message)
@@ -765,7 +765,7 @@ theorem preCallD (hfork : .berlin ≤ fork)
       0x1f48, 0, addrArg message.data 0, 0x09b6, BitVec.ofNat 256 (selector message.data)])
     hfork (Or.inr (Or.inl ⟨rfl, rfl⟩))
     (by simp) hcode hsz hszl hcU (by simp only [extCost]; gas_ok)).seq ?_
-  refine Logic.reshape ?_ rfl (by simp only [extCost]; gas_ok)
+  refine At.reshape ?_ rfl (by simp only [extCost]; gas_ok)
   simp only [List.cons.injEq, and_true]
   congr 1
   unfold extCost; omega
@@ -917,7 +917,7 @@ that meets `callee`, sent with the gas the CALL gives from the caller frame at t
 with the gas the CALL keeps, at least the cost of the tail (`tailCost`) and its stipend bound
 (`tailStip`), both computed over the state and substate after the call. Then the run stops
 normally in `tailState`, `tailSub`, gas exact.
-Stated as a `Sends.SpecOn` (round 26): the frames that end the runner's messages meet
+Stated as a `SpecOn` (round 26): the frames that end the runner's messages meet
 `callee`, the runner may fail with any error, and the run ends as stated or at a failure of the
 runner on a forwarded message (`SendsVia`); `.toUnder` gives EthLib's `SpecUnder`. -/
 theorem spec_depD_g (hfork : .berlin ≤ fork)
@@ -960,7 +960,7 @@ theorem spec_depD_g (hfork : .berlin ≤ fork)
             message.currentTarget (balSlot message)) message.currentTarget 1) ≤
         gas - preCostD fork c0 cL c10 cU -
           (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).cost + child.gas) :
-    Sends.SpecOn fork callee (fun caller msg => SendsVia message (upAddr state message) c r (dataB message) msg ∧
+    SpecOn fork callee (fun caller msg => SendsVia message (upAddr state message) c r (dataB message) msg ∧
       CallFrom (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).subCall (atCallState (callStateD state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubD substate state message) (upAddr state message) r) caller msg)
       (At CODE message 0 [] .empty gas state substate)
       fun evm => ∃ caller msg child, callee caller msg child ∧
@@ -998,13 +998,13 @@ theorem spec_depD_g (hfork : .berlin ≤ fork)
     (by rw [hext, hR]; simp only [accCost_false]; omega)
   rw [hext, hR] at hcall
   simp only [accCost_false] at hcall
-  have hcall := hcall.mono_S (S' := (fun caller msg => SendsVia message (upAddr state message) c r (dataB message) msg ∧
+  have hcall := hcall.mono (S' := (fun caller msg => SendsVia message (upAddr state message) c r (dataB message) msg ∧
       CallFrom (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).subCall (atCallState (callStateD state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubD substate state message) (upAddr state message) r) caller msg))
     fun _ _ h => by
     obtain ⟨⟨a1, a2, a3, a4, a5, a6, a7, a8, a9, a10⟩, b1, b2, b3⟩ := h
     exact ⟨⟨a1, a2, a3, a4, a5, a6, by rw [a7, memoryExtend_zero]; exact data_memD message, a8, a9, a10⟩, b3, b1, b2⟩
-  refine Sends.SpecOn.seq (Sends.HoareOn.of_hoare (preCallD hfork hsize hsize' hsel hv hown hl
-    hdep hcode hsz hszl hc0 hcL hc10 hcU (by omega))) (Sends.HoareOn.seq hcall (Sends.HoareOn.of_hoare ?_))
+  refine SpecOn.seq (HoareOn.of_hoare (preCallD hfork hsize hsize' hsel hv hown hl
+    hdep hcode hsz hszl hc0 hcL hc10 hcU (by omega))) (HoareOn.seq hcall (HoareOn.of_hoare ?_))
   rintro evm ⟨caller, msg, child, hcal, -, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd, hmv,
     hmdep, hmst, hat⟩
   have hfwd : SendsVia message (upAddr state message) c r (dataB message) msg := by
@@ -1164,7 +1164,7 @@ theorem runFrame_depD_process (hfork : .berlin ≤ fork)
     hcU hg htail
     (answersD_runsAs (fun _ _ _ _ h => ⟨(hQ _ _ _ _ h).1, (hQ _ _ _ _ h).2.1⟩) hG hpre) ho
     (keep_runsAs (fun _ _ _ _ h => ⟨(hQ _ _ _ _ h).1, (hQ _ _ _ _ h).2.2⟩) hG hpre)).runFrame
-    (meets_of_spec hspec bound) start within
+    (meets_of_specAt hspec bound) start within
 
 /-- The specification of `destroyBlackFunds(a)` when deprecated and the upgraded address has no
 code: the run reverts with no output before any call. Gas `1497 + prices of slots 0,
@@ -1194,7 +1194,7 @@ theorem spec_depDNoCode (hfork : .berlin ≤ fork)
   step fwdArgsD (state := preState state message) hfork (by simp only [addrArg, mask_mask])
     (by simp) (size_mapMem size_MEM0 _ _) (ptr_mapMem size_MEM0 mload_MEM0 _ _) (by gas_ok)
   rw [hU]
-  step Logic.reshape (g' := gas - (1472 + slotCost c0 + slotCost cL + slotCost c10)) rfl rfl (by gas_ok)
+  step At.reshape (g' := gas - (1472 + slotCost c0 + slotCost cL + slotCost c10)) rfl rfl (by gas_ok)
   refine (noCode (gas := gas - (1472 + slotCost c0 + slotCost cL + slotCost c10))
     (st := readSlot (preState state message) message.currentTarget 10)
     (ss := accessSlot (preSub substate message) message.currentTarget 10) (message := message)

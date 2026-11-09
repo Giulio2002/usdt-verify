@@ -25,7 +25,6 @@ open EthLib.Execution
 open EthLib.Execution.Evm
 open EthLib.Execution.Evm.Logic
 open UsdtVerify.Meter
-open UsdtVerify.ProcessMeter
 open Invariant Complete
 
 /-- From Paris, a top-level message whose code is `CODE` (no value moved, no precompile, call data
@@ -46,9 +45,9 @@ theorem runOkS_process {fork : Fork} (hparis : .paris ≤ fork)
     simp only [startState, show ¬fork < Fork.paris from Nat.not_lt.mpr hparis, ite_false]
   have hberlin : Fork.berlin ≤ fork := Nat.le_trans (by decide) hparis
   generalize hres : runFrame (step fork) (step_decreases fork) message.gas
-    (processRunnerM fork message.gas)
+    (processRunner fork message.gas)
     (startFrame message (startState fork message state) substate meter) held = result
-  have hmap := processMessage_map_valM noValue noPrecompile hres
+  have hmap := processMessage_map_val noValue noPrecompile hres
   rw [hproc] at hmap
   rcases result with e | s
   · cases hmap
@@ -63,7 +62,7 @@ theorem runOkS_process {fork : Fork} (hparis : .paris ≤ fork)
       simp [hse]
     have start := at_startFrameS hmc (startState fork message state) substate meter
     rw [hst] at start hres
-    exact ⟨substate, _, message.gas, processRunnerM fork message.gas, _, s, _, rfl, hberlin, hsize,
+    exact ⟨substate, _, message.gas, processRunner fork message.gas, _, s, _, rfl, hberlin, hsize,
       start, hres, hse, by rw [hend]⟩
 
 /-- From Paris, every top-level message whose code is `CODE` (no precompile, call data below 2^256
@@ -87,7 +86,8 @@ theorem process_stepSec {fork : Fork} (hparis : .paris ≤ fork)
     · exact absurd herr (process_value_failsS (Nat.le_trans (by decide) hparis) hmc noPrecompile
         hsize ht.2 hproc)
     · exact .inl (runOkS_process hparis hmc ht noPrecompile hsize hproc herr)
-  · exact .inr (fun _ => Local.processMessage_failed_getStorage hproc herr _ _)
+  · exact .inr fun _ =>
+      getStorage_processMessage_of_error hproc (Option.isSome_iff_ne_none.mpr herr) _ _
 
 /-- `runOkS_process` for the fresh meter of the message. -/
 theorem runOkS_process_start {fork : Fork} (hparis : .paris ≤ fork)

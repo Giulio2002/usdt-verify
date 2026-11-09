@@ -244,7 +244,7 @@ theorem supply_seq_allS {C : Address} {S S' : State.TransactionState}
 
 /-- From Paris, a top-level message whose code is `CODE` (no value moved, no precompile, call data
 below 2^256 bytes), run by EthLib's `processMessage` over `StateGasMeter` from a starting meter
-with reservoir 0 when `C` is deprecated, whose runner `processRunnerM` meets `KeepsAtS … R` when
+with reservoir 0 when `C` is deprecated, whose runner `processRunner` meets `KeepsAtS … R` when
 `C` is deprecated, that ends with no error, is a `RunOkRS` step. -/
 theorem runOkRS_process {fork : Fork} (hparis : .paris ≤ fork)
     {message : Message fork} {state : State.TransactionState} {substate : Substate}
@@ -254,7 +254,7 @@ theorem runOkRS_process {fork : Fork} (hparis : .paris ≤ fork)
     (noPrecompile : precompileAddress fork message = none)
     (hsize : message.data.size < 2 ^ 256)
     (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsAtS (ProcessMeter.processRunnerM fork message.gas) message state
+      KeepsAtS (processRunner fork message.gas) message state
         (upAddr state message) R)
     {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
     (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → meter.reservoir = 0)
@@ -266,9 +266,9 @@ theorem runOkRS_process {fork : Fork} (hparis : .paris ≤ fork)
     simp only [startState, show ¬fork < Fork.paris from Nat.not_lt.mpr hparis, ite_false]
   have hberlin : Fork.berlin ≤ fork := Nat.le_trans (by decide) hparis
   generalize hr : runFrame (step fork) (step_decreases fork) message.gas
-    (ProcessMeter.processRunnerM fork message.gas)
+    (processRunner fork message.gas)
     (startFrame message (startState fork message state) substate meter) held = result
-  have hmap := ProcessMeter.processMessage_map_valM noValue noPrecompile hr
+  have hmap := processMessage_map_val noValue noPrecompile hr
   rw [hproc] at hmap
   rcases result with e | s
   · cases hmap
@@ -281,15 +281,15 @@ theorem runOkRS_process {fork : Fork} (hparis : .paris ≤ fork)
       rw [hmap]
       unfold rollbackOnError
       simp [hse]
-    have start := ProcessMeter.at_startFrameS hmc (startState fork message state) substate meter
+    have start := Meter.at_startFrameS hmc (startState fork message state) substate meter
     rw [hst] at start hr
-    exact ⟨substate, _, message.gas, ProcessMeter.processRunnerM fork message.gas, _, s, _, rfl,
+    exact ⟨substate, _, message.gas, processRunner fork message.gas, _, s, _, rfl,
       hberlin, hsize, hkeeps, hres, start, hr, hse, by rw [hend]⟩
 
 /-- **Top-level messages over the EIP-8037 meter, deprecated or not, as steps of `SeqRS`.** From
 Paris, every top-level message whose code is `CODE` (no precompile, call data below 2^256 bytes,
 any value), run by EthLib's `processMessage` over `StateGasMeter` to the end, from a starting
-meter with reservoir 0 when `C` is deprecated, whose runner `processRunnerM` meets `KeepsAtS … R`
+meter with reservoir 0 when `C` is deprecated, whose runner `processRunner` meets `KeepsAtS … R`
 when `C` is deprecated, is a `RunOkRS` step when it ends with no error and an `Untouched` step
 when it ends with an error. -/
 theorem process_stepSecD {fork : Fork} (hparis : .paris ≤ fork)
@@ -299,7 +299,7 @@ theorem process_stepSecD {fork : Fork} (hparis : .paris ≤ fork)
     (noPrecompile : precompileAddress fork message = none)
     (hsize : message.data.size < 2 ^ 256)
     (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsAtS (ProcessMeter.processRunnerM fork message.gas) message state
+      KeepsAtS (processRunner fork message.gas) message state
         (upAddr state message) R)
     {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
     (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → meter.reservoir = 0)
@@ -312,6 +312,7 @@ theorem process_stepSecD {fork : Fork} (hparis : .paris ≤ fork)
     · exact absurd herr (process_value_failsS (Nat.le_trans (by decide) hparis) hmc noPrecompile
         hsize ht.2 hproc)
     · exact .inl (runOkRS_process hparis hmc ht noPrecompile hsize hkeeps hres hproc herr)
-  · exact .inr (fun _ => Local.processMessage_failed_getStorage hproc herr _ _)
+  · exact .inr fun _ =>
+      getStorage_processMessage_of_error hproc (Option.isSome_iff_ne_none.mpr herr) _ _
 
 end UsdtVerify.Security

@@ -7,19 +7,19 @@ import UsdtVerify.Usdt.Complete.Deprecated.DestroyS
 
 `destroy_mirror_runs` (round 33) shows, before Glamsterdam and over the meter `Nat`, a deprecated
 destroyBlackFunds call in the state `S2` that ends with no error under `processRunner`. Here the
-same call runs over `StateGasMeter` under `processRunnerM`, at every fork from Paris (Glamsterdam
+same call runs over `StateGasMeter` under `processRunner`, at every fork from Paris (Glamsterdam
 included), from a frame with any reservoir.
 
 - `extCost_le`, `absorb_gasLeft_ge`, `callGas_bounds`: the price of EXTCODESIZE is at most 3100,
   the meter after a CALL whose child succeeded holds at least the execution gas left of both, and
   with at least 900000 gas at the CALL of the forward the message gets at least 2187 gas.
 - `process_mirrorS_ok`: from Paris, a message that runs `MIRROR` at a target with no value and no
-  precompile, with the gas `MIRROR` needs, ends under `processRunnerM` over `StateGasMeter` with no
+  precompile, with the gas `MIRROR` needs, ends under `processRunner` over `StateGasMeter` with no
   error, and with at least its gas less that need as execution gas left. Any reservoir.
 - `destroy_mirror_runsS`: from Paris, in `S2 C H a` (`H` not the empty code hash),
   `destroyBlackFunds(a)` from the owner `CALLER_A` to `C`, from a frame of `StateGasMeter` with
   any meter whose execution gas left is at least 1000000 (and below 2^255), any substate, any gas
-  bound: the loop of the interpreter with `processRunnerM` ends with no error. The run passes the
+  bound: the loop of the interpreter with `processRunner` ends with no error. The run passes the
   checks, forwards `balanceOf(a)` to `UA`, `MIRROR` answers, and both writes of the tail go
   through, refills allowed.
 - `mDOG`, `destroy_mirror_runsT`, `destroy_mirror_runsG` (round 45): the same for the message
@@ -79,38 +79,38 @@ theorem callGas_bounds (hfork : .berlin ≤ fork) {G : Nat} (h1 : 900000 ≤ G) 
     Nat.add_zero]
   split <;> simp <;> omega
 
-/-- **`MIRROR` succeeds under `processRunnerM` over `StateGasMeter`.** See the module doc. -/
+/-- **`MIRROR` succeeds under `processRunner` over `StateGasMeter`.** See the module doc. -/
 theorem process_mirrorS_ok (hparis : .paris ≤ fork) {bound : Nat}
     (caller : Evm fork StateGasMeter) {msg : Message fork} (lt : msg.gas < bound)
     (hcode : msg.code = MIRROR) {ua : Address} (ht : msg.target = some ua) (hv : msg.value = 0)
     (hpre : precompileAddress fork msg = none) {k : U256} (hk : loadWord msg.data 4 32 = k)
     (hg : 87 + slotCost (coldIn caller.substate.child msg.currentTarget (mapSlot k 2)) ≤ msg.gas) :
-    ∃ child, ProcessMeter.processRunnerM fork bound caller msg lt = .ok child ∧
+    ∃ child, processRunner fork bound caller msg lt = .ok child ∧
       child.1.error = none ∧
       msg.gas - (87 + slotCost (coldIn caller.substate.child msg.currentTarget (mapSlot k 2))) ≤
         child.1.gas.gasLeft := by
   have hberlin : .berlin ≤ fork := Nat.le_trans (by decide) hparis
   have hst : startState fork msg caller.state = caller.state := by
     simp only [startState, show ¬fork < Fork.paris from Nat.not_lt.mpr hparis, ite_false]
-  have hp : ProcessMeter.processRunnerM fork bound caller msg lt =
+  have hp : processRunner fork bound caller msg lt =
       processMessage fork msg caller.state caller.substate.child := by
-    simp only [ProcessMeter.processRunnerM, ht]
-  have start := ProcessMeter.at_startFrameS hcode (startState fork msg caller.state)
+    simp only [processRunner, ht]
+  have start := Meter.at_startFrameS hcode (startState fork msg caller.state)
     caller.substate.child (GasMeter.start msg.gas msg.reservoir : StateGasMeter)
   rw [hst] at start
   have hgl : GasMeter.gasLeft (GasMeter.start msg.gas msg.reservoir : StateGasMeter) = msg.gas :=
     rfl
   rw [hgl] at start
   obtain ⟨z, hr, hz, hq⟩ := (mirror_specA hberlin hk rfl hg).toG _ start
-  obtain ⟨s, hs, hzs, hle⟩ := Shadow.dom_run (runChild := ProcessMeter.processRunnerM fork msg.gas)
+  obtain ⟨s, hs, hzs, hle⟩ := Shadow.dom_run (runChild := processRunner fork msg.gas)
     hberlin hr hz hq.2.1 _ rfl (Nat.le_refl _) (Nat.le_of_eq (LawfulGasMeter.gasHeld_start _ _))
   have hse : s.error = none := by
     have : z.error = s.error := by rw [hzs]; rfl
     rw [← this]; exact hq.2.1
   rw [← hst] at hs
-  have hmap := ProcessMeter.processMessage_map_valM (fun h => h.2 hv) hpre hs
+  have hmap := processMessage_map_val (fun h => h.2 hv) hpre hs
   rw [← hp] at hmap
-  rcases hch : ProcessMeter.processRunnerM fork bound caller msg lt with e | child
+  rcases hch : processRunner fork bound caller msg lt with e | child
   · rw [hch] at hmap; cases hmap
   rw [hch] at hmap
   simp only [Except.map, Except.ok.injEq] at hmap
@@ -144,7 +144,7 @@ theorem destroy_mirror_runsT (hparis : .paris ≤ fork) (G R : Nat)
     (start : At CODE (mDOG b t C a G R) 0 [] .empty m.gas.gasLeft S ss (toNat m))
     (hg : 1000000 ≤ m.gas.gasLeft) (hg' : m.gas.gasLeft < 2 ^ 255) {bound : Nat}
     (within : GasMeter.gasHeld m.gas ≤ bound) :
-    Shadow.RunsOkS fork bound (ProcessMeter.processRunnerM fork bound) m within := by
+    Shadow.RunsOkS fork bound (processRunner fork bound) m within := by
   have hberlin : .berlin ≤ fork := Nat.le_trans (by decide) hparis
   have hdep : byte20 (storageAt S (mDOG b t C a G R).currentTarget 10) ≠ 0 := by
     show byte20 (storageAt S C 10) ≠ 0
@@ -243,7 +243,7 @@ theorem destroy_mirror_runsT (hparis : .paris ≤ fork) (G R : Nat)
   obtain ⟨hiff, -⟩ := tailD_sgm hberlin (mkey_addrArg (mDOG b t C a G R).data 0) rfl hacc
     (size_outMemOf hB chS.1.output)
     (mload_outMemOf hB (by rw [memoryExtend_zero]; exact ptr_memD (mDOG b t C a G R)) chS.1.output)
-    rfl rfl hat (runChild := ProcessMeter.processRunnerM fork bound) wy
+    rfl rfl hat (runChild := processRunner fork bound) wy
   have hgA := absorb_gasLeft_ge caller.gas chS.1.gas
   rw [← hgy] at hgA
   have hcl : caller.gas.gasLeft = G4 - (depCallGas fork (asked (G4 + 3)) G4 0).cost := by rw [k7]
@@ -333,7 +333,7 @@ theorem destroy_mirror_runsG (hparis : .paris ≤ fork) (G R : Nat)
     (start : At CODE (mDOG b t C a G R) 0 [] .empty m.gas.gasLeft (S2 C H a) ss (toNat m))
     (hg : 1000000 ≤ m.gas.gasLeft) (hg' : m.gas.gasLeft < 2 ^ 255) {bound : Nat}
     (within : GasMeter.gasHeld m.gas ≤ bound) :
-    Shadow.RunsOkS fork bound (ProcessMeter.processRunnerM fork bound) m within := by
+    Shadow.RunsOkS fork bound (processRunner fork bound) m within := by
   obtain ⟨-, hown0, hlist0, -, hup0, -, -, -, -⟩ := process_step_dep_hyps2 hparis b t C a H hH 0
   have hcodeU := hcode_SM (M := mDO b t C a) (C := C) (kvs := KD a) H hH hup0
   rw [hup0] at hcodeU
@@ -348,7 +348,7 @@ theorem destroy_mirror_runsS (hparis : .paris ≤ fork)
     (start : At CODE (mDO b t C a) 0 [] .empty m.gas.gasLeft (S2 C H a) ss (toNat m))
     (hg : 1000000 ≤ m.gas.gasLeft) (hg' : m.gas.gasLeft < 2 ^ 255) {bound : Nat}
     (within : GasMeter.gasHeld m.gas ≤ bound) :
-    Shadow.RunsOkS fork bound (ProcessMeter.processRunnerM fork bound) m within :=
+    Shadow.RunsOkS fork bound (processRunner fork bound) m within :=
   destroy_mirror_runsG hparis 0 0 b t C a ss H hH start hg hg' within
 
 /-- **The concrete deprecated run as a message over the EIP-8037 meter (round 45).** From Paris
@@ -368,7 +368,7 @@ theorem destroy_mirror_processS (hparis : .paris ≤ fork)
       child.1.error = none := by
   have hst : startState fork (mDOG b t C a G R) (S2 C H a) = S2 C H a := by
     simp only [startState, show ¬fork < Fork.paris from Nat.not_lt.mpr hparis, ite_false]
-  have start := ProcessMeter.at_startFrameS (code := CODE) (message := mDOG b t C a G R) rfl
+  have start := Meter.at_startFrameS (code := CODE) (message := mDOG b t C a G R) rfl
     (startState fork (mDOG b t C a G R) (S2 C H a)) ss meter
   rw [hst] at start
   obtain ⟨s, hs, hse⟩ := destroy_mirror_runsG hparis G R b t C a ss H hH
@@ -376,7 +376,7 @@ theorem destroy_mirror_processS (hparis : .paris ≤ fork)
   rw [← hst] at hs
   have hpre : precompileAddress fork (mDOG b t C a G R) = none :=
     precompile_none_of (fork := fork) hnp rfl
-  have hmap := ProcessMeter.processMessage_map_valM (fun h => h.2 rfl) hpre hs
+  have hmap := processMessage_map_val (fun h => h.2 rfl) hpre hs
   rcases hch : processMessage fork (mDOG b t C a G R) (S2 C H a) ss meter held with e | child
   · rw [hch] at hmap; cases hmap
   rw [hch] at hmap

@@ -24,7 +24,7 @@ calls.
   `nonOwner_seq_allSR`, `paused_seq_allSR`, `listed_seq_allSR`, `allowKept_seq_allSR`,
   `supply_seq_allSR`: the sequence forms, each call over `StateGasMeter` from any reservoir.
 - `runOkRSR_process`, `process_stepSecDR`: from Paris, a top-level message run by
-  `processMessage` over `StateGasMeter` from any starting meter, whose runner `processRunnerM`
+  `processMessage` over `StateGasMeter` from any starting meter, whose runner `processRunner`
   meets `KeepsAtSR … R` at the reservoir of that meter when deprecated, is a `RunOkRSR` step or an
   `Untouched` step.
 -/
@@ -465,7 +465,7 @@ theorem supply_seq_allSR {C : Address} {S S' : State.TransactionState}
 
 /-- From Paris, a top-level message whose code is `CODE` (no value moved, no precompile, call data
 below 2^256 bytes), run by EthLib's `processMessage` over `StateGasMeter` from any starting meter,
-whose runner `processRunnerM` meets `KeepsAtSR … R` at the reservoir of that meter when `C` is
+whose runner `processRunner` meets `KeepsAtSR … R` at the reservoir of that meter when `C` is
 deprecated, that ends with no error, is a `RunOkRSR` step. -/
 theorem runOkRSR_process {fork : Fork} (hparis : .paris ≤ fork)
     {message : Message fork} {state : State.TransactionState} {substate : Substate}
@@ -476,7 +476,7 @@ theorem runOkRSR_process {fork : Fork} (hparis : .paris ≤ fork)
     (hsize : message.data.size < 2 ^ 256)
     {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
     (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsAtSR (ProcessMeter.processRunnerM fork message.gas) message state
+      KeepsAtSR (processRunner fork message.gas) message state
         (upAddr state message) meter.reservoir R)
     {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
     (hproc : processMessage fork message state substate meter held = .ok ended)
@@ -486,9 +486,9 @@ theorem runOkRSR_process {fork : Fork} (hparis : .paris ≤ fork)
     simp only [startState, show ¬fork < Fork.paris from Nat.not_lt.mpr hparis, ite_false]
   have hberlin : Fork.berlin ≤ fork := Nat.le_trans (by decide) hparis
   generalize hr : runFrame (step fork) (step_decreases fork) message.gas
-    (ProcessMeter.processRunnerM fork message.gas)
+    (processRunner fork message.gas)
     (startFrame message (startState fork message state) substate meter) held = result
-  have hmap := ProcessMeter.processMessage_map_valM noValue noPrecompile hr
+  have hmap := processMessage_map_val noValue noPrecompile hr
   rw [hproc] at hmap
   rcases result with e | s
   · cases hmap
@@ -501,15 +501,15 @@ theorem runOkRSR_process {fork : Fork} (hparis : .paris ≤ fork)
       rw [hmap]
       unfold rollbackOnError
       simp [hse]
-    have start := ProcessMeter.at_startFrameS hmc (startState fork message state) substate meter
+    have start := Meter.at_startFrameS hmc (startState fork message state) substate meter
     rw [hst] at start hr
-    exact ⟨substate, _, message.gas, ProcessMeter.processRunnerM fork message.gas, _, s, _, rfl,
+    exact ⟨substate, _, message.gas, processRunner fork message.gas, _, s, _, rfl,
       hberlin, hsize, hkeeps, start, hr, hse, by rw [hend]⟩
 
 /-- **Top-level messages over the EIP-8037 meter, deprecated or not, any reservoir, as steps of
 `SeqRSR`.** From Paris, every top-level message whose code is `CODE` (no precompile, call data
 below 2^256 bytes, any value), run by EthLib's `processMessage` over `StateGasMeter` to the end
-from any starting meter, whose runner `processRunnerM` meets `KeepsAtSR … R` at the reservoir of
+from any starting meter, whose runner `processRunner` meets `KeepsAtSR … R` at the reservoir of
 that meter when `C` is deprecated, is a `RunOkRSR` step when it ends with no error and an
 `Untouched` step when it ends with an error. No hypothesis on the reservoir. -/
 theorem process_stepSecDR {fork : Fork} (hparis : .paris ≤ fork)
@@ -520,7 +520,7 @@ theorem process_stepSecDR {fork : Fork} (hparis : .paris ≤ fork)
     (hsize : message.data.size < 2 ^ 256)
     {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
     (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsAtSR (ProcessMeter.processRunnerM fork message.gas) message state
+      KeepsAtSR (processRunner fork message.gas) message state
         (upAddr state message) meter.reservoir R)
     {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
     (hproc : processMessage fork message state substate meter held = .ok ended) :
@@ -531,6 +531,7 @@ theorem process_stepSecDR {fork : Fork} (hparis : .paris ≤ fork)
     · exact absurd herr (process_value_failsS (Nat.le_trans (by decide) hparis) hmc noPrecompile
         hsize ht.2 hproc)
     · exact .inl (runOkRSR_process hparis hmc ht noPrecompile hsize hkeeps hproc herr)
-  · exact .inr (fun _ => Local.processMessage_failed_getStorage hproc herr _ _)
+  · exact .inr fun _ =>
+      getStorage_processMessage_of_error hproc (Option.isSome_iff_ne_none.mpr herr) _ _
 
 end UsdtVerify.Security

@@ -336,7 +336,7 @@ theorem subTotalBad (hfork : .berlin ≤ fork) {a b : U256}
   step dupR 2
   step Gas.sloadG hfork (cold := c1) (by code_fact) (by code_fact) hc1 (by gas_ok)
   rw [getStorage_eq]
-  step binR 0x03 Local.instruction_sub
+  step binR 0x03 instruction_sub
   step swapR 2
   norm
   step popR
@@ -371,7 +371,7 @@ theorem subTotal (hfork : .berlin ≤ fork) {a b : U256}
   step dupR 2
   step Gas.sloadG hfork (cold := c1) (by code_fact) (by code_fact) hc1 (by gas_ok)
   rw [getStorage_eq]
-  step binR 0x03 Local.instruction_sub
+  step binR 0x03 instruction_sub
   step swapR 2
   norm
   step popR
@@ -471,7 +471,7 @@ theorem logBlock {a b x : U256} (hstatic : message.isStatic = false) {M : ByteAr
   step dupR 0
   step swapR 1
   norm
-  step binR 0x03 Local.instruction_sub
+  step binR 0x03 instruction_sub
   step swapR 0
   norm
   step Gas.reshapeG (s' := 0x60 :: 0x40 :: ([DESTROY_TOPIC] ++ [b, a, 0x09b6, x])) rfl rfl rfl

@@ -341,7 +341,7 @@ section Rules
 variable {code : ByteArray} {message : Message fork} {pc : Nat} {memory : ByteArray} {gas : Nat}
   {state : State.TransactionState} {substate : Substate}
 
-/-- **EXTCODESIZE over `RunC`** (`Local.extcodesize`), from Berlin: a `RunC` that ends with no
+/-- **EXTCODESIZE over `RunC`** (`At.extcodesize`), from Berlin: a `RunC` that ends with no
 error goes on from the frame after it. -/
 theorem RunC.extcodesize (hfork : .berlin ≤ fork) {word : U256} {rest : List U256}
     {c : ByteArray} (hlt : pc < code.size) (hbyte : code[pc] = 0x3b)
@@ -482,7 +482,7 @@ theorem call_okC (hfork : .berlin ≤ fork)
   | @call _ c' ch b _ msg' res _ hc' hch hres hT hE =>
     rw [hsent] at hc'
     cases hc'
-    obtain ⟨after, hres', a1, a2, a3, a4, a5, a6, a7, a8, a9, ao, a10, a11⟩ :=
+    obtain ⟨after, hres', a1, a2, a3, a4, a5, a6, a7, a8, a9, ao, a10, a11, -⟩ :=
       resumeCall_eq (child := ch) (o := o) (osz := osz) hlen
     rw [hres'] at hres
     have hab : after = b := Except.ok.inj hres

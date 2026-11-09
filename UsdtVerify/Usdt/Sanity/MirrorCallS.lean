@@ -1,5 +1,5 @@
 import UsdtVerify.Usdt.Sanity.MirrorStateS
-import UsdtVerify.Evm.FirstFrame
+import EthLib.Execution.Proofs.Transactions.Process
 
 /-!
 # Sanity: the concrete deprecated call through `processMessageCall` over the EIP-8037 meter (round 45)
@@ -17,7 +17,7 @@ agrees with `S2` by definition), `MIRROR` at `UA` under `H`.
   `destroyBlackFunds(a)` from `CALLER_A` to `C` with any gas field `G` from 1000000 to below 2^255
   and any reservoir field `R`, from any substate, with no authorization and no paid writes (the
   defaults `[]` and `∅`): EthLib's `processMessageCall` over `StateGasMeter` gives an output with
-  no error. (The proof takes the first frame from `FirstFrame.prepareFirstFrame_call`.)
+  no error. (The proof takes the first frame from EthLib's `prepareFirstFrame_of_value_eq_zero`.)
 
 Usdt/Sanity/MirrorAuth.lean (round 46) runs the same call with a list of EIP-7702 authorizations
 (`destroy_mirror_call_auths`).
@@ -107,7 +107,7 @@ theorem destroy_mirror_processT (hparis : .paris ≤ fork)
   subst hM
   have hst : startState fork (mDOG b t C a G R) S = S := by
     simp only [startState, show ¬fork < Fork.paris from Nat.not_lt.mpr hparis, ite_false]
-  have start := ProcessMeter.at_startFrameS (code := CODE) (message := mDOG b t C a G R) rfl
+  have start := Meter.at_startFrameS (code := CODE) (message := mDOG b t C a G R) rfl
     (startState fork (mDOG b t C a G R) S) ss meter
   rw [hst] at start
   obtain ⟨s, hs, hse⟩ := destroy_mirror_runsT hparis G R b t C a ss hS10 hown hlist hcodeU hacc
@@ -115,7 +115,7 @@ theorem destroy_mirror_processT (hparis : .paris ≤ fork)
   rw [← hst] at hs
   have hpre : precompileAddress fork (mDOG b t C a G R) = none :=
     precompile_none_of (fork := fork) hnp rfl
-  have hmap := ProcessMeter.processMessage_map_valM (fun h => h.2 rfl) hpre hs
+  have hmap := processMessage_map_val (fun h => h.2 rfl) hpre hs
   rcases hch : processMessage fork (mDOG b t C a G R) S ss meter held with e | child
   · rw [hch] at hmap; cases hmap
   rw [hch] at hmap
@@ -136,9 +136,9 @@ theorem destroy_mirror_callS (hparis : .paris ≤ fork)
     ∃ out, processMessageCall (Meter := StateGasMeter) chainId (mDOG b t C a G R) (S3 C H HC a) ss
       = .ok out ∧ out.error = none := by
   obtain ⟨-, hown0, hlist0, -, -, -, -, -, -⟩ := process_step_dep_hyps2 hparis b t C a H hH 0
-  have hff := FirstFrame.prepareFirstFrame_call (Meter := StateGasMeter) chainId
-    (mDOG b t C a G R) (S3 C H HC a) ss ∅ (C := C) rfl rfl (hcodeC_S3 C H HC a hCU hHC hne)
-    (fun _ => delegatedAddress_CODE)
+  have hff := prepareFirstFrame_of_value_eq_zero (Meter := StateGasMeter) (chainId := chainId)
+    (message := mDOG b t C a G R) (state := S3 C H HC a) (substate := ss) (paid := ∅)
+    (target := C) rfl rfl (hcodeC_S3 C H HC a hCU hHC hne) (fun _ => delegatedAddress_CODE)
   have hacc : hasAccount ((S3 C H HC a).recordAccountRead C) C := by
     simp only [hasAccount, State.TransactionState.getAccountOptional_recordAccountRead]
     exact hasAccount_S3 C H HC a

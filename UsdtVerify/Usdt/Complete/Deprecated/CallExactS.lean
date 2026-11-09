@@ -54,7 +54,7 @@ theorem resumeG {caller ch y : Evm fork StateGasMeter} {q : Nat} {rest : List U2
   have hlenN : (toNat caller).stack.val.length < STACK_LIMIT := by
     show caller.stack.val.length < STACK_LIMIT
     rw [c5]; simp only [STACK_LIMIT]; omega
-  obtain ⟨after, ha, a1, a2, a3, a4, a5, a6, -, a8, a9, ao, a10, a11⟩ :=
+  obtain ⟨after, ha, a1, a2, a3, a4, a5, a6, -, a8, a9, ao, a10, a11, -⟩ :=
     resumeCall_eq (child := toNat ch) (o := o) (osz := osz) hlenN
   rw [hy'] at ha
   cases ha

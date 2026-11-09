@@ -408,7 +408,7 @@ theorem inv_callsDS {C : Address} {S S' : State.TransactionState}
 /-- **Deprecated top-level messages over the EIP-8037 meter.** From Paris, a top-level message to
 `C` (code `CODE`, no precompile, call data below 2^256 bytes, deprecated), run by EthLib's
 `processMessage` over `StateGasMeter` to the end from a starting meter with reservoir 0, under `KeepsInvAtS` and, for
-destroyBlackFunds, `HonestBalanceAtS` of `processRunnerM`, is a `GoodCallDS` when it ends with no
+destroyBlackFunds, `HonestBalanceAtS` of `processRunner`, is a `GoodCallDS` when it ends with no
 error and an `Untouched` step when it ends with an error. -/
 theorem process_stepDS {fork : Fork} (hparis : .paris ≤ fork)
     {message : Message fork} {state : State.TransactionState} {substate : Substate}
@@ -418,9 +418,9 @@ theorem process_stepDS {fork : Fork} (hparis : .paris ≤ fork)
     (h7 : StrForm (storageAt state message.currentTarget 7))
     (h8 : StrForm (storageAt state message.currentTarget 8))
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    (hkeeps : KeepsInvAtS (ProcessMeter.processRunnerM fork message.gas) message state)
+    (hkeeps : KeepsInvAtS (processRunner fork message.gas) message state)
     (hhonest : selector message.data = 0xf3bdc228 →
-      HonestBalanceAtS (ProcessMeter.processRunnerM fork message.gas) message state)
+      HonestBalanceAtS (processRunner fork message.gas) message state)
     {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
     (hres : meter.reservoir = 0)
     {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
@@ -436,9 +436,9 @@ theorem process_stepDS {fork : Fork} (hparis : .paris ≤ fork)
       simp only [startState, show ¬fork < Fork.paris from Nat.not_lt.mpr hparis, ite_false]
     have hberlin : Fork.berlin ≤ fork := Nat.le_trans (by decide) hparis
     generalize hres' : runFrame (step fork) (step_decreases fork) message.gas
-      (ProcessMeter.processRunnerM fork message.gas)
+      (processRunner fork message.gas)
       (startFrame message (startState fork message state) substate meter) held = result
-    have hmap := ProcessMeter.processMessage_map_valM ht noPrecompile hres'
+    have hmap := processMessage_map_val ht noPrecompile hres'
     rw [hproc] at hmap
     rcases result with e | s
     · cases hmap
@@ -451,12 +451,13 @@ theorem process_stepDS {fork : Fork} (hparis : .paris ≤ fork)
         rw [hmap]
         unfold rollbackOnError
         simp [hse]
-      have start := ProcessMeter.at_startFrameS hmc (startState fork message state) substate meter
+      have start := Meter.at_startFrameS hmc (startState fork message state) substate meter
       rw [hst] at start hres'
-      exact ⟨fork, message, substate, _, message.gas, ProcessMeter.processRunnerM fork message.gas,
+      exact ⟨fork, message, substate, _, message.gas, processRunner fork message.gas,
         _, s, _, rfl, hberlin, hsize, K, h7, h8, hdep, hkeeps, hhonest, start, hres, hres', hse,
         by rw [hend]⟩
-  · exact .inr (fun _ => Local.processMessage_failed_getStorage hproc herr _ _)
+  · exact .inr fun _ =>
+      getStorage_processMessage_of_error hproc (Option.isSome_iff_ne_none.mpr herr) _ _
 
 /-- **Every top-level message over the EIP-8037 meter, deprecated or not.** From Paris, a
 top-level message to `C` (code `CODE`, no precompile, call data below 2^256 bytes) run by
@@ -471,10 +472,10 @@ theorem process_stepSD {fork : Fork} (hparis : .paris ≤ fork)
     (h7 : StrForm (storageAt state message.currentTarget 7))
     (h8 : StrForm (storageAt state message.currentTarget 8))
     (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsInvAtS (ProcessMeter.processRunnerM fork message.gas) message state)
+      KeepsInvAtS (processRunner fork message.gas) message state)
     (hhonest : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
       selector message.data = 0xf3bdc228 →
-      HonestBalanceAtS (ProcessMeter.processRunnerM fork message.gas) message state)
+      HonestBalanceAtS (processRunner fork message.gas) message state)
     {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
     (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → meter.reservoir = 0)
     {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
@@ -500,9 +501,9 @@ theorem process_stepDS_start {fork : Fork} (hparis : .paris ≤ fork)
     (h8 : StrForm (storageAt state message.currentTarget 8))
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
     (hres : message.reservoir = 0)
-    (hkeeps : KeepsInvAtS (ProcessMeter.processRunnerM fork message.gas) message state)
+    (hkeeps : KeepsInvAtS (processRunner fork message.gas) message state)
     (hhonest : selector message.data = 0xf3bdc228 →
-      HonestBalanceAtS (ProcessMeter.processRunnerM fork message.gas) message state)
+      HonestBalanceAtS (processRunner fork message.gas) message state)
     {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
     (hproc : processMessage fork message state substate = .ok ended) :
     GoodCallDS message.currentTarget state ended.val.state ∨
@@ -520,10 +521,10 @@ theorem process_stepSD_start {fork : Fork} (hparis : .paris ≤ fork)
     (h8 : StrForm (storageAt state message.currentTarget 8))
     (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → message.reservoir = 0)
     (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsInvAtS (ProcessMeter.processRunnerM fork message.gas) message state)
+      KeepsInvAtS (processRunner fork message.gas) message state)
     (hhonest : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
       selector message.data = 0xf3bdc228 →
-      HonestBalanceAtS (ProcessMeter.processRunnerM fork message.gas) message state)
+      HonestBalanceAtS (processRunner fork message.gas) message state)
     {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
     (hproc : processMessage fork message state substate = .ok ended) :
     GoodCallS message.currentTarget state ended.val.state ∨

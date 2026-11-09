@@ -1,5 +1,5 @@
 import UsdtVerify.Usdt.Invariant.Static
-import UsdtVerify.Evm.Local.Parent
+import EthLib.Execution.Proofs.Evm.Call.Parent
 
 /-!
 # The invariant over a finite sequence of calls
@@ -29,7 +29,7 @@ to its end state, under the same named assumptions for the interpreter's runner
 Failed calls and calls with value (round 18):
 - `untouched_process_failed`: a top-level message run by `processMessage` (any code, any fork)
   that ends with an error leaves every storage word of every address as before
-  (`Local.processMessage_failed_getStorage`, Evm/Local/Parent.lean).
+  (EthLib's `getStorage_processMessage_of_error`).
 - `process_value_fails`: from Berlin, a top-level message of `CODE` (no precompile) with a nonzero
   value ends with an error, whether the value is moved or not.
 - `process_step`: from Paris (Glamsterdam included), under the hypotheses of
@@ -119,7 +119,7 @@ theorem goodCall_process {fork : Fork} (hparis : .paris ≤ fork)
     simp only [startState, show ¬fork < Fork.paris from Nat.not_lt.mpr hparis, ite_false]
   have hberlin : Fork.berlin ≤ fork := Nat.le_trans (by decide) hparis
   generalize hres : runFrame (step fork) (step_decreases fork) message.gas
-    (processRunner fork message.gas)
+    (processRunner (Meter := Nat) fork message.gas)
     (startFrame message (startState fork message state) substate
       (GasMeter.start message.gas message.reservoir)) (Nat.le_refl _) = result
   have hmap := processMessage_map_val noValue noPrecompile hres
@@ -135,7 +135,7 @@ theorem goodCall_process {fork : Fork} (hparis : .paris ≤ fork)
       rw [hmap]
       unfold rollbackOnError
       simp [hse]
-    have start := at_startFrame hmc (startState fork message state) substate
+    have start := At.startFrame hmc (startState fork message state) substate
     rw [hst] at start hres
     refine ⟨fork, message, substate, message.gas, message.gas, processRunner fork message.gas, _, s,
       Nat.le_refl _, rfl, hberlin, fun h => ⟨hmc, hstat h, staticKeeps_process hparis⟩,
@@ -145,13 +145,13 @@ theorem goodCall_process {fork : Fork} (hparis : .paris ≤ fork)
 
 /-- A top-level message (any code, any fork) run by EthLib's `processMessage` that ends with an
 error is an `Untouched` step for every address `C`: the rollback restores the storage of the state
-it was sent from (`Local.processMessage_failed_getStorage`). -/
+it was sent from (EthLib's `getStorage_processMessage_of_error`). -/
 theorem untouched_process_failed {fork : Fork} {message : Message fork}
     {state : State.TransactionState} {substate : Substate}
     {ended : { evm : Evm fork Nat // GasMeter.gasHeld evm.gas ≤ message.gas }}
     (hproc : processMessage fork message state substate = .ok ended)
     (herr : ended.val.error ≠ none) (C : Address) : Untouched C state ended.val.state :=
-  fun _ => Local.processMessage_failed_getStorage hproc herr C _
+  fun _ => getStorage_processMessage_of_error hproc (Option.isSome_iff_ne_none.mpr herr) C _
 
 /-- From Berlin, a top-level message whose code is `CODE` (no precompile, call data below 2^256
 bytes) with a nonzero value, whether it moves the value or not, never ends without an error: when
@@ -178,7 +178,7 @@ theorem process_value_fails {fork : Fork} (hfork : .berlin ≤ fork) {message : 
     · simp only [Except.map, Except.ok.injEq] at hmap
       rw [hmap]
       have hs : s.error ≠ none := fun hok =>
-        hv (runFrame_ok_dispatch hfork hsize (at_startFrame hmc st ss) (Nat.le_refl _) hres
+        hv (runFrame_ok_dispatch hfork hsize (At.startFrame hmc st ss) (Nat.le_refl _) hres
           hok).2.1
       unfold rollbackOnError
       split

@@ -240,7 +240,7 @@ theorem ownerToW (hfork : .berlin ≤ fork) {p q j : Nat} {f : U256 → U256 →
   · step dupR 0
     step ownerLookup hfork (by decide) (by simp; omega) hM hc0 (gas := gas - 3) (by gas_ok)
     step pushR 1 (0 : U256)
-    owner_pre 0x03 Local.instruction_sub
+    owner_pre 0x03 instruction_sub
     rw [storageAt_readSlot]
     exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
@@ -265,7 +265,7 @@ theorem totalToW (hfork : .berlin ≤ fork) {p q j : Nat} {f : U256 → U256 →
     step dupR 0
     step pushR 1 (0x01 : U256)
     step pushR 1 (0 : U256)
-    op_pre 0x03 Local.instruction_sub hc1
+    op_pre 0x03 instruction_sub hc1
     exact restate (by decide) rfl rfl (by gas_ok) rfl rfl
 
 end UsdtVerify.Issue
@@ -998,7 +998,7 @@ theorem destroyW2 (hfork : .berlin ≤ fork) {a b x : U256} {c1 : Bool}
   step dupR 2
   step Gas.sloadG hfork (cold := c1) (by code_fact) (by code_fact) hc1 (by gas_ok)
   rw [getStorage_eq]
-  step binR 0x03 Local.instruction_sub
+  step binR 0x03 instruction_sub
   step swapR 2
   norm
   step popR

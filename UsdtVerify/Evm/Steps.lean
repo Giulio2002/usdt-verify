@@ -13,7 +13,8 @@ side goals of gas and stack room.
 - `slotCost`: the price of SLOAD from Berlin.
 - `gas_ok`, `stk_ok`: close gas and stack-room side goals; `step r`: run one rule at the head of
   the goal; `at_pc n`: normalize the program counter.
-- `reshape` (now EthLib's `Logic.reshape`, #1238): equal stack, memory and gas.
+- `reshape` (now EthLib's `reshape`, #1238, as `At.reshape` in Evm/At.lean): equal stack, memory
+  and gas.
 -/
 
 namespace UsdtVerify

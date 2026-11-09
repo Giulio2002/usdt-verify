@@ -188,7 +188,7 @@ theorem fwdArgsB (hfork : .berlin ≤ fork) {a : U256} (ha : bitwiseAnd ADDR_MAS
     (by rw [hx5, memoryExtend_zero]) (by rw [hx5]; gas_ok)
   step dupR 0
   step dupR 3
-  step binR 0x03 Local.instruction_sub
+  step binR 0x03 instruction_sub
   have h24 : sub (0x84 : U256) (0x60 : U256) = 0x24 := by decide
   rw [h24]
   step dupR 1
@@ -329,7 +329,7 @@ theorem preCallB (hfork : .berlin ≤ fork)
   step depSet hfork (Or.inr ⟨rfl, rfl⟩) (by simp) hdep hc10 (by gas_ok)
   step fwdArgsB (state := state) hfork (by simp only [addrArg, mask_mask]) (by simp)
     (by gas_ok)
-  step Logic.reshape (g' := gas - (896 + slotCost c10)) rfl rfl (by gas_ok)
+  step At.reshape (g' := gas - (896 + slotCost c10)) rfl rfl (by gas_ok)
   refine (toCall (gas := gas - (896 + slotCost c10)) (st := readSlot state message.currentTarget 10)
     (ss := accessSlot substate message.currentTarget 10) (message := message)
     (M := M2B (addrArg message.data 0))
@@ -337,7 +337,7 @@ theorem preCallB (hfork : .berlin ≤ fork)
       0x70a08231, upWord (storageAt state message.currentTarget 10), 0, addrArg message.data 0,
       0x05e7, BitVec.ofNat 256 (selector message.data)]) hfork (Or.inr (Or.inl ⟨rfl, rfl⟩))
     (by simp) hcode hsz hszl hcU (by simp only [extCost]; gas_ok)).seq ?_
-  refine Logic.reshape ?_ rfl (by simp only [extCost]; gas_ok)
+  refine At.reshape ?_ rfl (by simp only [extCost]; gas_ok)
   simp only [List.cons.injEq, and_true]
   congr 1
   unfold extCost; omega
@@ -346,7 +346,7 @@ theorem preCallB (hfork : .berlin ≤ fork)
 `hcg`: every ended forwarded message that meets `callee`, sent with the gas the CALL gives from
 the caller frame at the CALL (`CallFrom`, round 30), leaves at least 126 gas for the code after
 the CALL, the gas the CALL keeps plus the gas left in the ended frame.
-Stated as a `Sends.SpecOn` (round 26): the frames that end the runner's messages meet
+Stated as a `SpecOn` (round 26): the frames that end the runner's messages meet
 `callee`, the runner may fail with any error, and the run ends as stated or at a failure of the
 runner on a forwarded message (`SendsVia`); `.toUnder` gives EthLib's `SpecUnder`. -/
 theorem spec_depB_g (hfork : .berlin ≤ fork)
@@ -367,7 +367,7 @@ theorem spec_depB_g (hfork : .berlin ≤ fork)
         (atCallState (callState state message) (upAddr state message) r message.currentTarget)
         (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
       126 ≤ gas - preCostB fork c10 cU - (callGasB fork gas c10 cU (callR substate state message r)).cost + child.gas) :
-    Sends.SpecOn fork callee (fun caller msg => SendsVia message (upAddr state message) c r (dataB message) msg ∧
+    SpecOn fork callee (fun caller msg => SendsVia message (upAddr state message) c r (dataB message) msg ∧
       CallFrom (callGasB fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)
       (At CODE message 0 [] .empty gas state substate)
       fun evm => ∃ caller msg child, callee caller msg child ∧
@@ -407,13 +407,13 @@ theorem spec_depB_g (hfork : .berlin ≤ fork)
     (by rw [hext, hR]; simp only [accCost_false]; omega)
   rw [hext, hR] at hcall
   simp only [accCost_false] at hcall
-  have hcall := hcall.mono_S (S' := (fun caller msg => SendsVia message (upAddr state message) c r (dataB message) msg ∧
+  have hcall := hcall.mono (S' := (fun caller msg => SendsVia message (upAddr state message) c r (dataB message) msg ∧
       CallFrom (callGasB fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg))
     fun _ _ h => by
     obtain ⟨⟨a1, a2, a3, a4, a5, a6, a7, a8, a9, a10⟩, b1, b2, b3⟩ := h
     exact ⟨⟨a1, a2, a3, a4, a5, a6, by rw [a7]; exact data_M2B _, a8, a9, a10⟩, b3, b1, b2⟩
-  refine Sends.SpecOn.seq (Sends.HoareOn.of_hoare (preCallB hfork hsize hsize' hsel hv hdep hcode
-    hsz hszl hc10 hcU (by omega))) (Sends.HoareOn.seq hcall (Sends.HoareOn.of_hoare ?_))
+  refine SpecOn.seq (HoareOn.of_hoare (preCallB hfork hsize hsize' hsel hv hdep hcode
+    hsz hszl hc10 hcU (by omega))) (HoareOn.seq hcall (HoareOn.of_hoare ?_))
   rintro evm ⟨caller, msg, child, hcal, -, hcs, hcss, hmg, hmc, hmt, hmtg, hmca, hmcode, hmdp, hmd, hmv,
     hmdep, hmst, hat⟩
   have hfwd : SendsVia message (upAddr state message) c r (dataB message) msg := by
@@ -497,7 +497,7 @@ theorem spec_depB (hfork : .berlin ≤ fork)
             (gas - preCostB fork c10 cU - (callGasB fork gas c10 cU (callR substate state message r)).cost + child.gas - 25)
             (incorporateChild fork caller child).state
             (incorporateChild fork caller child).substate evm) := by
-  apply Sends.SpecOn.toUnder
+  apply SpecOn.toUnder
   apply spec_depB_g
   all_goals first | assumption | (intro _ _ _ _ _ _; omega)
 
@@ -612,7 +612,7 @@ theorem runFrame_depB_process (hfork : .berlin ≤ fork)
     ∃ e, runFrame (step fork) (step_decreases fork) bound (processRunner fork bound) evm
         within = .error e ∧ e.aborts = true :=
   (spec_depB_answers hfork hsize hsize' hsel hv hdep hcode hsz hszl hroute hdepth hc10 hcU
-    hg htail (answersD_runsAs hQ hG hpre) ho).runFrame (meets_of_spec hspec bound) start within
+    hg htail (answersD_runsAs hQ hG hpre) ho).runFrame (meets_of_specAt hspec bound) start within
 
 /-- The specification of `balanceOf(who)` when deprecated and the upgraded address has no code:
 the run reverts with no output before any call. Gas `921 + price(slot 10) + price(address)`. -/
@@ -641,7 +641,7 @@ theorem spec_depBNoCode (hfork : .berlin ≤ fork)
   step depSet hfork (Or.inr ⟨rfl, rfl⟩) (by simp) hdep hc10 (by gas_ok)
   step fwdArgsB (state := state) hfork (by simp only [addrArg, mask_mask]) (by simp)
     (by gas_ok)
-  step Logic.reshape (g' := gas - (896 + slotCost c10)) rfl rfl (by gas_ok)
+  step At.reshape (g' := gas - (896 + slotCost c10)) rfl rfl (by gas_ok)
   refine (noCode (gas := gas - (896 + slotCost c10)) (st := readSlot state message.currentTarget 10)
     (ss := accessSlot substate message.currentTarget 10) (message := message)
     (M := M2B (addrArg message.data 0))
