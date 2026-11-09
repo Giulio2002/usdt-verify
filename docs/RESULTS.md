@@ -677,6 +677,29 @@ The trust assumptions of "What is trusted" apply unchanged. No existing statemen
   Quot.sound] (UsdtVerify/Test/Axioms.lean); independent read-only review (round 51) PASS: no
   statement changed, 28 constants added, none removed.
 
+## Round 52: local copies replaced by EthLib's (pin 62dbd687d)
+
+The trust assumptions of "What is trusted" apply unchanged. No USDT theorem lost strength.
+
+- The EIP-7702 authorization facts are EthLib's (Transactions/Authorization.lean and Process.lean,
+  EthLib #1632): one authorization (`applyAuthorization_cases` and its cases), the change of an
+  accepted authority (`delegate_isOk`, which states the refund), an address with real code is kept
+  (`foldlM_applyAuthorization_keeps`, transient storage included), the first frame after the
+  authorizations (`prepareFirstFrame_of_applyAuthorizations`), and their success
+  (`foldlM_applyAuthorization_isOk` over `StateGasMeter`, `_of_lt_glamsterdam` before Glamsterdam
+  over any meter). The success forms ask the pre-transaction codes only from Glamsterdam.
+  `destroy_mirror_call_auths` and `destroy_mirror_call_authsN` keep their statements.
+- The exact success conditions use EthLib's `RunsOk` (Logic/RunsOk.lean, EthLib #1633) at the
+  meter `Nat`. It is the same proposition as the old local one, with the fork implicit. The exact
+  gas forms rest on EthLib's `halted_of_specG`, `no_ok_of_specG` and `not_runsOk_of_lt`.
+- The CALL steps of the deprecated paths that send no message are EthLib's (Logic/CallSteps.lean,
+  EthLib #1634), and a successful run through a CALL goes on from the frame of EthLib's rule
+  `callKindRoute` (`HoareOn.runFrame_of_ok`).
+- `static_run` keeps its statement at every fork: EthLib #1619 removed `staticStep_runFrame`, and
+  `static_runFrame` (Usdt/Invariant/Static.lean) gives the same conclusion from EthLib's static
+  touch steps.
+- Evidence: see docs/STATUS.md, round 52 and Measurements.
+
 ## Completeness of the dispatcher, for every gas
 
 - `runFrame_ok_dispatch` (`UsdtVerify/Usdt/Complete/Dispatch.lean`, alias `Summary.dispatch_complete`):

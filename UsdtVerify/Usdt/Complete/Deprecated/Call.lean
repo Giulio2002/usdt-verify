@@ -6,7 +6,8 @@ import UsdtVerify.Usdt.Complete.Dispatch
 # The deprecated paths of USDT from EXTCODESIZE on, for any gas and any runner
 
 The generic steps (EXTCODESIZE, GAS, SUB and CALL for any gas and any runner, `call_ok`,
-`CallEnd`) are in Evm/Call.lean. Here:
+`CallEnd`) are in Evm/Call.lean, with EthLib's `callStep_fails_of_routes`,
+`callStep_deep_of_routes` and `callStep_fails_of_missing` (round 52, EthLib #1634). Here:
 
 - `midG`, `noCodeG`, `subG`: the blocks of `CODE` between EXTCODESIZE and CALL;
 - `fromExt_found`: a successful run found the code of the upgraded address;
@@ -106,7 +107,7 @@ theorem fromExt_found {p : Nat}
     have missing : accountCode evm (toAddressMasked U) = .error (.state e) := by
       simp [accountCode, hs, hgc, Except.mapError]
     obtain ⟨e', he'⟩ := extcodesizeStep_notFound hst missing
-    refine ok_step_error (e := e') hr ?_ hrun hok
+    refine error_ne_none_of_stepFails hr (.inl ⟨e', ?_⟩) hrun hok
     rw [step_of_instruction (by rw [hc, hpc]; exact h0)
       (by simp only [hc, hpc, b0]; exact ofByte_of_decode (op := .extcodesize) rfl (Fork.frontier_le _)) instruction_extcodesize', he']
     rfl
@@ -170,9 +171,9 @@ theorem fromExt (hfork : .berlin ≤ fork) {p q : Nat}
   have hr0 : evm.running = true := start.2.2.2.2.2.2.2.1
   -- EXTCODESIZE
   by_cases hlow : G < A
-  · exact absurd hok (ok_step_error hr0 (extcodesize_low hfork h0 b0 hcode
-      (by rw [hA]; exact hlow) start) hrun)
-  obtain ⟨z1, w1, hz1, hrun1⟩ := ok_hoare (At.extcodesize hfork h0 b0 hcode rfl
+  · exact absurd hok (error_ne_none_of_stepFails hr0 (.inl ⟨_, extcodesize_low hfork h0 b0 hcode
+      (by rw [hA]; exact hlow) start⟩) hrun)
+  obtain ⟨z1, hz1, w1, hrun1⟩ := Hoare.runFrame_of_ok (At.extcodesize hfork h0 b0 hcode rfl
     (by rw [← hA] at hlow; simp only [extCost] at hlow; omega)) start within hrun
   have hz1' : At CODE message (p + 1) (BitVec.ofNat 256 c.size :: U :: 0 :: i :: isz :: o :: osz ::
       rest) M (G - A) (st.recordAccountRead (toAddressMasked U))
@@ -187,8 +188,9 @@ theorem fromExt (hfork : .berlin ≤ fork) {p q : Nat}
     (fun g hg => midG hm hw (by simp; omega) hg) hz1' w1 hrun1 hok
   -- GAS
   by_cases hg2 : G - A - 23 < 2
-  · exact absurd hok (ok_step_error hz2.2.2.2.2.2.2.2.1 (step_gas_low h15 b15 hg2 hz2) hrun2)
-  obtain ⟨z3, w3, hz3, hrun3⟩ := ok_hoare (At.gas_rule h15 b15 (by omega)
+  · exact absurd hok (error_ne_none_of_stepFails hz2.2.2.2.2.2.2.2.1
+      (.inl ⟨_, step_gas_low h15 b15 hg2 hz2⟩) hrun2)
+  obtain ⟨z3, hz3, w3, hrun3⟩ := Hoare.runFrame_of_ok (At.gas_rule h15 b15 (by omega)
     (by simp [STACK_LIMIT]; omega)) hz2 w2 hrun2
   -- SUB
   obtain ⟨h3, z4, w4, hz4, hrun4⟩ := ok_split (c := 3) (B := 3) (Nat.le_refl _)
@@ -210,9 +212,9 @@ theorem fromExt (hfork : .berlin ≤ fork) {p q : Nat}
     · rcases hd : delegatedAddress c with _ | d
       · exact ⟨none, fun _ => hd⟩
       · rcases hdc : st.getCode (st.getAccount d).codeHash with e | c'
-        · exact absurd hok (ok_step_bad hr4 (by
+        · exact absurd hok (error_ne_none_of_stepFails hr4 (by
             rw [step_call hlt4 hb4]
-            exact callStep_missing hfork hst4 hcode4 hpec hd (by rw [hs4]; exact hdc)) hrun4)
+            exact callStep_fails_of_missing hst4 hcode4 hpec hd (by rw [hs4]; exact hdc)) hrun4)
         · exact ⟨some (d, c'), hpec, hd, hdc⟩
     · exact ⟨none, fun h => absurd h hpec⟩
   obtain ⟨r, hroute⟩ := hex
@@ -222,12 +224,12 @@ theorem fromExt (hfork : .berlin ≤ fork) {p q : Nat}
     rw [hss4]; exact (routeCost_insert_insert _ _ r).trans hR
   -- CALL with too little gas
   by_cases hlowc : G - (A + 28) < 100 + R + (extendMemory M.size [(i, isz), (o, osz)]).cost
-  · exact absurd hok (ok_step_bad hr4 (by
+  · exact absurd hok (error_ne_none_of_stepFails hr4 (by
       rw [step_call hlt4 hb4]
-      exact callStep_low_r hfork hst4 hcode4 hroute4 (by rw [hwarm, hR4, hmem4, hg4]; omega)) hrun4)
+      exact callStep_fails_of_routes hfork hst4 hcode4 hroute4 (by rw [hwarm, hR4, hmem4, hg4]; omega)) hrun4)
   -- CALL at the greatest depth
   by_cases hdeep : STACK_DEPTH_LIMIT < message.depth + 1
-  · obtain ⟨after, hstep, a1, a2, a3, a4, a5, a6, a7, a8⟩ := callStep_deep_r hfork hst4
+  · obtain ⟨after, hstep, a1, a2, a3, a4, a5, a6, a7, a8, -, -, -⟩ := callStep_deep_of_routes (kind := .call) hfork hst4
       hcode4 hroute4 (by rw [hm4]; exact hdeep) (by rw [hwarm, hR4, hmem4, hg4]; omega)
     rw [runFrame_of_step_eq_next hr4 (by rw [step_call hlt4 hb4]; exact hstep)] at hrun4
     have hat : At CODE message (q + 1) (0 :: rest) after.memory after.gas after.state
@@ -382,7 +384,7 @@ theorem fromExtC (hfork : .berlin ≤ fork) {p q : Nat}
       · rcases hdc : st.getCode (st.getAccount d).codeHash with e | c'
         · exact (hrun4.not_bad hr4 hF4 (by
             rw [step_call hlt4 hb4]
-            exact callStep_missing hfork hst4 hcode4 hpec hd (by rw [hs4]; exact hdc)) hok).elim
+            exact callStep_fails_of_missing hst4 hcode4 hpec hd (by rw [hs4]; exact hdc)) hok).elim
         · exact ⟨some (d, c'), hpec, hd, hdc⟩
     · exact ⟨none, fun h => absurd h hpec⟩
   obtain ⟨r, hroute⟩ := hex
@@ -394,11 +396,11 @@ theorem fromExtC (hfork : .berlin ≤ fork) {p q : Nat}
   by_cases hlowc : G - (A + 28) < 100 + R + (extendMemory M.size [(i, isz), (o, osz)]).cost
   · exact (hrun4.not_bad hr4 hF4 (by
       rw [step_call hlt4 hb4]
-      exact callStep_low_r hfork hst4 hcode4 hroute4 (by rw [hwarm, hR4, hmem4, hg4]; omega))
+      exact callStep_fails_of_routes hfork hst4 hcode4 hroute4 (by rw [hwarm, hR4, hmem4, hg4]; omega))
       hok).elim
   -- CALL at the greatest depth
   by_cases hdeep : STACK_DEPTH_LIMIT < message.depth + 1
-  · obtain ⟨after, hstep, a1, a2, a3, a4, a5, a6, a7, a8⟩ := callStep_deep_r hfork hst4
+  · obtain ⟨after, hstep, a1, a2, a3, a4, a5, a6, a7, a8, -, -, -⟩ := callStep_deep_of_routes (kind := .call) hfork hst4
       hcode4 hroute4 (by rw [hm4]; exact hdeep) (by rw [hwarm, hR4, hmem4, hg4]; omega)
     have hruna := hrun4.next_of hr4 hF4 (by rw [step_call hlt4 hb4]; exact hstep) hok
     have hat : At CODE message (q + 1) (0 :: rest) after.memory after.gas after.state

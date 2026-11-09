@@ -3,7 +3,14 @@
 File paths in this page are those of the round-21 layout (docs/LAYOUT.md, which also maps the old
 paths to the new ones); the round entries keep the old file names only where a file no longer exists.
 
-Pinned EthLib: bc16ee428 (master after #1616; includes #1611, #1612, #1613, #1615 and #1616;
+Pinned EthLib: 62dbd687d (master after #1634; includes #1619, #1632, #1633 and #1634; commit
+62dbd687dfa0a10641cf24e35c2572d3039bad55, round 52). Re-pinned in round 52: EthLib's
+authorization theorems (#1632, Transactions/Authorization.lean and Process.lean), Logic/RunsOk.lean
+with `halted_of_specG` and `no_ok_of_specG` (#1633), and Logic/CallSteps.lean with
+`HoareOn.runFrame_of_ok` and `Hoare.runFrame_of_ok` (#1634) replace the local copies in
+Evm/Auth.lean, Evm/Iff.lean, Evm/Exact.lean and Evm/Call.lean (round 52 below lists what stays and
+why).
+Previous pin: bc16ee428 (master after #1616; includes #1611, #1612, #1613, #1615 and #1616;
 commit bc16ee428baf03295ef3622c30c9c901bae1444a, round 48). Re-pinned in round 48: EthLib's
 Logic/GasMono.lean, RunMono.lean, LessGas.lean, NoAbort.lean and Route.lean replace the local
 copies of `addGas` (was `Gas.sh`), `Fails`, `Follows` (was `Gas.Rel`), `RunMono`, `StepFollows`
@@ -2520,6 +2527,81 @@ Lines of Lean in UsdtVerify/: 68,346 after round 50, 68,984 after round 51.
 - V4 and V5 are about the README, which is kept outside this repository. README sentences were
   sent to the main session.
 
+### Round 52: re-pin to EthLib 62dbd687d, the local copies of #1632, #1633 and #1634 removed
+
+The pin moves to EthLib master 62dbd687d (#1632, #1633, #1634, with #1619 and the other merges
+since bc16ee428). Commits: e7b8d28 (the re-pin), c79766a (CALL steps), f124a58 (`RunsOk` and the
+exact-gas helpers), bed09ed (authorizations). Each commit built (`lake build`, exit 0).
+Lines of Lean in UsdtVerify/: 68,984 after round 51, 68,049 after round 52 (935 fewer).
+
+Removed in favour of EthLib:
+- Evm/Auth.lean (670 lines to 103): `delegate_ok`, `delegateRefund`, `delegate_parent`,
+  `delegate_res`, `pay_pre`, `pay_glam`, `pay_keeps`, `apply_out`, `apply_none`, `apply_refused`,
+  `apply_accepted`, `apply_cases`, `accepts_code`, `apply_code`, `apply_keeps`, `fold_keeps`,
+  `apply_meter_pre`, `fold_meter_pre`, `prepareFirstFrame_auths`, `prepareFirstFrame_auths_error`,
+  `charge_bound`, `apply_exists_of`, `apply_exists`, `fold_exists`, `apply_exists_pre`,
+  `fold_exists_pre` and their helpers. The replacements are EthLib's `delegate_isOk` (it states the
+  refund), `delegate_eq_ok`, `sameOutside_delegate`, `getCode_delegate_of_ne`,
+  `getCode_delegate_self`, `payAuthorization_of_lt_glamsterdam`, `payAuthorization_eq_ok_iff`,
+  `state_payAuthorization`, `applyAuthorization_of_not_inScope`,
+  `applyAuthorization_of_recoverAuthority_none`, `applyAuthorization_of_refused`,
+  `applyAuthorization_of_accepts_of_pay`, `applyAuthorization_cases`, `authorityAccepts_of_code`,
+  `applyAuthorization_of_code`, `applyAuthorization_keeps` and `foldlM_applyAuthorization_keeps`
+  (they also keep transient storage), the `meter_..._of_lt_glamsterdam` forms,
+  `prepareFirstFrame_of_applyAuthorizations` and its `_error` form, `chargeAuthorization_isOk`,
+  `applyAuthorization_isOk_of_pay`, `applyAuthorization_isOk`, `foldlM_applyAuthorization_isOk`
+  (with `chargesWithin_stateGasMeter`) and the `_isOk_of_lt_glamsterdam` forms. The `isOk` forms
+  ask the codes of the state before the transaction only from Glamsterdam, so they are stronger
+  than the local ones. The keccak hypothesis is a condition on the code hash, as before.
+  Kept: `hashOf`, `seen`, `authMax` and `Resolves`, `PreResolves` (now abbreviations of EthLib's
+  `HasCodes`, `HasPreCodes`, same bodies), because statements of Usdt/Sanity/MirrorAuth.lean and
+  MirrorAuthN.lean name them; `authMax_eq` and `getCode_empty`, which EthLib does not state.
+- Evm/Call.lean: `callStep_low_r`, `callStep_low`, `callStep_deep_r`, `callStep_deep`,
+  `callStep_missing`, `StepBad`, `ok_step_error`, `ok_step_halt`, `ok_step_bad`, `ok_hoare`. The
+  replacements are `callStep_fails_of_routes`, `callStep_deep_of_routes` (it also states the gas,
+  the memory and the return data), `callStep_fails_of_missing` (no fork hypothesis beyond Pectra),
+  `StepFails` (the same definition), `error_ne_none_of_stepFails` and `Hoare.runFrame_of_ok`.
+  `call_ok` is now proved from EthLib's `callKindRoute` and `HoareOn.runFrame_of_ok`, with the
+  callee assumption that the ended frame is the one the runner gave. Kept: `CallEnd`, stated over
+  the local `At` and naming the runner's frame, which the deprecated paths destructure.
+- Evm/Iff.lean: the local `RunsOk` (EthLib's `RunsOk` at the meter `Nat` has the same body, with
+  the fork implicit; every `RunsOk fork bound ...` is now `RunsOk bound ...`), `runsOk_of_spec`
+  (EthLib's `Spec.runsOk`) and `runsOk_of_specUnder` (no use). `not_runsOk_low` is proved from
+  EthLib's `not_runsOk_of_lt`. Kept: `runsOk_iff`, `not_runsOk_stuck`, `iff_max` and the forms of
+  `not_runsOk_low` with a condition `G`, which EthLib #1633 left out as thin wrappers, and
+  `NoFail`, `NoFailOn`, `fwd_ok_or_fails`, `fwd_ok_iff_fails`, which EthLib does not state.
+- Evm/Exact.lean: `ok_exact` and `no_ok` are proved from EthLib's `halted_of_specG` and
+  `no_ok_of_specG`. `ok_exact2`, `ok_exact3` and `no_ok2` (no use) are removed. Kept: `ok_exact`,
+  `no_ok` and the `E` forms, because they are stated over the local `At` (no return data) and the
+  local `SpecG` (with `SimAt`), as are the twelve-condition `At` and `SimAt` themselves (round 50
+  says why).
+- Usdt/Invariant/Static.lean: EthLib #1619 removed `staticStep_runFrame`, whose conclusion
+  `static_run` used. `static_runFrame` (new) is the induction of EthLib's `staticTouchStep_runFrame`
+  with the runner's touched list fixed to `[]`, so `static_run` keeps its statement at every fork.
+
+Built and checked: clean rebuild of bed09ed (the last commit that changes a Lean statement or
+proof; the docs commit after it also edits one module doc comment of Evm/Exact.lean, incremental
+build exit 0) in a fresh clone (empty build directory, safe.sh 9G, LEAN_NUM_THREADS=2,
+`lake build UsdtVerify UsdtVerify.Test.Axioms`), exit 0, 1480 jobs, 0 "error:" lines, 156.25 s
+wall, 408.63 s user, 1772601344 bytes max RSS; hash check 11075 bytes, keccak256
+b44fb4e9...ea55; `#print axioms` on the 1311 entries of UsdtVerify/Test/Axioms.lean gives
+[propext, Classical.choice, Quot.sound] or a subset (1262 the three, 33 [propext, Quot.sound],
+8 [propext], 8 none), with no `sorryAx`; no `sorry`, `admit`, `axiom`, `native_decide`,
+`bv_decide` or `decide +native` in UsdtVerify/ (grep exit 1).
+Independent read-only review: PASS (with two nits; a fresh reviewer, baa6ea4 against bed09ed). It
+built the BEFORE tree (exit 0, 1470 jobs) and dumped every constant of the `UsdtVerify` modules
+with hashes of types and bodies: 3747 before, 3685 after (not counting compiler-internal
+constants), 3682 shared, 3521 identical, 161 changed, 65 removed (51 by hand, 14 generated), 3
+added (`static_runFrame` and two generated lemmas). All 161 changed constants are identical after
+unfolding: 158 by `Exact.RunsOk` to EthLib's `RunsOk` (proved equal by `rfl`), `Resolves` and
+`PreResolves` (def to abbreviation, same body), and `RunC.not_bad` (`StepBad` to `StepFails`, same
+body). It restated each removed theorem that had a use and proved it from the named EthLib
+replacement (exit 0): each is the same statement, the same up to `rfl`, or weaker than EthLib's.
+Nit 1, a loose sentence in the module doc of Evm/Exact.lean, is fixed in the docs commit. Nit 2:
+between the pins EthLib changed the BLS square root definitions (#1628, #1631), which 118 USDT
+constants reach through the step semantics; their statements are unchanged, and EthLib ships its
+own compatibility proofs, which nobody here reviewed.
+
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
   Glamsterdam (third audit, T1; rounds 33 to 36 above). Round 36 covers, not deprecated: the
@@ -2741,6 +2823,10 @@ Lines of Lean in UsdtVerify/: 68,346 after round 50, 68,984 after round 51.
    Evm/Route.lean while their upstreaming is in flight.)
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+Round 52: clean project build of the tree of commit bed09ed (a fresh clone, empty build
+directory, safe.sh 9G, LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`) 156.25 s
+wall, 408.63 s user, 1772601344 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines,
+1480 jobs.
 Round 50: clean project build of the tree of commit 6c7c573 (a fresh clone, empty build
 directory, safe.sh 9G, LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`) 220.95 s
 wall, 478.50 s user, 1816117248 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines,

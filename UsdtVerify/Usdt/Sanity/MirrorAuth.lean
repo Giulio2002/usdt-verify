@@ -7,11 +7,12 @@ import UsdtVerify.Evm.Auth
 `destroy_mirror_callS` (round 45) runs `destroyBlackFunds(a)` from `CALLER_A` to `C` in `S3` through
 EthLib's `processMessageCall` over `StateGasMeter` with no authorization. Here the same call is a
 set code transaction: it carries a list `auths` of authorizations, which `prepareFirstFrame` applies
-before the message (Evm/Auth.lean).
+before the message (EthLib's `Proofs/Transactions/Authorization.lean`; Evm/Auth.lean).
 
 - `apply_usdt`: an authorization in scope whose recovered authority is `C` is refused, in a state
   where the code of `C` is `CODE`. The delegations get only the read and the access of `C`. For
-  `UA` with `MIRROR` the same follows from `apply_code` with `code_MIRROR`.
+  `UA` with `MIRROR` the same follows from EthLib's `applyAuthorization_of_code` with
+  `code_MIRROR`.
 - `apply_fresh`: before Glamsterdam, an authorization in scope with nonce 0 whose recovered
   authority `x` has no account is accepted. The delegations hold the state that `delegate`
   leaves and the access of `x`, and keep the refund and the meter. In that state `x` has nonce 1,
@@ -115,7 +116,8 @@ theorem apply_usdt {Meter : Type} [GasMeter Meter] (chainId : Nat) (done : Deleg
     (hr : recoverAuthority auth = some C)
     (hcode : done.state.getCode (done.state.getAccount C).codeHash = .ok CODE) :
     applyAuthorization fork chainId done auth = .ok (seen done C) :=
-  apply_code chainId done hs hr hcode code_CODE
+  have h := Bool.or_eq_false_iff.mp code_CODE
+  applyAuthorization_of_code hs hr hcode (by simpa using h.1) h.2
 
 /-- Before Glamsterdam, an authorization in scope with nonce 0 whose recovered authority `x` has
 no account is accepted: the delegations hold the state of `delegate`, the access of `x` and the
@@ -138,20 +140,22 @@ theorem apply_fresh {Meter : Type} [GasMeter Meter] (hf : fork < .glamsterdam) (
     simp only [authorityAccepts, State.TransactionState.getAccount_recordAccountRead, hA, hcode,
       bind, Except.bind, pure, Except.pure, hn]
     rfl
-  have hp := pay_pre hf (seen done x) x auth
-  obtain ⟨st, hdel, hself, hsame, hcodes, -⟩ :=
-    delegate_ok fork (done.state.recordAccountRead x) x auth
-  have href : delegateRefund fork (done.state.recordAccountRead x) x = 0 := by
-    simp [delegateRefund, State.TransactionState.accountExists, hnone]
+  have hp := payAuthorization_of_lt_glamsterdam (done := seen done x) (authority := x)
+    (auth := auth) hf
+  obtain ⟨st, hdel⟩ := delegate_isOk (fork := fork) (authority := x) (auth := auth)
+    (done.state.recordAccountRead x)
+  have href : (if fork < .glamsterdam ∧ (done.state.recordAccountRead x).accountExists x
+      then 12500 else 0) = 0 := by
+    simp [State.TransactionState.accountExists, hnone]
   rw [href] at hdel
-  refine ⟨st, ?_, ?_, ?_, fun hash hh => hcodes hash hh⟩
-  · rw [apply_accepted chainId done hs hr hacc hp hdel]
+  refine ⟨st, ?_, ?_, ?_, fun hash hh => getCode_delegate_of_ne hdel hh⟩
+  · rw [applyAuthorization_of_accepts_of_pay (done := done) hs hr hacc hp, hdel]
     rfl
-  · rw [hself]
+  · rw [(delegate_eq_ok hdel).2.1]
     simp only [State.TransactionState.getAccount_recordAccountRead, hA]
     rfl
-  · exact ((State.TransactionState.sameOutside_recordAccountRead _ x).trans hsame).mono
-      (by simp)
+  · exact ((State.TransactionState.sameOutside_recordAccountRead _ x).trans
+      (sameOutside_delegate hdel).1).mono (by simp)
 
 theorem getAccountOptional_S3_other (C : Address) (H HC : Hash32) (a : U256) {x : Address}
     (hC : x ≠ C) (hU : x ≠ UA) : (S3 C H HC a).getAccountOptional x = none := by
@@ -195,14 +199,17 @@ theorem prepareFirstFrame_S3 {Meter : Type} [GasMeter Meter] (b : BlockEnvironme
       done.state.getAccountOptional UA = (S3 C H HC a).getAccountOptional UA ∧
       (∀ key, done.state.getStorage UA key = (S3 C H HC a).getStorage UA key) ∧
       done.state.getCode (done.state.getAccount UA).codeHash = .ok MIRROR := by
-  obtain ⟨haC, hsC, hcC⟩ := fold_keeps (fork := fork) (chainId := chainId) (X := C) code_CODE
-    auths ⟨S3 C H HC a, ss.accessedAddresses, 0, GasMeter.start G R, pw, ∅⟩ done
-    (hcodeC_S3 C H HC a hCU hHC hne)
-    (fun auth h => by rw [getAccount_S3_C C H HC a hCU]; exact (hk auth h).1) hdone
-  obtain ⟨haU, hsU, hcU⟩ := fold_keeps (fork := fork) (chainId := chainId) (X := UA) code_MIRROR
-    auths ⟨S3 C H HC a, ss.accessedAddresses, 0, GasMeter.start G R, pw, ∅⟩ done
-    (hcodeU_S3 C H HC a hH)
-    (fun auth h => by rw [getAccount_S3_UA C H HC a]; exact (hk auth h).2) hdone
+  have hfold : auths.foldlM (applyAuthorization fork chainId)
+      (⟨S3 C H HC a, ss.accessedAddresses, 0, GasMeter.start G R, pw, ∅⟩ : Delegations Meter) =
+      .ok done := hdone
+  have hC := Bool.or_eq_false_iff.mp code_CODE
+  have hU := Bool.or_eq_false_iff.mp code_MIRROR
+  obtain ⟨haC, hsC, -, hcC⟩ := foldlM_applyAuthorization_keeps (address := C)
+    (by simpa using hC.1) hC.2 hfold (hcodeC_S3 C H HC a hCU hHC hne)
+    (fun auth h => by rw [getAccount_S3_C C H HC a hCU]; exact (hk auth h).1)
+  obtain ⟨haU, hsU, -, hcU⟩ := foldlM_applyAuthorization_keeps (address := UA)
+    (by simpa using hU.1) hU.2 hfold (hcodeU_S3 C H HC a hH)
+    (fun auth h => by rw [getAccount_S3_UA C H HC a]; exact (hk auth h).2)
   have hgC : done.state.getAccount C = (S3 C H HC a).getAccount C := by
     unfold State.TransactionState.getAccount; rw [haC]
   have hgU : done.state.getAccount UA = (S3 C H HC a).getAccount UA := by
@@ -210,8 +217,8 @@ theorem prepareFirstFrame_S3 {Meter : Type} [GasMeter Meter] (b : BlockEnvironme
   have hcC' : done.state.getCode (done.state.getAccount C).codeHash = .ok CODE := by
     rw [hgC]; exact hcC
   refine ⟨?_, haC, hsC, hcC', haU, hsU, by rw [hgU]; exact hcU⟩
-  exact prepareFirstFrame_auths chainId (mDOG b t C a G R) (S3 C H HC a) ss auths pw rfl rfl hdone
-    hcC' (fun _ => delegatedAddress_CODE)
+  exact prepareFirstFrame_of_applyAuthorizations (message := mDOG b t C a G R) (substate := ss)
+    rfl rfl hdone hcC' (fun _ => delegatedAddress_CODE)
 
 /-- **The concrete deprecated call with authorizations through `processMessageCall`.** See the
 module doc. -/
@@ -227,13 +234,14 @@ theorem destroy_mirror_call_auths (hparis : .paris ≤ fork)
     (hg' : G < 2 ^ 255) :
     ∃ out, processMessageCall (Meter := StateGasMeter) chainId (mDOG b t C a G R) (S3 C H HC a) ss
       auths pw = .ok out ∧ out.error = none := by
-  obtain ⟨done, hdone, l, u⟩ := fold_exists (fork := fork) (chainId := chainId) auths
-    ⟨S3 C H HC a, ss.accessedAddresses, 0, GasMeter.start G R, pw, ∅⟩
-    (resolves_S3 C H HC a hH hHC hne hCU) (preResolves_S3 C H HC a hH hHC hne hCU)
+  obtain ⟨done, hdone, l, u⟩ := foldlM_applyAuthorization_isOk (fork := fork) (chainId := chainId)
+    (fun _ => chargesWithin_stateGasMeter) auths
+    (start := ⟨S3 C H HC a, ss.accessedAddresses, 0, GasMeter.start G R, pw, ∅⟩)
     (fun hf => by
-      simp only [hf, ↓reduceIte] at hg
+      simp only [GE.ge, hf, ↓reduceIte] at hg
       show authMax * auths.length ≤ G
       omega)
+    (resolves_S3 C H HC a hH hHC hne hCU) (fun _ => preResolves_S3 C H HC a hH hHC hne hCU)
   have hdone' : applyAuthorizations fork chainId (S3 C H HC a) ss.accessedAddresses
       (GasMeter.start G R) pw auths = .ok done := hdone
   have hlo : 1000000 ≤ done.meter.gasLeft := by
@@ -242,7 +250,7 @@ theorem destroy_mirror_call_auths (hparis : .paris ≤ fork)
       have l' : G - authMax * auths.length ≤ done.meter.gasLeft := l
       generalize authMax * auths.length = k at hg l'
       omega
-    · have hm := fold_meter_pre (Nat.lt_of_not_le hf) auths _ done hdone
+    · have hm := meter_foldlM_applyAuthorization_of_lt_glamsterdam (Nat.lt_of_not_le hf) hdone
       rw [hm]
       show 1000000 ≤ G
       omega

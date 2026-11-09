@@ -90,7 +90,7 @@ theorem runsOk_toNat {P Q : Evm fork Nat → Prop}
     {within : GasMeter.gasHeld m.gas ≤ bound}
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild m within = .ok s)
     (hok : s.error = none) :
-    RunsOk fork (toNat m).gas (failRunner fork (toNat m).gas) (toNat m) (Nat.le_refl _) :=
+    RunsOk (toNat m).gas (failRunner fork (toNat m).gas) (toNat m) (Nat.le_refl _) :=
   runsOk_of_specI h hp hres hrun hok _ _
 
 variable (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)

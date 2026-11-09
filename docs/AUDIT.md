@@ -1455,3 +1455,11 @@ This does not change what is trusted: all of them are kernel-checked.
 Evidence (docs/STATUS.md, round 51): clean rebuild of 2a96c23, exit 0, 1471 jobs; every new
 theorem depends on [propext, Classical.choice, Quot.sound]; independent read-only review PASS (no statement changed, 28 constants added, none
 removed).
+
+**Note (round 52).** The re-pin to EthLib 62dbd687d moves results named above into EthLib. The V3
+resolution now rests on EthLib's `foldlM_applyAuthorization_isOk_of_lt_glamsterdam` (EthLib #1632)
+in place of `Auth.fold_exists_pre`, and the round-46 authorization facts are EthLib's (the map is
+in docs/STATUS.md, round 52). `destroy_mirror_call_auths` and `destroy_mirror_call_authsN` keep
+their statements. The exact theorems use EthLib's `RunsOk` (#1633), the same proposition as the
+old local one. `static_run` keeps its statement through the new `static_runFrame`, since EthLib
+#1619 removed `staticStep_runFrame`.

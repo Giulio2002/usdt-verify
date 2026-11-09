@@ -25,7 +25,7 @@ message runner `runChild`. If the loop ends with no error, then:
   `incorporateChild caller child`.
 
 A failed lookup of the code of the upgraded address makes EXTCODESIZE fail (`fromExt_found`);
-a failed lookup of the code of the delegate makes CALL fail or halt (`callStep_missing`). No hypothesis
+a failed lookup of the code of the delegate makes CALL fail or halt (EthLib's `callStep_fails_of_missing`). No hypothesis
 on the code or on the runner: nothing is assumed of what the runner returns.
 -/
 

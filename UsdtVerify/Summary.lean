@@ -443,7 +443,7 @@ hypothesis. No witness run is deprecated.
 those words in slots 7 and 8.
 
 ## Exact success conditions (rounds 25, 26; Usdt/Exact/, conditions in Usdt/Spec/Guards.lean)
-`Exact.RunsOk fork bound runChild evm within`: the loop of the interpreter, run from `evm`, ends
+`RunsOk bound runChild evm within` (EthLib's `Logic.RunsOk` since round 52, meter `Nat`): the loop of the interpreter, run from `evm`, ends
 in a frame with no error. For each function, from Berlin, a fresh frame of `CODE` at pc 0, call
 data below 2^256 bytes with the function's selector, the coldness flags as in the specs, any gas
 bound and any message runner:
@@ -653,14 +653,18 @@ authorization. `Sanity.destroy_mirror_callS`: in `S3` (`S2` with `CODE` at `C`),
 no error. Round 45 did not cover `prepareFirstFrame` with authorizations; round 46 does, below.
 Round 46 (READY for this scope; Evm/Auth.lean, Usdt/Sanity/MirrorAuth.lean): EthLib's
 `applyAuthorization` recovers each authority by ECDSA over a keccak hash, out of reach here, so
-`Auth.apply_out`, `Auth.apply_none`, `Auth.apply_refused`, `Auth.apply_accepted` and
-`Auth.apply_cases` take what `recoverAuthority` returns as a hypothesis. `Auth.delegate_ok` states
+the facts of one authorization take what `recoverAuthority` returns as a hypothesis. Since round
+52 (EthLib #1632) they are EthLib's: `applyAuthorization_of_not_inScope`,
+`applyAuthorization_of_recoverAuthority_none`, `applyAuthorization_of_refused`,
+`applyAuthorization_of_accepts_of_pay` and `applyAuthorization_cases` (were `Auth.apply_out`,
+`apply_none`, `apply_refused`, `apply_accepted`, `apply_cases`). `delegate_isOk`, `delegate_eq_ok`,
+`sameOutside_delegate`, `getCode_delegate_of_ne` and `getCode_delegate_self` (were `Auth.delegate_ok`) state
 the change of an accepted authority (the hash of `delegationCode`, the nonce plus one, the refund
-12500 before Glamsterdam for an authority with an account). `Auth.fold_keeps`: an address whose
-code is not empty and no delegation indicator keeps its account, storage and code, when no
-`delegationCode` of the list hashes to its code hash. `Auth.prepareFirstFrame_auths`: the first frame
+12500 before Glamsterdam for an authority with an account). `foldlM_applyAuthorization_keeps` (was `Auth.fold_keeps`): an address whose
+code is not empty and no delegation indicator keeps its account, storage, transient storage and code, when no
+`delegationCode` of the list hashes to its code hash. `prepareFirstFrame_of_applyAuthorizations` (was `Auth.prepareFirstFrame_auths`): the first frame
 of a call with no value after authorizations that end with `.ok done`, with the meter
-`GasMeter.commit done.meter`. `Auth.fold_exists`: over `StateGasMeter` the authorizations of any
+`GasMeter.commit done.meter`. `foldlM_applyAuthorization_isOk` with `chargesWithin_stateGasMeter` (was `Auth.fold_exists`): over `StateGasMeter` the authorizations of any
 list succeed when every code hash resolves, with 227790 execution gas per authorization from
 Glamsterdam. `Sanity.destroy_mirror_call_auths`: from Paris, in `S3`, EthLib's
 `processMessageCall` of the deprecated destroyBlackFunds call over `StateGasMeter` with any list of
@@ -681,7 +685,7 @@ starting meter with execution gas left in [1000000, 2^255), the deprecated destr
 and 8.
 Round 51 (fifth audit, V3; Evm/Auth.lean, Usdt/Sanity/MirrorAuthN.lean): before Glamsterdam
 EthLib runs a transaction over the meter `Nat`, and type-4 transactions exist from Pectra.
-`Auth.fold_exists_pre`: before Glamsterdam, over any meter, the authorizations of any list succeed
+`foldlM_applyAuthorization_isOk_of_lt_glamsterdam` (was `Auth.fold_exists_pre`, EthLib's since round 52): before Glamsterdam, over any meter, the authorizations of any list succeed
 when every code hash resolves (no hypothesis on the authorities or on the gas).
 `Sanity.destroy_mirror_call_authsN`: from Paris and before Glamsterdam, in `S3`, EthLib's
 `processMessageCall` of the deprecated destroyBlackFunds call over `Nat` with any list of

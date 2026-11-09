@@ -49,7 +49,7 @@ theorem read_ok_iff {cost : Nat} {out : ByteArray} {st' : State.TransactionState
       (Halted false out (gas - cost) st' ss'))
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    RunsOk fork bound runChild evm within ↔ CallOk message :=
+    RunsOk bound runChild evm within ↔ CallOk message :=
   runsOk_iff hspec halted_false_ok start within (callOk_of_run hfork hsize' start within)
 
 /-- A read path that halts normally under `CallOk` and pays `cost`: with less gas no run ends
@@ -62,7 +62,7 @@ theorem read_low {cost : Nat} {out : ByteArray} {st' : State.TransactionState}
         (Halted false out (g - cost) st' ss'))
     (start : At CODE message 0 [] .empty gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   not_runsOk_low (Nat.le_refl _) hlt hspec start within (callOk_of_run hfork hsize' start within)
 
 /-! ## The getters of one slot or one mapping entry -/
@@ -77,127 +77,127 @@ include hfork hsize' start
 /-- `decimals()` succeeds exactly when `CallOk` holds, with gas `384 + price(slot 9)`. -/
 theorem decimals_ok_iff (hsel : selector message.data = 0x313ce567)
     (hc : coldIn substate message.currentTarget 9 = c) (hg : 384 + slotCost c ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message :=
+    RunsOk bound runChild evm within ↔ CallOk message :=
   read_ok_iff hfork hsize' (fun h => Getters.spec_decimals hfork h.1 hsize' hsel h.2 hc hg)
     start within
 
 theorem decimals_low (hsel : selector message.data = 0x313ce567)
     (hc : coldIn substate message.currentTarget 9 = c) (hg : gas < 384 + slotCost c) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   read_low hfork hsize' hg (fun h _ => Getters.spec_decimals hfork h.1 hsize' hsel h.2 hc)
     start within
 
 /-- `maximumFee()` succeeds exactly when `CallOk` holds, with gas `406 + price(slot 4)`. -/
 theorem maximumFee_ok_iff (hsel : selector message.data = 0x35390714)
     (hc : coldIn substate message.currentTarget 4 = c) (hg : 406 + slotCost c ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message :=
+    RunsOk bound runChild evm within ↔ CallOk message :=
   read_ok_iff hfork hsize' (fun h => Getters.spec_maximumFee hfork h.1 hsize' hsel h.2 hc hg)
     start within
 
 theorem maximumFee_low (hsel : selector message.data = 0x35390714)
     (hc : coldIn substate message.currentTarget 4 = c) (hg : gas < 406 + slotCost c) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   read_low hfork hsize' hg (fun h _ => Getters.spec_maximumFee hfork h.1 hsize' hsel h.2 hc)
     start within
 
 /-- `_totalSupply()` succeeds exactly when `CallOk` holds, with gas `428 + price(slot 1)`. -/
 theorem totalSupplyVar_ok_iff (hsel : selector message.data = 0x3eaaf86b)
     (hc : coldIn substate message.currentTarget 1 = c) (hg : 428 + slotCost c ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message :=
+    RunsOk bound runChild evm within ↔ CallOk message :=
   read_ok_iff hfork hsize' (fun h => Getters.spec_totalSupplyVar hfork h.1 hsize' hsel h.2 hc hg)
     start within
 
 theorem totalSupplyVar_low (hsel : selector message.data = 0x3eaaf86b)
     (hc : coldIn substate message.currentTarget 1 = c) (hg : gas < 428 + slotCost c) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   read_low hfork hsize' hg (fun h _ => Getters.spec_totalSupplyVar hfork h.1 hsize' hsel h.2 hc)
     start within
 
 /-- `basisPointsRate()` succeeds exactly when `CallOk` holds, with gas `758 + price(slot 3)`. -/
 theorem basisPointsRate_ok_iff (hsel : selector message.data = 0xdd644f72)
     (hc : coldIn substate message.currentTarget 3 = c) (hg : 758 + slotCost c ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message :=
+    RunsOk bound runChild evm within ↔ CallOk message :=
   read_ok_iff hfork hsize'
     (fun h => Getters.spec_basisPointsRate hfork h.1 hsize' hsel h.2 hc hg) start within
 
 theorem basisPointsRate_low (hsel : selector message.data = 0xdd644f72)
     (hc : coldIn substate message.currentTarget 3 = c) (hg : gas < 758 + slotCost c) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   read_low hfork hsize' hg
     (fun h _ => Getters.spec_basisPointsRate hfork h.1 hsize' hsel h.2 hc) start within
 
 /-- `deprecated()` succeeds exactly when `CallOk` holds, with gas `350 + price(slot 10)`. -/
 theorem deprecated_ok_iff (hsel : selector message.data = 0x0e136b19)
     (hc : coldIn substate message.currentTarget 10 = c) (hg : 350 + slotCost c ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message :=
+    RunsOk bound runChild evm within ↔ CallOk message :=
   read_ok_iff hfork hsize' (fun h => Getters.spec_deprecated hfork h.1 hsize' hsel h.2 hc hg)
     start within
 
 theorem deprecated_low (hsel : selector message.data = 0x0e136b19)
     (hc : coldIn substate message.currentTarget 10 = c) (hg : gas < 350 + slotCost c) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   read_low hfork hsize' hg (fun h _ => Getters.spec_deprecated hfork h.1 hsize' hsel h.2 hc)
     start within
 
 /-- `paused()` succeeds exactly when `CallOk` holds, with gas `614 + price(slot 0)`. -/
 theorem paused_ok_iff (hsel : selector message.data = 0x5c975abb)
     (hc : coldIn substate message.currentTarget 0 = c) (hg : 614 + slotCost c ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message :=
+    RunsOk bound runChild evm within ↔ CallOk message :=
   read_ok_iff hfork hsize' (fun h => Getters.spec_paused hfork h.1 hsize' hsel h.2 hc hg)
     start within
 
 theorem paused_low (hsel : selector message.data = 0x5c975abb)
     (hc : coldIn substate message.currentTarget 0 = c) (hg : gas < 614 + slotCost c) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   read_low hfork hsize' hg (fun h _ => Getters.spec_paused hfork h.1 hsize' hsel h.2 hc)
     start within
 
 /-- `upgradedAddress()` succeeds exactly when `CallOk` holds, with gas `388 + price(slot 10)`. -/
 theorem upgradedAddress_ok_iff (hsel : selector message.data = 0x26976e3f)
     (hc : coldIn substate message.currentTarget 10 = c) (hg : 388 + slotCost c ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message :=
+    RunsOk bound runChild evm within ↔ CallOk message :=
   read_ok_iff hfork hsize'
     (fun h => Getters.spec_upgradedAddress hfork h.1 hsize' hsel h.2 hc hg) start within
 
 theorem upgradedAddress_low (hsel : selector message.data = 0x26976e3f)
     (hc : coldIn substate message.currentTarget 10 = c) (hg : gas < 388 + slotCost c) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   read_low hfork hsize' hg
     (fun h _ => Getters.spec_upgradedAddress hfork h.1 hsize' hsel h.2 hc) start within
 
 /-- `owner()` succeeds exactly when `CallOk` holds, with gas `652 + price(slot 0)`. -/
 theorem owner_ok_iff (hsel : selector message.data = 0x8da5cb5b)
     (hc : coldIn substate message.currentTarget 0 = c) (hg : 652 + slotCost c ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message :=
+    RunsOk bound runChild evm within ↔ CallOk message :=
   read_ok_iff hfork hsize' (fun h => Getters.spec_owner hfork h.1 hsize' hsel h.2 hc hg)
     start within
 
 theorem owner_low (hsel : selector message.data = 0x8da5cb5b)
     (hc : coldIn substate message.currentTarget 0 = c) (hg : gas < 652 + slotCost c) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   read_low hfork hsize' hg (fun h _ => Getters.spec_owner hfork h.1 hsize' hsel h.2 hc)
     start within
 
 /-- `getOwner()` succeeds exactly when `CallOk` holds, with gas `638 + price(slot 0)`. -/
 theorem getOwner_ok_iff (hsel : selector message.data = 0x893d20e8)
     (hc : coldIn substate message.currentTarget 0 = c) (hg : 638 + slotCost c ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message :=
+    RunsOk bound runChild evm within ↔ CallOk message :=
   read_ok_iff hfork hsize' (fun h => Getters.spec_getOwner hfork h.1 hsize' hsel h.2 hc hg)
     start within
 
 theorem getOwner_low (hsel : selector message.data = 0x893d20e8)
     (hc : coldIn substate message.currentTarget 0 = c) (hg : gas < 638 + slotCost c) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   read_low hfork hsize' hg (fun h _ => Getters.spec_getOwner hfork h.1 hsize' hsel h.2 hc)
     start within
 
 /-- `MAX_UINT()` succeeds exactly when `CallOk` holds, with gas 824. -/
 theorem maxUint_ok_iff (hsel : selector message.data = 0xe5b5019a) (hg : 824 ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message :=
+    RunsOk bound runChild evm within ↔ CallOk message :=
   read_ok_iff hfork hsize' (fun h => Getters.spec_maxUint h.1 hsize' hsel h.2 hg) start within
 
 theorem maxUint_low (hsel : selector message.data = 0xe5b5019a) (hg : gas < 824) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   read_low hfork hsize' hg (fun h _ => Getters.spec_maxUint h.1 hsize' hsel h.2) start within
 
 /-- `balances(a)` succeeds exactly when `CallOk` holds, with gas
@@ -205,14 +205,14 @@ theorem maxUint_low (hsel : selector message.data = 0xe5b5019a) (hg : gas < 824)
 theorem balances_ok_iff (hsel : selector message.data = 0x27e235e3)
     (hc : coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 2) = c)
     (hg : 478 + slotCost c ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message :=
+    RunsOk bound runChild evm within ↔ CallOk message :=
   read_ok_iff hfork hsize' (fun h => GettersMap.spec_balances hfork h.1 hsize' hsel h.2 hc hg)
     start within
 
 theorem balances_low (hsel : selector message.data = 0x27e235e3)
     (hc : coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 2) = c)
     (hg : gas < 478 + slotCost c) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   read_low hfork hsize' hg (fun h _ => GettersMap.spec_balances hfork h.1 hsize' hsel h.2 hc)
     start within
 
@@ -221,14 +221,14 @@ theorem balances_low (hsel : selector message.data = 0x27e235e3)
 theorem isBlackListed_ok_iff (hsel : selector message.data = 0xe47d6060)
     (hc : coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 6) = c)
     (hg : 933 + slotCost c ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message :=
+    RunsOk bound runChild evm within ↔ CallOk message :=
   read_ok_iff hfork hsize'
     (fun h => GettersMap.spec_isBlackListed hfork h.1 hsize' hsel h.2 hc hg) start within
 
 theorem isBlackListed_low (hsel : selector message.data = 0xe47d6060)
     (hc : coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 6) = c)
     (hg : gas < 933 + slotCost c) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   read_low hfork hsize' hg
     (fun h _ => GettersMap.spec_isBlackListed hfork h.1 hsize' hsel h.2 hc) start within
 
@@ -237,14 +237,14 @@ theorem isBlackListed_low (hsel : selector message.data = 0xe47d6060)
 theorem getBlackListStatus_ok_iff (hsel : selector message.data = 0x59bf1abe)
     (hc : coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 6) = c)
     (hg : 663 + slotCost c ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message :=
+    RunsOk bound runChild evm within ↔ CallOk message :=
   read_ok_iff hfork hsize'
     (fun h => GettersMap.spec_getBlackListStatus hfork h.1 hsize' hsel h.2 hc hg) start within
 
 theorem getBlackListStatus_low (hsel : selector message.data = 0x59bf1abe)
     (hc : coldIn substate message.currentTarget (mapSlot (addrArg message.data 0) 6) = c)
     (hg : gas < 663 + slotCost c) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   read_low hfork hsize' hg
     (fun h _ => GettersMap.spec_getBlackListStatus hfork h.1 hsize' hsel h.2 hc) start within
 
@@ -253,14 +253,14 @@ theorem getBlackListStatus_low (hsel : selector message.data = 0x59bf1abe)
 theorem allowed_ok_iff (hsel : selector message.data = 0x5c658165)
     (hc : coldIn substate message.currentTarget (GettersMap.allowSlot message.data) = c)
     (hg : 705 + slotCost c ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message :=
+    RunsOk bound runChild evm within ↔ CallOk message :=
   read_ok_iff hfork hsize' (fun h => GettersMap.spec_allowed hfork h.1 hsize' hsel h.2 hc hg)
     start within
 
 theorem allowed_low (hsel : selector message.data = 0x5c658165)
     (hc : coldIn substate message.currentTarget (GettersMap.allowSlot message.data) = c)
     (hg : gas < 705 + slotCost c) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   read_low hfork hsize' hg (fun h _ => GettersMap.spec_allowed hfork h.1 hsize' hsel h.2 hc)
     start within
 
@@ -275,7 +275,7 @@ theorem totalSupply_ok_iff (hsel : selector message.data = 0x18160ddd)
     (hc10 : coldIn substate message.currentTarget 10 = c10)
     (hc : coldIn substate message.currentTarget 1 = c)
     (hg : TotalSupply.COST + slotCost c10 + slotCost c ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message :=
+    RunsOk bound runChild evm within ↔ CallOk message :=
   read_ok_iff hfork hsize'
     (fun h => TotalSupply.spec hfork h.1 hsize' hsel h.2 hdep hc10 hc hg) start within
 
@@ -284,7 +284,7 @@ theorem totalSupply_low (hsel : selector message.data = 0x18160ddd)
     (hc10 : coldIn substate message.currentTarget 10 = c10)
     (hc : coldIn substate message.currentTarget 1 = c)
     (hg : gas < TotalSupply.COST + slotCost c10 + slotCost c) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   read_low hfork hsize' hg
     (fun h _ => TotalSupply.spec hfork h.1 hsize' hsel h.2 hdep hc10 hc) start within
 
@@ -296,7 +296,7 @@ theorem balanceOf_ok_iff (hsel : selector message.data = 0x70a08231)
     (hc : coldIn (accessSlot substate message.currentTarget 10) message.currentTarget
       (BalanceOf.balanceSlot message.data) = c)
     (hg : BalanceOf.COST + slotCost c10 + slotCost c ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message :=
+    RunsOk bound runChild evm within ↔ CallOk message :=
   read_ok_iff hfork hsize'
     (fun h => BalanceOf.spec hfork h.1 hsize' hsel h.2 hdep hc10 hc hg) start within
 
@@ -306,7 +306,7 @@ theorem balanceOf_low (hsel : selector message.data = 0x70a08231)
     (hc : coldIn (accessSlot substate message.currentTarget 10) message.currentTarget
       (BalanceOf.balanceSlot message.data) = c)
     (hg : gas < BalanceOf.COST + slotCost c10 + slotCost c) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   read_low hfork hsize' hg
     (fun h _ => BalanceOf.spec hfork h.1 hsize' hsel h.2 hdep hc10 hc) start within
 
@@ -318,7 +318,7 @@ theorem allowance_ok_iff (hsel : selector message.data = 0xdd62ed3e)
     (hc : coldIn (accessSlot substate message.currentTarget 10) message.currentTarget
       (GettersMap.allowSlot message.data) = c)
     (hg : 1156 + slotCost c10 + slotCost c ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message :=
+    RunsOk bound runChild evm within ↔ CallOk message :=
   read_ok_iff hfork hsize'
     (fun h => GettersMap.spec_allowance hfork h.1 hsize' hsel h.2 hdep hc10 hc hg) start within
 
@@ -328,7 +328,7 @@ theorem allowance_low (hsel : selector message.data = 0xdd62ed3e)
     (hc : coldIn (accessSlot substate message.currentTarget 10) message.currentTarget
       (GettersMap.allowSlot message.data) = c)
     (hg : gas < 1156 + slotCost c10 + slotCost c) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   read_low hfork hsize' hg
     (fun h _ => GettersMap.spec_allowance hfork h.1 hsize' hsel h.2 hdep hc10 hc) start within
 
@@ -390,7 +390,7 @@ theorem name_ok_iff (hsel : selector message.data = 0x06fdde03)
     (hc : coldIn substate message.currentTarget 7 = c)
     (hg : strCost 1 643 1010 7 substate message.currentTarget
       (storageAt state message.currentTarget 7) c ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message := by
+    RunsOk bound runChild evm within ↔ CallOk message := by
   rcases hform with h0 | ⟨n, hn, h1, h31⟩ | ⟨hodd, h32, hN⟩
   · rw [strCost_empty h0] at hg
     exact read_ok_iff hfork hsize'
@@ -407,7 +407,7 @@ theorem name_low (hsel : selector message.data = 0x06fdde03)
     (hc : coldIn substate message.currentTarget 7 = c)
     (hg : gas < strCost 1 643 1010 7 substate message.currentTarget
       (storageAt state message.currentTarget 7) c) :
-    ¬ RunsOk fork bound runChild evm within := by
+    ¬ RunsOk bound runChild evm within := by
   rcases hform with h0 | ⟨n, hn, h1, h31⟩ | ⟨hodd, h32, hN⟩
   · rw [strCost_empty h0] at hg
     exact read_low hfork hsize' hg
@@ -426,7 +426,7 @@ theorem symbol_ok_iff (hsel : selector message.data = 0x95d89b41)
     (hc : coldIn substate message.currentTarget 8 = c)
     (hg : strCost 21 1083 1450 8 substate message.currentTarget
       (storageAt state message.currentTarget 8) c ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ CallOk message := by
+    RunsOk bound runChild evm within ↔ CallOk message := by
   rcases hform with h0 | ⟨n, hn, h1, h31⟩ | ⟨hodd, h32, hN⟩
   · rw [strCost_empty h0] at hg
     exact read_ok_iff hfork hsize'
@@ -443,7 +443,7 @@ theorem symbol_low (hsel : selector message.data = 0x95d89b41)
     (hc : coldIn substate message.currentTarget 8 = c)
     (hg : gas < strCost 21 1083 1450 8 substate message.currentTarget
       (storageAt state message.currentTarget 8) c) :
-    ¬ RunsOk fork bound runChild evm within := by
+    ¬ RunsOk bound runChild evm within := by
   rcases hform with h0 | ⟨n, hn, h1, h31⟩ | ⟨hodd, h32, hN⟩
   · rw [strCost_empty h0] at hg
     exact read_low hfork hsize' hg

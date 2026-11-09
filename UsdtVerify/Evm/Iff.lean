@@ -1,6 +1,7 @@
 import UsdtVerify.Evm.Exact
 import UsdtVerify.Evm.Route
 import UsdtVerify.Evm.Stuck
+import EthLib.Execution.Proofs.Evm.Logic.RunsOk
 
 /-!
 # Exact success conditions
@@ -8,8 +9,11 @@ import UsdtVerify.Evm.Stuck
 Proves the generic forms of an exact success condition: a condition is equivalent to the run
 ending with no error (`RunsOk`), for a path that halts and for a path that forwards one message.
 
-- `RunsOk`: the loop of the interpreter, run from a frame, ends in a frame with no error.
-- `runsOk_of_spec`: a specification to a frame with no error gives `RunsOk`.
+- `RunsOk` (round 52: EthLib's `RunsOk`, #1633, with the meter `Nat`; the local definition, the
+  same proposition with the fork explicit, is removed): the loop of the interpreter, run from a
+  frame, ends in a frame with no error. `runsOk_of_spec` (now EthLib's `Spec.runsOk`) and
+  `runsOk_of_specUnder` (no use; EthLib's `SpecOn.runsOk` is the form for a runner that may fail
+  on named messages) are removed.
 - `halted_false_ok`: a normal halt has no error.
 - `runsOk_iff`: from a frame where the precondition holds, a condition `G` under which a
   specification to a frame with no error holds, and that every run ending with no error meets,
@@ -18,6 +22,9 @@ ending with no error (`RunsOk`), for a path that halts and for a path that forwa
   which a specification to a normal halt that pays `cost` holds for every gas from a bound
   `B ≥ cost` on, no run with less gas than `cost` ends with no error.
   `not_runsOk_low2` and `not_runsOk_low3` take a specification with one or two more gas bounds.
+  Round 52: proved from EthLib's `not_runsOk_of_lt` (#1633), which takes no condition `G`. The
+  wrappers with `G` stay, as do `runsOk_iff`, `not_runsOk_stuck` and `iff_max`: EthLib #1633
+  left out these forms as thin wrappers.
 - `not_runsOk_stuck` (round 26): with a condition `G` that every run ending with no error meets,
   and under which the frame, with its own gas, reaches a `Stuck` frame (for example an SSTORE
   with at most 2300 gas left, `Gas.NoWrite`), no run ends with no error.
@@ -59,24 +66,10 @@ variable {fork : Fork} {code : ByteArray} {message : Message fork} {pc : Nat}
   {substate : Substate} {bound : Nat} {runChild : MessageRunner fork Nat bound}
   {evm : Evm fork Nat}
 
-/-- The loop of the interpreter, run from `evm` with gas bound `bound` and message runner
-`runChild`, ends in a frame with no error. -/
-def RunsOk (fork : Fork) (bound : Nat) (runChild : MessageRunner fork Nat bound)
-    (evm : Evm fork Nat) (within : GasMeter.gasHeld evm.gas ≤ bound) : Prop :=
-  ∃ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s ∧
-    s.error = none
-
 /-- A normal halt has no error. -/
 theorem halted_false_ok {out : ByteArray} {g : Nat} {st : State.TransactionState}
     {ss : Substate} (e : Evm fork Nat) (h : Halted false out g st ss e) : e.error = none := by
   rw [h.2.1]; simp
-
-/-- A specification to frames with no error, from a frame where its precondition holds. -/
-theorem runsOk_of_spec {P Q : Evm fork Nat → Prop} (h : SpecG fork P Q)
-    (hQ : ∀ e, Q e → e.error = none) (hp : P evm) (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    RunsOk fork bound runChild evm within := by
-  obtain ⟨s, hs, hq⟩ := SpecG.runFrame h hp within (runChild := runChild)
-  exact ⟨s, hs, hQ s hq⟩
 
 /-- `RunsOk` holds exactly when `G` holds, if `G` gives a specification to frames with no error
 and every run that ends with no error meets `G`. -/
@@ -84,8 +77,8 @@ theorem runsOk_iff {G : Prop} {P Q : Evm fork Nat → Prop} (hspec : G → SpecG
     (hQ : ∀ e, Q e → e.error = none) (hp : P evm) (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok s → s.error = none → G) :
-    RunsOk fork bound runChild evm within ↔ G :=
-  ⟨fun ⟨s, hs, hok⟩ => hcomp s hs hok, fun hg => runsOk_of_spec (hspec hg) hQ hp within⟩
+    RunsOk bound runChild evm within ↔ G :=
+  ⟨fun ⟨s, hs, hok⟩ => hcomp s hs hok, fun hg => Spec.runsOk (SpecG.toSpec (hspec hg)) hQ hp within⟩
 
 /-- With less gas than `cost`, no run ends with no error, if every run that ends with no error
 meets `G`, and under `G` a specification to a normal halt that pays `cost` holds from `B` gas
@@ -98,10 +91,11 @@ theorem not_runsOk_low {G : Prop} {B cost gas : Nat} (hB : cost ≤ B) (hlt : ga
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok s → s.error = none → G) :
-    ¬ RunsOk fork bound runChild evm within := by
+    ¬ RunsOk bound runChild evm within := by
   rintro ⟨s, hs, hok⟩
-  have := (Complete.ok_exact hB (hspec (hcomp s hs hok)) start within hs hok).1
-  omega
+  exact not_runsOk_of_lt (B := B) hlt
+    (fun g hg _ => lowerPre (SpecG.toLogic (hspec (hcomp s hs hok) g hg))) start.toLogic within
+    ⟨s, hs, hok⟩
 
 /-- `not_runsOk_low` for a specification with two gas bounds, the second one the cost. -/
 theorem not_runsOk_low2 {G : Prop} {B1 cost gas : Nat} (hlt : gas < cost)
@@ -113,7 +107,7 @@ theorem not_runsOk_low2 {G : Prop} {B1 cost gas : Nat} (hlt : gas < cost)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok s → s.error = none → G) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   not_runsOk_low (B := B1 + cost) (Nat.le_add_left _ _) hlt
     (fun hG g hg => hspec hG g (Complete.le_l hg) (Complete.le_r hg)) start within hcomp
 
@@ -127,7 +121,7 @@ theorem not_runsOk_low3 {G : Prop} {B1 B2 cost gas : Nat} (hlt : gas < cost)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok s → s.error = none → G) :
-    ¬ RunsOk fork bound runChild evm within :=
+    ¬ RunsOk bound runChild evm within :=
   not_runsOk_low2 (B1 := B1 + B2) hlt
     (fun hG g h1 h2 => hspec hG g (Complete.le_l h1) (Complete.le_r h1) h2) start within hcomp
 
@@ -139,12 +133,12 @@ theorem not_runsOk_stuck {G : Prop} {gas : Nat}
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok s → s.error = none → G) :
-    ¬ RunsOk fork bound runChild evm within := by
+    ¬ RunsOk bound runChild evm within := by
   rintro ⟨s, hs, hok⟩
   exact no_ok_stuck_at (hstuck (hcomp s hs hok)) start within hs hok
 
 /-- The condition `G` of a run that ends with no error. -/
-theorem of_runsOk {G : Prop} (h : RunsOk fork bound runChild evm within)
+theorem of_runsOk {G : Prop} (h : RunsOk bound runChild evm within)
     (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =
       .ok s → s.error = none → G) : G :=
   let ⟨s, hs, hok⟩ := h
@@ -191,20 +185,6 @@ def AnsIff (M : Message fork) (ua : EthLib.Base.Address) (c : ByteArray) (r : Ro
     (d : ByteArray) (A : Prop) : Evm fork Nat → Message fork → Evm fork Nat → Prop :=
   fun _ msg child => SendsVia M ua c r d msg → (child.error = none ↔ A)
 
-/-- A specification under a callee assumption, a runner that meets it and never fails: the loop
-ends with no error when every end frame of the specification has none. -/
-theorem runsOk_of_specUnder {callee : Evm fork Nat → Message fork → Evm fork Nat → Prop}
-    {P Q : Evm fork Nat → Prop} (h : SpecUnder fork callee P Q) (meets : Meets callee runChild)
-    (hnf : NoFail runChild) (hQ : ∀ e, Q e → e.error = none) (hp : P evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    RunsOk fork bound runChild evm within := by
-  obtain ⟨after, hreach, ⟨halted, hq⟩ | aborted⟩ := h bound runChild meets evm hp within
-  · refine ⟨after, ?_, hQ _ hq⟩
-    rw [runFrame_eq_of_reaches StepBy.gasHeld_le StepBy.runFrame_eq hreach within,
-      runFrame_of_running_eq_false halted]
-  · obtain ⟨-, caller, msg, -, -, lt, e, failed⟩ := aborted
-    exact absurd failed (hnf caller msg lt e)
-
 /-- A path that forwards one message, under a runner that may fail with any error (round 31): with
 the hypotheses of `fwd_ok_iff_fails` but no `hfail`, a run that ends with no error meets `G` and
 `A`, and when `G` and `A` hold, the run ends with no error or the runner fails on a message of
@@ -221,8 +201,8 @@ theorem fwd_ok_or_fails {G A : Prop} {Q : Evm fork Nat → Evm fork Nat → Prop
     (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child → S msg → Cl caller msg →
       (Q caller child.1 ↔ A))
     (hp : P evm) :
-    (RunsOk fork bound runChild evm within → G ∧ A) ∧
-      (G ∧ A → RunsOk fork bound runChild evm within ∨
+    (RunsOk bound runChild evm within → G ∧ A) ∧
+      (G ∧ A → RunsOk bound runChild evm within ∨
         ∃ caller msg lt e, runChild caller msg lt = .error e ∧ S msg ∧ Cl caller msg) := by
   constructor
   · rintro ⟨s, hs, hok⟩
@@ -260,7 +240,7 @@ theorem fwd_ok_iff_fails {G A : Prop} {Q : Evm fork Nat → Evm fork Nat → Pro
       (Q caller child.1 ↔ A))
     (hfail : ∀ caller msg lt e, runChild caller msg lt = .error e → S msg → Cl caller msg → ¬ A)
     (hp : P evm) :
-    RunsOk fork bound runChild evm within ↔ G ∧ A := by
+    RunsOk bound runChild evm within ↔ G ∧ A := by
   have h := fwd_ok_or_fails hspec within hcomp hans hp
   exact ⟨h.1, fun hGA => (h.2 hGA).resolve_right
     fun ⟨caller, msg, lt, e, failed, hS, hC⟩ => hfail caller msg lt e failed hS hC hGA.2⟩

@@ -88,7 +88,7 @@ theorem destroy_mirror_runsN (hparis : .paris ≤ fork) (hglam : fork < .glamste
     (hmir : storageAt S UA (balSlot (mDOG b t C a G R)) =
       storageAt S C (balSlot (mDOG b t C a G R)))
     (hg : 1000000 ≤ G) (hg' : G < 2 ^ 255) :
-    RunsOk fork G (processRunner fork G) (sFrame (mDOG b t C a G R) S ss G) (Nat.le_refl _) := by
+    RunsOk G (processRunner fork G) (sFrame (mDOG b t C a G R) S ss G) (Nat.le_refl _) := by
   have hberlin : .berlin ≤ fork := Nat.le_trans (by decide) hparis
   have hdep : byte20 (storageAt S (mDOG b t C a G R).currentTarget 10) ≠ 0 := by
     show byte20 (storageAt S C 10) ≠ 0
@@ -180,12 +180,13 @@ theorem destroy_mirror_call_authsN (hparis : .paris ≤ fork) (hglam : fork < .g
     (G R : Nat) (hg : 1000000 ≤ G) (hg' : G < 2 ^ 255) :
     ∃ out, processMessageCall (Meter := Nat) chainId (mDOG b t C a G R) (S3 C H HC a) ss
       auths pw = .ok out ∧ out.error = none := by
-  obtain ⟨done, hdone⟩ := fold_exists_pre (fork := fork) (Meter := Nat) hglam (chainId := chainId)
-    auths ⟨S3 C H HC a, ss.accessedAddresses, 0, GasMeter.start G R, pw, ∅⟩
-    (resolves_S3 C H HC a hH hHC hne hCU) (preResolves_S3 C H HC a hH hHC hne hCU)
+  obtain ⟨done, hdone⟩ := foldlM_applyAuthorization_isOk_of_lt_glamsterdam (fork := fork)
+    (Meter := Nat) (chainId := chainId) hglam auths
+    (start := ⟨S3 C H HC a, ss.accessedAddresses, 0, GasMeter.start G R, pw, ∅⟩)
+    (resolves_S3 C H HC a hH hHC hne hCU)
   have hdone' : applyAuthorizations fork chainId (S3 C H HC a) ss.accessedAddresses
       (GasMeter.start G R) pw auths = .ok done := hdone
-  have hm : done.meter = G := fold_meter_pre hglam auths _ done hdone
+  have hm : done.meter = G := meter_foldlM_applyAuthorization_of_lt_glamsterdam hglam hdone
   obtain ⟨hff, haC, hsC, -, -, hsU, hcU⟩ := prepareFirstFrame_S3 (Meter := Nat) b t C a
     ss H HC hH hHC hne hCU chainId G R auths pw hk hdone'
   obtain ⟨-, hown0, hlist0, -, -, -, -, -, -⟩ := process_step_dep_hyps2 hparis b t C a H hH 0

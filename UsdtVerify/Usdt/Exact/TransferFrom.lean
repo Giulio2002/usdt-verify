@@ -97,7 +97,7 @@ theorem transferFrom_ok_iff
     (hstip : feeOf (checkState state message) message (valArg message) = 0 →
       stipCostF fork state message c0 cB c10 cA c3 c4 cF cT ≤ gas)
     (hg : transferFromCost fork state message c0 cB c10 cA c3 c4 cF cT cO ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ TransferFromGuard state message := by
+    RunsOk bound runChild evm within ↔ TransferFromGuard state message := by
   refine runsOk_iff (Q := fun e => e.error = none)
     (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hl, hp, hb, hov, hallow, hfv, hbal, hto, hown⟩ => ?_)
     (fun _ h => h) start within
@@ -142,7 +142,7 @@ theorem transferFrom_ok_dom
 
 theorem transferFrom_low
     (hg : gas < transferFromCost fork state message c0 cB c10 cA c3 c4 cF cT cO) :
-    ¬ RunsOk fork bound runChild evm within := by
+    ¬ RunsOk bound runChild evm within := by
   have hcomp := transferFrom_comp (runChild := runChild) hfork hsize' start within hsel hdep hc0
     hcB hc10 hcA hc3 hc4 hcF hcT hcO
   by_cases hfee : feeOf (checkState state message) message (valArg message) = 0
@@ -162,7 +162,7 @@ theorem transferFrom_low
 theorem transferFrom_mid
     (hg : transferFromCost fork state message c0 cB c10 cA c3 c4 cF cT cO ≤ gas)
     (hlt : gas < transferFromStip fork state message c0 cB c10 cA c3 c4 cF cT) :
-    ¬ RunsOk fork bound runChild evm within := by
+    ¬ RunsOk bound runChild evm within := by
   refine not_runsOk_stuck
     (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hl, hp, hb, hov, hallow, hfv, hbal, hto, hown⟩ => ?_) start
     within
@@ -178,7 +178,7 @@ theorem transferFrom_mid
 /-- `transferFrom(f, t, v)`, not deprecated, succeeds exactly when `TransferFromGuard` holds and
 the gas is at least the larger of `transferFromCost` and `transferFromStip`. -/
 theorem transferFrom_iff_gas :
-    RunsOk fork bound runChild evm within ↔ TransferFromGuard state message ∧
+    RunsOk bound runChild evm within ↔ TransferFromGuard state message ∧
       max (transferFromCost fork state message c0 cB c10 cA c3 c4 cF cT cO)
         (transferFromStip fork state message c0 cB c10 cA c3 c4 cF cT) ≤ gas :=
   iff_max (fun hg hs => transferFrom_ok_iff hfork hsize' start within hsel hdep hc0 hcB hc10 hcA

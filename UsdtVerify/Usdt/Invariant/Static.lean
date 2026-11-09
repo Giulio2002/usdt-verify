@@ -5,12 +5,13 @@ import EthLib.Execution.Proofs.Evm.Call.StaticMessage
 # A static frame keeps the state, and the invariant over every successful call
 
 EthLib proves that a step of a static frame keeps the state up to the records of its reads
-(`staticResult_step`; SSTORE, TSTORE, LOG and SELFDESTRUCT do not continue in such a frame), and
-that a whole run of a static frame does (`staticStep_runFrame`), when the runner ends every
-static child message with a state that differs from its caller's only by reads.
+(`staticTouchResult_step`; SSTORE, TSTORE, LOG and SELFDESTRUCT do not continue in such a frame).
+`static_runFrame` (round 52, the induction of EthLib's `staticTouchStep_runFrame` with no touch)
+shows that a whole run of a static frame does too, when the runner ends every static child message
+with a state that differs from its caller's only by reads.
 
-- `StaticKeeps runChild`: that runner assumption, named (EthLib's premise of
-  `staticStep_runFrame`).
+- `StaticKeeps runChild`: that runner assumption, named (it was the premise of EthLib's
+  `staticStep_runFrame`, which EthLib #1619 removed).
 - `staticKeeps_process`: from Paris, the interpreter's own runner (`processRunner`) meets it
   (EthLib's `processMessage_static`).
 - `static_run`: a run of a fresh static frame of `CODE` (for a message whose code is `CODE`, at an
@@ -41,8 +42,8 @@ variable {fork : Fork} {bound : Nat} {runChild : MessageRunner fork Nat bound}
 
 /-- The named runner assumption for static frames: whenever the runner ends a static message
 (EthLib's `StaticMessage`) sent from a static frame, the child's end state differs from the
-caller's only by the records of reads, and keeps its block. This is the premise `runs` of EthLib's
-`staticStep_runFrame`. -/
+caller's only by the records of reads, and keeps its block. This was the premise `runs` of EthLib's
+`staticStep_runFrame` (removed from EthLib by #1619; `static_runFrame` below takes its place). -/
 def StaticKeeps (runChild : MessageRunner fork Nat bound) : Prop :=
   ∀ {caller : Evm fork Nat} {msg : Message fork} {lt : msg.gas < bound} {c : Evm fork Nat}
     {used : GasMeter.gasHeld c.gas ≤ msg.gas},
@@ -60,6 +61,37 @@ theorem staticKeeps_process (hfork : .paris ≤ fork) :
   · have := hm.2.1
     simp_all
 
+/-- A whole run of a static frame, under a runner that meets `StaticKeeps`, is a static touch step
+with no touch (round 52). EthLib #1619 replaced `staticStep_runFrame` by
+`staticTouchStep_runFrame`, whose conclusion names some list of touched addresses. This is the
+same induction with the runner's list fixed to `[]`, so the end state keeps every address. -/
+theorem static_runFrame (hkeep : StaticKeeps runChild) {evm after : Evm fork Nat}
+    {within : GasMeter.gasHeld evm.gas ≤ bound} (hf : StaticFrame evm)
+    (h : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok after) :
+    StaticTouchStep [] evm after := by
+  fun_induction Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within
+  case case1 => cases h
+  case case2 => cases h; exact .of_staticStep (staticStep_exceptionalHalt _ _)
+  case case3 =>
+    rename_i result _ ih
+    have n : StaticStep _ _ := staticTouchResult_step hf.1 hf.2.1 hf.2.2 result
+    exact n.trans_touchStep (ih (StaticFrame.of_staticStep n hf) h)
+  case case4 => cases h
+  case case5 => cases h
+  case case6 => cases h; exact .of_staticStep (staticStep_exceptionalHalt _ _)
+  case case7 =>
+    obtain ⟨c0, hmsg, hres⟩ :=
+      staticTouchResult_step hf.1 hf.2.1 hf.2.2 ‹step _ _ = .ok (.child _ _ _)›
+    obtain ⟨kept, parent⟩ :=
+      hkeep (StaticFrame.of_staticStep c0 hf) hmsg ‹runChild _ _ _ = .ok _›
+    have n := hres [] _ _ (by assumption)
+      ⟨kept, fun a k => (kept a (by simp)).2.1 k, fun a k => (kept a (by simp)).2.2 k,
+        by simp⟩ parent (by simp)
+    have htr := ‹StaticFrame _ → Evm.runFrame _ _ _ _ _ _ = .ok after → StaticTouchStep [] _ after›
+      (StaticFrame.of_touchStep n hf) h
+    simpa using n.trans htr
+  case case8 => cases h; exact .refl _
+
 /-- A run of a fresh static frame of `CODE`, for a message whose code is `CODE` at an account that
 holds code (`StaticCode`), under a runner that meets `StaticKeeps`: the end state reads as the
 start state at every address (account, storage, transient storage). Any fork, any gas. -/
@@ -72,12 +104,7 @@ theorem static_run (hst : message.isStatic = true) (hmc : message.code = CODE)
   obtain ⟨hc, -, hm, -, -, -, -, -, -, -, hs, -⟩ := start
   have hf : StaticFrame evm :=
     ⟨by rw [hm]; exact hst, by rw [hc, hm, hmc], by rw [hs, hm]; exact hhold⟩
-  have h := staticStep_runFrame (step := step fork) (decreases := step_decreases fork)
-    (fun hf' hstep => staticResult_step hf'.1 hf'.2.1 hf'.2.2 hstep)
-    (fun hf' hstep => staticResult_step hf'.1 hf'.2.1 hf'.2.2 hstep)
-    (fun hf' hm' hr => hkeep hf' hm' hr) hf hrun
-  have hk := h.state
-  unfold StateKept at hk
+  have hk := (static_runFrame hkeep hf hrun).state.1
   rw [hs] at hk
   exact hk
 

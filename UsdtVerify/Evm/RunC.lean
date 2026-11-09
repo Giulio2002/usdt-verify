@@ -171,7 +171,7 @@ theorem RunC.next_of {l b s : Evm fork Nat} (h : RunC fork Run Tail l s) (hr : l
 /-- From a running `Fwd` frame whose step fails or halts with an error, no `RunC` ends with no
 error. -/
 theorem RunC.not_bad {l s : Evm fork Nat} (h : RunC fork Run Tail l s) (hr : l.running = true)
-    (hf : Fwd l) (hs : StepBad (Evm.step fork l)) (hok : s.error = none) : False := by
+    (hf : Fwd l) (hs : StepFails (Evm.step fork l)) (hok : s.error = none) : False := by
   rcases hs with ⟨e, he⟩ | ⟨b, hb, hbr, hbe⟩
   · cases h with
     | stop hl => rw [hl] at hr; cases hr

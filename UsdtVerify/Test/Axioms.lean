@@ -340,9 +340,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Approve.spec_payload
 #print axioms UsdtVerify.Complete.ok_approve
 #print axioms UsdtVerify.Complete.ok_transferFrom
-#print axioms UsdtVerify.Complete.no_ok2
-#print axioms UsdtVerify.Complete.ok_exact2
-#print axioms UsdtVerify.Complete.ok_exact3
 #print axioms UsdtVerify.SetParamsSpec.spec_mulOv
 #print axioms UsdtVerify.Complete.ok_pause
 #print axioms UsdtVerify.Complete.ok_unpause
@@ -390,14 +387,9 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.DepInv.depD_inv
 #print axioms UsdtVerify.DepInv.depD_keeps
 #print axioms UsdtVerify.DepInv.depD_breaks
-#print axioms UsdtVerify.Complete.ok_step_error
-#print axioms UsdtVerify.Complete.ok_step_halt
-#print axioms UsdtVerify.Complete.ok_hoare
 #print axioms UsdtVerify.Complete.step_gas_low
 #print axioms UsdtVerify.Complete.step_sub_low
 #print axioms UsdtVerify.Complete.extcodesize_low
-#print axioms UsdtVerify.Complete.callStep_low
-#print axioms UsdtVerify.Complete.callStep_deep
 #print axioms UsdtVerify.Complete.step_call
 #print axioms UsdtVerify.Complete.call_ok
 #print axioms UsdtVerify.Deprecated.accCost_of_lt
@@ -416,7 +408,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.At.extcodesize
 #print axioms UsdtVerify.At.gas_rule
 #print axioms UsdtVerify.At.reshape
-#print axioms UsdtVerify.Complete.ok_step_bad
 #print axioms UsdtVerify.Gas.writeCost_le
 #print axioms UsdtVerify.DeprecatedDestroy.TAIL_MAX_of_lt
 #print axioms UsdtVerify.DeprecatedDestroy.zeroBalBadD
@@ -425,9 +416,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Complete.callStep_child_r
 #print axioms UsdtVerify.Complete.SendsVia.env
 #print axioms UsdtVerify.Complete.callWithR
-#print axioms UsdtVerify.Complete.callStep_low_r
-#print axioms UsdtVerify.Complete.callStep_deep_r
-#print axioms UsdtVerify.Complete.callStep_missing
 #print axioms UsdtVerify.Complete.midG
 #print axioms UsdtVerify.Complete.noCodeG
 #print axioms UsdtVerify.Complete.subG
@@ -643,7 +631,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Exact.transfer_low
 #print axioms UsdtVerify.Exact.transferFrom_ok_iff
 #print axioms UsdtVerify.Exact.transferFrom_low
-#print axioms UsdtVerify.Exact.runsOk_of_specUnder
 #print axioms UsdtVerify.Exact.routes_unique
 #print axioms UsdtVerify.Exact.totalSupply_dep_ok_iff
 #print axioms UsdtVerify.Exact.totalSupply_dep_low
@@ -1400,41 +1387,10 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Sanity.destroy_mirror_callS
 
 -- Round 46: the authorizations of a call (EIP-7702), with the recovered authorities as hypotheses
-#print axioms UsdtVerify.Auth.getCode_modifyState
-#print axioms UsdtVerify.Auth.getCode_insert
-#print axioms UsdtVerify.Auth.getCode_setCode_of_ne
-#print axioms UsdtVerify.Auth.getCode_setCode_self
-#print axioms UsdtVerify.Auth.delegate_ok
-#print axioms UsdtVerify.Auth.pay_pre
-#print axioms UsdtVerify.Auth.pay_glam
-#print axioms UsdtVerify.Auth.pay_keeps
-#print axioms UsdtVerify.Auth.apply_out
-#print axioms UsdtVerify.Auth.apply_none
-#print axioms UsdtVerify.Auth.apply_refused
-#print axioms UsdtVerify.Auth.apply_accepted
-#print axioms UsdtVerify.Auth.apply_cases
-#print axioms UsdtVerify.Auth.accepts_code
-#print axioms UsdtVerify.Auth.apply_code
-#print axioms UsdtVerify.Auth.apply_keeps
-#print axioms UsdtVerify.Auth.fold_keeps
-#print axioms UsdtVerify.Auth.apply_meter_pre
-#print axioms UsdtVerify.Auth.fold_meter_pre
-#print axioms UsdtVerify.Auth.prepareFirstFrame_auths
-#print axioms UsdtVerify.Auth.prepareFirstFrame_auths_error
 
 -- Round 46: the authorizations over StateGasMeter (existence, gas)
 #print axioms UsdtVerify.Auth.authMax_eq
-#print axioms UsdtVerify.Auth.chargeState_ok
-#print axioms UsdtVerify.Auth.charge_ok
-#print axioms UsdtVerify.Auth.ok_bind
-#print axioms UsdtVerify.Auth.chargeAuthorization_eq
-#print axioms UsdtVerify.Auth.charge_bound
-#print axioms UsdtVerify.Auth.parent_modifyState
-#print axioms UsdtVerify.Auth.delegate_parent
 #print axioms UsdtVerify.Auth.getCode_empty
-#print axioms UsdtVerify.Auth.delegate_res
-#print axioms UsdtVerify.Auth.apply_exists
-#print axioms UsdtVerify.Auth.fold_exists
 
 -- Round 46: the concrete deprecated call to USDT with authorizations
 #print axioms UsdtVerify.Sanity.code_CODE
@@ -1484,9 +1440,6 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Sanity.keepsInvAtSR_process_mirror
 #print axioms UsdtVerify.Sanity.joint_S2_R
 #print axioms UsdtVerify.Sanity.destroy_mirror_stepDR
-#print axioms UsdtVerify.Auth.apply_exists_of
-#print axioms UsdtVerify.Auth.apply_exists_pre
-#print axioms UsdtVerify.Auth.fold_exists_pre
 #print axioms UsdtVerify.Sanity.destroy_tail_bounds
 #print axioms UsdtVerify.Sanity.destroy_mirror_runsN
 #print axioms UsdtVerify.Sanity.destroy_mirror_processN

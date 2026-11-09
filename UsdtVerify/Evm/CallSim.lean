@@ -13,7 +13,7 @@ reservoir 0:
   `StateGasMeter`, whose reservoir is 0.
 - `callStep_deep_sim`: at the greatest depth, both steps give a next frame, the one over `Nat`
   the `toNat` of the one over `StateGasMeter`, whose reservoir is 0.
-- `callStep_low_rS`, `callStep_missingS`: `callStep_low_r` and `callStep_missing` over
+- `callStep_low_rS`, `callStep_missingS`: EthLib's `callStep_fails_of_routes` and `callStep_fails_of_missing` (for CALL) over
   `StateGasMeter`: the step fails or halts the frame with an error (`StepBadS`).
 - `callStep_child_simR`, `callStep_deep_simR` (round 42): the first two at any reservoir. The
   message over `StateGasMeter` is the message over `Nat` with the reservoir of the frame.
@@ -30,7 +30,7 @@ open Deprecated
 
 variable {fork : Fork}
 
-/-- `StepBad` over `StateGasMeter`: the step fails, or halts the frame with an error. -/
+/-- EthLib's `StepFails` over `StateGasMeter`: the step fails, or halts the frame with an error. -/
 def StepBadS (r : Except EvmError (StepResult fork StateGasMeter)) : Prop :=
   (∃ e, r = .error e) ∨ ∃ b, r = .ok (.next b) ∧ b.running = false ∧ b.error ≠ none
 
@@ -226,7 +226,7 @@ theorem callStep_deep_sim (hfork : .berlin ≤ fork)
       | (simp only [and_assoc, exists_eq_left', exists_and_left, and_true]; done)
       | (simp only [and_assoc, exists_eq_left', exists_and_left, and_true]; and_intros <;> rfl)
 
-/-- `callStep_low_r` over `StateGasMeter`: CALL (no value) with less execution gas than both
+/-- EthLib's `callStep_fails_of_routes` (CALL) over `StateGasMeter`: CALL (no value) with less execution gas than both
 accesses and the memory growth, along any route, at any fork from Berlin: the step fails or halts
 the frame with an error. -/
 theorem callStep_low_rS (hfork : .berlin ≤ fork)
@@ -315,7 +315,7 @@ theorem callStep_low_rS (hfork : .berlin ≤ fork)
         payCall, messageCallGas, chargeGas, GasMeter.charge, StateGasMeter.charge, keepReads,
         GasMeter.gasLeft, hcb', hdc', hM, h1, h2, exceptionalHalt]
 
-/-- `callStep_missing` over `StateGasMeter`: CALL (no value) when, from Pectra, the code of the
+/-- EthLib's `callStep_fails_of_missing` (CALL) over `StateGasMeter`: CALL (no value) when, from Pectra, the code of the
 address delegates to `d` and the lookup of the code of `d` fails: the step fails or halts the
 frame with an error. -/
 theorem callStep_missingS (hfork : .berlin ≤ fork)

@@ -112,8 +112,8 @@ theorem totalSupply_dep_ok_or_fails (hszl : c.size < 2 ^ 256)
         (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
       (child.1.error = none ∧ 121 ≤ gas - preCost fork c10 cU -
         (callGas fork gas c10 cU (callR substate state message r)).cost + child.1.gas ↔ A)) :
-    (RunsOk fork bound runChild evm within → ForwardOk message c ∧ A) ∧
-      (ForwardOk message c ∧ A → RunsOk fork bound runChild evm within ∨
+    (RunsOk bound runChild evm within → ForwardOk message c ∧ A) ∧
+      (ForwardOk message c ∧ A → RunsOk bound runChild evm within ∨
         ∃ caller msg lt e, runChild caller msg lt = .error e ∧
           SendsVia message (upAddr state message) c r SEL_TS msg ∧
           CallFrom (callGas fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg) := by
@@ -155,7 +155,7 @@ theorem totalSupply_dep_ok_iff_fails (hszl : c.size < 2 ^ 256)
     (hfail : ∀ caller msg lt e, runChild caller msg lt = .error e →
       SendsVia message (upAddr state message) c r SEL_TS msg →
       CallFrom (callGas fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg → ¬ A) :
-    RunsOk fork bound runChild evm within ↔ ForwardOk message c ∧ A := by
+    RunsOk bound runChild evm within ↔ ForwardOk message c ∧ A := by
   have h := totalSupply_dep_ok_or_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg hans
   exact ⟨h.1, fun hGA => (h.2 hGA).resolve_right
     fun ⟨_, _, _, e, failed, hs, hcl⟩ => hfail _ _ _ e failed hs hcl hGA.2⟩
@@ -176,7 +176,7 @@ theorem totalSupply_dep_ok_iff (hszl : c.size < 2 ^ 256)
     (hnf : NoFailOn runChild (fun caller msg =>
       SendsVia message (upAddr state message) c r SEL_TS msg ∧
       CallFrom (callGas fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk fork bound runChild evm within ↔ ForwardOk message c ∧ A :=
+    RunsOk bound runChild evm within ↔ ForwardOk message c ∧ A :=
   totalSupply_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg
     (fun caller msg lt child hch hfwd hcl =>
       ⟨fun h => (hans caller msg lt child hch hfwd hcl).1 h.1,
@@ -200,13 +200,13 @@ theorem totalSupply_dep_ok_iff_gas (hszl : c.size < 2 ^ 256)
     (hnf : NoFailOn runChild (fun caller msg =>
       SendsVia message (upAddr state message) c r SEL_TS msg ∧
       CallFrom (callGas fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk fork bound runChild evm within ↔ ForwardOk message c ∧ A :=
+    RunsOk bound runChild evm within ↔ ForwardOk message c ∧ A :=
   totalSupply_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg hans
     fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
 
 theorem totalSupply_dep_low
     (hg : gas < preCost fork c10 cU + 100 + callR substate state message r) :
-    ¬ RunsOk fork bound runChild evm within := by
+    ¬ RunsOk bound runChild evm within := by
   rintro ⟨s, hs, hok⟩
   obtain ⟨c', r', hcode', hroute', -, hgc, -⟩ :=
     dep_totalSupply_complete hfork hsize' hsel hdep start within hs hok
@@ -244,8 +244,8 @@ theorem balanceOf_dep_ok_or_fails (hszl : c.size < 2 ^ 256)
         (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
         (child.1.error = none ∧ 126 ≤ gas - preCostB fork c10 cU -
       (callGasB fork gas c10 cU (callR substate state message r)).cost + child.1.gas ↔ A)) :
-    (RunsOk fork bound runChild evm within → ForwardOk message c ∧ A) ∧
-      (ForwardOk message c ∧ A → RunsOk fork bound runChild evm within ∨
+    (RunsOk bound runChild evm within → ForwardOk message c ∧ A) ∧
+      (ForwardOk message c ∧ A → RunsOk bound runChild evm within ∨
         ∃ caller msg lt e, runChild caller msg lt = .error e ∧
           SendsVia message (upAddr state message) c r (dataB message) msg ∧
           CallFrom (callGasB fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg) := by
@@ -288,7 +288,7 @@ theorem balanceOf_dep_ok_iff_fails (hszl : c.size < 2 ^ 256)
     (hfail : ∀ caller msg lt e, runChild caller msg lt = .error e →
       SendsVia message (upAddr state message) c r (dataB message) msg →
       CallFrom (callGasB fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg → ¬ A) :
-    RunsOk fork bound runChild evm within ↔ ForwardOk message c ∧ A := by
+    RunsOk bound runChild evm within ↔ ForwardOk message c ∧ A := by
   have h := balanceOf_dep_ok_or_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg hans
   exact ⟨h.1, fun hGA => (h.2 hGA).resolve_right
     fun ⟨_, _, _, e, failed, hs, hcl⟩ => hfail _ _ _ e failed hs hcl hGA.2⟩
@@ -309,7 +309,7 @@ theorem balanceOf_dep_ok_iff (hszl : c.size < 2 ^ 256)
     (hnf : NoFailOn runChild (fun caller msg =>
       SendsVia message (upAddr state message) c r (dataB message) msg ∧
       CallFrom (callGasB fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk fork bound runChild evm within ↔ ForwardOk message c ∧ A :=
+    RunsOk bound runChild evm within ↔ ForwardOk message c ∧ A :=
   balanceOf_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg
     (fun caller msg lt child hch hfwd hcl =>
       ⟨fun h => (hans caller msg lt child hch hfwd hcl).1 h.1,
@@ -333,13 +333,13 @@ theorem balanceOf_dep_ok_iff_gas (hszl : c.size < 2 ^ 256)
     (hnf : NoFailOn runChild (fun caller msg =>
       SendsVia message (upAddr state message) c r (dataB message) msg ∧
       CallFrom (callGasB fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk fork bound runChild evm within ↔ ForwardOk message c ∧ A :=
+    RunsOk bound runChild evm within ↔ ForwardOk message c ∧ A :=
   balanceOf_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg hans
     fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
 
 theorem balanceOf_dep_low
     (hg : gas < preCostB fork c10 cU + 100 + callR substate state message r) :
-    ¬ RunsOk fork bound runChild evm within := by
+    ¬ RunsOk bound runChild evm within := by
   rintro ⟨s, hs, hok⟩
   obtain ⟨c', r', hcode', hroute', -, hgc, -⟩ :=
     dep_balanceOf_complete hfork hsize' hsel hdep start within hs hok
@@ -377,8 +377,8 @@ theorem allowance_dep_ok_or_fails (hszl : c.size < 2 ^ 256)
         (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
         (child.1.error = none ∧ 128 ≤ gas - preCostAl fork c10 cU -
       (callGasAl fork gas c10 cU (callR substate state message r)).cost + child.1.gas ↔ A)) :
-    (RunsOk fork bound runChild evm within → ForwardOk message c ∧ A) ∧
-      (ForwardOk message c ∧ A → RunsOk fork bound runChild evm within ∨
+    (RunsOk bound runChild evm within → ForwardOk message c ∧ A) ∧
+      (ForwardOk message c ∧ A → RunsOk bound runChild evm within ∨
         ∃ caller msg lt e, runChild caller msg lt = .error e ∧
           SendsVia message (upAddr state message) c r (dataAl message) msg ∧
           CallFrom (callGasAl fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg) := by
@@ -420,7 +420,7 @@ theorem allowance_dep_ok_iff_fails (hszl : c.size < 2 ^ 256)
     (hfail : ∀ caller msg lt e, runChild caller msg lt = .error e →
       SendsVia message (upAddr state message) c r (dataAl message) msg →
       CallFrom (callGasAl fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg → ¬ A) :
-    RunsOk fork bound runChild evm within ↔ ForwardOk message c ∧ A := by
+    RunsOk bound runChild evm within ↔ ForwardOk message c ∧ A := by
   have h := allowance_dep_ok_or_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg hans
   exact ⟨h.1, fun hGA => (h.2 hGA).resolve_right
     fun ⟨_, _, _, e, failed, hs, hcl⟩ => hfail _ _ _ e failed hs hcl hGA.2⟩
@@ -441,7 +441,7 @@ theorem allowance_dep_ok_iff (hszl : c.size < 2 ^ 256)
     (hnf : NoFailOn runChild (fun caller msg =>
       SendsVia message (upAddr state message) c r (dataAl message) msg ∧
       CallFrom (callGasAl fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk fork bound runChild evm within ↔ ForwardOk message c ∧ A :=
+    RunsOk bound runChild evm within ↔ ForwardOk message c ∧ A :=
   allowance_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg
     (fun caller msg lt child hch hfwd hcl =>
       ⟨fun h => (hans caller msg lt child hch hfwd hcl).1 h.1,
@@ -465,13 +465,13 @@ theorem allowance_dep_ok_iff_gas (hszl : c.size < 2 ^ 256)
     (hnf : NoFailOn runChild (fun caller msg =>
       SendsVia message (upAddr state message) c r (dataAl message) msg ∧
       CallFrom (callGasAl fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk fork bound runChild evm within ↔ ForwardOk message c ∧ A :=
+    RunsOk bound runChild evm within ↔ ForwardOk message c ∧ A :=
   allowance_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg hans
     fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
 
 theorem allowance_dep_low
     (hg : gas < preCostAl fork c10 cU + 100 + callR substate state message r) :
-    ¬ RunsOk fork bound runChild evm within := by
+    ¬ RunsOk bound runChild evm within := by
   rintro ⟨s, hs, hok⟩
   obtain ⟨c', r', hcode', hroute', -, hgc, -⟩ :=
     dep_allowance_complete hfork hsize' hsel hdep hc10 hcU start within hs hok
@@ -512,8 +512,8 @@ theorem transfer_dep_ok_or_fails (hszl : c.size < 2 ^ 256)
         (atCallSub (callSubT substate state message) (upAddr state message) r) caller msg →
         (child.1.error = none ∧ 51 ≤ gas - preCostT fork c0 cB c10 cU -
       (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).cost + child.1.gas ↔ A)) :
-    (RunsOk fork bound runChild evm within → TransferDepGuard state message c ∧ A) ∧
-      (TransferDepGuard state message c ∧ A → RunsOk fork bound runChild evm within ∨
+    (RunsOk bound runChild evm within → TransferDepGuard state message c ∧ A) ∧
+      (TransferDepGuard state message c ∧ A → RunsOk bound runChild evm within ∨
         ∃ caller msg lt e, runChild caller msg lt = .error e ∧
           SendsVia message (upAddr state message) c r (dataT message) msg ∧
           CallFrom (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).subCall (atCallState (callStateT state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubT substate state message) (upAddr state message) r) caller msg) := by
@@ -555,7 +555,7 @@ theorem transfer_dep_ok_iff_fails (hszl : c.size < 2 ^ 256)
     (hfail : ∀ caller msg lt e, runChild caller msg lt = .error e →
       SendsVia message (upAddr state message) c r (dataT message) msg →
       CallFrom (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).subCall (atCallState (callStateT state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubT substate state message) (upAddr state message) r) caller msg → ¬ A) :
-    RunsOk fork bound runChild evm within ↔ TransferDepGuard state message c ∧ A := by
+    RunsOk bound runChild evm within ↔ TransferDepGuard state message c ∧ A := by
   have h := transfer_dep_ok_or_fails hfork hsize' hsel hdep hcode hroute hc0 hcB hc10 hcU start within hszl hg hans
   exact ⟨h.1, fun hGA => (h.2 hGA).resolve_right
     fun ⟨_, _, _, e, failed, hs, hcl⟩ => hfail _ _ _ e failed hs hcl hGA.2⟩
@@ -576,7 +576,7 @@ theorem transfer_dep_ok_iff (hszl : c.size < 2 ^ 256)
     (hnf : NoFailOn runChild (fun caller msg =>
       SendsVia message (upAddr state message) c r (dataT message) msg ∧
       CallFrom (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).subCall (atCallState (callStateT state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubT substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk fork bound runChild evm within ↔ TransferDepGuard state message c ∧ A :=
+    RunsOk bound runChild evm within ↔ TransferDepGuard state message c ∧ A :=
   transfer_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc0 hcB hc10 hcU start within hszl hg
     (fun caller msg lt child hch hfwd hcl =>
       ⟨fun h => (hans caller msg lt child hch hfwd hcl).1 h.1,
@@ -600,13 +600,13 @@ theorem transfer_dep_ok_iff_gas (hszl : c.size < 2 ^ 256)
     (hnf : NoFailOn runChild (fun caller msg =>
       SendsVia message (upAddr state message) c r (dataT message) msg ∧
       CallFrom (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).subCall (atCallState (callStateT state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubT substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk fork bound runChild evm within ↔ TransferDepGuard state message c ∧ A :=
+    RunsOk bound runChild evm within ↔ TransferDepGuard state message c ∧ A :=
   transfer_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc0 hcB hc10 hcU start within hszl hg hans
     fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
 
 theorem transfer_dep_low
     (hg : gas < preCostT fork c0 cB c10 cU + 100 + callRT substate state message r) :
-    ¬ RunsOk fork bound runChild evm within := by
+    ¬ RunsOk bound runChild evm within := by
   rintro ⟨s, hs, hok⟩
   obtain ⟨c', r', hcode', hroute', -, -, -, hgc, -⟩ :=
     dep_transfer_complete hfork hsize' hsel hdep hc0 hcB hc10 hcU start within hs hok
@@ -643,8 +643,8 @@ theorem approve_dep_ok_or_fails (hszl : c.size < 2 ^ 256)
         (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
         (child.1.error = none ∧ 53 ≤ gas - preCostA fork c10 cU -
       (callGasA fork gas c10 cU (callR substate state message r)).cost + child.1.gas ↔ A)) :
-    (RunsOk fork bound runChild evm within → ApproveDepGuard message c ∧ A) ∧
-      (ApproveDepGuard message c ∧ A → RunsOk fork bound runChild evm within ∨
+    (RunsOk bound runChild evm within → ApproveDepGuard message c ∧ A) ∧
+      (ApproveDepGuard message c ∧ A → RunsOk bound runChild evm within ∨
         ∃ caller msg lt e, runChild caller msg lt = .error e ∧
           SendsVia message (upAddr state message) c r (dataA message) msg ∧
           CallFrom (callGasA fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg) := by
@@ -686,7 +686,7 @@ theorem approve_dep_ok_iff_fails (hszl : c.size < 2 ^ 256)
     (hfail : ∀ caller msg lt e, runChild caller msg lt = .error e →
       SendsVia message (upAddr state message) c r (dataA message) msg →
       CallFrom (callGasA fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg → ¬ A) :
-    RunsOk fork bound runChild evm within ↔ ApproveDepGuard message c ∧ A := by
+    RunsOk bound runChild evm within ↔ ApproveDepGuard message c ∧ A := by
   have h := approve_dep_ok_or_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg hans
   exact ⟨h.1, fun hGA => (h.2 hGA).resolve_right
     fun ⟨_, _, _, e, failed, hs, hcl⟩ => hfail _ _ _ e failed hs hcl hGA.2⟩
@@ -707,7 +707,7 @@ theorem approve_dep_ok_iff (hszl : c.size < 2 ^ 256)
     (hnf : NoFailOn runChild (fun caller msg =>
       SendsVia message (upAddr state message) c r (dataA message) msg ∧
       CallFrom (callGasA fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk fork bound runChild evm within ↔ ApproveDepGuard message c ∧ A :=
+    RunsOk bound runChild evm within ↔ ApproveDepGuard message c ∧ A :=
   approve_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg
     (fun caller msg lt child hch hfwd hcl =>
       ⟨fun h => (hans caller msg lt child hch hfwd hcl).1 h.1,
@@ -731,13 +731,13 @@ theorem approve_dep_ok_iff_gas (hszl : c.size < 2 ^ 256)
     (hnf : NoFailOn runChild (fun caller msg =>
       SendsVia message (upAddr state message) c r (dataA message) msg ∧
       CallFrom (callGasA fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk fork bound runChild evm within ↔ ApproveDepGuard message c ∧ A :=
+    RunsOk bound runChild evm within ↔ ApproveDepGuard message c ∧ A :=
   approve_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg hans
     fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
 
 theorem approve_dep_low
     (hg : gas < preCostA fork c10 cU + 100 + callR substate state message r) :
-    ¬ RunsOk fork bound runChild evm within := by
+    ¬ RunsOk bound runChild evm within := by
   rintro ⟨s, hs, hok⟩
   obtain ⟨c', r', hcode', hroute', -, -, hgc, -⟩ :=
     dep_approve_complete hfork hsize' hsel hdep hc10 hcU start within hs hok
@@ -779,8 +779,8 @@ theorem transferFrom_dep_ok_or_fails (hszl : c.size < 2 ^ 256)
         (atCallSub (callSubF substate state message) (upAddr state message) r) caller msg →
         (child.1.error = none ∧ 53 ≤ gas - DeprecatedTransferFrom.preCostF fork c0 cB c10 cU -
       (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost + child.1.gas ↔ A)) :
-    (RunsOk fork bound runChild evm within → TransferFromDepGuard state message c ∧ A) ∧
-      (TransferFromDepGuard state message c ∧ A → RunsOk fork bound runChild evm within ∨
+    (RunsOk bound runChild evm within → TransferFromDepGuard state message c ∧ A) ∧
+      (TransferFromDepGuard state message c ∧ A → RunsOk bound runChild evm within ∨
         ∃ caller msg lt e, runChild caller msg lt = .error e ∧
           SendsVia message (upAddr state message) c r (dataF message) msg ∧
           CallFrom (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).subCall (atCallState (callStateF state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubF substate state message) (upAddr state message) r) caller msg) := by
@@ -823,7 +823,7 @@ theorem transferFrom_dep_ok_iff_fails (hszl : c.size < 2 ^ 256)
     (hfail : ∀ caller msg lt e, runChild caller msg lt = .error e →
       SendsVia message (upAddr state message) c r (dataF message) msg →
       CallFrom (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).subCall (atCallState (callStateF state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubF substate state message) (upAddr state message) r) caller msg → ¬ A) :
-    RunsOk fork bound runChild evm within ↔ TransferFromDepGuard state message c ∧ A := by
+    RunsOk bound runChild evm within ↔ TransferFromDepGuard state message c ∧ A := by
   have h := transferFrom_dep_ok_or_fails hfork hsize' hsel hdep hcode hroute hc0 hcB hc10 hcU start within hszl hg hans
   exact ⟨h.1, fun hGA => (h.2 hGA).resolve_right
     fun ⟨_, _, _, e, failed, hs, hcl⟩ => hfail _ _ _ e failed hs hcl hGA.2⟩
@@ -845,7 +845,7 @@ theorem transferFrom_dep_ok_iff (hszl : c.size < 2 ^ 256)
     (hnf : NoFailOn runChild (fun caller msg =>
       SendsVia message (upAddr state message) c r (dataF message) msg ∧
       CallFrom (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).subCall (atCallState (callStateF state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubF substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk fork bound runChild evm within ↔ TransferFromDepGuard state message c ∧ A :=
+    RunsOk bound runChild evm within ↔ TransferFromDepGuard state message c ∧ A :=
   transferFrom_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc0 hcB hc10 hcU start within hszl hg
     (fun caller msg lt child hch hfwd hcl =>
       ⟨fun h => (hans caller msg lt child hch hfwd hcl).1 h.1,
@@ -870,14 +870,14 @@ theorem transferFrom_dep_ok_iff_gas (hszl : c.size < 2 ^ 256)
     (hnf : NoFailOn runChild (fun caller msg =>
       SendsVia message (upAddr state message) c r (dataF message) msg ∧
       CallFrom (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).subCall (atCallState (callStateF state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubF substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk fork bound runChild evm within ↔ TransferFromDepGuard state message c ∧ A :=
+    RunsOk bound runChild evm within ↔ TransferFromDepGuard state message c ∧ A :=
   transferFrom_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc0 hcB hc10 hcU start within hszl hg hans
     fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
 
 theorem transferFrom_dep_low
     (hg : gas < DeprecatedTransferFrom.preCostF fork c0 cB c10 cU + 100 +
       callRF substate state message r) :
-    ¬ RunsOk fork bound runChild evm within := by
+    ¬ RunsOk bound runChild evm within := by
   rintro ⟨s, hs, hok⟩
   obtain ⟨c', r', hcode', hroute', -, -, -, hgc, -⟩ :=
     dep_transferFrom_complete hfork hsize' hsel hdep hc0 hcB hc10 hcU start within hs hok
@@ -931,8 +931,8 @@ theorem destroyBlackFunds_dep_ok_or_fails (hszl : c.size < 2 ^ 256)
             gas - preCostD fork c0 cL c10 cU -
               (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).cost +
               child.1.gas ↔ A)) :
-    (RunsOk fork bound runChild evm within → DestroyDepGuard state message c ∧ A) ∧
-      (DestroyDepGuard state message c ∧ A → RunsOk fork bound runChild evm within ∨
+    (RunsOk bound runChild evm within → DestroyDepGuard state message c ∧ A) ∧
+      (DestroyDepGuard state message c ∧ A → RunsOk bound runChild evm within ∨
         ∃ caller msg lt e, runChild caller msg lt = .error e ∧
           SendsVia message (upAddr state message) c r (dataB message) msg ∧
           CallFrom (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).subCall (atCallState (callStateD state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubD substate state message) (upAddr state message) r) caller msg) := by
@@ -1005,7 +1005,7 @@ theorem destroyBlackFunds_dep_ok_iff_fails (hszl : c.size < 2 ^ 256)
     (hfail : ∀ caller msg lt e, runChild caller msg lt = .error e →
       SendsVia message (upAddr state message) c r (dataB message) msg →
       CallFrom (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).subCall (atCallState (callStateD state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubD substate state message) (upAddr state message) r) caller msg → ¬ A) :
-    RunsOk fork bound runChild evm within ↔ DestroyDepGuard state message c ∧ A := by
+    RunsOk bound runChild evm within ↔ DestroyDepGuard state message c ∧ A := by
   have h := destroyBlackFunds_dep_ok_or_fails hfork hsize' hsel hdep hcode hroute hc0 hcL hc10 hcU start
     within hszl hg hans
   exact ⟨h.1, fun hGA => (h.2 hGA).resolve_right
@@ -1030,7 +1030,7 @@ theorem destroyBlackFunds_dep_ok_iff (hszl : c.size < 2 ^ 256)
     (hnf : NoFailOn runChild (fun caller msg =>
       SendsVia message (upAddr state message) c r (dataB message) msg ∧
       CallFrom (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).subCall (atCallState (callStateD state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubD substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk fork bound runChild evm within ↔ DestroyDepGuard state message c ∧ A :=
+    RunsOk bound runChild evm within ↔ DestroyDepGuard state message c ∧ A :=
   destroyBlackFunds_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc0 hcL hc10 hcU start
     within hszl hg
     (fun caller msg lt child hch hfwd hcl =>
@@ -1075,13 +1075,13 @@ theorem destroyBlackFunds_dep_ok_iff_gas (hszl : c.size < 2 ^ 256)
     (hnf : NoFailOn runChild (fun caller msg =>
       SendsVia message (upAddr state message) c r (dataB message) msg ∧
       CallFrom (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).subCall (atCallState (callStateD state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubD substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk fork bound runChild evm within ↔ DestroyDepGuard state message c ∧ A :=
+    RunsOk bound runChild evm within ↔ DestroyDepGuard state message c ∧ A :=
   destroyBlackFunds_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc0 hcL hc10 hcU start
     within hszl hg hans fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
 
 theorem destroyBlackFunds_dep_low
     (hg : gas < preCostD fork c0 cL c10 cU + 100 + callRD substate state message r) :
-    ¬ RunsOk fork bound runChild evm within := by
+    ¬ RunsOk bound runChild evm within := by
   rintro ⟨s, hs, hok⟩
   obtain ⟨c', r', hcode', hroute', -, -, -, hgc, -⟩ :=
     dep_destroy_complete hfork hsize' hsel hdep hc0 hcL hc10 hcU start within hs hok

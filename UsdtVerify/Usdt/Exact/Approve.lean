@@ -73,7 +73,7 @@ theorem approve_comp (s : Evm fork Nat)
 success path. -/
 theorem approve_ok_iff (hstip : approveStip message c10 cA ≤ gas)
     (hg : approveCost fork state message c10 cA ≤ gas) :
-    RunsOk fork bound runChild evm within ↔ ApproveGuard state message := by
+    RunsOk bound runChild evm within ↔ ApproveGuard state message := by
   refine runsOk_iff (Q := fun e => e.error = none) (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hl, ha⟩ => ?_)
     (fun _ h => h) start within (approve_comp hfork hsize' start within hsel hdep hc10 hcA)
   by_cases hz : wordArg message.data 1 = 0
@@ -109,7 +109,7 @@ theorem approve_ok_dom (hstip : approveStip message c10 cA ≤ gas)
 
 
 theorem approve_low (hg : gas < approveCost fork state message c10 cA) :
-    ¬ RunsOk fork bound runChild evm within := by
+    ¬ RunsOk bound runChild evm within := by
   by_cases hz : wordArg message.data 1 = 0
   · simp only [approveCost, hz, ↓reduceIte] at hg
     exact not_runsOk_low2 hg (fun ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hl, _⟩ _ =>
@@ -122,7 +122,7 @@ theorem approve_low (hg : gas < approveCost fork state message c10 cA) :
 
 theorem approve_mid (hg : approveCost fork state message c10 cA ≤ gas)
     (hlt : gas < approveStip message c10 cA) :
-    ¬ RunsOk fork bound runChild evm within := by
+    ¬ RunsOk bound runChild evm within := by
   refine not_runsOk_stuck (fun ⟨⟨h4, hv⟩, _, hl, ha⟩ => ?_) start within
     (approve_comp hfork hsize' start within hsel hdep hc10 hcA)
   by_cases hz : wordArg message.data 1 = 0
@@ -135,7 +135,7 @@ theorem approve_mid (hg : approveCost fork state message c10 cA ≤ gas)
 /-- `approve(s, v)`, not deprecated, succeeds exactly when `ApproveGuard` holds and the gas is at
 least the larger of `approveCost` and `approveStip`. -/
 theorem approve_iff_gas :
-    RunsOk fork bound runChild evm within ↔ ApproveGuard state message ∧
+    RunsOk bound runChild evm within ↔ ApproveGuard state message ∧
       max (approveCost fork state message c10 cA) (approveStip message c10 cA) ≤ gas := by
   constructor
   · intro h

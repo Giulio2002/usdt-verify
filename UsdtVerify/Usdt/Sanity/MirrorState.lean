@@ -145,7 +145,7 @@ before Glamsterdam, in the deprecated state `S1 C H` (`H` not the empty code has
 theorem balanceOf_mirror_sat (hparis : .paris ≤ fork) (hglam : fork < .glamsterdam)
     (b : BlockEnvironment fork) (t : TransactionEnvironment fork) (C caller : Address) (a : U256)
     (ss : Substate) (H : Hash32) (hH : H ≠ State.EMPTY_CODE_HASH) :
-    RunsOk fork 1000000 (processRunner fork 1000000)
+    RunsOk 1000000 (processRunner fork 1000000)
         (sFrame (mB b t C caller a) (S1 C H) ss 1000000) (Nat.le_refl _) ↔
       ForwardOk (mB b t C caller a) MIRROR ∧
       (mirrorCost (coldIn (accessSlot ss C 10) UA (balSlot (mB b t C caller a))) ≤
@@ -457,7 +457,7 @@ and `MIRROR` answers. -/
 theorem destroy_mirror_runs (hparis : .paris ≤ fork) (hglam : fork < .glamsterdam)
     (b : BlockEnvironment fork) (t : TransactionEnvironment fork) (C : Address) (a : U256)
     (ss : Substate) (H : Hash32) (hH : H ≠ State.EMPTY_CODE_HASH) :
-    RunsOk fork 1000000 (processRunner fork 1000000)
+    RunsOk 1000000 (processRunner fork 1000000)
       (sFrame (mDO b t C a) (S2 C H a) ss 1000000) (Nat.le_refl _) := by
   have hberlin : .berlin ≤ fork := Nat.le_trans (by decide) hparis
   obtain ⟨hdep, hown, hlist, -, hup, -, hm, -, -⟩ :=
@@ -509,7 +509,7 @@ theorem destroy_mirror_inv (hparis : .paris ≤ fork) (hglam : fork < .glamsterd
     (ss : Substate) (H : Hash32) (hH : H ≠ State.EMPTY_CODE_HASH)
     (K : SepOn (callKeys (mDO b t C a) (S2 C H a))) :
     Invariant.Inv C (S2 C H a) ∧
-    RunsOk fork 1000000 (processRunner fork 1000000)
+    RunsOk 1000000 (processRunner fork 1000000)
       (sFrame (mDO b t C a) (S2 C H a) ss 1000000) (Nat.le_refl _) ∧
     ∀ {g : Nat} (s : Evm fork Nat) (within : GasMeter.gasHeld
         (sFrame (mDO b t C a) (S2 C H a) ss 1000000).gas ≤ g),

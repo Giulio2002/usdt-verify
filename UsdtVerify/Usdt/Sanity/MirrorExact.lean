@@ -203,7 +203,7 @@ theorem balanceOf_dep_ok_iff_gas_process_mirror (hparis : .paris ≤ fork)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hnp : Precompiles.isPrecompile fork (upAddr state message).toU256.toNat = false)
     (hg : preCostB fork c10 cU + 100 + callR substate state message r ≤ gas) :
-    RunsOk fork bound (processRunner fork bound) evm within ↔ ForwardOk message MIRROR ∧
+    RunsOk bound (processRunner fork bound) evm within ↔ ForwardOk message MIRROR ∧
       (mirrorCost cM ≤ (callGasB fork gas c10 cU (callR substate state message r)).subCall ∧
         126 ≤ gas - preCostB fork c10 cU - (callGasB fork gas c10 cU (callR substate state message r)).cost +
           ((callGasB fork gas c10 cU (callR substate state message r)).subCall - mirrorCost cM)) := by
@@ -240,7 +240,7 @@ theorem destroyBlackFunds_dep_ok_iff_gas_process_mirror (hparis : .paris ≤ for
     (hg : preCostD fork c0 cL c10 cU + 100 + callRD substate state message r ≤ gas)
     (hmirror : storageAt state (upAddr state message) (balSlot message) =
       storageAt state message.currentTarget (balSlot message)) :
-    RunsOk fork bound (processRunner fork bound) evm within ↔
+    RunsOk bound (processRunner fork bound) evm within ↔
       DestroyDepGuard state message MIRROR ∧
       (mirrorCost (coldIn (atCallSub (callSubD substate state message) (upAddr state message) r)
           (upAddr state message) (balSlot message)) ≤

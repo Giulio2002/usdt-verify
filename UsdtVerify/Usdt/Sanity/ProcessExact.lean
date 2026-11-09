@@ -220,7 +220,7 @@ theorem totalSupply_dep_ok_iff_process_stop (hparis : .paris ≤ fork)
     (hnp : Precompiles.isPrecompile fork (upAddr state message).toU256.toNat = false)
     (hg : preCost fork c10 cU + 100 + callR substate state message r ≤ gas)
     (htail : 121 ≤ gas - preCost fork c10 cU - (callGas fork gas c10 cU (callR substate state message r)).cost) :
-    RunsOk fork bound (processRunner fork bound) evm within ↔ ForwardOk message STOP_CODE := by
+    RunsOk bound (processRunner fork bound) evm within ↔ ForwardOk message STOP_CODE := by
   have h := Exact.totalSupply_dep_ok_iff (Nat.le_trans (by decide) hparis) hsize' hsel hdep hcode
     hroute hc10 hcU start within (by decide) hg htail (hans_process_stop hparis hroute hnp)
     (noFailOn_process_stop hparis hroute hnp)
@@ -243,7 +243,7 @@ theorem totalSupply_dep_ok_iff_gas_process_stop (hparis : .paris ≤ fork)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hnp : Precompiles.isPrecompile fork (upAddr state message).toU256.toNat = false)
     (hg : preCost fork c10 cU + 100 + callR substate state message r ≤ gas) :
-    RunsOk fork bound (processRunner fork bound) evm within ↔ ForwardOk message STOP_CODE ∧
+    RunsOk bound (processRunner fork bound) evm within ↔ ForwardOk message STOP_CODE ∧
       121 ≤ gas - preCost fork c10 cU - (callGas fork gas c10 cU (callR substate state message r)).cost +
         (callGas fork gas c10 cU (callR substate state message r)).subCall :=
   Exact.totalSupply_dep_ok_iff_gas (Nat.le_trans (by decide) hparis) hsize' hsel hdep hcode
@@ -267,7 +267,7 @@ theorem balanceOf_dep_ok_iff_process_stop (hparis : .paris ≤ fork)
     (hnp : Precompiles.isPrecompile fork (upAddr state message).toU256.toNat = false)
     (hg : preCostB fork c10 cU + 100 + callR substate state message r ≤ gas)
     (htail : 126 ≤ gas - preCostB fork c10 cU - (callGasB fork gas c10 cU (callR substate state message r)).cost) :
-    RunsOk fork bound (processRunner fork bound) evm within ↔ ForwardOk message STOP_CODE := by
+    RunsOk bound (processRunner fork bound) evm within ↔ ForwardOk message STOP_CODE := by
   have h := Exact.balanceOf_dep_ok_iff (Nat.le_trans (by decide) hparis) hsize' hsel hdep hcode
     hroute hc10 hcU start within (by decide) hg htail (hans_process_stop hparis hroute hnp)
     (noFailOn_process_stop hparis hroute hnp)
@@ -290,7 +290,7 @@ theorem balanceOf_dep_ok_iff_gas_process_stop (hparis : .paris ≤ fork)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hnp : Precompiles.isPrecompile fork (upAddr state message).toU256.toNat = false)
     (hg : preCostB fork c10 cU + 100 + callR substate state message r ≤ gas) :
-    RunsOk fork bound (processRunner fork bound) evm within ↔ ForwardOk message STOP_CODE ∧
+    RunsOk bound (processRunner fork bound) evm within ↔ ForwardOk message STOP_CODE ∧
       126 ≤ gas - preCostB fork c10 cU - (callGasB fork gas c10 cU (callR substate state message r)).cost +
         (callGasB fork gas c10 cU (callR substate state message r)).subCall :=
   Exact.balanceOf_dep_ok_iff_gas (Nat.le_trans (by decide) hparis) hsize' hsel hdep hcode
@@ -314,7 +314,7 @@ theorem allowance_dep_ok_iff_process_stop (hparis : .paris ≤ fork)
     (hnp : Precompiles.isPrecompile fork (upAddr state message).toU256.toNat = false)
     (hg : preCostAl fork c10 cU + 100 + callR substate state message r ≤ gas)
     (htail : 128 ≤ gas - preCostAl fork c10 cU - (callGasAl fork gas c10 cU (callR substate state message r)).cost) :
-    RunsOk fork bound (processRunner fork bound) evm within ↔ ForwardOk message STOP_CODE := by
+    RunsOk bound (processRunner fork bound) evm within ↔ ForwardOk message STOP_CODE := by
   have h := Exact.allowance_dep_ok_iff (Nat.le_trans (by decide) hparis) hsize' hsel hdep hcode
     hroute hc10 hcU start within (by decide) hg htail (hans_process_stop hparis hroute hnp)
     (noFailOn_process_stop hparis hroute hnp)
@@ -337,7 +337,7 @@ theorem allowance_dep_ok_iff_gas_process_stop (hparis : .paris ≤ fork)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hnp : Precompiles.isPrecompile fork (upAddr state message).toU256.toNat = false)
     (hg : preCostAl fork c10 cU + 100 + callR substate state message r ≤ gas) :
-    RunsOk fork bound (processRunner fork bound) evm within ↔ ForwardOk message STOP_CODE ∧
+    RunsOk bound (processRunner fork bound) evm within ↔ ForwardOk message STOP_CODE ∧
       128 ≤ gas - preCostAl fork c10 cU - (callGasAl fork gas c10 cU (callR substate state message r)).cost +
         (callGasAl fork gas c10 cU (callR substate state message r)).subCall :=
   Exact.allowance_dep_ok_iff_gas (Nat.le_trans (by decide) hparis) hsize' hsel hdep hcode
@@ -365,7 +365,7 @@ theorem transfer_dep_ok_iff_process_stop (hparis : .paris ≤ fork)
     (hnp : Precompiles.isPrecompile fork (upAddr state message).toU256.toNat = false)
     (hg : preCostT fork c0 cB c10 cU + 100 + callRT substate state message r ≤ gas)
     (htail : 51 ≤ gas - preCostT fork c0 cB c10 cU - (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).cost) :
-    RunsOk fork bound (processRunner fork bound) evm within ↔ TransferDepGuard state message STOP_CODE := by
+    RunsOk bound (processRunner fork bound) evm within ↔ TransferDepGuard state message STOP_CODE := by
   have h := Exact.transfer_dep_ok_iff (Nat.le_trans (by decide) hparis) hsize' hsel hdep hcode
     hroute hc0 hcB hc10 hcU start within (by decide) hg htail (hans_process_stop hparis hroute hnp)
     (noFailOn_process_stop hparis hroute hnp)
@@ -392,7 +392,7 @@ theorem transfer_dep_ok_iff_gas_process_stop (hparis : .paris ≤ fork)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hnp : Precompiles.isPrecompile fork (upAddr state message).toU256.toNat = false)
     (hg : preCostT fork c0 cB c10 cU + 100 + callRT substate state message r ≤ gas) :
-    RunsOk fork bound (processRunner fork bound) evm within ↔ TransferDepGuard state message STOP_CODE ∧
+    RunsOk bound (processRunner fork bound) evm within ↔ TransferDepGuard state message STOP_CODE ∧
       51 ≤ gas - preCostT fork c0 cB c10 cU - (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).cost +
         (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).subCall :=
   Exact.transfer_dep_ok_iff_gas (Nat.le_trans (by decide) hparis) hsize' hsel hdep hcode
@@ -416,7 +416,7 @@ theorem approve_dep_ok_iff_process_stop (hparis : .paris ≤ fork)
     (hnp : Precompiles.isPrecompile fork (upAddr state message).toU256.toNat = false)
     (hg : preCostA fork c10 cU + 100 + callR substate state message r ≤ gas)
     (htail : 53 ≤ gas - preCostA fork c10 cU - (callGasA fork gas c10 cU (callR substate state message r)).cost) :
-    RunsOk fork bound (processRunner fork bound) evm within ↔ ApproveDepGuard message STOP_CODE := by
+    RunsOk bound (processRunner fork bound) evm within ↔ ApproveDepGuard message STOP_CODE := by
   have h := Exact.approve_dep_ok_iff (Nat.le_trans (by decide) hparis) hsize' hsel hdep hcode
     hroute hc10 hcU start within (by decide) hg htail (hans_process_stop hparis hroute hnp)
     (noFailOn_process_stop hparis hroute hnp)
@@ -439,7 +439,7 @@ theorem approve_dep_ok_iff_gas_process_stop (hparis : .paris ≤ fork)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hnp : Precompiles.isPrecompile fork (upAddr state message).toU256.toNat = false)
     (hg : preCostA fork c10 cU + 100 + callR substate state message r ≤ gas) :
-    RunsOk fork bound (processRunner fork bound) evm within ↔ ApproveDepGuard message STOP_CODE ∧
+    RunsOk bound (processRunner fork bound) evm within ↔ ApproveDepGuard message STOP_CODE ∧
       53 ≤ gas - preCostA fork c10 cU - (callGasA fork gas c10 cU (callR substate state message r)).cost +
         (callGasA fork gas c10 cU (callR substate state message r)).subCall :=
   Exact.approve_dep_ok_iff_gas (Nat.le_trans (by decide) hparis) hsize' hsel hdep hcode
@@ -467,7 +467,7 @@ theorem transferFrom_dep_ok_iff_process_stop (hparis : .paris ≤ fork)
     (hnp : Precompiles.isPrecompile fork (upAddr state message).toU256.toNat = false)
     (hg : DeprecatedTransferFrom.preCostF fork c0 cB c10 cU + 100 + callRF substate state message r ≤ gas)
     (htail : 53 ≤ gas - DeprecatedTransferFrom.preCostF fork c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost) :
-    RunsOk fork bound (processRunner fork bound) evm within ↔ TransferFromDepGuard state message STOP_CODE := by
+    RunsOk bound (processRunner fork bound) evm within ↔ TransferFromDepGuard state message STOP_CODE := by
   have h := Exact.transferFrom_dep_ok_iff (Nat.le_trans (by decide) hparis) hsize' hsel hdep hcode
     hroute hc0 hcB hc10 hcU start within (by decide) hg htail (hans_process_stop hparis hroute hnp)
     (noFailOn_process_stop hparis hroute hnp)
@@ -494,7 +494,7 @@ theorem transferFrom_dep_ok_iff_gas_process_stop (hparis : .paris ≤ fork)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hnp : Precompiles.isPrecompile fork (upAddr state message).toU256.toNat = false)
     (hg : DeprecatedTransferFrom.preCostF fork c0 cB c10 cU + 100 + callRF substate state message r ≤ gas) :
-    RunsOk fork bound (processRunner fork bound) evm within ↔ TransferFromDepGuard state message STOP_CODE ∧
+    RunsOk bound (processRunner fork bound) evm within ↔ TransferFromDepGuard state message STOP_CODE ∧
       53 ≤ gas - DeprecatedTransferFrom.preCostF fork c0 cB c10 cU - (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost +
         (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).subCall :=
   Exact.transferFrom_dep_ok_iff_gas (Nat.le_trans (by decide) hparis) hsize' hsel hdep hcode
@@ -523,7 +523,7 @@ theorem destroyBlackFunds_dep_ok_iff_gas_process_stop (hparis : .paris ≤ fork)
     (within : GasMeter.gasHeld evm.gas ≤ bound)
     (hnp : Precompiles.isPrecompile fork (upAddr state message).toU256.toNat = false)
     (hg : preCostD fork c0 cL c10 cU + 100 + callRD substate state message r ≤ gas) :
-    RunsOk fork bound (processRunner fork bound) evm within ↔ DestroyDepGuard state message STOP_CODE ∧
+    RunsOk bound (processRunner fork bound) evm within ↔ DestroyDepGuard state message STOP_CODE ∧
       (hasAccount (atCallState (callStateD state message) (upAddr state message) r
           message.currentTarget) message.currentTarget ∧
         max (tailCost fork (atCallState (callStateD state message) (upAddr state message) r
@@ -571,7 +571,7 @@ theorem destroyBlackFunds_dep_ok_iff_process_stop (hparis : .paris ≤ fork)
     (hg : preCostD fork c0 cL c10 cU + 100 + callRD substate state message r ≤ gas)
     (htail : TAIL_MAX fork ≤ gas - preCostD fork c0 cL c10 cU -
       (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).cost) :
-    RunsOk fork bound (processRunner fork bound) evm within ↔
+    RunsOk bound (processRunner fork bound) evm within ↔
       DestroyDepGuard state message STOP_CODE ∧
         hasAccount (atCallState (callStateD state message) (upAddr state message) r
           message.currentTarget) message.currentTarget :=
