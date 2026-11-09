@@ -15,13 +15,13 @@ relation `Run` of the child, then for a run over `StateGasMeter` from reservoir 
 - `KeepsInvAtS`, `HonestBalanceAtS`: the two runner assumptions for a message runner over
   `StateGasMeter`, about the calls the code makes (`SentVia`, of the `toNat` caller), from a
   caller and with a message of reservoir 0 (round 41).
-  `keepsInvAtC_of_S`, `honestBalanceAtC_of_S`: they give the assumptions over `RunC` for `RunS`.
-- `inv_call_depS`: every deprecated call over `StateGasMeter` from reservoir 0 that ends with no
-  error keeps `Inv`, under `KeepsInvAtS` and, for destroyBlackFunds, `HonestBalanceAtS`.
-- `inv_call_anyD`: `inv_call_any` (any reservoir when not deprecated) together with the deprecated
-  case (reservoir 0).
+- `GoodCallDS`, `CallsDS`, `process_stepDS`, `process_stepSD`: one deprecated call over
+  `StateGasMeter` from reservoir 0 under those assumptions, sequences of such calls, and the
+  top-level messages that `processMessage` runs from a meter of reservoir 0.
 
-Usdt/Invariant/DepMeterR.lean (round 44) has the same results from any reservoir when deprecated.
+Usdt/Invariant/DepMeterR.lean (round 44) proves the invariant from any reservoir when deprecated
+(`inv_call_anyDR`, `inv_callsDR`, with `CallsDS.toR`); at reservoir 0 its runner assumptions are
+those above (`keepsInvAtSR_zero`, `honestBalanceAtSR_zero`).
 -/
 
 namespace UsdtVerify.Complete
@@ -254,112 +254,10 @@ def HonestBalanceAtS (runChild : MessageRunner fork StateGasMeter bound) (messag
       resWord (outMemOf (memD message) child.1.output) =
         storageAt child.1.state message.currentTarget (balSlot message)
 
-theorem keepsInvAtC_of_S (h : KeepsInvAtS runChild message state) :
-    KeepsInvAtC (RunS runChild) message state := by
-  rintro caller msg child hsv ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩ he hI
-  have cs : child.state = chS.1.state := by rw [hchN]; rfl
-  have ce : child.error = chS.1.error := by rw [hchN]; rfl
-  rw [cs]
-  exact h cS msg lt chS hsv hcr hmr hch (ce ▸ he) hI
-
-theorem honestBalanceAtC_of_S (h : HonestBalanceAtS runChild message state) :
-    HonestBalanceAtC (RunS runChild) message state := by
-  rintro caller msg child hsv ⟨cS, lt, chS, hch, rfl, hchN, hcr, hmr⟩ hmd he
-  have cs : child.state = chS.1.state := by rw [hchN]; rfl
-  have ce : child.error = chS.1.error := by rw [hchN]; rfl
-  have co : child.output = chS.1.output := by rw [hchN]; rfl
-  rw [cs, co]
-  exact h cS msg lt chS hsv hcr hmr hch hmd (ce ▸ he)
-
-/-- **Every successful deprecated call over the EIP-8037 meter keeps the invariant.** From
-Berlin, from a frame `m` of `StateGasMeter` with reservoir 0 whose `toNat` is the fresh frame of
-`CODE`, deprecated (byte 20 of slot 10 not 0), with the hypotheses of `inv_call_ns` stated for a
-runner over `StateGasMeter` (`KeepsInvAtS`, and `HonestBalanceAtS` for destroyBlackFunds): if
-`Inv C state` holds and the loop of the interpreter, for any gas bound and that runner, ends with
-no error, then `Inv C s.state` holds. -/
-theorem inv_call_depS {m s : Evm fork StateGasMeter}
-    (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
-    (hsize' : message.data.size < 2 ^ 256)
-    (h7 : StrForm (storageAt state message.currentTarget 7))
-    (h8 : StrForm (storageAt state message.currentTarget 8))
-    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    (hkeeps : KeepsInvAtS runChild message state)
-    (hhonest : selector message.data = 0xf3bdc228 → HonestBalanceAtS runChild message state)
-    (hI : Inv message.currentTarget state)
-    (start : At CODE message 0 [] .empty gas state substate (toNat m))
-    (hres : m.gas.reservoir = 0) {within : GasMeter.gasHeld m.gas ≤ bound}
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild m within = .ok s)
-    (hok : s.error = none) : Inv message.currentTarget s.state := by
-  obtain ⟨G, hC⟩ := runC_of_sgm hfork hrun hok (.inl hres)
-  have hE := endsOk_of_sgm hfork hrun hok
-  obtain ⟨G', hEnds⟩ := Shadow.shadow_ends hfork hrun hok
-  have start' := at_addGas start (Shadow.budget m)
-  have hk := keepsInvAtC_of_S hkeeps
-  have hsG : ∀ g, ({ toNat s with gas := g } : Evm fork Nat).state = s.state := fun _ => rfl
-  have hokG : ∀ g, ({ toNat s with gas := g } : Evm fork Nat).error = none := fun _ => hok
-  obtain ⟨_, -, i, hi⟩ := EndsOk.dispatch hfork hsize' start hE
-  match i, hi with
-  | ⟨0, _⟩, hi => exact hsG G' ▸ inv_name hfork hsize' (hi.trans rfl) h7 hI start' hEnds (hokG G')
-  | ⟨1, _⟩, hi => exact hsG G' ▸ inv_deprecate K hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨2, _⟩, hi => exact hsG G ▸ inv_of_localC hk hI (dep_approve_localC hfork hsize' (hi.trans rfl) hdep start hC hE (hokG G))
-  | ⟨3, _⟩, hi => exact hsG G' ▸ inv_deprecated hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨4, _⟩, hi => exact hsG G' ▸ inv_addBlackList K hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨5, _⟩, hi => exact hsG G ▸ inv_of_localC hk hI (dep_totalSupply_localC hfork hsize' (hi.trans rfl) hdep start hC hE (hokG G))
-  | ⟨6, _⟩, hi => exact hsG G ▸ inv_of_localC hk hI (dep_transferFrom_localC hfork hsize' (hi.trans rfl) hdep start hC hE (hokG G))
-  | ⟨7, _⟩, hi => exact hsG G' ▸ inv_upgradedAddress hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨8, _⟩, hi => exact hsG G' ▸ inv_balances hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨9, _⟩, hi => exact hsG G' ▸ inv_decimals hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨10, _⟩, hi => exact hsG G' ▸ inv_maximumFee hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨11, _⟩, hi => exact hsG G' ▸ inv_totalSupplyVar hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨12, _⟩, hi => exact hsG G' ▸ inv_unpause K hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨13, _⟩, hi => exact hsG G' ▸ inv_getBlackListStatus hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨14, _⟩, hi => exact hsG G' ▸ inv_allowed hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨15, _⟩, hi => exact hsG G' ▸ inv_paused hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨16, _⟩, hi => exact hsG G ▸ inv_of_localC hk hI (dep_balanceOf_localC hfork hsize' (hi.trans rfl) hdep start hC hE (hokG G))
-  | ⟨17, _⟩, hi => exact hsG G' ▸ inv_pause K hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨18, _⟩, hi => exact hsG G' ▸ inv_getOwner hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨19, _⟩, hi => exact hsG G' ▸ inv_owner hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨20, _⟩, hi => exact hsG G' ▸ inv_symbol hfork hsize' (hi.trans rfl) h8 hI start' hEnds (hokG G')
-  | ⟨21, _⟩, hi => exact hsG G ▸ inv_of_localC hk hI (dep_transfer_localC hfork hsize' (hi.trans rfl) hdep start hC hE (hokG G))
-  | ⟨22, _⟩, hi => exact hsG G' ▸ inv_setParams K hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨23, _⟩, hi => exact hsG G' ▸ inv_issue K hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨24, _⟩, hi => exact hsG G' ▸ inv_redeem K hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨25, _⟩, hi => exact hsG G ▸ inv_of_localC hk hI (dep_allowance_localC hfork hsize' (hi.trans rfl) hdep start hC hE (hokG G))
-  | ⟨26, _⟩, hi => exact hsG G' ▸ inv_basisPointsRate hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨27, _⟩, hi => exact hsG G' ▸ inv_isBlackListed hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨28, _⟩, hi => exact hsG G' ▸ inv_removeBlackList K hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨29, _⟩, hi => exact hsG G' ▸ inv_maxUint hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨30, _⟩, hi => exact hsG G' ▸ inv_transferOwnership K hfork hsize' (hi.trans rfl) hI start' hEnds (hokG G')
-  | ⟨31, _⟩, hi => exact hsG G ▸ inv_dep_destroyC K hfork hsize' (hi.trans rfl) hdep hk (honestBalanceAtC_of_S (hhonest (hi.trans rfl))) hI start hC hE (hokG G)
-  | ⟨n + 32, h⟩, _ => exact absurd h (by omega)
-
-/-- **Every successful call over the EIP-8037 meter keeps the invariant, deprecated or not.**
-`inv_call_any` (any reservoir) when not deprecated, `inv_call_depS` (reservoir 0) when
-deprecated. -/
-theorem inv_call_anyD {m s : Evm fork StateGasMeter}
-    (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
-    (hsize' : message.data.size < 2 ^ 256)
-    (h7 : StrForm (storageAt state message.currentTarget 7))
-    (h8 : StrForm (storageAt state message.currentTarget 8))
-    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsInvAtS runChild message state)
-    (hhonest : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      selector message.data = 0xf3bdc228 → HonestBalanceAtS runChild message state)
-    (hI : Inv message.currentTarget state)
-    (start : At CODE message 0 [] .empty gas state substate (toNat m))
-    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → m.gas.reservoir = 0)
-    {within : GasMeter.gasHeld m.gas ≤ bound}
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild m within = .ok s)
-    (hok : s.error = none) : Inv message.currentTarget s.state := by
-  by_cases hdep : byte20 (storageAt state message.currentTarget 10) = 0
-  · exact inv_call_any K hfork hsize' hdep h7 h8 hI start hrun hok
-  · exact inv_call_depS K hfork hsize' h7 h8 hdep (hkeeps hdep) (hhonest hdep) hI start
-      (hres hdep) hrun hok
-
 /-! ## Sequences and `processMessage` -/
 
 /-- One successful run of `CODE` over `StateGasMeter` for a message to `C`, from `S` to `S'`,
-deprecated, from reservoir 0, under the hypotheses of `inv_call_depS`. -/
+deprecated, from reservoir 0, under `KeepsInvAtS` and, for destroyBlackFunds, `HonestBalanceAtS`. -/
 def GoodCallDS (C : Address) (S S' : State.TransactionState) : Prop :=
   ∃ (fork : Fork) (message : Message fork) (substate : Substate) (gas bound : Nat)
     (runChild : MessageRunner fork StateGasMeter bound) (m s : Evm fork StateGasMeter)
@@ -372,14 +270,6 @@ def GoodCallDS (C : Address) (S S' : State.TransactionState) : Prop :=
     Evm.runFrame (step fork) (step_decreases fork) bound runChild m within = .ok s ∧
     s.error = none ∧ S' = s.state
 
-/-- One successful deprecated call over `StateGasMeter` keeps `Inv C`. -/
-theorem inv_goodCallDS {C : Address} {S S' : State.TransactionState}
-    (h : GoodCallDS C S S') (hI : Inv C S) : Inv C S' := by
-  obtain ⟨fork, message, substate, gas, bound, runChild, m, s, within, hC, hfork, hsize, K, h7,
-    h8, hdep, hk, hh, start, hres, hrun, hok, rfl⟩ := h
-  subst hC
-  exact inv_call_depS K hfork hsize h7 h8 hdep hk hh hI start hres hrun hok
-
 /-- `CallsS` steps and deprecated calls over `StateGasMeter` (`GoodCallDS`). -/
 inductive CallsDS (C : Address) : State.TransactionState → State.TransactionState → Prop
   | nil (S : State.TransactionState) : CallsDS C S S
@@ -387,14 +277,6 @@ inductive CallsDS (C : Address) : State.TransactionState → State.TransactionSt
       CallsDS C S S''
   | callDS {S S' S'' : State.TransactionState} : GoodCallDS C S S' → CallsDS C S' S'' →
       CallsDS C S S''
-
-/-- `Inv C` along every finite sequence of `CallsDS C`. -/
-theorem inv_callsDS {C : Address} {S S' : State.TransactionState}
-    (h : CallsDS C S S') (hI : Inv C S) : Inv C S' := by
-  induction h with
-  | nil => exact hI
-  | calls hc _ ih => exact ih (inv_callsS hc hI)
-  | callDS hg _ ih => exact ih (inv_goodCallDS hg hI)
 
 /-- **Deprecated top-level messages over the EIP-8037 meter.** From Paris, a top-level message to
 `C` (code `CODE`, no precompile, call data below 2^256 bytes, deprecated), run by EthLib's
@@ -481,165 +363,7 @@ theorem process_stepSD {fork : Fork} (hparis : .paris ≤ fork)
   · exact .inr (process_stepDS hparis hmc noPrecompile hsize K h7 h8 hdep (hkeeps hdep)
       (hhonest hdep) (hres hdep) hproc)
 
-/-- `process_stepDS` for the fresh meter of the message, whose reservoir is that of the
-message. -/
-theorem process_stepDS_start {fork : Fork} (hparis : .paris ≤ fork)
-    {message : Message fork} {state : State.TransactionState} {substate : Substate}
-    (hmc : message.code = CODE)
-    (noPrecompile : precompileAddress fork message = none)
-    (hsize : message.data.size < 2 ^ 256) (K : SepOn (callKeys message state))
-    (h7 : StrForm (storageAt state message.currentTarget 7))
-    (h8 : StrForm (storageAt state message.currentTarget 8))
-    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    (hres : message.reservoir = 0)
-    (hkeeps : KeepsInvAtS (processRunner fork message.gas) message state)
-    (hhonest : selector message.data = 0xf3bdc228 →
-      HonestBalanceAtS (processRunner fork message.gas) message state)
-    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
-    (hproc : processMessage fork message state substate = .ok ended) :
-    GoodCallDS message.currentTarget state ended.val.state ∨
-      Untouched message.currentTarget state ended.val.state :=
-  process_stepDS hparis hmc noPrecompile hsize K h7 h8 hdep hkeeps hhonest hres hproc
-
-/-- `process_stepSD` for the fresh meter of the message, whose reservoir is that of the
-message. -/
-theorem process_stepSD_start {fork : Fork} (hparis : .paris ≤ fork)
-    {message : Message fork} {state : State.TransactionState} {substate : Substate}
-    (hmc : message.code = CODE)
-    (noPrecompile : precompileAddress fork message = none)
-    (hsize : message.data.size < 2 ^ 256) (K : SepOn (callKeys message state))
-    (h7 : StrForm (storageAt state message.currentTarget 7))
-    (h8 : StrForm (storageAt state message.currentTarget 8))
-    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → message.reservoir = 0)
-    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsInvAtS (processRunner fork message.gas) message state)
-    (hhonest : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      selector message.data = 0xf3bdc228 →
-      HonestBalanceAtS (processRunner fork message.gas) message state)
-    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
-    (hproc : processMessage fork message state substate = .ok ended) :
-    GoodCallS message.currentTarget state ended.val.state ∨
-      GoodCallDS message.currentTarget state ended.val.state ∨
-      Untouched message.currentTarget state ended.val.state :=
-  process_stepSD hparis hmc noPrecompile hsize K h7 h8 hkeeps hhonest hres hproc
-
 end Meter
 
-
-/-- **One step, to `Inv`, round 49.** Under the hypotheses of `process_stepDS` and `Inv` at the
-start, `Inv` holds at the end of the message, with no certificate in between. Its runner hypotheses
-are those of round 49 (EthLib's `SentVia`), so it is at least as strong as `process_stepDS` followed
-by the consumer of its certificate at round 48. -/
-theorem process_stepDS_inv {fork : Fork} (hparis : .paris ≤ fork)
-    {message : Message fork} {state : State.TransactionState} {substate : Substate}
-    (hmc : message.code = CODE)
-    (noPrecompile : precompileAddress fork message = none)
-    (hsize : message.data.size < 2 ^ 256) (K : SepOn (callKeys message state))
-    (h7 : StrForm (storageAt state message.currentTarget 7))
-    (h8 : StrForm (storageAt state message.currentTarget 8))
-    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    (hkeeps : KeepsInvAtS (processRunner fork message.gas) message state)
-    (hhonest : selector message.data = 0xf3bdc228 →
-      HonestBalanceAtS (processRunner fork message.gas) message state)
-    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
-    (hres : meter.reservoir = 0)
-    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
-    (hproc : processMessage fork message state substate meter held = .ok ended)
-    (hI : Inv message.currentTarget state) : Inv message.currentTarget ended.val.state := by
-  rcases process_stepDS hparis hmc noPrecompile hsize K h7 h8 hdep hkeeps hhonest hres hproc
-      with h | h <;>
-    first
-    | exact inv_goodCall h hI
-    | exact inv_goodCallS h hI
-    | exact inv_goodCallDS h hI
-    | exact inv_goodCallDR h hI
-    | exact (DepInv.inv_congr h).mpr hI
-
-/-- **One step, to `Inv`, round 49.** Under the hypotheses of `process_stepSD` and `Inv` at the
-start, `Inv` holds at the end of the message, with no certificate in between. Its runner hypotheses
-are those of round 49 (EthLib's `SentVia`), so it is at least as strong as `process_stepSD` followed
-by the consumer of its certificate at round 48. -/
-theorem process_stepSD_inv {fork : Fork} (hparis : .paris ≤ fork)
-    {message : Message fork} {state : State.TransactionState} {substate : Substate}
-    (hmc : message.code = CODE)
-    (noPrecompile : precompileAddress fork message = none)
-    (hsize : message.data.size < 2 ^ 256) (K : SepOn (callKeys message state))
-    (h7 : StrForm (storageAt state message.currentTarget 7))
-    (h8 : StrForm (storageAt state message.currentTarget 8))
-    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsInvAtS (processRunner fork message.gas) message state)
-    (hhonest : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      selector message.data = 0xf3bdc228 →
-      HonestBalanceAtS (processRunner fork message.gas) message state)
-    {meter : StateGasMeter} {held : GasMeter.gasHeld meter ≤ message.gas}
-    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → meter.reservoir = 0)
-    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
-    (hproc : processMessage fork message state substate meter held = .ok ended)
-    (hI : Inv message.currentTarget state) : Inv message.currentTarget ended.val.state := by
-  rcases process_stepSD hparis hmc noPrecompile hsize K h7 h8 hkeeps hhonest hres hproc
-      with h | h | h <;>
-    first
-    | exact inv_goodCall h hI
-    | exact inv_goodCallS h hI
-    | exact inv_goodCallDS h hI
-    | exact inv_goodCallDR h hI
-    | exact (DepInv.inv_congr h).mpr hI
-
-/-- **One step, to `Inv`, round 49.** Under the hypotheses of `process_stepDS_start` and `Inv` at
-the start, `Inv` holds at the end of the message, with no certificate in between. Its runner
-hypotheses are those of round 49 (EthLib's `SentVia`), so it is at least as strong as
-`process_stepDS_start` followed by the consumer of its certificate at round 48. -/
-theorem process_stepDS_start_inv {fork : Fork} (hparis : .paris ≤ fork)
-    {message : Message fork} {state : State.TransactionState} {substate : Substate}
-    (hmc : message.code = CODE)
-    (noPrecompile : precompileAddress fork message = none)
-    (hsize : message.data.size < 2 ^ 256) (K : SepOn (callKeys message state))
-    (h7 : StrForm (storageAt state message.currentTarget 7))
-    (h8 : StrForm (storageAt state message.currentTarget 8))
-    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    (hres : message.reservoir = 0)
-    (hkeeps : KeepsInvAtS (processRunner fork message.gas) message state)
-    (hhonest : selector message.data = 0xf3bdc228 →
-      HonestBalanceAtS (processRunner fork message.gas) message state)
-    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
-    (hproc : processMessage fork message state substate = .ok ended)
-    (hI : Inv message.currentTarget state) : Inv message.currentTarget ended.val.state := by
-  rcases process_stepDS_start hparis hmc noPrecompile hsize K h7 h8 hdep hres hkeeps hhonest hproc
-      with h | h <;>
-    first
-    | exact inv_goodCall h hI
-    | exact inv_goodCallS h hI
-    | exact inv_goodCallDS h hI
-    | exact inv_goodCallDR h hI
-    | exact (DepInv.inv_congr h).mpr hI
-
-/-- **One step, to `Inv`, round 49.** Under the hypotheses of `process_stepSD_start` and `Inv` at
-the start, `Inv` holds at the end of the message, with no certificate in between. Its runner
-hypotheses are those of round 49 (EthLib's `SentVia`), so it is at least as strong as
-`process_stepSD_start` followed by the consumer of its certificate at round 48. -/
-theorem process_stepSD_start_inv {fork : Fork} (hparis : .paris ≤ fork)
-    {message : Message fork} {state : State.TransactionState} {substate : Substate}
-    (hmc : message.code = CODE)
-    (noPrecompile : precompileAddress fork message = none)
-    (hsize : message.data.size < 2 ^ 256) (K : SepOn (callKeys message state))
-    (h7 : StrForm (storageAt state message.currentTarget 7))
-    (h8 : StrForm (storageAt state message.currentTarget 8))
-    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → message.reservoir = 0)
-    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsInvAtS (processRunner fork message.gas) message state)
-    (hhonest : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      selector message.data = 0xf3bdc228 →
-      HonestBalanceAtS (processRunner fork message.gas) message state)
-    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
-    (hproc : processMessage fork message state substate = .ok ended)
-    (hI : Inv message.currentTarget state) : Inv message.currentTarget ended.val.state := by
-  rcases process_stepSD_start hparis hmc noPrecompile hsize K h7 h8 hres hkeeps hhonest hproc
-      with h | h | h <;>
-    first
-    | exact inv_goodCall h hI
-    | exact inv_goodCallS h hI
-    | exact inv_goodCallDS h hI
-    | exact inv_goodCallDR h hI
-    | exact (DepInv.inv_congr h).mpr hI
 
 end UsdtVerify.Complete

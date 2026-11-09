@@ -8,8 +8,8 @@ Write `C` for the contract, `a` for argument word 0 masked to 160 bits (`addrArg
 
 - `spec_add_notOwner` / `spec_remove_notOwner`: a caller other than the owner gets a revert.
 - `spec_add` / `spec_remove`: the owner's call stops after one write, of slot `L`, to
-  `setLow w 1` / `setLow w 0` (`w` = the word of `L`; low byte set, the rest kept:
-  `lowByte_setLow`, `bit_setLow`) and one log `AddedBlackList(a)` / `RemovedBlackList(a)`.
+  `setLow w 1` / `setLow w 0` (`w` = the word of `L`; low byte set:
+  `lowByte_setLow`) and one log `AddedBlackList(a)` / `RemovedBlackList(a)`.
   Neither function reads the old flag: adding twice or removing an absent address succeeds.
 -/
 

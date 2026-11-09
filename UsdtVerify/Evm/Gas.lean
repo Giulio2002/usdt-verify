@@ -73,10 +73,6 @@ abbrev HoareG (fork : Fork) (P Q : Evm fork Nat → Prop) : Prop := Triple (Step
 def SpecG (fork : Fork) (P Q : Evm fork Nat → Prop) : Prop :=
   HoareG fork P fun evm => evm.running = false ∧ Q evm
 
-@[simp] theorem substate_addGas (k : Nat) (e : Evm fork Nat) :
-    (addGas k e).substate = e.substate := rfl
-@[simp] theorem output_addGas (k : Nat) (e : Evm fork Nat) : (addGas k e).output = e.output :=
-  rfl
 
 /-! ## From instructions to steps -/
 

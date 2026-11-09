@@ -36,7 +36,6 @@ import UsdtVerify.Usdt.MeterGas
 import UsdtVerify.Usdt.Invariant.SeqMeter
 import UsdtVerify.Usdt.Sanity.Strings
 import UsdtVerify.Usdt.Exact.Getters
-import UsdtVerify.Usdt.Sanity.Exact
 import UsdtVerify.Usdt.Exact.Deprecated
 import UsdtVerify.Usdt.Exact.TransferFrom
 import UsdtVerify.Usdt.Exact.Transfer
@@ -101,22 +100,14 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 
 /-! # Test: the axioms of the main theorems (printed at build time). -/
 
-#print axioms UsdtVerify.TotalSupply.runFrame_spec
-#print axioms UsdtVerify.BalanceOf.runFrame_spec
-#print axioms UsdtVerify.Transfer.runFrame_paused
-#print axioms UsdtVerify.Transfer.runFrame_blacklisted
-#print axioms UsdtVerify.Transfer.runFrame_short
 #print axioms UsdtVerify.TransferOk.spec_ok
 #print axioms UsdtVerify.TransferOk.runFrame_ok
 #print axioms UsdtVerify.Approve.spec_zero
 #print axioms UsdtVerify.Approve.spec_set
-#print axioms UsdtVerify.Approve.runFrame_revert
 #print axioms UsdtVerify.TransferFrom.spec_ok
 #print axioms UsdtVerify.TransferFrom.runFrame_ok
 #print axioms UsdtVerify.TransferFee.spec_fee
-#print axioms UsdtVerify.TransferFee.runFrame_fee
 #print axioms UsdtVerify.TransferOk.spec_low
-#print axioms UsdtVerify.TransferOk.runFrame_low
 #print axioms UsdtVerify.TransferOk.spec_mulOv
 #print axioms UsdtVerify.TransferOk.spec_feeGt
 #print axioms UsdtVerify.TransferOk.spec_toOv
@@ -128,7 +119,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.TransferFrom.spec_balLow
 #print axioms UsdtVerify.TransferFrom.spec_mulOv
 #print axioms UsdtVerify.TransferFrom.spec_feeF
-#print axioms UsdtVerify.TransferFrom.runFrame_feeF
 #print axioms UsdtVerify.TransferFrom.spec_feeGtF
 #print axioms UsdtVerify.TransferFrom.spec_toOvF
 #print axioms UsdtVerify.TransferFrom.spec_ownerOvF
@@ -136,19 +126,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Summary.transferFrom_ok_effects
 #print axioms UsdtVerify.Summary.transfer_fee_effects
 #print axioms UsdtVerify.Summary.transferFrom_fee_effects
-#print axioms UsdtVerify.TransferOk.runFrame_mulOv
-#print axioms UsdtVerify.TransferOk.runFrame_feeGt
-#print axioms UsdtVerify.TransferOk.runFrame_toOv
-#print axioms UsdtVerify.TransferOk.runFrame_ownerOv
-#print axioms UsdtVerify.TransferFrom.runFrame_paused
-#print axioms UsdtVerify.TransferFrom.runFrame_blacklisted
-#print axioms UsdtVerify.TransferFrom.runFrame_short
-#print axioms UsdtVerify.TransferFrom.runFrame_allowLow
-#print axioms UsdtVerify.TransferFrom.runFrame_balLow
-#print axioms UsdtVerify.TransferFrom.runFrame_mulOv
-#print axioms UsdtVerify.TransferFrom.runFrame_feeGtF
-#print axioms UsdtVerify.TransferFrom.runFrame_toOvF
-#print axioms UsdtVerify.TransferFrom.runFrame_ownerOvF
 #print axioms UsdtVerify.Approve.runFrame_zero
 #print axioms UsdtVerify.Approve.runFrame_set
 #print axioms UsdtVerify.Summary.transfer_ok_conserves
@@ -182,7 +159,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.DeprecatedTransferFrom.runFrame_depF_process
 #print axioms UsdtVerify.DeprecatedTransferFrom.spec_depFNoCode
 #print axioms UsdtVerify.Nonpayable.spec
-#print axioms UsdtVerify.Nonpayable.runFrame_spec
 #print axioms UsdtVerify.PauseSpec.spec_pause
 #print axioms UsdtVerify.PauseSpec.spec_unpause
 #print axioms UsdtVerify.PauseSpec.spec_pause_notOwner
@@ -198,7 +174,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.BlackListSpec.spec_remove_notOwner
 #print axioms UsdtVerify.BlackListSpec.listState_flag
 #print axioms UsdtVerify.BlackListSpec.listState_other
-#print axioms UsdtVerify.Admin.bit_setLow
 #print axioms UsdtVerify.IssueSpec.spec_issue
 #print axioms UsdtVerify.IssueSpec.spec_redeem
 #print axioms UsdtVerify.IssueSpec.spec_issue_notOwner
@@ -244,39 +219,25 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.GettersMap.spec_allowed
 #print axioms UsdtVerify.GettersMap.spec_allowance
 #print axioms UsdtVerify.memoryReadBytes_write_rev
-#print axioms UsdtVerify.PauseSpec.runFrame_pause
-#print axioms UsdtVerify.BlackListSpec.runFrame_add
 #print axioms UsdtVerify.IssueSpec.runFrame_issue
 #print axioms UsdtVerify.IssueSpec.runFrame_redeem
-#print axioms UsdtVerify.SetParamsSpec.runFrame_setParams
-#print axioms UsdtVerify.AddrWriteSpec.runFrame_deprecate
-#print axioms UsdtVerify.AddrWriteSpec.runFrame_transferOwnership
-#print axioms UsdtVerify.Destroy.runFrame_notListed
-#print axioms UsdtVerify.Getters.runFrame_slot
-#print axioms UsdtVerify.GettersMap.runFrame_allowance
 #print axioms UsdtVerify.Strings.spec_str
 #print axioms UsdtVerify.Strings.spec_name
 #print axioms UsdtVerify.Strings.spec_symbol
 #print axioms UsdtVerify.Strings.spec_name_tether
 #print axioms UsdtVerify.Strings.spec_symbol_usdt
-#print axioms UsdtVerify.Strings.runFrame_name
-#print axioms UsdtVerify.Strings.runFrame_symbol
 #print axioms UsdtVerify.DeprecatedAllowance.spec_depAl
 #print axioms UsdtVerify.DeprecatedAllowance.spec_depAl_answers
 #print axioms UsdtVerify.DeprecatedAllowance.spec_depAl_fails
 #print axioms UsdtVerify.DeprecatedAllowance.runFrame_depAl_process
 #print axioms UsdtVerify.DeprecatedAllowance.spec_depAlNoCode
-#print axioms UsdtVerify.DeprecatedAllowance.runFrame_depAlNoCode
 #print axioms UsdtVerify.Fallback.spec_unknown
 #print axioms UsdtVerify.Fallback.spec_short
-#print axioms UsdtVerify.Fallback.runFrame_unknown
-#print axioms UsdtVerify.Fallback.runFrame_short
 #print axioms UsdtVerify.DeprecatedDestroy.spec_depD
 #print axioms UsdtVerify.DeprecatedDestroy.spec_depD_answers
 #print axioms UsdtVerify.DeprecatedDestroy.spec_depD_fails
 #print axioms UsdtVerify.DeprecatedDestroy.runFrame_depD_process
 #print axioms UsdtVerify.DeprecatedDestroy.spec_depDNoCode
-#print axioms UsdtVerify.DeprecatedDestroy.runFrame_depDNoCode
 #print axioms UsdtVerify.DeprecatedDestroy.tailD
 #print axioms UsdtVerify.StringsGen.spec_strEmpty
 #print axioms UsdtVerify.StringsGen.spec_strLong
@@ -285,22 +246,11 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.StringsGen.spec_symbolEmpty
 #print axioms UsdtVerify.StringsGen.spec_nameLong
 #print axioms UsdtVerify.StringsGen.spec_symbolLong
-#print axioms UsdtVerify.StringsGen.runFrame_nameEmpty
-#print axioms UsdtVerify.StringsGen.runFrame_symbolEmpty
-#print axioms UsdtVerify.StringsGen.runFrame_nameLong
-#print axioms UsdtVerify.StringsGen.runFrame_symbolLong
 #print axioms UsdtVerify.Invariant.sumBal_write_bal
 #print axioms UsdtVerify.Invariant.transferOk_inv
 #print axioms UsdtVerify.Invariant.transferFee_inv
 #print axioms UsdtVerify.Invariant.transferFromOk_inv
 #print axioms UsdtVerify.Invariant.transferFromFee_inv
-#print axioms UsdtVerify.Invariant.approveZero_inv
-#print axioms UsdtVerify.Invariant.approveSet_inv
-#print axioms UsdtVerify.Invariant.pause_inv
-#print axioms UsdtVerify.Invariant.transferOwnership_inv
-#print axioms UsdtVerify.Invariant.list_inv
-#print axioms UsdtVerify.Invariant.params_inv
-#print axioms UsdtVerify.Invariant.deprecate_inv
 #print axioms UsdtVerify.Invariant.issue_inv
 #print axioms UsdtVerify.Invariant.redeem_inv
 #print axioms UsdtVerify.Invariant.destroy_inv
@@ -321,7 +271,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Invariant.reach_issue
 #print axioms UsdtVerify.Invariant.reach_redeem
 #print axioms UsdtVerify.Invariant.reach_destroy
-#print axioms UsdtVerify.Invariant.transfer_ok_keeps
 #print axioms UsdtVerify.Gas.At.ruleG
 #print axioms UsdtVerify.Complete.selector_cases
 #print axioms UsdtVerify.Gas.branchTableG
@@ -374,7 +323,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Complete.inv_destroyBlackFunds
 #print axioms UsdtVerify.Complete.low_to_running
 #print axioms UsdtVerify.Complete.ok_split
-#print axioms UsdtVerify.Complete.dep_totalSupply_split
 #print axioms UsdtVerify.DepInv.toNat_sub_gt
 #print axioms UsdtVerify.DepInv.inv_tail_iff
 #print axioms UsdtVerify.DepInv.not_inv_tail
@@ -388,14 +336,12 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.DepInv.depD_keeps
 #print axioms UsdtVerify.DepInv.depD_breaks
 #print axioms UsdtVerify.Complete.step_gas_low
-#print axioms UsdtVerify.Complete.step_sub_low
 #print axioms UsdtVerify.Complete.extcodesize_low
 #print axioms UsdtVerify.Complete.step_call
 #print axioms UsdtVerify.Complete.call_ok
 #print axioms UsdtVerify.Deprecated.accCost_of_lt
 #print axioms UsdtVerify.Deprecated.extCost_of_lt
 #print axioms UsdtVerify.Deprecated.callBaseCost_eq
-#print axioms UsdtVerify.Deprecated.extCost_ge
 #print axioms UsdtVerify.At.toLogic
 #print axioms UsdtVerify.At.ofLogic
 #print axioms UsdtVerify.At.iff_logic
@@ -421,13 +367,10 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Complete.subG
 #print axioms UsdtVerify.Complete.fromExt
 #print axioms UsdtVerify.Complete.extcodesizeStep_notFound
-#print axioms UsdtVerify.Complete.fromExt_found
 #print axioms UsdtVerify.Complete.dep_totalSupply_complete
 #print axioms UsdtVerify.Complete.prefixG_balanceOf
-#print axioms UsdtVerify.Complete.dep_balanceOf_split
 #print axioms UsdtVerify.Complete.dep_balanceOf_complete
 #print axioms UsdtVerify.Complete.prefixG_transfer
-#print axioms UsdtVerify.Complete.dep_transfer_split
 #print axioms UsdtVerify.Complete.dep_transfer_complete
 #print axioms UsdtVerify.Complete.okTailAG
 #print axioms UsdtVerify.Complete.prefixG_approve
@@ -440,7 +383,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Complete.dep_destroy_complete
 #print axioms UsdtVerify.Complete.storageAt_route
 #print axioms UsdtVerify.Complete.hasAccount_caller_iff
-#print axioms UsdtVerify.Complete.keepsInv_of_acc
 #print axioms UsdtVerify.Complete.localForward_noAcc
 #print axioms UsdtVerify.Complete.inv_of_local
 #print axioms UsdtVerify.Complete.dep_totalSupply_local
@@ -521,19 +463,13 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Security.EffectD.supply
 #print axioms UsdtVerify.Security.supply_call_all
 #print axioms UsdtVerify.Security.supply_seq_all
-#print axioms UsdtVerify.storageAt_startState
-#print axioms UsdtVerify.stopRunner_ok
-#print axioms UsdtVerify.stopRunner_keeps
 #print axioms UsdtVerify.answerRunner_ok
 #print axioms UsdtVerify.answerRunner_keeps
 #print axioms UsdtVerify.loadWord_append_wordBytes
 #print axioms UsdtVerify.Sanity.keepsAll_of_same
 #print axioms UsdtVerify.Sanity.keepsInv_of_same
-#print axioms UsdtVerify.Sanity.stop_keeps_all
-#print axioms UsdtVerify.Sanity.stop_staticKeeps
 #print axioms UsdtVerify.Sanity.bal_keeps_all
 #print axioms UsdtVerify.Sanity.bal_staticKeeps
-#print axioms UsdtVerify.Sanity.honestBalance_of_answers
 #print axioms UsdtVerify.Sanity.bal_honest
 #print axioms UsdtVerify.Sanity.runner_assumptions_hold
 #print axioms UsdtVerify.hasAccount_sState
@@ -632,23 +568,13 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Exact.transferFrom_ok_iff
 #print axioms UsdtVerify.Exact.transferFrom_low
 #print axioms UsdtVerify.Exact.routes_unique
-#print axioms UsdtVerify.Exact.totalSupply_dep_ok_iff
 #print axioms UsdtVerify.Exact.totalSupply_dep_low
-#print axioms UsdtVerify.Exact.balanceOf_dep_ok_iff
 #print axioms UsdtVerify.Exact.balanceOf_dep_low
-#print axioms UsdtVerify.Exact.allowance_dep_ok_iff
 #print axioms UsdtVerify.Exact.allowance_dep_low
-#print axioms UsdtVerify.Exact.transfer_dep_ok_iff
 #print axioms UsdtVerify.Exact.transfer_dep_low
-#print axioms UsdtVerify.Exact.approve_dep_ok_iff
 #print axioms UsdtVerify.Exact.approve_dep_low
-#print axioms UsdtVerify.Exact.transferFrom_dep_ok_iff
 #print axioms UsdtVerify.Exact.transferFrom_dep_low
-#print axioms UsdtVerify.Exact.destroyBlackFunds_dep_ok_iff
 #print axioms UsdtVerify.Exact.destroyBlackFunds_dep_low
-#print axioms UsdtVerify.Sanity.answerRunner_noFail
-#print axioms UsdtVerify.Sanity.answerRunner_ans
-#print axioms UsdtVerify.Sanity.answerRunner_ans_acc
 #print axioms UsdtVerify.Gas.sstore_low_stuck
 #print axioms UsdtVerify.Gas.At.stuck
 #print axioms UsdtVerify.Gas.sstoreNoWrite
@@ -681,16 +607,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Exact.transfer_iff_gas
 #print axioms UsdtVerify.Exact.transferFrom_mid
 #print axioms UsdtVerify.Exact.transferFrom_iff_gas
-#print axioms UsdtVerify.Exact.totalSupply_dep_ok_iff_gas
-#print axioms UsdtVerify.Exact.balanceOf_dep_ok_iff_gas
-#print axioms UsdtVerify.Exact.allowance_dep_ok_iff_gas
-#print axioms UsdtVerify.Exact.transfer_dep_ok_iff_gas
-#print axioms UsdtVerify.Exact.approve_dep_ok_iff_gas
-#print axioms UsdtVerify.Exact.transferFrom_dep_ok_iff_gas
-#print axioms UsdtVerify.Sanity.answerRunnerAt_noFail
-#print axioms UsdtVerify.Sanity.answerRunnerAt_ans_acc
-#print axioms UsdtVerify.Sanity.answerRunnerAt_hans
-#print axioms UsdtVerify.Sanity.answerRunnerAt_ans_gas
 #print axioms UsdtVerify.Exact.fwd_ok_or_fails
 #print axioms UsdtVerify.Exact.totalSupply_dep_ok_or_fails
 #print axioms UsdtVerify.Exact.balanceOf_dep_ok_or_fails
@@ -703,10 +619,7 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.DeprecatedDestroy.tailD_g
 #print axioms UsdtVerify.DeprecatedDestroy.tailMidD
 #print axioms UsdtVerify.DeprecatedDestroy.spec_depD_g
-#print axioms UsdtVerify.Exact.destroyBlackFunds_dep_ok_iff_gas
-#print axioms UsdtVerify.Sanity.answerRunnerAt_ans_gasD
 #print axioms UsdtVerify.Complete.callWithRS
-#print axioms UsdtVerify.Exact.fwd_ok_iff_fails
 #print axioms UsdtVerify.Deprecated.spec_dep_g
 #print axioms UsdtVerify.DeprecatedBalance.spec_depB_g
 #print axioms UsdtVerify.DeprecatedAllowance.spec_depAl_g
@@ -720,8 +633,6 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 #print axioms UsdtVerify.Exact.approve_dep_ok_iff_fails
 #print axioms UsdtVerify.Exact.transferFrom_dep_ok_iff_fails
 #print axioms UsdtVerify.Exact.destroyBlackFunds_dep_ok_iff_fails
-#print axioms UsdtVerify.Sanity.failRunner_hans
-#print axioms UsdtVerify.Sanity.failRunner_hfail
 
 /-! Round 27: the `spec_*` from pc 0 that only their `runFrame_*` form printed, the helper lemmas
 that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrames.lean`. -/
@@ -738,46 +649,6 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Summary.toNat_sub_of_le'
 #print axioms UsdtVerify.Summary.storageAt_allowState_of_ne
 #print axioms UsdtVerify.Summary.logs_allowSub
-#print axioms UsdtVerify.AddrWriteSpec.runFrame_deprecate_notOwner
-#print axioms UsdtVerify.AddrWriteSpec.runFrame_transferOwnership_notOwner
-#print axioms UsdtVerify.AddrWriteSpec.runFrame_transferOwnership_zero
-#print axioms UsdtVerify.BlackListSpec.runFrame_add_notOwner
-#print axioms UsdtVerify.BlackListSpec.runFrame_remove
-#print axioms UsdtVerify.BlackListSpec.runFrame_remove_notOwner
-#print axioms UsdtVerify.Deprecated.runFrame_depNoCode
-#print axioms UsdtVerify.DeprecatedBalance.runFrame_depBNoCode
-#print axioms UsdtVerify.DeprecatedTransfer.runFrame_depANoCode
-#print axioms UsdtVerify.DeprecatedTransfer.runFrame_depTNoCode
-#print axioms UsdtVerify.DeprecatedTransferFrom.runFrame_depFNoCode
-#print axioms UsdtVerify.Destroy.runFrame_notOwner
-#print axioms UsdtVerify.Getters.runFrame_basisPointsRate
-#print axioms UsdtVerify.Getters.runFrame_decimals
-#print axioms UsdtVerify.Getters.runFrame_deprecated
-#print axioms UsdtVerify.Getters.runFrame_flag
-#print axioms UsdtVerify.Getters.runFrame_getOwner
-#print axioms UsdtVerify.Getters.runFrame_maximumFee
-#print axioms UsdtVerify.Getters.runFrame_maxUint
-#print axioms UsdtVerify.Getters.runFrame_owner
-#print axioms UsdtVerify.Getters.runFrame_totalSupplyVar
-#print axioms UsdtVerify.Getters.runFrame_upgradedAddress
-#print axioms UsdtVerify.GettersMap.runFrame_allowed
-#print axioms UsdtVerify.GettersMap.runFrame_balances
-#print axioms UsdtVerify.GettersMap.runFrame_getBlackListStatus
-#print axioms UsdtVerify.GettersMap.runFrame_isBlackListed
-#print axioms UsdtVerify.IssueSpec.runFrame_issue_notOwner
-#print axioms UsdtVerify.IssueSpec.runFrame_issue_req1
-#print axioms UsdtVerify.IssueSpec.runFrame_issue_req2
-#print axioms UsdtVerify.IssueSpec.runFrame_redeem_notOwner
-#print axioms UsdtVerify.IssueSpec.runFrame_redeem_req1
-#print axioms UsdtVerify.IssueSpec.runFrame_redeem_req2
-#print axioms UsdtVerify.PauseSpec.runFrame_pause_notOwner
-#print axioms UsdtVerify.PauseSpec.runFrame_pause_paused
-#print axioms UsdtVerify.PauseSpec.runFrame_unpause
-#print axioms UsdtVerify.PauseSpec.runFrame_unpause_notOwner
-#print axioms UsdtVerify.PauseSpec.runFrame_unpause_notPaused
-#print axioms UsdtVerify.SetParamsSpec.runFrame_bpHigh
-#print axioms UsdtVerify.SetParamsSpec.runFrame_feeHigh
-#print axioms UsdtVerify.SetParamsSpec.runFrame_notOwner
 -- round 29: local keccak separation (docs/AUDIT.md, finding 1)
 #print axioms UsdtVerify.Invariant.SepOn.mono
 #print axioms UsdtVerify.Invariant.NotFixed.ne_one
@@ -794,7 +665,6 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Invariant.storageAt_allowState_of_ne
 #print axioms UsdtVerify.Invariant.storageAt_creditedFee0
 #print axioms UsdtVerify.Invariant.storageAt_creditedFeeF0
-#print axioms UsdtVerify.Invariant.allowState_keeps
 #print axioms UsdtVerify.Invariant.sumBal_allowState
 #print axioms UsdtVerify.Invariant.tot_allowState
 #print axioms UsdtVerify.Security.SecSep.mono
@@ -822,37 +692,23 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.storageAt_of_readsAs
 #print axioms UsdtVerify.fromTo_of_sentVia
 #print axioms UsdtVerify.NoDec.congr_left
-#print axioms UsdtVerify.Complete.keepsInv_at
-#print axioms UsdtVerify.Complete.keepsInvAt_of_acc
-#print axioms UsdtVerify.Complete.honest_at
 #print axioms UsdtVerify.Sanity.keepsAll_of_same
-#print axioms UsdtVerify.Sanity.stop_keeps_all
 #print axioms UsdtVerify.Sanity.delegatedAddress_stop
 #print axioms UsdtVerify.Sanity.process_stop
 #print axioms UsdtVerify.Sanity.processRunner_stop_keepsAt
 #print axioms UsdtVerify.Sanity.processRunner_stop_keepsAll
-#print axioms UsdtVerify.Sanity.keepsInvAt_process_stop
 -- round 29: the deprecated exact theorems under the sent messages (docs/AUDIT.md, finding 3)
-#print axioms UsdtVerify.Exact.NoFail.on
 #print axioms UsdtVerify.Sanity.precompile_none_of
 #print axioms UsdtVerify.Sanity.process_stop_sends
 #print axioms UsdtVerify.Sanity.noFailOn_process_stop
-#print axioms UsdtVerify.Sanity.hans_process_stop
-#print axioms UsdtVerify.Sanity.totalSupply_dep_ok_iff_process_stop
 -- round 30: `hans` over the call the path makes, with its gas (docs/AUDIT.md, finding 3)
 #print axioms UsdtVerify.DeprecatedDestroy.tail_le_max
 #print axioms UsdtVerify.Sanity.process_stop_child
 #print axioms UsdtVerify.Sanity.hans_gas_process_stop
-#print axioms UsdtVerify.Sanity.hans_destroy_process_stop
 #print axioms UsdtVerify.Sanity.hans_destroy_gas_process_stop
 #print axioms UsdtVerify.Sanity.incorporate_keys
 #print axioms UsdtVerify.Sanity.coldIn_congr
 #print axioms UsdtVerify.Sanity.coldIn_accessSlot_congr
-#print axioms UsdtVerify.Sanity.balanceOf_dep_ok_iff_process_stop
-#print axioms UsdtVerify.Sanity.allowance_dep_ok_iff_process_stop
-#print axioms UsdtVerify.Sanity.transfer_dep_ok_iff_process_stop
-#print axioms UsdtVerify.Sanity.approve_dep_ok_iff_process_stop
-#print axioms UsdtVerify.Sanity.transferFrom_dep_ok_iff_process_stop
 #print axioms UsdtVerify.Sanity.totalSupply_dep_ok_iff_gas_process_stop
 #print axioms UsdtVerify.Sanity.balanceOf_dep_ok_iff_gas_process_stop
 #print axioms UsdtVerify.Sanity.allowance_dep_ok_iff_gas_process_stop
@@ -860,7 +716,6 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Sanity.approve_dep_ok_iff_gas_process_stop
 #print axioms UsdtVerify.Sanity.transferFrom_dep_ok_iff_gas_process_stop
 #print axioms UsdtVerify.Sanity.destroyBlackFunds_dep_ok_iff_gas_process_stop
-#print axioms UsdtVerify.Sanity.destroyBlackFunds_dep_ok_iff_process_stop
 -- round 30: HonestBalanceAt for processRunner with a real upgraded code (docs/AUDIT.md, finding 2)
 #print axioms UsdtVerify.delegatedAddress_mirror
 #print axioms UsdtVerify.mirror_spec
@@ -894,7 +749,6 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Sanity.destroyBlackFunds_dep_ok_iff_gas_process_mirror
 -- round 31: a deprecated state with MIRROR (docs/AUDIT.md, second audit, L4 and I1)
 #print axioms UsdtVerify.Sanity.keepsInvAt_process_mirror
-#print axioms UsdtVerify.Sanity.exists_hash
 #print axioms UsdtVerify.Sanity.storageAt_S1
 #print axioms UsdtVerify.Sanity.hcode_S1
 #print axioms UsdtVerify.Sanity.balanceOf_mirror_sat
@@ -1013,9 +867,6 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Complete.goodCall_processS
 #print axioms UsdtVerify.Complete.process_value_failsS
 #print axioms UsdtVerify.Complete.process_stepS
-#print axioms UsdtVerify.Complete.goodCall_processS_start
-#print axioms UsdtVerify.Complete.process_value_failsS_start
-#print axioms UsdtVerify.Complete.process_stepS_start
 #print axioms UsdtVerify.Shadow.shadow_runQ
 #print axioms UsdtVerify.Shadow.gas_ge_any
 #print axioms UsdtVerify.Shadow.gas_eq_any
@@ -1057,8 +908,6 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Security.supply_seqS
 #print axioms UsdtVerify.Security.runOkS_process
 #print axioms UsdtVerify.Security.process_stepSec
-#print axioms UsdtVerify.Security.runOkS_process_start
-#print axioms UsdtVerify.Security.process_stepSec_start
 #print axioms UsdtVerify.Complete.callStep_child_rS
 #print axioms UsdtVerify.Complete.callStep_child_res0
 #print axioms UsdtVerify.Complete.resumeCall_sgm
@@ -1249,16 +1098,8 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Complete.inv_of_localC
 #print axioms UsdtVerify.Complete.inv_dep_destroy_iffC
 #print axioms UsdtVerify.Complete.inv_dep_destroyC
-#print axioms UsdtVerify.Complete.keepsInvAtC_of_S
-#print axioms UsdtVerify.Complete.honestBalanceAtC_of_S
-#print axioms UsdtVerify.Complete.inv_call_depS
-#print axioms UsdtVerify.Complete.inv_call_anyD
-#print axioms UsdtVerify.Complete.inv_goodCallDS
-#print axioms UsdtVerify.Complete.inv_callsDS
 #print axioms UsdtVerify.Complete.process_stepDS
 #print axioms UsdtVerify.Complete.process_stepSD
-#print axioms UsdtVerify.Complete.process_stepDS_start
-#print axioms UsdtVerify.Complete.process_stepSD_start
 #print axioms UsdtVerify.Security.KeepsAtS.fwd
 #print axioms UsdtVerify.Security.state_incorporateChildS
 #print axioms UsdtVerify.Security.fwdS_of
@@ -1268,31 +1109,16 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Security.EffectDF.listed
 #print axioms UsdtVerify.Security.EffectDF.allowKept
 #print axioms UsdtVerify.Security.EffectDF.supply
-#print axioms UsdtVerify.Security.paused_call_allS
-#print axioms UsdtVerify.Security.nonOwner_call_allS
-#print axioms UsdtVerify.Security.listed_call_allS
-#print axioms UsdtVerify.Security.allowKept_call_allS
-#print axioms UsdtVerify.Security.supply_call_allS
-#print axioms UsdtVerify.Security.owner_only_allS
 #print axioms UsdtVerify.Security.EffectD.toF
 #print axioms UsdtVerify.Security.RunOkRS.effect
 #print axioms UsdtVerify.Security.RunOkR.effectF
 #print axioms UsdtVerify.Security.SeqR.toRS
-#print axioms UsdtVerify.Security.seqRS_lift
-#print axioms UsdtVerify.Security.nonOwner_seq_allS
-#print axioms UsdtVerify.Security.paused_seq_allS
-#print axioms UsdtVerify.Security.listed_seq_allS
-#print axioms UsdtVerify.Security.allowKept_seq_allS
-#print axioms UsdtVerify.Security.supply_seq_allS
 #print axioms UsdtVerify.Security.runOkRS_process
 #print axioms UsdtVerify.Security.process_stepSecD
 #print axioms UsdtVerify.Sanity.step_stopS
 #print axioms UsdtVerify.Sanity.process_stopS
 #print axioms UsdtVerify.Sanity.sentVia_process_stopS
-#print axioms UsdtVerify.Sanity.keepsInvAtS_process_stop
-#print axioms UsdtVerify.Sanity.keepsAtS_process_stop
 #print axioms UsdtVerify.Sanity.process_mirrorS
-#print axioms UsdtVerify.Sanity.honestBalanceAtS_process_mirror
 
 -- Round 44: the invariant and the security properties when deprecated from any reservoir
 #print axioms UsdtVerify.Complete.keepsInvAtSR_zero
@@ -1408,24 +1234,13 @@ that `Summary.lean` states, and the `runFrame_*` wrappers of `Usdt/Spec/RunFrame
 #print axioms UsdtVerify.Sanity.prepareFirstFrame_S3
 #print axioms UsdtVerify.Sanity.destroy_mirror_call_auths
 #print axioms UsdtVerify.Complete.process_step_inv
-#print axioms UsdtVerify.Complete.process_stepDS_inv
-#print axioms UsdtVerify.Complete.process_stepSD_inv
-#print axioms UsdtVerify.Complete.process_stepDS_start_inv
-#print axioms UsdtVerify.Complete.process_stepSD_start_inv
 #print axioms UsdtVerify.Complete.process_stepDR_inv
 #print axioms UsdtVerify.Complete.process_stepSDR_inv
-#print axioms UsdtVerify.Complete.keepsInvAt_of_acc_hasAccount
-#print axioms UsdtVerify.Security.seqRS_process
 #print axioms UsdtVerify.Security.seqRSR_process
-#print axioms UsdtVerify.Security.nonOwner_processS
 #print axioms UsdtVerify.Security.nonOwner_processSR
-#print axioms UsdtVerify.Security.paused_processS
 #print axioms UsdtVerify.Security.paused_processSR
-#print axioms UsdtVerify.Security.listed_processS
 #print axioms UsdtVerify.Security.listed_processSR
-#print axioms UsdtVerify.Security.allowKept_processS
 #print axioms UsdtVerify.Security.allowKept_processSR
-#print axioms UsdtVerify.Security.supply_processS
 #print axioms UsdtVerify.Security.supply_processSR
 #print axioms UsdtVerify.Exact.ok_pause_any
 #print axioms UsdtVerify.Exact.ok_unpause_any

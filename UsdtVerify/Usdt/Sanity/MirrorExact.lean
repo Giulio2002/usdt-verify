@@ -16,9 +16,9 @@ From Paris, with `MIRROR` at the upgraded address (no precompile):
   has that much less gas, answers the word of slot `balSlot message` of the upgraded address in
   the caller's state, and ends with that slot recorded read and accessed;
 - `noFailOn_process_mirror`: so `processRunner` meets `NoFailOn` for these messages;
-- `hans_gas_process_mirror`: the `hans` of `balanceOf_dep_ok_iff_gas`, with `A` the bound on the
+- `hans_gas_process_mirror`: the `hans` of `balanceOf_dep_ok_iff_fails`, with `A` the bound on the
   gas `g` the CALL gives: `mirrorCost ≤ g` and the code after the CALL has its gas;
-- `hans_destroy_gas_process_mirror`: the `hans` of `destroyBlackFunds_dep_ok_iff_gas`, with `A`
+- `hans_destroy_gas_process_mirror`: the `hans` of `destroyBlackFunds_dep_ok_iff_fails`, with `A`
   stated over the state, the substate and the gas of the caller frame at the CALL;
 - `balanceOf_dep_ok_iff_gas_process_mirror` and `destroyBlackFunds_dep_ok_iff_gas_process_mirror`:
   the instances. The second takes `hmirror` (the slot `MIRROR` reads holds, in the start state,
@@ -90,7 +90,7 @@ theorem noFailOn_process_mirror (hparis : .paris ≤ fork) {bound : Nat} {messag
   obtain ⟨child, hc, -⟩ := process_mirror_sends hparis hroute hnp caller lt hs.1
   rw [hc] at h; cases h
 
-/-- The `hans` of `balanceOf_dep_ok_iff_gas` (round 30 form) for `MIRROR`: the forwarded message
+/-- The `hans` of `balanceOf_dep_ok_iff_fails` (round 30 form) for `MIRROR`: the forwarded message
 ends with no error and leaves `T ≤ K` plus its gas left exactly when the gas `g` the CALL gives
 covers `mirrorCost` (coldness taken in the caller's substate `ss` at the CALL) and `T ≤ K` plus
 what is left of `g`. -/
@@ -120,7 +120,7 @@ theorem incorporate_state (caller child : Evm fork Nat) :
     (incorporateChild fork caller child).state = child.state := by
   unfold incorporateChild; split <;> rfl
 
-/-- The `hans` of `destroyBlackFunds_dep_ok_iff_gas` (round 30 form) for `MIRROR`: with the gas
+/-- The `hans` of `destroyBlackFunds_dep_ok_iff_fails` (round 30 form) for `MIRROR`: with the gas
 `g`, the state `st` and the substate `ss` of the caller frame at the CALL, the forwarded
 `balanceOf(a)` ends with no error, with an account of the contract, and with gas for the tail
 exactly when `g` covers `mirrorCost`, `st` has an account of the contract, and the gas left
@@ -184,7 +184,7 @@ theorem hans_destroy_gas_process_mirror (hparis : .paris ≤ fork) {bound : Nat}
 
 /-- **Deprecated balanceOf under `processRunner` with `MIRROR`, every gas from `hg` on (round
 31).** From Paris, with the upgraded address holding `MIRROR` (no precompile), `cM` the coldness
-of the slot `MIRROR` reads at the CALL, and the hypotheses of `Exact.balanceOf_dep_ok_iff_gas`:
+of the slot `MIRROR` reads at the CALL, and the hypotheses of `Exact.balanceOf_dep_ok_iff_fails`:
 the run succeeds iff the checks hold, the gas the CALL gives covers `mirrorCost cM`, and the gas
 left after the CALL plus what `MIRROR` returns of the gas it was given is at least the 126 gas of
 the code after the CALL. -/
@@ -207,16 +207,17 @@ theorem balanceOf_dep_ok_iff_gas_process_mirror (hparis : .paris ≤ fork)
       (mirrorCost cM ≤ (callGasB fork gas c10 cU (callR substate state message r)).subCall ∧
         126 ≤ gas - preCostB fork c10 cU - (callGasB fork gas c10 cU (callR substate state message r)).cost +
           ((callGasB fork gas c10 cU (callR substate state message r)).subCall - mirrorCost cM)) := by
-  have h := Exact.balanceOf_dep_ok_iff_gas (Nat.le_trans (by decide) hparis) hsize' hsel hdep hcode
+  have h := Exact.balanceOf_dep_ok_iff_fails (Nat.le_trans (by decide) hparis) hsize' hsel hdep hcode
     hroute hc10 hcU start within (by rw [size_MIRROR]; decide) hg
-    (hans_gas_process_mirror hparis hroute hnp _ _) (noFailOn_process_mirror hparis hroute hnp)
+    (hans_gas_process_mirror hparis hroute hnp _ _) (fun _ _ _ e h hs hcl =>
+      absurd h (noFailOn_process_mirror hparis hroute hnp _ _ _ e ⟨hs, hcl⟩))
   obtain rfl := route_mirror hroute
   exact hcM ▸ h
 
 /-- **Deprecated destroyBlackFunds under `processRunner` with `MIRROR`, every gas from `hg` on
 (round 31).** From Paris, with the upgraded address holding `MIRROR` (no precompile), `hmirror`
 (the slot `MIRROR` reads holds in `state` the word of USDT's `balances[a]`), and the hypotheses of
-`Exact.destroyBlackFunds_dep_ok_iff_gas`: the run succeeds iff `DestroyDepGuard` holds, the gas
+`Exact.destroyBlackFunds_dep_ok_iff_fails`: the run succeeds iff `DestroyDepGuard` holds, the gas
 the CALL gives covers `mirrorCost` (coldness in the substate at the CALL), the state at the CALL
 has an account of the contract, and the gas left after the CALL plus what `MIRROR` returns covers
 the cost and the stipend bound of the tail, computed over the state at the CALL with the slot
@@ -271,9 +272,10 @@ theorem destroyBlackFunds_dep_ok_iff_gas_process_mirror (hparis : .paris ≤ for
             ((callGasD fork gas c0 cL c10 cU (callRD substate state message r)).subCall -
               mirrorCost (coldIn (atCallSub (callSubD substate state message)
                 (upAddr state message) r) (upAddr state message) (balSlot message)))) := by
-  have h := Exact.destroyBlackFunds_dep_ok_iff_gas (Nat.le_trans (by decide) hparis) hsize' hsel
+  have h := Exact.destroyBlackFunds_dep_ok_iff_fails (Nat.le_trans (by decide) hparis) hsize' hsel
     hdep hcode hroute hc0 hcL hc10 hcU start within (by rw [size_MIRROR]; decide) hg
-    (hans_destroy_gas_process_mirror hparis hroute hnp _) (noFailOn_process_mirror hparis hroute hnp)
+    (hans_destroy_gas_process_mirror hparis hroute hnp _) (fun _ _ _ e h hs hcl =>
+      absurd h (noFailOn_process_mirror hparis hroute hnp _ _ _ e ⟨hs, hcl⟩))
   obtain rfl := route_mirror hroute
   have hw : storageAt (atCallState (callStateD state message) (upAddr state message) none
       message.currentTarget) (upAddr state message) (balSlot message) =

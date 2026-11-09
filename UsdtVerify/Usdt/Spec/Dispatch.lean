@@ -104,20 +104,6 @@ theorem spec (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; omega, hs, hss⟩
 
-/-- The loop of the interpreter runs a call with a nonzero value to the revert, for every bound on
-the gas of messages and every runner of messages. -/
-theorem runFrame_spec (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
-    (hsize' : message.data.size < 2 ^ 256) (i : Fin 32)
-    (hsel : selector message.data = ENTRIES[i].1.toNat) (hv : message.value ≠ 0) {gas : Nat}
-    (hg : 87 + 22 * (i.val + 1) ≤ gas) {bound : Nat}
-    {runChild : MessageRunner fork Nat bound} {evm : Evm fork Nat}
-    (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
-      .ok stopped ∧
-      Halted true .empty (gas - (87 + 22 * (i.val + 1))) state substate stopped :=
-  (spec hfork hsize hsize' i hsel hv hg).runFrame start within
-
 end UsdtVerify.Nonpayable
 
 end
@@ -218,28 +204,6 @@ theorem spec_short (hfork : .berlin ≤ fork) (hsize : message.data.size < 4)
   refine (revert406 hfork (by simp) (by gas_ok)).consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
-
-/-- `spec_unknown` for the interpreter loop. -/
-theorem runFrame_unknown (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
-    (hsize' : message.data.size < 2 ^ 256)
-    (hunk : BitVec.ofNat 256 (selector message.data) ∉ ENTRIES.map Prod.fst)
-    {gas : Nat} (hg : 773 ≤ gas)
-    {bound : Nat} {runChild : MessageRunner fork Nat bound} {evm : Evm fork Nat}
-    (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
-      .ok stopped ∧ (Halted true .empty (gas - 773) state substate) stopped :=
-  (spec_unknown hfork hsize hsize' hunk hg).runFrame start within
-
-/-- `spec_short` for the interpreter loop. -/
-theorem runFrame_short (hfork : .berlin ≤ fork) (hsize : message.data.size < 4)
-    {gas : Nat} (hg : 46 ≤ gas)
-    {bound : Nat} {runChild : MessageRunner fork Nat bound} {evm : Evm fork Nat}
-    (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
-      .ok stopped ∧ (Halted true .empty (gas - 46) state substate) stopped :=
-  (spec_short hfork hsize hg).runFrame start within
 
 end UsdtVerify.Fallback
 

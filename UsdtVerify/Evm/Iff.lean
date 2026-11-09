@@ -31,25 +31,15 @@ ending with no error (`RunsOk`), for a path that halts and for a path that forwa
 - `of_runsOk` (round 26): a run that ends with no error meets such a condition `G`.
 - `iff_max` (round 26): the form of an exact gas threshold `max cost stip`, from `RunsOk ↔ G`
   above both bounds, failure below `cost`, failure from `cost` to below `stip`, and `RunsOk → G`.
-- `NoFail`: the message runner returns a frame for every message (it never fails).
-- `AnsIff M ua c r d A`: the callee assumption that a message forwarded along the route `r`
-  (`SendsVia M ua c r d`) ends with no error exactly when `A` holds.
-- `runsOk_of_specUnder`: a specification under a callee assumption to frames with no error,
-  from a frame where its precondition holds, under a runner that meets the assumption and never
-  fails, gives `RunsOk`.
-- `fwd_ok_iff_fails` (round 26): for a path that forwards one message, under a runner that may
+- `NoFailOn`: the message runner returns a frame for every caller frame and message of a set.
+- `fwd_ok_or_fails` (round 31): for a path that forwards one message, under a runner that may
   fail with any error, from a specification that ends only at a failure of the runner on a
-  forwarded message (`SpecOn`): `RunsOk` holds exactly when `G` and `A` hold, if the runner
-  ends each forwarded message in a frame meeting `Q` (a condition on the caller's frame and the
-  ended frame) exactly when `A` holds, and a failure of the runner on a forwarded message excludes
-  `A`. Under `NoFail` the last condition holds, which gives the form for a runner that never fails.
-  Round 30: the runner assumption is asked only of the messages of `S` that meet a condition
-  `Cl` on the caller frame and the message (the exact theorems take `CallFrom`: the gas the CALL
-  gives, and the state and substate of the caller frame at the CALL).
-- `fwd_ok_or_fails` (round 31, replacing the round-26 form under `AnsIff`): the hypotheses of
-  `fwd_ok_iff_fails` without `hfail`, for a runner that may fail with any error: success gives `G`
-  and `A`; `G` and `A` give success or a failure of the runner on a message of `S`.
-  `fwd_ok_iff_fails` is derived from it.
+  forwarded message (`SpecOn`): if the runner ends each forwarded message in a frame meeting `Q`
+  (a condition on the caller's frame and the ended frame) exactly when `A` holds, success gives
+  `G` and `A`, and `G` and `A` give success or a failure of the runner on a message of `S`. The
+  runner assumption is asked only of the messages of `S` that meet a condition `Cl` on the caller
+  frame and the message (the exact theorems take `CallFrom`: the gas the CALL gives, and the
+  state and substate of the caller frame at the CALL).
 - `routes_unique`: a code has at most one route in a state.
 -/
 
@@ -163,31 +153,17 @@ theorem iff_max {R G : Prop} {cost stip gas : Nat}
 
 open UsdtVerify.Complete (SendsVia)
 
-/-- The runner returns a frame for every message. -/
-def NoFail (runChild : MessageRunner fork Nat bound) : Prop :=
-  ∀ caller msg lt e, runChild caller msg lt ≠ .error e
-
 /-- The runner returns a frame for every caller frame and message that satisfy `S` (round 29,
-docs/AUDIT.md finding 3: `NoFail` asks it of every message, which EthLib's `processRunner` does
-not meet; the exact theorems ask it only of the messages their path sends; round 31, second audit
+docs/AUDIT.md finding 3: a runner that fails on no message at all, which EthLib's `processRunner`
+does not meet, is not asked for; the exact theorems ask it only of the messages their path sends; round 31, second audit
 M1: `S` also reads the caller frame, so they ask it only from the caller frame at the CALL). -/
 def NoFailOn (runChild : MessageRunner fork Nat bound) (S : Evm fork Nat → Message fork → Prop) :
     Prop :=
   ∀ caller msg lt e, S caller msg → runChild caller msg lt ≠ .error e
 
-theorem NoFail.on {S : Evm fork Nat → Message fork → Prop} (h : NoFail runChild) :
-    NoFailOn runChild S :=
-  fun caller msg lt e _ => h caller msg lt e
-
-/-- The callee assumption: a message forwarded from `M` to `ua` along the route `r` with data `d`
-ends with no error exactly when `A` holds. -/
-def AnsIff (M : Message fork) (ua : EthLib.Base.Address) (c : ByteArray) (r : Route)
-    (d : ByteArray) (A : Prop) : Evm fork Nat → Message fork → Evm fork Nat → Prop :=
-  fun _ msg child => SendsVia M ua c r d msg → (child.error = none ↔ A)
-
-/-- A path that forwards one message, under a runner that may fail with any error (round 31): with
-the hypotheses of `fwd_ok_iff_fails` but no `hfail`, a run that ends with no error meets `G` and
-`A`, and when `G` and `A` hold, the run ends with no error or the runner fails on a message of
+/-- A path that forwards one message, under a runner that may fail with any error (round 31): if
+the runner ends each forwarded message meeting `Q` exactly when `A` holds, a run that ends with
+no error meets `G` and `A`, and when `G` and `A` hold, the run ends with no error or the runner fails on a message of
 `S` sent from a caller frame meeting `Cl`. -/
 theorem fwd_ok_or_fails {G A : Prop} {Q : Evm fork Nat → Evm fork Nat → Prop}
     {S : Message fork → Prop} {Cl : Evm fork Nat → Message fork → Prop}
@@ -217,33 +193,6 @@ theorem fwd_ok_or_fails {G A : Prop} {Q : Evm fork Nat → Evm fork Nat → Prop
       rw [runFrame_eq_of_reaches StepBy.gasHeld_le StepBy.runFrame_eq hreach within,
         runFrame_of_running_eq_false halted]
     · exact .inr ⟨caller, msg, lt, e, failed, hS, hC⟩
-
-/-- A path that forwards one message, under a runner that may fail with any error: `RunsOk` holds
-exactly when `G` and `A` hold, if `G` gives a specification to frames with no error that holds
-under every runner whose frames for messages of `S` sent from a caller frame meeting `Cl` meet `Q`
-(`Q` of the caller's frame and the ended frame) and that ends otherwise only at a failure of the
-runner on a message of `S` sent from a caller frame meeting `Cl` (`SpecOn`); every run that ends with no error meets `G` and had a
-message of `S`, sent from a caller frame meeting `Cl`, end in a frame meeting `Q`; the runner ends
-each message of `S` sent from a caller frame meeting `Cl` in a frame meeting `Q` exactly when `A`
-holds (`hans`); and a failure of the runner on a message of `S` from a caller frame meeting `Cl`
-excludes `A` (`hfail`). -/
-theorem fwd_ok_iff_fails {G A : Prop} {Q : Evm fork Nat → Evm fork Nat → Prop}
-    {S : Message fork → Prop} {Cl : Evm fork Nat → Message fork → Prop}
-    {P : Evm fork Nat → Prop}
-    (hspec : G → SpecOn fork (fun caller msg child => S msg → Cl caller msg → Q caller child)
-      (fun caller msg => S msg ∧ Cl caller msg) P (fun e => e.error = none))
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hcomp : ∀ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within =
-      .ok s → s.error = none → G ∧ ∃ caller msg lt child, runChild caller msg lt = .ok child ∧
-        Q caller child.1 ∧ S msg ∧ Cl caller msg)
-    (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child → S msg → Cl caller msg →
-      (Q caller child.1 ↔ A))
-    (hfail : ∀ caller msg lt e, runChild caller msg lt = .error e → S msg → Cl caller msg → ¬ A)
-    (hp : P evm) :
-    RunsOk bound runChild evm within ↔ G ∧ A := by
-  have h := fwd_ok_or_fails hspec within hcomp hans hp
-  exact ⟨h.1, fun hGA => (h.2 hGA).resolve_right
-    fun ⟨caller, msg, lt, e, failed, hS, hC⟩ => hfail caller msg lt e failed hS hC hGA.2⟩
 
 /-- A code has at most one route in a state. -/
 theorem routes_unique {st : State.TransactionState} {c : ByteArray} {r r' : Route}

@@ -13,51 +13,26 @@ of the function, byte 20 of slot 10 not 0 (`hdep`), the code `c` of the upgraded
 in the state (`hcode`; `c.size < 2^256`, `hszl`, for the theorems that give success), the route
 `r` of the CALL (`hroute`), any gas bound and any message runner `runChild`.
 
-- `*_dep_ok_iff`: with the gas of the success path up to the CALL and after it (`hg`, `htail`),
-  and a runner that fails on none of the messages the path sends (`NoFailOn`) and ends each
-  message forwarded along the route with
-  no error exactly when `A` holds (`hans`), the run ends with no error if and only if the checks
-  before the forward hold (`ForwardOk`, or `TransferDepGuard`, `ApproveDepGuard`,
-  `TransferFromDepGuard`) and `A` holds. For the six forwards other than destroyBlackFunds it is
-  derived from `*_dep_ok_iff_fails` (with `htail`, enough gas is left after the CALL).
+- `*_dep_ok_or_fails` (round 31, the seven paths): with the gas of the path up to the CALL (`hg`)
+  and `hans` saying that a forwarded message ends with no error and with enough gas left for the
+  code after the CALL exactly when `A` holds, for a runner that may fail with any error: success
+  gives the checks before the forward (`ForwardOk`, or `TransferDepGuard`, `ApproveDepGuard`,
+  `TransferFromDepGuard`, `DestroyDepGuard`) and `A`, and the checks and `A` give success or a
+  failure of the runner on a message the path sends (`SendsVia`).
+- `*_dep_ok_iff_fails` (the seven paths): with `hg`, the same `hans`, and `hfail` (a failure of the
+  runner on a message the path sends excludes `A`), the run ends with no error if and only if the
+  checks and `A` hold. A runner that fails on none of those messages (`NoFailOn`) meets `hfail`.
+  For the six forwards other than destroyBlackFunds, the gas after the CALL must cover the code
+  after it (121, 126, 128, 51, 53, 53). For destroyBlackFunds, whose code after the CALL writes
+  `balances[a]` and slot 1, `A` includes the larger of the tail's cost (`tailCost`) and its
+  stipend bound (`tailStip`: more than 2300 gas left at the second SSTORE), both over the state and
+  substate after the call.
 - `*_dep_low`: with less gas than the path up to the CALL and the CALL's access (`hg`), no run
-  ends with no error, whatever the runner.
-- `*_dep_ok_iff_gas` (round 26, the six forwards other than destroyBlackFunds): with `hg` only
-  (no `htail`), `NoFailOn`, and `hans` saying that a forwarded message ends with
-  no error and with enough gas left (the gas the CALL keeps plus the gas left in the ended frame
-  at least the gas of the code after the CALL: 121, 126, 128, 51, 53, 53) exactly when `A` holds,
-  the run ends with no error if and only if the checks and `A` hold. Together with `*_dep_low`
-  this covers every gas.
-- `*_dep_ok_or_fails` (round 31, the seven paths; they replace the round-26 forms of the six
-  forwards other than destroyBlackFunds, which took `htail`, a `hans` over every gas and errors
-  that abort): the hypotheses of `*_dep_ok_iff_fails` without `hfail`, for a runner that may fail
-  with any error. Success gives the checks and `A`; the checks and `A` give success or a failure
-  of the runner on a message the path sends (`SendsVia`).
-- `destroyBlackFunds_dep_ok_iff_gas` (round 26): the same with `hg` only, for destroyBlackFunds,
-  whose code after the CALL writes `balances[a]` and slot 1: `hans` makes `A` equivalent to the
-  forwarded message ending with no error, in a state with an account of the contract, and with
-  enough gas left for the code after the CALL, the larger of its cost (`tailCost`) and its
-  stipend bound (`tailStip`: more than 2300 gas left at the second SSTORE). Both are computed over
-  the state and substate after the call: the coldness and the original and current words of
-  `balances[a]` and slot 1 there. With `destroyBlackFunds_dep_low` this covers every gas, under a
-  runner that fails on none of the messages the path sends (`NoFailOn`).
-- `*_dep_ok_iff_fails` (round 26, the seven paths): `*_dep_ok_iff_gas` for a runner that may fail
-  with any error, in place of `NoFail`: with `hg` only and the same `hans`, and `hfail` (a failure
-  of the runner on a message forwarded along the route excludes `A`), the run ends with no error if
-  and only if the checks and `A` hold. The `*_dep_ok_iff_gas` theorems are derived from them
-  (under `NoFail`, `hfail` holds). Since round 31 they are derived from `*_dep_ok_or_fails`.
-- Round 30 (docs/AUDIT.md, finding 3): in `*_dep_ok_iff`, `*_dep_ok_iff_gas` and
-  `*_dep_ok_iff_fails` (the seven paths), `hans` is asked only of the message the CALL sends
-  (`SendsVia`) with the gas it gives (`callGas…`), from the caller frame at the CALL, whose
-  state and substate are given (`CallFrom`, `atCallState`, `atCallSub`). Before, it was asked of
-  every gas, so no runner whose outcome depends on the gas (EthLib's `processRunner` with any
-  code that can run out of gas) could meet the `_gas` and `_fails` forms. Now `A` can be a
-  condition on that gas. `destroyBlackFunds_dep_ok_iff` is derived from
-  `destroyBlackFunds_dep_ok_iff_fails` (`tail_le_max`) and takes `NoFailOn`. Round 31: the
-  `*_dep_ok_or_fails` take the same `hans` (see above).
-- Round 31 (docs/AUDIT.md, second audit, M1): `NoFailOn`, `hfail` and the failure in
-  `*_dep_ok_or_fails` are also asked only of the message the CALL sends from the caller frame at
-  the CALL, with its gas (`CallFrom`).
+  ends with no error, whatever the runner. With `*_dep_ok_iff_fails` this covers every gas.
+- `hans`, `hfail` and the failure in `*_dep_ok_or_fails` are asked only of the message the CALL
+  sends (`SendsVia`) with the gas it gives (`callGas…`), from the caller frame at the CALL, whose
+  state and substate are given (`CallFrom`, `atCallState`, `atCallSub`) (docs/AUDIT.md, finding 3
+  and second audit M1), so `A` can be a condition on that gas.
   Sanity/ProcessExact.lean instantiates the seven paths with `processRunner` and STOP.
 - destroyBlackFunds: `A` is the answer "the forwarded message ends with no error and the contract
   has an account in its end state", and the checks are `DestroyDepGuard`.
@@ -138,7 +113,7 @@ theorem totalSupply_dep_ok_or_fails (hszl : c.size < 2 ^ 256)
   subst hc10 hcU
   exact ⟨⟨⟨h4, hv⟩, size_pos_of hw, hdepth⟩, caller, msg, lt, child, hch, ⟨he, hgas⟩, hfwd, hmg, hcs, hcss⟩
 
-/-- `totalSupply_dep_ok_iff_gas` for a runner that may fail, with any error (round 26): with `hg` only, the
+/-- `totalSupply` when deprecated, for a runner that may fail, with any error (round 26): with `hg` only, the
 run succeeds exactly when the checks hold and `A` holds, where `A` is equivalent (`hans`) to the
 forwarded call ending with no error and enough gas left for the code after the CALL, and a failure
 of the runner on a forwarded message excludes `A` (`hfail`). -/
@@ -159,50 +134,6 @@ theorem totalSupply_dep_ok_iff_fails (hszl : c.size < 2 ^ 256)
   have h := totalSupply_dep_ok_or_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg hans
   exact ⟨h.1, fun hGA => (h.2 hGA).resolve_right
     fun ⟨_, _, _, e, failed, hs, hcl⟩ => hfail _ _ _ e failed hs hcl hGA.2⟩
-
-/-- `totalSupply()` when deprecated succeeds exactly when `ForwardOk` holds and the forwarded
-call ends with no error (`A`, by `hans`). -/
-theorem totalSupply_dep_ok_iff (hszl : c.size < 2 ^ 256)
-    (hg : preCost fork c10 cU + 100 + callR substate state message r ≤ gas)
-    (htail : 121 ≤ gas - preCost fork c10 cU -
-      (callGas fork gas c10 cU (callR substate state message r)).cost)
-    {A : Prop}
-    (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child →
-      SendsVia message (upAddr state message) c r SEL_TS msg →
-      CallFrom (callGas fork gas c10 cU (callR substate state message r)).subCall
-        (atCallState (callState state message) (upAddr state message) r message.currentTarget)
-        (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
-        (child.1.error = none ↔ A))
-    (hnf : NoFailOn runChild (fun caller msg =>
-      SendsVia message (upAddr state message) c r SEL_TS msg ∧
-      CallFrom (callGas fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk bound runChild evm within ↔ ForwardOk message c ∧ A :=
-  totalSupply_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg
-    (fun caller msg lt child hch hfwd hcl =>
-      ⟨fun h => (hans caller msg lt child hch hfwd hcl).1 h.1,
-      fun hA => ⟨(hans caller msg lt child hch hfwd hcl).2 hA, Nat.le_trans htail (Nat.le_add_right _ _)⟩⟩)
-    fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
-
-/-- `totalSupply()` when deprecated, with the gas of the path up to the CALL (`hg`) and no bound
-on the gas after it: the run succeeds exactly when `ForwardOk` holds and `A` holds, where `A` is
-equivalent (`hans`) to the forwarded call ending with no error and leaving, with the gas the CALL
-keeps, at least 121 gas for the code after the CALL. -/
-theorem totalSupply_dep_ok_iff_gas (hszl : c.size < 2 ^ 256)
-    (hg : preCost fork c10 cU + 100 + callR substate state message r ≤ gas)
-    {A : Prop}
-    (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child →
-      SendsVia message (upAddr state message) c r SEL_TS msg →
-      CallFrom (callGas fork gas c10 cU (callR substate state message r)).subCall
-        (atCallState (callState state message) (upAddr state message) r message.currentTarget)
-        (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
-      (child.1.error = none ∧ 121 ≤ gas - preCost fork c10 cU -
-        (callGas fork gas c10 cU (callR substate state message r)).cost + child.1.gas ↔ A))
-    (hnf : NoFailOn runChild (fun caller msg =>
-      SendsVia message (upAddr state message) c r SEL_TS msg ∧
-      CallFrom (callGas fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk bound runChild evm within ↔ ForwardOk message c ∧ A :=
-  totalSupply_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg hans
-    fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
 
 theorem totalSupply_dep_low
     (hg : gas < preCost fork c10 cU + 100 + callR substate state message r) :
@@ -271,7 +202,7 @@ theorem balanceOf_dep_ok_or_fails (hszl : c.size < 2 ^ 256)
   subst hc10 hcU
   exact ⟨⟨⟨h4, hv⟩, size_pos_of hw, hdepth⟩, caller, msg, lt, child, hch, ⟨he, hgas⟩, hfwd, hmg, hcs, hcss⟩
 
-/-- `balanceOf_dep_ok_iff_gas` for a runner that may fail, with any error (round 26): with `hg` only, the
+/-- `balanceOf` when deprecated, for a runner that may fail, with any error (round 26): with `hg` only, the
 run succeeds exactly when the checks hold and `A` holds, where `A` is equivalent (`hans`) to the
 forwarded call ending with no error and enough gas left for the code after the CALL, and a failure
 of the runner on a forwarded message excludes `A` (`hfail`). -/
@@ -292,50 +223,6 @@ theorem balanceOf_dep_ok_iff_fails (hszl : c.size < 2 ^ 256)
   have h := balanceOf_dep_ok_or_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg hans
   exact ⟨h.1, fun hGA => (h.2 hGA).resolve_right
     fun ⟨_, _, _, e, failed, hs, hcl⟩ => hfail _ _ _ e failed hs hcl hGA.2⟩
-
-/-- `balanceOf(a)` when deprecated succeeds exactly when `ForwardOk` holds and the forwarded
-call ends with no error (`A`, by `hans`). -/
-theorem balanceOf_dep_ok_iff (hszl : c.size < 2 ^ 256)
-    (hg : preCostB fork c10 cU + 100 + callR substate state message r ≤ gas)
-    (htail : 126 ≤ gas - preCostB fork c10 cU -
-      (callGasB fork gas c10 cU (callR substate state message r)).cost)
-    {A : Prop}
-    (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child →
-      SendsVia message (upAddr state message) c r (dataB message) msg →
-      CallFrom (callGasB fork gas c10 cU (callR substate state message r)).subCall
-        (atCallState (callState state message) (upAddr state message) r message.currentTarget)
-        (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
-        (child.1.error = none ↔ A))
-    (hnf : NoFailOn runChild (fun caller msg =>
-      SendsVia message (upAddr state message) c r (dataB message) msg ∧
-      CallFrom (callGasB fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk bound runChild evm within ↔ ForwardOk message c ∧ A :=
-  balanceOf_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg
-    (fun caller msg lt child hch hfwd hcl =>
-      ⟨fun h => (hans caller msg lt child hch hfwd hcl).1 h.1,
-      fun hA => ⟨(hans caller msg lt child hch hfwd hcl).2 hA, Nat.le_trans htail (Nat.le_add_right _ _)⟩⟩)
-    fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
-
-/-- `balanceOf(a)` when deprecated, with the gas of the path up to the CALL (`hg`) and no bound on
-the gas after it: the run succeeds exactly when `ForwardOk` holds and `A` holds, where `A` is
-equivalent (`hans`) to the forwarded call ending with no error and leaving, with the gas the CALL
-keeps, at least 126 gas for the code after the CALL. -/
-theorem balanceOf_dep_ok_iff_gas (hszl : c.size < 2 ^ 256)
-    (hg : preCostB fork c10 cU + 100 + callR substate state message r ≤ gas)
-    {A : Prop}
-    (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child →
-      SendsVia message (upAddr state message) c r (dataB message) msg →
-      CallFrom (callGasB fork gas c10 cU (callR substate state message r)).subCall
-        (atCallState (callState state message) (upAddr state message) r message.currentTarget)
-        (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
-        (child.1.error = none ∧ 126 ≤ gas - preCostB fork c10 cU -
-      (callGasB fork gas c10 cU (callR substate state message r)).cost + child.1.gas ↔ A))
-    (hnf : NoFailOn runChild (fun caller msg =>
-      SendsVia message (upAddr state message) c r (dataB message) msg ∧
-      CallFrom (callGasB fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk bound runChild evm within ↔ ForwardOk message c ∧ A :=
-  balanceOf_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg hans
-    fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
 
 theorem balanceOf_dep_low
     (hg : gas < preCostB fork c10 cU + 100 + callR substate state message r) :
@@ -403,7 +290,7 @@ theorem allowance_dep_ok_or_fails (hszl : c.size < 2 ^ 256)
   obtain rfl := routes_unique hroute' hroute
   exact ⟨⟨⟨h4, hv⟩, size_pos_of hw, hdepth⟩, caller, msg, lt, child, hch, ⟨he, hgas⟩, hfwd, hmg, hcs, hcss⟩
 
-/-- `allowance_dep_ok_iff_gas` for a runner that may fail, with any error (round 26): with `hg` only, the
+/-- `allowance` when deprecated, for a runner that may fail, with any error (round 26): with `hg` only, the
 run succeeds exactly when the checks hold and `A` holds, where `A` is equivalent (`hans`) to the
 forwarded call ending with no error and enough gas left for the code after the CALL, and a failure
 of the runner on a forwarded message excludes `A` (`hfail`). -/
@@ -424,50 +311,6 @@ theorem allowance_dep_ok_iff_fails (hszl : c.size < 2 ^ 256)
   have h := allowance_dep_ok_or_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg hans
   exact ⟨h.1, fun hGA => (h.2 hGA).resolve_right
     fun ⟨_, _, _, e, failed, hs, hcl⟩ => hfail _ _ _ e failed hs hcl hGA.2⟩
-
-/-- `allowance(o, s)` when deprecated succeeds exactly when `ForwardOk` holds and the forwarded
-call ends with no error (`A`, by `hans`). -/
-theorem allowance_dep_ok_iff (hszl : c.size < 2 ^ 256)
-    (hg : preCostAl fork c10 cU + 100 + callR substate state message r ≤ gas)
-    (htail : 128 ≤ gas - preCostAl fork c10 cU -
-      (callGasAl fork gas c10 cU (callR substate state message r)).cost)
-    {A : Prop}
-    (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child →
-      SendsVia message (upAddr state message) c r (dataAl message) msg →
-      CallFrom (callGasAl fork gas c10 cU (callR substate state message r)).subCall
-        (atCallState (callState state message) (upAddr state message) r message.currentTarget)
-        (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
-        (child.1.error = none ↔ A))
-    (hnf : NoFailOn runChild (fun caller msg =>
-      SendsVia message (upAddr state message) c r (dataAl message) msg ∧
-      CallFrom (callGasAl fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk bound runChild evm within ↔ ForwardOk message c ∧ A :=
-  allowance_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg
-    (fun caller msg lt child hch hfwd hcl =>
-      ⟨fun h => (hans caller msg lt child hch hfwd hcl).1 h.1,
-      fun hA => ⟨(hans caller msg lt child hch hfwd hcl).2 hA, Nat.le_trans htail (Nat.le_add_right _ _)⟩⟩)
-    fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
-
-/-- `allowance(o, s)` when deprecated, with the gas of the path up to the CALL (`hg`) and no bound on
-the gas after it: the run succeeds exactly when `ForwardOk` holds and `A` holds, where `A` is
-equivalent (`hans`) to the forwarded call ending with no error and leaving, with the gas the CALL
-keeps, at least 128 gas for the code after the CALL. -/
-theorem allowance_dep_ok_iff_gas (hszl : c.size < 2 ^ 256)
-    (hg : preCostAl fork c10 cU + 100 + callR substate state message r ≤ gas)
-    {A : Prop}
-    (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child →
-      SendsVia message (upAddr state message) c r (dataAl message) msg →
-      CallFrom (callGasAl fork gas c10 cU (callR substate state message r)).subCall
-        (atCallState (callState state message) (upAddr state message) r message.currentTarget)
-        (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
-        (child.1.error = none ∧ 128 ≤ gas - preCostAl fork c10 cU -
-      (callGasAl fork gas c10 cU (callR substate state message r)).cost + child.1.gas ↔ A))
-    (hnf : NoFailOn runChild (fun caller msg =>
-      SendsVia message (upAddr state message) c r (dataAl message) msg ∧
-      CallFrom (callGasAl fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk bound runChild evm within ↔ ForwardOk message c ∧ A :=
-  allowance_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg hans
-    fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
 
 theorem allowance_dep_low
     (hg : gas < preCostAl fork c10 cU + 100 + callR substate state message r) :
@@ -538,7 +381,7 @@ theorem transfer_dep_ok_or_fails (hszl : c.size < 2 ^ 256)
   obtain rfl := routes_unique hroute' hroute
   exact ⟨⟨⟨⟨h4, hv⟩, size_pos_of hw, hdepth⟩, hp, hb⟩, caller, msg, lt, child, hch, ⟨he, hgas⟩, hfwd, hmg, hcs, hcss⟩
 
-/-- `transfer_dep_ok_iff_gas` for a runner that may fail, with any error (round 26): with `hg` only, the
+/-- `transfer` when deprecated, for a runner that may fail, with any error (round 26): with `hg` only, the
 run succeeds exactly when the checks hold and `A` holds, where `A` is equivalent (`hans`) to the
 forwarded call ending with no error and enough gas left for the code after the CALL, and a failure
 of the runner on a forwarded message excludes `A` (`hfail`). -/
@@ -559,50 +402,6 @@ theorem transfer_dep_ok_iff_fails (hszl : c.size < 2 ^ 256)
   have h := transfer_dep_ok_or_fails hfork hsize' hsel hdep hcode hroute hc0 hcB hc10 hcU start within hszl hg hans
   exact ⟨h.1, fun hGA => (h.2 hGA).resolve_right
     fun ⟨_, _, _, e, failed, hs, hcl⟩ => hfail _ _ _ e failed hs hcl hGA.2⟩
-
-/-- `transfer(a, v)` when deprecated succeeds exactly when `TransferDepGuard` holds and the
-forwarded call ends with no error (`A`, by `hans`). -/
-theorem transfer_dep_ok_iff (hszl : c.size < 2 ^ 256)
-    (hg : preCostT fork c0 cB c10 cU + 100 + callRT substate state message r ≤ gas)
-    (htail : 51 ≤ gas - preCostT fork c0 cB c10 cU -
-      (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).cost)
-    {A : Prop}
-    (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child →
-      SendsVia message (upAddr state message) c r (dataT message) msg →
-      CallFrom (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).subCall
-        (atCallState (callStateT state message) (upAddr state message) r message.currentTarget)
-        (atCallSub (callSubT substate state message) (upAddr state message) r) caller msg →
-        (child.1.error = none ↔ A))
-    (hnf : NoFailOn runChild (fun caller msg =>
-      SendsVia message (upAddr state message) c r (dataT message) msg ∧
-      CallFrom (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).subCall (atCallState (callStateT state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubT substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk bound runChild evm within ↔ TransferDepGuard state message c ∧ A :=
-  transfer_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc0 hcB hc10 hcU start within hszl hg
-    (fun caller msg lt child hch hfwd hcl =>
-      ⟨fun h => (hans caller msg lt child hch hfwd hcl).1 h.1,
-      fun hA => ⟨(hans caller msg lt child hch hfwd hcl).2 hA, Nat.le_trans htail (Nat.le_add_right _ _)⟩⟩)
-    fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
-
-/-- `transfer(a, v)` when deprecated, with the gas of the path up to the CALL (`hg`) and no bound on
-the gas after it: the run succeeds exactly when `TransferDepGuard` holds and `A` holds, where `A` is
-equivalent (`hans`) to the forwarded call ending with no error and leaving, with the gas the CALL
-keeps, at least 51 gas for the code after the CALL. -/
-theorem transfer_dep_ok_iff_gas (hszl : c.size < 2 ^ 256)
-    (hg : preCostT fork c0 cB c10 cU + 100 + callRT substate state message r ≤ gas)
-    {A : Prop}
-    (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child →
-      SendsVia message (upAddr state message) c r (dataT message) msg →
-      CallFrom (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).subCall
-        (atCallState (callStateT state message) (upAddr state message) r message.currentTarget)
-        (atCallSub (callSubT substate state message) (upAddr state message) r) caller msg →
-        (child.1.error = none ∧ 51 ≤ gas - preCostT fork c0 cB c10 cU -
-      (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).cost + child.1.gas ↔ A))
-    (hnf : NoFailOn runChild (fun caller msg =>
-      SendsVia message (upAddr state message) c r (dataT message) msg ∧
-      CallFrom (callGasT fork gas c0 cB c10 cU (callRT substate state message r)).subCall (atCallState (callStateT state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubT substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk bound runChild evm within ↔ TransferDepGuard state message c ∧ A :=
-  transfer_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc0 hcB hc10 hcU start within hszl hg hans
-    fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
 
 theorem transfer_dep_low
     (hg : gas < preCostT fork c0 cB c10 cU + 100 + callRT substate state message r) :
@@ -669,7 +468,7 @@ theorem approve_dep_ok_or_fails (hszl : c.size < 2 ^ 256)
   obtain rfl := routes_unique hroute' hroute
   exact ⟨⟨⟨⟨h4, hv⟩, size_pos_of hw, hdepth⟩, hl⟩, caller, msg, lt, child, hch, ⟨he, hgas⟩, hfwd, hmg, hcs, hcss⟩
 
-/-- `approve_dep_ok_iff_gas` for a runner that may fail, with any error (round 26): with `hg` only, the
+/-- `approve` when deprecated, for a runner that may fail, with any error (round 26): with `hg` only, the
 run succeeds exactly when the checks hold and `A` holds, where `A` is equivalent (`hans`) to the
 forwarded call ending with no error and enough gas left for the code after the CALL, and a failure
 of the runner on a forwarded message excludes `A` (`hfail`). -/
@@ -690,50 +489,6 @@ theorem approve_dep_ok_iff_fails (hszl : c.size < 2 ^ 256)
   have h := approve_dep_ok_or_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg hans
   exact ⟨h.1, fun hGA => (h.2 hGA).resolve_right
     fun ⟨_, _, _, e, failed, hs, hcl⟩ => hfail _ _ _ e failed hs hcl hGA.2⟩
-
-/-- `approve(s, v)` when deprecated succeeds exactly when `ApproveDepGuard` holds and the
-forwarded call ends with no error (`A`, by `hans`). -/
-theorem approve_dep_ok_iff (hszl : c.size < 2 ^ 256)
-    (hg : preCostA fork c10 cU + 100 + callR substate state message r ≤ gas)
-    (htail : 53 ≤ gas - preCostA fork c10 cU -
-      (callGasA fork gas c10 cU (callR substate state message r)).cost)
-    {A : Prop}
-    (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child →
-      SendsVia message (upAddr state message) c r (dataA message) msg →
-      CallFrom (callGasA fork gas c10 cU (callR substate state message r)).subCall
-        (atCallState (callState state message) (upAddr state message) r message.currentTarget)
-        (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
-        (child.1.error = none ↔ A))
-    (hnf : NoFailOn runChild (fun caller msg =>
-      SendsVia message (upAddr state message) c r (dataA message) msg ∧
-      CallFrom (callGasA fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk bound runChild evm within ↔ ApproveDepGuard message c ∧ A :=
-  approve_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg
-    (fun caller msg lt child hch hfwd hcl =>
-      ⟨fun h => (hans caller msg lt child hch hfwd hcl).1 h.1,
-      fun hA => ⟨(hans caller msg lt child hch hfwd hcl).2 hA, Nat.le_trans htail (Nat.le_add_right _ _)⟩⟩)
-    fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
-
-/-- `approve(s, v)` when deprecated, with the gas of the path up to the CALL (`hg`) and no bound on
-the gas after it: the run succeeds exactly when `ApproveDepGuard` holds and `A` holds, where `A` is
-equivalent (`hans`) to the forwarded call ending with no error and leaving, with the gas the CALL
-keeps, at least 53 gas for the code after the CALL. -/
-theorem approve_dep_ok_iff_gas (hszl : c.size < 2 ^ 256)
-    (hg : preCostA fork c10 cU + 100 + callR substate state message r ≤ gas)
-    {A : Prop}
-    (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child →
-      SendsVia message (upAddr state message) c r (dataA message) msg →
-      CallFrom (callGasA fork gas c10 cU (callR substate state message r)).subCall
-        (atCallState (callState state message) (upAddr state message) r message.currentTarget)
-        (atCallSub (callSub substate state message) (upAddr state message) r) caller msg →
-        (child.1.error = none ∧ 53 ≤ gas - preCostA fork c10 cU -
-      (callGasA fork gas c10 cU (callR substate state message r)).cost + child.1.gas ↔ A))
-    (hnf : NoFailOn runChild (fun caller msg =>
-      SendsVia message (upAddr state message) c r (dataA message) msg ∧
-      CallFrom (callGasA fork gas c10 cU (callR substate state message r)).subCall (atCallState (callState state message) (upAddr state message) r message.currentTarget) (atCallSub (callSub substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk bound runChild evm within ↔ ApproveDepGuard message c ∧ A :=
-  approve_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc10 hcU start within hszl hg hans
-    fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
 
 theorem approve_dep_low
     (hg : gas < preCostA fork c10 cU + 100 + callR substate state message r) :
@@ -805,7 +560,7 @@ theorem transferFrom_dep_ok_or_fails (hszl : c.size < 2 ^ 256)
   obtain rfl := routes_unique hroute' hroute
   exact ⟨⟨⟨⟨h4, hv⟩, size_pos_of hw, hdepth⟩, hp, hb⟩, caller, msg, lt, child, hch, ⟨he, hgas⟩, hfwd, hmg, hcs, hcss⟩
 
-/-- `transferFrom_dep_ok_iff_gas` for a runner that may fail, with any error (round 26): with `hg` only, the
+/-- `transferFrom` when deprecated, for a runner that may fail, with any error (round 26): with `hg` only, the
 run succeeds exactly when the checks hold and `A` holds, where `A` is equivalent (`hans`) to the
 forwarded call ending with no error and enough gas left for the code after the CALL, and a failure
 of the runner on a forwarded message excludes `A` (`hfail`). -/
@@ -827,52 +582,6 @@ theorem transferFrom_dep_ok_iff_fails (hszl : c.size < 2 ^ 256)
   have h := transferFrom_dep_ok_or_fails hfork hsize' hsel hdep hcode hroute hc0 hcB hc10 hcU start within hszl hg hans
   exact ⟨h.1, fun hGA => (h.2 hGA).resolve_right
     fun ⟨_, _, _, e, failed, hs, hcl⟩ => hfail _ _ _ e failed hs hcl hGA.2⟩
-
-/-- `transferFrom(f, t, v)` when deprecated succeeds exactly when `TransferFromDepGuard` holds and
-the forwarded call ends with no error (`A`, by `hans`). -/
-theorem transferFrom_dep_ok_iff (hszl : c.size < 2 ^ 256)
-    (hg : DeprecatedTransferFrom.preCostF fork c0 cB c10 cU + 100 +
-      callRF substate state message r ≤ gas)
-    (htail : 53 ≤ gas - DeprecatedTransferFrom.preCostF fork c0 cB c10 cU -
-      (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost)
-    {A : Prop}
-    (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child →
-      SendsVia message (upAddr state message) c r (dataF message) msg →
-      CallFrom (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).subCall
-        (atCallState (callStateF state message) (upAddr state message) r message.currentTarget)
-        (atCallSub (callSubF substate state message) (upAddr state message) r) caller msg →
-        (child.1.error = none ↔ A))
-    (hnf : NoFailOn runChild (fun caller msg =>
-      SendsVia message (upAddr state message) c r (dataF message) msg ∧
-      CallFrom (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).subCall (atCallState (callStateF state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubF substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk bound runChild evm within ↔ TransferFromDepGuard state message c ∧ A :=
-  transferFrom_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc0 hcB hc10 hcU start within hszl hg
-    (fun caller msg lt child hch hfwd hcl =>
-      ⟨fun h => (hans caller msg lt child hch hfwd hcl).1 h.1,
-      fun hA => ⟨(hans caller msg lt child hch hfwd hcl).2 hA, Nat.le_trans htail (Nat.le_add_right _ _)⟩⟩)
-    fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
-
-/-- `transferFrom(f, t, v)` when deprecated, with the gas of the path up to the CALL (`hg`) and no bound on
-the gas after it: the run succeeds exactly when `TransferFromDepGuard` holds and `A` holds, where `A` is
-equivalent (`hans`) to the forwarded call ending with no error and leaving, with the gas the CALL
-keeps, at least 53 gas for the code after the CALL. -/
-theorem transferFrom_dep_ok_iff_gas (hszl : c.size < 2 ^ 256)
-    (hg : DeprecatedTransferFrom.preCostF fork c0 cB c10 cU + 100 +
-      callRF substate state message r ≤ gas)
-    {A : Prop}
-    (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child →
-      SendsVia message (upAddr state message) c r (dataF message) msg →
-      CallFrom (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).subCall
-        (atCallState (callStateF state message) (upAddr state message) r message.currentTarget)
-        (atCallSub (callSubF substate state message) (upAddr state message) r) caller msg →
-        (child.1.error = none ∧ 53 ≤ gas - DeprecatedTransferFrom.preCostF fork c0 cB c10 cU -
-      (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).cost + child.1.gas ↔ A))
-    (hnf : NoFailOn runChild (fun caller msg =>
-      SendsVia message (upAddr state message) c r (dataF message) msg ∧
-      CallFrom (callGasF fork gas c0 cB c10 cU (callRF substate state message r)).subCall (atCallState (callStateF state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubF substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk bound runChild evm within ↔ TransferFromDepGuard state message c ∧ A :=
-  transferFrom_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc0 hcB hc10 hcU start within hszl hg hans
-    fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
 
 theorem transferFrom_dep_low
     (hg : gas < DeprecatedTransferFrom.preCostF fork c0 cB c10 cU + 100 +
@@ -973,7 +682,7 @@ theorem destroyBlackFunds_dep_ok_or_fails (hszl : c.size < 2 ^ 256)
   exact ⟨⟨⟨⟨h4, hv⟩, size_pos_of hw, hdepth⟩, hown, hl, hst⟩, caller, msg, lt, child, hch,
     ⟨he, hacc, Nat.max_le.mpr ⟨hcost, hstip⟩⟩, hfwd, hmg, hcs, hcss⟩
 
-/-- `destroyBlackFunds_dep_ok_iff_gas` for a runner that may fail, with any error (round 26): with
+/-- `destroyBlackFunds` when deprecated, for a runner that may fail, with any error (round 26): with
 `hg` only, the run succeeds exactly when `DestroyDepGuard` holds and `A` holds, where `A` is
 equivalent (`hans`) to the forwarded `balanceOf(a)` ending with no error, an account of the
 contract and enough gas for the tail, and a failure of the runner on a forwarded message excludes
@@ -1010,74 +719,6 @@ theorem destroyBlackFunds_dep_ok_iff_fails (hszl : c.size < 2 ^ 256)
     within hszl hg hans
   exact ⟨h.1, fun hGA => (h.2 hGA).resolve_right
     fun ⟨_, _, _, e, failed, hs, hcl⟩ => hfail _ _ _ e failed hs hcl hGA.2⟩
-
-/-- `destroyBlackFunds(a)` when deprecated succeeds exactly when `DestroyDepGuard` holds and the
-forwarded `balanceOf(a)` ends with no error in a state where the contract has an account (`A`, by
-`hans`). Round 30: derived from `destroyBlackFunds_dep_ok_iff_fails` (with `htail`, the tail has
-its gas: `tail_le_max`), and the runner need not fail on no message at all (`NoFail`), only on
-none of the messages the path sends (`NoFailOn`). -/
-theorem destroyBlackFunds_dep_ok_iff (hszl : c.size < 2 ^ 256)
-    (hg : preCostD fork c0 cL c10 cU + 100 + callRD substate state message r ≤ gas)
-    (htail : TAIL_MAX fork ≤ gas - preCostD fork c0 cL c10 cU -
-      (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).cost)
-    {A : Prop}
-    (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child →
-      SendsVia message (upAddr state message) c r (dataB message) msg →
-      CallFrom (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).subCall
-        (atCallState (callStateD state message) (upAddr state message) r message.currentTarget)
-        (atCallSub (callSubD substate state message) (upAddr state message) r) caller msg →
-        (child.1.error = none ∧ hasAccount child.1.state message.currentTarget ↔ A))
-    (hnf : NoFailOn runChild (fun caller msg =>
-      SendsVia message (upAddr state message) c r (dataB message) msg ∧
-      CallFrom (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).subCall (atCallState (callStateD state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubD substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk bound runChild evm within ↔ DestroyDepGuard state message c ∧ A :=
-  destroyBlackFunds_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc0 hcL hc10 hcU start
-    within hszl hg
-    (fun caller msg lt child hch hfwd hcl =>
-      ⟨fun h => (hans caller msg lt child hch hfwd hcl).1 ⟨h.1, h.2.1⟩,
-        fun hA => ⟨((hans caller msg lt child hch hfwd hcl).2 hA).1,
-          ((hans caller msg lt child hch hfwd hcl).2 hA).2,
-          Nat.le_trans (tail_le_max hfork _ _ _ _ _ _)
-            (Nat.le_trans htail (Nat.le_add_right _ _))⟩⟩)
-    fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
-
-/-- `destroyBlackFunds(a)` when deprecated, with the gas of the path up to the CALL (`hg`) and no
-bound on the gas after it: the run succeeds exactly when `DestroyDepGuard` holds and `A` holds,
-where `A` is equivalent (`hans`) to the forwarded `balanceOf(a)` ending with no error, in a state
-where the contract has an account, and leaving, with the gas the CALL keeps, at least the larger
-of the cost of the tail (`tailCost`) and its stipend bound (`tailStip`), both computed over the
-state and substate after the call (`incorporateChild`): the coldness and the original and
-current words of `balances[a]` and slot 1 there. -/
-theorem destroyBlackFunds_dep_ok_iff_gas (hszl : c.size < 2 ^ 256)
-    (hg : preCostD fork c0 cL c10 cU + 100 + callRD substate state message r ≤ gas)
-    {A : Prop}
-    (hans : ∀ caller msg lt child, runChild caller msg lt = .ok child →
-      SendsVia message (upAddr state message) c r (dataB message) msg →
-      CallFrom (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).subCall
-        (atCallState (callStateD state message) (upAddr state message) r message.currentTarget)
-        (atCallSub (callSubD substate state message) (upAddr state message) r) caller msg →
-        (child.1.error = none ∧ hasAccount child.1.state message.currentTarget ∧
-          max (tailCost fork (incorporateChild fork caller child.1).state message.currentTarget
-              (addrArg message.data 0) (resWord (outMemOf (memD message) child.1.output))
-              (coldIn (incorporateChild fork caller child.1).substate message.currentTarget
-                (balSlot message))
-              (coldIn (accessSlot (incorporateChild fork caller child.1).substate
-                message.currentTarget (balSlot message)) message.currentTarget 1))
-            (tailStip fork (incorporateChild fork caller child.1).state message.currentTarget
-              (addrArg message.data 0)
-              (coldIn (incorporateChild fork caller child.1).substate message.currentTarget
-                (balSlot message))
-              (coldIn (accessSlot (incorporateChild fork caller child.1).substate
-                message.currentTarget (balSlot message)) message.currentTarget 1)) ≤
-            gas - preCostD fork c0 cL c10 cU -
-              (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).cost +
-              child.1.gas ↔ A))
-    (hnf : NoFailOn runChild (fun caller msg =>
-      SendsVia message (upAddr state message) c r (dataB message) msg ∧
-      CallFrom (callGasD fork gas c0 cL c10 cU (callRD substate state message r)).subCall (atCallState (callStateD state message) (upAddr state message) r message.currentTarget) (atCallSub (callSubD substate state message) (upAddr state message) r) caller msg)) :
-    RunsOk bound runChild evm within ↔ DestroyDepGuard state message c ∧ A :=
-  destroyBlackFunds_dep_ok_iff_fails hfork hsize' hsel hdep hcode hroute hc0 hcL hc10 hcU start
-    within hszl hg hans fun _ _ _ e h hs hcl => absurd h (hnf _ _ _ e ⟨hs, hcl⟩)
 
 theorem destroyBlackFunds_dep_low
     (hg : gas < preCostD fork c0 cL c10 cU + 100 + callRD substate state message r) :

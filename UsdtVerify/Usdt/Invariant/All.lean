@@ -26,30 +26,26 @@ theorems `dep_*_complete`:
 The callee may call back into `C` (reentrancy), so what the child's state holds is an assumption
 on the runner. Named assumptions:
 
-- `KeepsInv runChild C ua`: whenever the runner ends a message from `C` to `ua` with no error,
-  from a caller state where `Inv C` holds, `Inv C` holds in the child's end state.
-  It asks nothing about the account of `C`.
-  It says nothing about what the callee does in between (it covers any reentrant calls into `C`).
-- `HonestBalance runChild message state`: whenever the runner ends a message from `C` to `ua` with
-  the data `balanceOf(a)` (`dataB message`) with no error, the word the call writes at 0x60 is
+- `KeepsInvAt runChild message state`: whenever the runner ends with no error one of the calls
+  that the code of `C` makes from `state` to `ua` (EthLib's `SentVia`), from a caller state where
+  `Inv C` holds, `Inv C` holds in the child's end state. It asks nothing about the account of `C`
+  in the child's end state, and says nothing about what the callee does in between (it covers any
+  reentrant calls into `C`).
+- `HonestBalanceAt runChild message state`: whenever the runner ends such a call with the data
+  `balanceOf(a)` (`dataB message`) with no error, the word the call writes at 0x60 is
   `balances[a]` in the child's end state.
 
-Through round 19 the callee assumption was `KeepsInvAcc` (now so named): only from a caller state
-where `C` has an account, and it also kept the account; `inv_call_ns` then took an account of `C`
-when deprecated (`hacc`).
-Since round 20 it takes `KeepsInv` and no account.
-`keepsInv_of_acc`: `KeepsInvAcc` and the case with no account (`KeepsInvNoAcc`) give `KeepsInv`.
 A missing account of `C` does not make a step of the forwarding paths fail: the completeness
 theorems `dep_*_complete` and the forward specifications of the six forwarding functions take no
 account; those of destroyBlackFunds take none in the start state (their `hkeep` is an account at
 the end of each forwarded call).
 It reaches the runner: `localForward_noAcc` (with no account at the start, the CALL is sent from
 a caller state with no account of `C`).
-So that case cannot be ruled out from the code; `KeepsInv` assumes it for the runner.
+So that case cannot be ruled out from the code; `KeepsInvAt` assumes it for the runner.
 
-`inv_call_ns`: `Complete.inv_call` without `hdep`: under `SepOn` of the call's keys, `StrForm` of slots 7 and 8,
-`Inv` at the start, and, when deprecated, `KeepsInv` and (for destroyBlackFunds) `HonestBalance`,
-every successful call ends with `Inv`.
+`inv_call_ns`: `Complete.inv_call` without `hdep`: under `SepOn` of the call's keys, `StrForm` of
+slots 7 and 8, `Inv` at the start, and, when deprecated, `KeepsInvAt` and (for destroyBlackFunds)
+`HonestBalanceAt`, every successful call ends with `Inv`.
 No account of `C` is assumed, deprecated or not.
 No hypothesis on the code of the upgraded address: when it is an EIP-7702 delegation, the message
 still has `ua` as its current target (it runs the delegate's code), so both assumptions apply to
@@ -69,96 +65,23 @@ variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
   {substate : Substate} {bound : Nat} {runChild : MessageRunner fork Nat bound}
   {evm s : Evm fork Nat} {gas : Nat}
 
-/-- The named callee assumption: whenever the runner ends a message from `C` to `ua` with no
-error, from a caller state where `Inv C` holds, `Inv C` holds in the child's end state.
-It asks nothing about the account of `C`, in the caller state or in the child's end state.
-Any reentrant call into `C` is inside the child's run, so this covers it. -/
-def KeepsInv (runChild : MessageRunner fork Nat bound) (C ua : Address) : Prop :=
-  ∀ caller msg lt child, runChild caller msg lt = .ok child → msg.caller = C →
-    msg.currentTarget = ua → child.1.error = none → Inv C caller.state → Inv C child.1.state
-
-/-- The callee assumption of rounds 15 to 19: as `KeepsInv`, but only from a caller state where
-`C` has an account, and the child's end state also keeps that account. -/
-def KeepsInvAcc (runChild : MessageRunner fork Nat bound) (C ua : Address) : Prop :=
-  ∀ caller msg lt child, runChild caller msg lt = .ok child → msg.caller = C →
-    msg.currentTarget = ua → child.1.error = none → hasAccount caller.state C →
-      Inv C caller.state → hasAccount child.1.state C ∧ Inv C child.1.state
-
-/-- The case of `KeepsInv` that `KeepsInvAcc` leaves out: a caller state where `C` has no
-account. -/
-def KeepsInvNoAcc (runChild : MessageRunner fork Nat bound) (C ua : Address) : Prop :=
-  ∀ caller msg lt child, runChild caller msg lt = .ok child → msg.caller = C →
-    msg.currentTarget = ua → child.1.error = none → ¬hasAccount caller.state C →
-      Inv C caller.state → Inv C child.1.state
-
-/-- `KeepsInvAcc` and `KeepsInvNoAcc` together give `KeepsInv`. -/
-theorem keepsInv_of_acc {C ua : Address} (hacc : KeepsInvAcc runChild C ua)
-    (hno : KeepsInvNoAcc runChild C ua) : KeepsInv runChild C ua := by
-  intro caller msg lt child hch hmc hmt he hI
-  by_cases ha : hasAccount caller.state C
-  · exact (hacc caller msg lt child hch hmc hmt he ha hI).2
-  · exact hno caller msg lt child hch hmc hmt he ha hI
-
-/-- The named answer assumption for destroyBlackFunds: whenever the runner ends the forwarded
-`balanceOf(a)` with no error, the word that the CALL writes at 0x60 is the local `balances[a]`
-in the child's end state. -/
-def HonestBalance (runChild : MessageRunner fork Nat bound) (message : Message fork)
-    (state : State.TransactionState) : Prop :=
-  ∀ caller msg lt child, runChild caller msg lt = .ok child →
-    msg.caller = message.currentTarget → msg.currentTarget = upAddr state message →
-    msg.data = dataB message → child.1.error = none →
-      resWord (outMemOf (memD message) child.1.output) =
-        storageAt child.1.state message.currentTarget (balSlot message)
-
-/-- Round 29 (docs/AUDIT.md, finding 2): `KeepsInv` restricted to the calls the code of `C`
+/-- Round 29 (docs/AUDIT.md, finding 2): the runner keeps `Inv C` on the calls the code of `C`
 actually makes from `state` (`SentVia`: the caller state reads as `state` since round 49, the
-message runs the code that the upgraded address holds in `state`, no value). `KeepsInv` implies it
-(`keepsInv_at`); unlike `KeepsInv`, EthLib's `processRunner` can meet it (Sanity/Process.lean). -/
+message runs the code that the upgraded address holds in `state`, no value). EthLib's
+`processRunner` can meet it (Sanity/Process.lean). -/
 def KeepsInvAt (runChild : MessageRunner fork Nat bound) (message : Message fork)
     (state : State.TransactionState) : Prop :=
   KeepsOn runChild (SentVia message state (upAddr state message))
     (fun X Y => Inv message.currentTarget X → Inv message.currentTarget Y)
 
-/-- Round 29: `HonestBalance` restricted in the same way (`SentVia`). -/
+/-- Round 29: on the calls of `SentVia` with the data `balanceOf(a)` that the runner ends with no
+error, the word the call writes at 0x60 is `balances[a]` in the child's end state. -/
 def HonestBalanceAt (runChild : MessageRunner fork Nat bound) (message : Message fork)
     (state : State.TransactionState) : Prop :=
   ∀ caller msg lt child, SentVia message state (upAddr state message) caller msg →
     runChild caller msg lt = .ok child → msg.data = dataB message → child.1.error = none →
       resWord (outMemOf (memD message) child.1.output) =
         storageAt child.1.state message.currentTarget (balSlot message)
-
-theorem keepsInv_at (h : KeepsInv runChild message.currentTarget (upAddr state message)) :
-    KeepsInvAt runChild message state := by
-  intro caller msg lt child hch ⟨_, _, _, _, _, hmc, hmt, _⟩ he hI
-  exact h caller msg lt child hch hmc hmt he hI
-
-/-- Round 33 (docs/AUDIT.md, third audit, T4): `KeepsInvAcc` gives `KeepsInvAt` together with
-`KeepsInvNoAcc`, the case of a caller state where `C` has no account. Through round 48 `SentVia`
-fixed only the storage and code of the caller state, so that case was not excluded. Since round 49
-(EthLib's `SentVia`) the caller state reads as `state`, with its accounts. -/
-theorem keepsInvAt_of_acc
-    (hacc : KeepsInvAcc runChild message.currentTarget (upAddr state message))
-    (hno : KeepsInvNoAcc runChild message.currentTarget (upAddr state message)) :
-    KeepsInvAt runChild message state :=
-  keepsInv_at (keepsInv_of_acc hacc hno)
-
-/-- Round 49: when `state` has an account of `C`, `KeepsInvAcc` alone gives `KeepsInvAt`. EthLib's
-`SentVia` asks the caller state to read as `state` (`ReadsAs`), so it has the account of `C`
-that `state` has, and the case `KeepsInvNoAcc` covers does not arise. -/
-theorem keepsInvAt_of_acc_hasAccount
-    (hacc : KeepsInvAcc runChild message.currentTarget (upAddr state message))
-    (hS : hasAccount state message.currentTarget) :
-    KeepsInvAt runChild message state := by
-  intro caller msg lt child hch hs he hI
-  obtain ⟨-, -, -, -, hv, hmc, hmt, -⟩ := hs
-  have hc : hasAccount caller.state message.currentTarget := by
-    unfold hasAccount; rw [(hv.1 message.currentTarget List.not_mem_nil).1]; exact hS
-  exact (hacc caller msg lt child hch hmc hmt he hc hI).2
-
-theorem honest_at (h : HonestBalance runChild message state) :
-    HonestBalanceAt runChild message state := by
-  intro caller msg lt child ⟨_, _, _, _, _, hmc, hmt, _⟩ hch hmd he
-  exact h caller msg lt child hch hmc hmt hmd he
 
 /-- What a deprecated forwarding function does to the local storage: one call that the code
 makes (`SentVia`: from a caller state that reads as the start state, to the upgraded address,
@@ -200,7 +123,7 @@ theorem inv_of_local (hkeeps : KeepsInvAt runChild message state)
     ((DepInv.inv_congr (fun n => storageAt_of_readsAs hv message.currentTarget n)).2 hI)
 
 /-- With no account of `C` in the start state, a `LocalForward` call is sent from a caller state
-with no account of `C` either: that is the case `KeepsInvNoAcc` covers. -/
+with no account of `C` either, so `KeepsInvAt` must cover that case. -/
 theorem localForward_noAcc (hno : ¬hasAccount state message.currentTarget)
     (h : LocalForward runChild message state s) :
     ∃ caller msg lt child, runChild caller msg lt = .ok child ∧ child.1.error = none ∧
@@ -311,9 +234,9 @@ theorem dep_transferFrom_local (hfork : .berlin ≤ fork)
 
 /-! ## destroyBlackFunds -/
 
-/-- Deprecated destroyBlackFunds under `KeepsInv`: one call from `C` to `ua` with data `dataB`
+/-- Deprecated destroyBlackFunds under `KeepsInvAt`: one call from `C` to `ua` with data `dataB`
 that ends with no error, whose end state `S` has an account of `C` (from `dep_destroy_complete`)
-and `Inv C` (from `KeepsInv`); the end state is `tailState S C a d`, with `d` the word at 0x60. -/
+and `Inv C` (from `KeepsInvAt`); the end state is `tailState S C a d`, with `d` the word at 0x60. -/
 theorem dep_destroy_local (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
@@ -343,7 +266,7 @@ theorem dep_destroy_local (hfork : .berlin ≤ fork)
     hkeeps caller msg lt child hch hsv he hIc, ?_⟩
   rw [hst, state_incorporateChild]
 
-/-- Deprecated destroyBlackFunds under `KeepsInv`: `Inv` holds at the end iff the answer `d` is
+/-- Deprecated destroyBlackFunds under `KeepsInvAt`: `Inv` holds at the end iff the answer `d` is
 the local `balances[a]` in the state the call left. -/
 theorem inv_dep_destroy_iff (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
@@ -366,7 +289,7 @@ theorem inv_dep_destroy_iff (K : SepOn (callKeys message state)) (hfork : .berli
   rw [hst]
   exact DepInv.inv_tail_iff K.fixed hacc' (addrArg_lt _ _) K.uniqArg0 hI' _
 
-/-- Deprecated destroyBlackFunds under `KeepsInv` and `HonestBalance` keeps `Inv`. -/
+/-- Deprecated destroyBlackFunds under `KeepsInvAt` and `HonestBalanceAt` keeps `Inv`. -/
 theorem inv_dep_destroy (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xf3bdc228)
     (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
@@ -391,7 +314,7 @@ included), a fresh frame of `CODE` at pc 0, static or not (since round 19), with
 below 2^256 bytes, any value, any gas, any gas bound and any message runner. Under `SepOn` of the
 call's keys, with
 string slots 7 and 8 of `StrForm`, and, when deprecated (byte 20 of slot 10 not 0): the runner
-meets `KeepsInv` (`hkeeps`), and for destroyBlackFunds it meets `HonestBalance` (`hhonest`).
+meets `KeepsInvAt` (`hkeeps`), and for destroyBlackFunds it meets `HonestBalanceAt` (`hhonest`).
 No account of the contract is assumed (since round 20).
 If `Inv C state` holds and the interpreter loop ends with no error, then `Inv C s.state` holds. -/
 theorem inv_call_ns (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)

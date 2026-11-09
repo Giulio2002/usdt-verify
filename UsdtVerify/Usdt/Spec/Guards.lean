@@ -32,9 +32,10 @@ When deprecated, the condition is a deprecated guard together with the answer `A
   (reads only, so each slot holds the word it holds in the start state); in transferFrom
   `balances[f]` is read after the allowance step; the recipient's balance is read after the write
   of the sender's, and the owner's after the write of the recipient's.
-- When deprecated, for a runner that never fails (`NoFail`) and with the gas of `hg` and `htail`,
-  a function that forwards succeeds exactly when the checks before the forward hold and the
-  upgraded contract's answer is `A`, as the theorem's runner hypothesis `hans` says: `ForwardOk`
+- When deprecated, with the gas of `hg`, for a runner whose failure on the forwarded message
+  excludes `A` (`hfail`), a function that forwards succeeds exactly when the checks before the
+  forward hold and the upgraded contract's answer is `A`, as the theorem's runner hypothesis
+  `hans` says (`X_dep_ok_iff_fails`): `ForwardOk`
   (`CallOk`, the upgraded code `c` is not empty, the depth leaves room for the call), with
   `TransferDepGuard`, `ApproveDepGuard`, `TransferFromDepGuard`, `DestroyDepGuard` for the checks
   before the forward.

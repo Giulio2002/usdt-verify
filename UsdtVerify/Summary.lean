@@ -56,7 +56,7 @@ and the step lemmas of Evm/Call.lean) cover the order of the charges at Glamster
 the steps from frames where the same step with less gas fails or gives the same frame with that
 much less gas; it implies the `Spec`), each deprecated path a `Spec`: every run from such a
 frame reaches an end
-frame satisfying the postcondition; `runFrame_*` theorems state the same about the interpreter
+frame satisfying the postcondition; EthLib's `Spec.runFrame` gives the same about the interpreter
 loop `runFrame` for every gas bound and message runner. Common hypotheses of every path below:
 the call data has the function's selector in its first 4 bytes and fewer than 2^256 bytes, the
 call has no value, and there is enough gas (an exact cost, given in each theorem; a path that
@@ -67,10 +67,9 @@ These specs take both `hstatic` and `hacc`: `transfer_toOv`, `transfer_ownerOv`,
 `transfer_fee`, `approve_zero`, `approve_set`, `transferFrom_toOv`, `transferFrom_ownerOv`,
 `transferFrom_ok`, `transferFrom_fee`, `pause`, `unpause`, `addBlackList`, `removeBlackList`,
 `issue`, `redeem`, `setParams`, `setParams_mulOv`, `deprecate`, `transferOwnership`,
-`destroyBlackFunds`, and their `runFrame_*` forms.
+`destroyBlackFunds`, and `runFrame_destroyBlackFunds`.
 `transferFrom_balLow` and `transferFrom_feeGt` take both only when the allowance is not
-`MAX_UINT` (`hgood`); their forms `TransferFrom.runFrame_balLow` and
-`TransferFrom.runFrame_feeGtF` take both unconditionally.
+`MAX_UINT` (`hgood`).
 `destroyBlackFunds_dep`, `destroyBlackFunds_dep_answers` and `destroyBlackFunds_dep_fails` take
 `hstatic` and `hkeep` (an account of `C` in the end state of each forwarded call that ends with
 no error).
@@ -162,7 +161,8 @@ and sum to zero. Hypotheses: the slots are pairwise distinct (and distinct from 
 allowance slot where needed); this is assumed, not derived from keccak. Only these slots are
 stated; "sum of all balances = `_totalSupply`" needs a sum over a mapping and is not proved.
 
-Every from-pc-0 theorem has a `runFrame_*` form (the interpreter loop, any gas bound, any runner).
+Every from-pc-0 `Spec` gives the same statement for the interpreter loop, for any gas bound and any
+runner, by EthLib's `Spec.runFrame`.
 
 ## Deprecated: totalSupply() and balanceOf(who) forward to `upgradedAddress`
 With byte 20 of slot 10 set, `ua` = low 160 bits of slot 10 (as an address) holding a code `c`
@@ -204,7 +204,7 @@ StandardToken, which are not reached).
 What the upgraded contract does with the forwarded call (the balances it changes) is the callee's
 business: nothing is assumed or proved about it beyond the callee assumption.
 
-## Nonzero call value — `nonpayable`, `runFrame_nonpayable`
+## Nonzero call value — `nonpayable`
 Every one of the 32 functions is nonpayable, and each entry of the selector table starts with
 its own copy of `JUMPDEST CALLVALUE ISZERO PUSH2 JUMPI PUSH1 0 DUP1 REVERT`. For `i : Fin 32`,
 call data of 4 to 2^256 - 1 bytes whose selector is the key of entry `i` of `ENTRIES` (the table
@@ -216,8 +216,9 @@ read: state and substate unchanged, gas left `gas - (87 + 22 * (i + 1))`.
 `caller & (2^160 - 1)` (`callerWord`). The check is inlined in each owner function; `ownerOk` /
 `ownerRevert` cover all ten copies (`CHECKS`). A caller other than the owner gets REVERT with no
 output after reading slot 0.
-Every `spec_*` of rounds 7 and 8 from pc 0 has a `runFrame_*` wrapper in the same namespace
-(Usdt/Spec/RunFrames.lean, generated from the statements; each proof applies EthLib's `Spec.runFrame`).
+Every `spec_*` from pc 0 gives its `runFrame` form by one application of EthLib's
+`Spec.runFrame` (round 53: the wrappers that were only that application are removed;
+Usdt/Spec/RunFrames.lean keeps `runFrame_issue` and `runFrame_redeem`, which Usdt/Sanity/ uses).
 
 ## pause() 0x8456cb59 / unpause() 0x3f4ba83a (Usdt/Spec/Pause.lean)
 `paused` is byte 20 of slot 0.
@@ -362,8 +363,8 @@ Every successful call, not deprecated, static or not, with or without an account
 `Complete.inv_call`. Deprecated or not: `Complete.inv_call_ns` (Usdt/Invariant/All.lean, from
 Berlin, Glamsterdam included; when deprecated, under the named assumptions `KeepsInvAt` on the
 runner and `HonestBalanceAt` for destroyBlackFunds (round 29: about the calls the code makes from
-the start state, `SentVia`, EthLib's since round 49; through round 28 `KeepsInv`, `HonestBalance`,
-over every message), and since round 20 with no account of the
+the start state, `SentVia`, EthLib's since round 49; through round 28 the assumptions were asked
+of every message), and since round 20 with no account of the
 contract assumed; the upgraded code may be an EIP-7702 delegation). Static or not:
 `Complete.inv_call_all` (Usdt/Invariant/Static.lean; "not static" replaced by `hstat`: when static,
 `message.code = CODE`, `StaticCode` and `StaticKeeps`; a static frame keeps the state, EthLib's `staticStep_runFrame`, under the named runner
@@ -419,13 +420,12 @@ their words), `Security.paused_call_all` (`KeepsBal`), `Security.listed_call_all
 `_from` not blacklisted). See docs/RESULTS.md, "Security properties, deprecated or not".
 
 ## Non-vacuity (round 24; Usdt/Sanity/, which imports this file)
-Concrete runners meet the runner assumptions. `stopRunner` is EthLib's `processRunner` on the
-messages to `ua` that run the one byte STOP, and it fails every other message to `ua`. It meets
-`KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply` and `KeepsInvAt`, and from Paris
-`StaticKeeps`. `balRunner` keeps the state and answers the word of `balances[x]`. It meets all six,
-`StaticKeeps` and `HonestBalanceAt` (`Sanity.runner_assumptions_hold`). Round 29: EthLib's own
-`processRunner`, when the upgraded address holds STOP and is no precompile, meets all six from
-Paris (`Sanity.processRunner_stop_keepsAll`, `Sanity.keepsInvAt_process_stop`). Round 30:
+Concrete runners meet the runner assumptions. `balRunner` keeps the state and answers the word
+of `balances[x]`. It meets `KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`,
+`KeepsInvAt`, `StaticKeeps` and `HonestBalanceAt` (`Sanity.runner_assumptions_hold`). Round 29:
+EthLib's own `processRunner`, when the upgraded address holds STOP and is no precompile, meets the
+six `Keeps` forms from Paris (`Sanity.processRunner_stop_keepsAll`), and `StaticKeeps` from Paris
+(`Complete.staticKeeps_process`). Round 30:
 `Sanity.honestBalanceAt_process_mirror`: when the upgraded address holds `MIRROR` (Evm/Mirror.lean,
 25 bytes that answer `balanceOf(a)` from slot `keccak(a ++ 2)` of their own storage) and is no
 precompile, and that slot holds in the start state the word of USDT's `balances[a]`, `processRunner`
@@ -467,49 +467,30 @@ and symbol under `StrForm`, gas `Exact.strCost`; totalSupply, balanceOf, allowan
 `Exact.transferStip2`, `TransferFrom.stipCostF`). Each writing condition contains `CanWrite`
 (not static, an account of `C`), `TransferOwnershipGuard` only when `a ≠ 0`; each owner condition
 contains `IsOwner`.
-Deprecated (`Usdt/Exact/Deprecated.lean`): for the seven functions that forward
-(`Exact.X_dep_ok_iff`), with the upgraded code `c` and the route `r` of the CALL given, the gas
-of the path (`hg`, `htail`), and a runner that fails on none of the messages the path sends
-(`Exact.NoFailOn`, round 29; for `destroyBlackFunds_dep_ok_iff` since round 30) and ends each
-forwarded message with no error exactly when `A` holds (round 30: asked only of the message the
-CALL sends, with the gas it gives, from the caller frame at the CALL, `Complete.CallFrom`) (for destroyBlackFunds: with no error and
-an account of `C` in its end state), `RunsOk` holds if and only if the checks before the forward
-hold (`ForwardOk`, `TransferDepGuard`, `ApproveDepGuard`, `TransferFromDepGuard`,
-`DestroyDepGuard`) and `A` holds. `Exact.X_dep_low`: below the gas of `hg`, `RunsOk` does not
-hold, whatever the runner. `Sanity.answerRunner_noFail`: the runners `answerRunner` never fail; `Sanity.answerRunner_ans`:
-they meet `hans` with `A = True` (used for the six forwards other than destroyBlackFunds).
-Round 26, the six forwards other than destroyBlackFunds: `Exact.X_dep_ok_iff_gas` drops `htail`;
-its `hans` makes `A` equivalent to the forwarded message ending with no error and leaving enough
-gas for the code after the CALL (the gas the CALL keeps plus the gas left in the ended frame), so
-with `Exact.X_dep_low` every gas is covered. `Exact.X_dep_ok_or_fails` (round 31, the seven
-paths, the hypotheses of `Exact.X_dep_ok_iff_fails` without `hfail`): for a runner that may fail
-with any error, success gives the checks and `A`, and the checks and `A` give success or a failure
-of the runner on a message the path sends.
-`Sanity.answerRunnerAt_hans`: the runner `answerRunnerAt (sState C kvs) f` meets the `hans` of
-deprecated destroyBlackFunds with `A = True`, for a message whose current target is `C`;
-`Sanity.answerRunnerAt_ans_gas`: each frame it ends meets the condition of the `hans` of
-`X_dep_ok_iff_gas` exactly when the tail gas is at most the gas the CALL keeps.
-Round 26, second part: `Exact.destroyBlackFunds_dep_ok_iff_gas` drops `htail` for deprecated
-destroyBlackFunds; its `hans` makes `A` equivalent to the forwarded message ending with no error,
-an account of `C` in its end state, and the gas the CALL keeps plus the gas left at least
-`max tailCost tailStip`, computed over the state and substate after the call
-(`DeprecatedDestroy.tailCost`: the cost of the tail; `DeprecatedDestroy.tailStip`: more than 2300
-gas left at each SSTORE of the tail). `Exact.X_dep_ok_iff_fails` (the seven paths, `hg` only): for a runner that may
-fail with any error, with the same `hans` and `hfail` (a failure of the runner on a forwarded
-message excludes `A`) in place of `NoFail`, `RunsOk` holds if and only if the checks and `A` hold;
-the `X_dep_ok_iff_gas` theorems follow from them. Behind them: `SpecOn` (EthLib's
-Logic/FailsOn.lean since round 47, Evm/Sends.lean before), a
-specification under a runner that may fail whose runs end in the postcondition or at a failure on
-a forwarded message; the forward specifications `spec_dep*_g`, `spec_depD_g` are stated so.
-`Sanity.failRunner_hans`, `Sanity.failRunner_hfail`: the runner that fails on every message meets
-both with `A = False`. Round 30: `hans` of `X_dep_ok_iff`, `X_dep_ok_iff_gas` and
-`X_dep_ok_iff_fails` is asked only of the forwarded message with the gas the CALL gives
-(`spec_dep*_g` pass `CallFrom` to `hcg`), so `A` may be a condition on that gas.
-`Sanity.X_dep_ok_iff_process_stop` and `Sanity.X_dep_ok_iff_gas_process_stop` (the seven
-forwards, Usdt/Sanity/ProcessExact.lean): with EthLib's `processRunner` and the upgraded code
-STOP (from Paris, no precompile), the runner hypotheses hold and `RunsOk` holds iff the checks
-hold (and, in the gas-exact form, the gas left after the CALL plus the gas it gives covers the
-code after it; for destroyBlackFunds, with an account of `C` in the state at the CALL).
+Deprecated (`Usdt/Exact/Deprecated.lean`): for the seven functions that forward, with the
+upgraded code `c` and the route `r` of the CALL given and the gas of the path up to the CALL
+(`hg`), `Exact.X_dep_ok_or_fails` (round 31): for a runner that may fail with any error, if the
+runner ends the forwarded message with no error and enough gas for the code after the CALL
+exactly when `A` holds (`hans`; for destroyBlackFunds also an account of `C` in its end state and
+at least `max tailCost tailStip`, over the state and substate after the call), success gives the
+checks before the forward (`ForwardOk`, `TransferDepGuard`, `ApproveDepGuard`,
+`TransferFromDepGuard`, `DestroyDepGuard`) and `A`, and the checks and `A` give success or a
+failure of the runner on a message the path sends. `Exact.X_dep_ok_iff_fails`: with `hfail` (a
+failure of the runner on a forwarded message excludes `A`; a runner that meets `Exact.NoFailOn`
+on those messages meets it), `RunsOk` holds if and only if the checks and `A` hold.
+`Exact.X_dep_low`: below the gas of `hg`, `RunsOk` does not hold, whatever the runner, so every
+gas is covered. `hans`, `hfail` and `NoFailOn` are asked only of the message the CALL sends, with
+the gas it gives, from the caller frame at the CALL (`Complete.CallFrom`, rounds 30 and 31), so
+`A` may be a condition on that gas. Behind them: `SpecOn` (EthLib's Logic/FailsOn.lean since
+round 47), a specification under a runner that may fail whose runs end in the postcondition or at
+a failure on a forwarded message; the forward specifications `spec_dep*_g`, `spec_depD_g` are
+stated so. Round 53: the forms `X_dep_ok_iff` (with `htail` and `NoFailOn`) and `X_dep_ok_iff_gas`
+(with `NoFailOn`), which follow from `X_dep_ok_iff_fails`, are removed.
+`Sanity.X_dep_ok_iff_gas_process_stop` (the seven forwards, Usdt/Sanity/ProcessExact.lean): with
+EthLib's `processRunner` and the upgraded code STOP (from Paris, no precompile), the runner
+hypotheses of `X_dep_ok_iff_fails` hold and `RunsOk` holds iff the checks hold and the gas left
+after the CALL plus the gas it gives covers the code after it (for destroyBlackFunds, with an
+account of `C` in the state at the CALL).
 Round 31: `Sanity.balanceOf_dep_ok_iff_gas_process_mirror` and
 `Sanity.destroyBlackFunds_dep_ok_iff_gas_process_mirror` (Usdt/Sanity/MirrorExact.lean): the same
 with the upgraded code `MIRROR`, whose success depends on its gas (the second under `hmirror`):
@@ -523,7 +504,6 @@ Round 33: `Sanity.process_step_dep_hyps2` and `Sanity.destroy_mirror_runs`
 `a` is blacklisted and `balances[a]` is not 0. There `processRunner` meets `KeepsInvAt` and
 `HonestBalanceAt`, and (Paris to before Glamsterdam, 1000000 gas) the destroyBlackFunds call
 ends with no error through the CALL.
-Round 33: `keepsInvAt_of_acc`: `KeepsInvAcc` and `KeepsInvNoAcc` together give `KeepsInvAt`.
 Round 33 (third audit, T1): every theorem is about EthLib's one-counter meter `Nat`. EthLib
 runs Glamsterdam transactions with the EIP-8037 meter `StateGasMeter` (docs/STATUS.md).
 Round 34: the completeness theorems not deprecated and `Complete.inv_call` take
@@ -558,32 +538,30 @@ from reservoir 0, at EXTCODESIZE, GAS and CALL.
 Round 39: the deprecated paths over `StateGasMeter` from reservoir 0. `Complete.runC_of_sgm`
 (Evm/RunCS.lean) gives a run of the meter `Nat` with an abstract child (`RunC`). From it:
 `Complete.dep_X_completeS` (the seven deprecated functions, without the gas after the CALL),
-`Complete.inv_call_depS`, `Complete.inv_call_anyD`, `Complete.process_stepDS`,
-`Complete.process_stepSD` (the invariant, under `KeepsInvAtS` and `HonestBalanceAtS`), and
-`Security.effect_allS` with the five `_call_allS` security properties. Not covered: a reservoir
-other than 0 when deprecated, the gas left after the CALL.
+`Complete.process_stepDS`, `Complete.process_stepSD` (deprecated top-level messages under
+`KeepsInvAtS` and `HonestBalanceAtS`), and `Security.effect_allS`. Round 44 covers any reservoir;
+round 53 removes the single-call, sequence and `processMessage` theorems of this round that the
+round-44 forms give at reservoir 0 (`keepsInvAtSR_zero`, `honestBalanceAtSR_zero`,
+`Security.keepsAtSR_zero`, `CallsDS.toR`, `SeqRS.toRSR`).
 Round 41 (fourth audit, U1): `Complete.goodCall_processS`, `Complete.process_value_failsS`,
 `Complete.process_stepS`, `Complete.process_stepDS`, `Complete.process_stepSD`,
 `Security.runOkS_process` and `Security.process_stepSec` take any starting meter of
 `processMessage`, as EthLib's `processMessageCall` passes the meter left by the authorizations of
-the transaction. The deprecated forms ask that meter to have reservoir 0. The forms for the fresh
-meter of the message are the `_start` corollaries.
+the transaction. The deprecated forms ask that meter to have reservoir 0.
 Round 41 (U3): `Complete.callStep_child_res0`: the CALL from reservoir 0 sends a message with
 reservoir 0 and leaves the caller with reservoir 0. `KeepsInvAtS`, `HonestBalanceAtS` and
 `Security.KeepsAtS` ask their property only of such calls, and the `dep_X_completeS` conclusions
 state both facts.
 Round 41 (U2, Usdt/Sanity/ProcessMeter.lean): from Paris, EthLib's runner over `StateGasMeter`
-(`processRunner`, `ProcessMeter.processRunnerM` before round 47) meets `KeepsInvAtS`
-(`Sanity.keepsInvAtS_process_stop`) and
-`KeepsAtS` for every reflexive relation (`Sanity.keepsAtS_process_stop`) when the upgraded address
-holds STOP, and `HonestBalanceAtS` (`Sanity.honestBalanceAtS_process_mirror`) when it holds
-`MIRROR` whose queried slot holds USDT's `balances[a]` in the start state.
+(`processRunner`) ends the forwarded messages to STOP and `MIRROR` as stated
+(`Sanity.sentVia_process_stopS`, `Sanity.process_mirrorS`); Usdt/Sanity/ProcessMeterR.lean gives
+from them `KeepsInvAtSR`, `KeepsAtSR` (STOP) and `HonestBalanceAtSR` (`MIRROR`) at every
+reservoir, which at reservoir 0 are `KeepsInvAtS`, `KeepsAtS` and `HonestBalanceAtS`.
 Round 41 (Usdt/Security/SeqDepMeter.lean): the five security properties over sequences deprecated
 or not whose calls run over `Nat` or over `StateGasMeter` (`SeqRS`, reservoir 0 when deprecated):
-`Security.nonOwner_seq_allS`, `paused_seq_allS`, `listed_seq_allS`, `allowKept_seq_allS`,
-`supply_seq_allS`, and `Security.process_stepSecD` (top-level messages over `StateGasMeter` as
-steps of `SeqRS`). `Security.owner_only_allS` (Usdt/Security/DepMeter.lean): `owner_only` over
-`StateGasMeter`, deprecated or not, reservoir 0 for deprecated destroyBlackFunds.
+`Security.process_stepSecD` (top-level messages over `StateGasMeter` as steps of `SeqRS`). Every
+`SeqRS` sequence is a `SeqRSR` sequence (`Security.SeqRS.toRSR`), so the `_seq_allSR` forms of
+round 44 cover these sequences.
 Round 42 (Usdt/Complete/Deprecated/MeterR.lean): `Complete.dep_X_completeR` for the seven
 deprecated functions over `StateGasMeter` from any reservoir (`Complete.runC_of_sgmR`). The
 forwarded message carries the reservoir of the first frame. For six paths the execution gas left
@@ -614,12 +592,10 @@ no refill hypothesis, the run ends with no error if and only if the chain condit
 successful run ends as the Nat specification says with `gasLeft + cost = gas` plus the bumps of the
 writes and the meter after the last write.
 Round 49: one top-level message straight to its end property, under the runner hypotheses on
-`processRunner` (EthLib's `SentVia`): `Complete.process_step_inv`, `Complete.process_stepDS_inv`,
-`Complete.process_stepSD_inv`, their `_start` forms, `Complete.process_stepDR_inv`,
-`Complete.process_stepSDR_inv` (`Inv` at the end), and `Security.nonOwner_processS`,
-`paused_processS`, `listed_processS`, `allowKept_processS`, `supply_processS` with their `SR`
-forms (each security property). `Complete.keepsInvAt_of_acc_hasAccount`: `KeepsInvAcc` alone gives
-`KeepsInvAt` when the start state has an account of `C`.
+`processRunner` (EthLib's `SentVia`): `Complete.process_step_inv`,
+`Complete.process_stepDR_inv`, `Complete.process_stepSDR_inv` (`Inv` at the end), and
+`Security.nonOwner_processSR`, `paused_processSR`, `listed_processSR`, `allowKept_processSR`,
+`supply_processSR` (each security property, from any reservoir).
 Round 44 (READY for this scope; Usdt/Invariant/DepMeterR.lean, Usdt/Security/DepMeterR.lean,
 Usdt/Sanity/ProcessMeterR.lean, Evm/FwdS.lean, Usdt/Complete/Deprecated/CallS.lean, DestroyS.lean,
 Usdt/Refill/DestroyDepS.lean, Usdt/Sanity/MirrorStateS.lean): when deprecated, from any reservoir,
@@ -859,7 +835,6 @@ alias transferFrom_dep_fails := DeprecatedTransferFrom.spec_depF_fails
 alias transferFrom_dep_process := DeprecatedTransferFrom.runFrame_depF_process
 alias transferFrom_dep_noCode := DeprecatedTransferFrom.spec_depFNoCode
 alias nonpayable := Nonpayable.spec
-alias runFrame_nonpayable := Nonpayable.runFrame_spec
 alias pause := PauseSpec.spec_pause
 alias unpause := PauseSpec.spec_unpause
 alias pause_notOwner := PauseSpec.spec_pause_notOwner
@@ -917,32 +892,22 @@ alias name := Strings.spec_name
 alias symbol := Strings.spec_symbol
 alias name_tether := Strings.spec_name_tether
 alias symbol_usdt := Strings.spec_symbol_usdt
-alias runFrame_name := Strings.runFrame_name
-alias runFrame_symbol := Strings.runFrame_symbol
 alias allowance_dep := DeprecatedAllowance.spec_depAl
 alias allowance_dep_answers := DeprecatedAllowance.spec_depAl_answers
 alias allowance_dep_fails := DeprecatedAllowance.spec_depAl_fails
 alias runFrame_allowance_dep_process := DeprecatedAllowance.runFrame_depAl_process
 alias allowance_dep_noCode := DeprecatedAllowance.spec_depAlNoCode
-alias runFrame_allowance_dep_noCode := DeprecatedAllowance.runFrame_depAlNoCode
 alias fallback_unknown := Fallback.spec_unknown
 alias fallback_short := Fallback.spec_short
-alias runFrame_fallback_unknown := Fallback.runFrame_unknown
-alias runFrame_fallback_short := Fallback.runFrame_short
 alias destroyBlackFunds_dep := DeprecatedDestroy.spec_depD
 alias destroyBlackFunds_dep_answers := DeprecatedDestroy.spec_depD_answers
 alias destroyBlackFunds_dep_fails := DeprecatedDestroy.spec_depD_fails
 alias runFrame_destroyBlackFunds_dep_process := DeprecatedDestroy.runFrame_depD_process
 alias destroyBlackFunds_dep_noCode := DeprecatedDestroy.spec_depDNoCode
-alias runFrame_destroyBlackFunds_dep_noCode := DeprecatedDestroy.runFrame_depDNoCode
 alias name_empty := StringsGen.spec_nameEmpty
 alias symbol_empty := StringsGen.spec_symbolEmpty
 alias name_long := StringsGen.spec_nameLong
 alias symbol_long := StringsGen.spec_symbolLong
-alias runFrame_name_empty := StringsGen.runFrame_nameEmpty
-alias runFrame_symbol_empty := StringsGen.runFrame_symbolEmpty
-alias runFrame_name_long := StringsGen.runFrame_nameLong
-alias runFrame_symbol_long := StringsGen.runFrame_symbolLong
 
 variable {fork : Fork} {message : Message fork}
 

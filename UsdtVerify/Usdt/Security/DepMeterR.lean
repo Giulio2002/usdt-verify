@@ -16,7 +16,7 @@ calls.
   in a state described by `EffectDF (FwdAtSR runS message state (upAddr state message) r)`, `r`
   the reservoir of the first frame. No assumption on the runner.
 - `paused_call_allSR`, `nonOwner_call_allSR`, `listed_call_allSR`, `allowKept_call_allSR`,
-  `supply_call_allSR`: the five `_call_allS` theorems from any reservoir, with the runner
+  `supply_call_allSR`: the five `_call_all` theorems over `StateGasMeter` from any reservoir, with the runner
   assumption `KeepsAtSR` at the reservoir of the first frame.
 - `owner_only_allSR`: `owner_only` over `StateGasMeter`, deprecated or not, with no hypothesis on
   the reservoir.
@@ -170,7 +170,7 @@ section Calls
 variable {m s : Evm fork StateGasMeter} {within : GasMeter.gasHeld m.gas ≤ bound}
 
 /-- **Pause, one call over the EIP-8037 meter, deprecated or not, any reservoir.**
-`paused_call_allS` with no hypothesis on the reservoir, with `KeepsBal` stated for the runner at
+`paused_call_all` over `StateGasMeter`, with no hypothesis on the reservoir, with `KeepsBal` stated for the runner at
 the reservoir of the first frame (`KeepsAtSR … BalKept`). -/
 theorem paused_call_allSR (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
@@ -191,7 +191,7 @@ theorem paused_call_allSR (K : SepOn (callKeys message state)) (hfork : .berlin 
     fun hd _ _ hf => (hkeeps hd).fwd hf
 
 /-- **Non-owner, one call over the EIP-8037 meter, deprecated or not, any reservoir.**
-`nonOwner_call_allS` with no hypothesis on the reservoir, with `KeepsSlots` stated for the runner
+`nonOwner_call_all` over `StateGasMeter`, with no hypothesis on the reservoir, with `KeepsSlots` stated for the runner
 at the reservoir of the first frame. -/
 theorem nonOwner_call_allSR (K : SecSep (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
@@ -208,7 +208,7 @@ theorem nonOwner_call_allSR (K : SecSep (callKeys message state)) (hfork : .berl
     fun hd _ _ hf => (hkeeps hd).fwd hf
 
 /-- **Blacklist, one call over the EIP-8037 meter, deprecated or not, any reservoir.**
-`listed_call_allS` with no hypothesis on the reservoir, with `KeepsListed` stated for the runner at
+`listed_call_all` over `StateGasMeter`, with no hypothesis on the reservoir, with `KeepsListed` stated for the runner at
 the reservoir of the first frame. -/
 theorem listed_call_allSR (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
@@ -227,7 +227,7 @@ theorem listed_call_allSR (K : SepOn (callKeys message state)) (hfork : .berlin 
     fun hd _ _ hf => (hkeeps hd).fwd hf
 
 /-- **Allowances, one call over the EIP-8037 meter, deprecated or not, any reservoir.**
-`allowKept_call_allS` with no hypothesis on the reservoir, with `KeepsAllow` stated for the runner
+`allowKept_call_all` over `StateGasMeter`, with no hypothesis on the reservoir, with `KeepsAllow` stated for the runner
 at the reservoir of the first frame. -/
 theorem allowKept_call_allSR {y z : U256} (K : SecSep (y :: z :: callKeys message state))
     (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
@@ -244,7 +244,7 @@ theorem allowKept_call_allSR {y z : U256} (K : SecSep (y :: z :: callKeys messag
     fun hd _ _ hf => (hkeeps hd).fwd hf
 
 /-- **Supply, one call over the EIP-8037 meter, deprecated or not, any reservoir.**
-`supply_call_allS` with no hypothesis on the reservoir, with `KeepsSupply` stated for the runner at
+`supply_call_all` over `StateGasMeter`, with no hypothesis on the reservoir, with `KeepsSupply` stated for the runner at
 the reservoir of the first frame. -/
 theorem supply_call_allSR (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
     (hsize' : message.data.size < 2 ^ 256)
@@ -345,7 +345,8 @@ theorem SeqRS.toRSR {C : Address} {R : State.TransactionState → State.Transact
   | callS hr hq _ ih => exact .callS hr.toR hq ih
   | other hu _ ih => exact .other hu ih
 
-/-- `seqRS_lift` for `SeqRSR`. -/
+/-- A relation that is reflexive, transitive, kept by `Untouched` steps and by every step that
+ends as an `EffectDF` implying it holds along a `SeqRSR` sequence. -/
 theorem seqRSR_lift {C : Address} {R0 : State.TransactionState → State.TransactionState → Prop}
     {Q : ∀ {fork : Fork}, Message fork → State.TransactionState → Prop}
     {I : State.TransactionState → Prop} {R : State.TransactionState → State.TransactionState → Prop}
@@ -374,7 +375,7 @@ theorem seqRSR_lift {C : Address} {R0 : State.TransactionState → State.Transac
     exact htrans hR (ih hI')
 
 /-- **Access control over a sequence over both meters, deprecated or not, any reservoir.**
-`nonOwner_seq_allS` for `SeqRSR`: the calls over `StateGasMeter` start from any reservoir and their
+`nonOwner_seq_all` for `SeqRSR`: the calls over `StateGasMeter` start from any reservoir and their
 runners meet `KeepsAtSR … (ProtKept C)` at that reservoir when `C` is deprecated. Every `Protected`
 slot keeps its word. -/
 theorem nonOwner_seq_allSR {C : Address} {S S' : State.TransactionState}
@@ -388,7 +389,7 @@ theorem nonOwner_seq_allSR {C : Address} {S S' : State.TransactionState}
   exact ⟨he.protKept K hno hk, trivial⟩
 
 /-- **Pause over a sequence over both meters, deprecated or not, any reservoir.**
-`paused_seq_allS` for `SeqRSR`: from a state where `C` is paused, every balance keeps its word. -/
+`paused_seq_all` for `SeqRSR`: from a state where `C` is paused, every balance keeps its word. -/
 theorem paused_seq_allSR {C : Address} {S S' : State.TransactionState}
     (h : SeqRSR C (fun X Y => ProtKept C X Y ∧ BalKept C X Y) NotOwnerS S S')
     (hpaused : byte20 (storageAt S C 0) ≠ 0) : BalKept C S S' := by
@@ -405,7 +406,7 @@ theorem paused_seq_allSR {C : Address} {S S' : State.TransactionState}
   · exact absurd howner hno
 
 /-- **Blacklist over a sequence over both meters, deprecated or not, any reservoir.**
-`listed_seq_allS` for `SeqRSR`: from a state where the address word `a < 2^160` is blacklisted,
+`listed_seq_all` for `SeqRSR`: from a state where the address word `a < 2^160` is blacklisted,
 `balances[a]` is not lower at the end. -/
 theorem listed_seq_allSR {C : Address} {S S' : State.TransactionState}
     (h : SeqRSR C (fun X Y => ProtKept C X Y ∧ ListedNoDec C X Y) NotOwnerS S S')
@@ -424,7 +425,7 @@ theorem listed_seq_allSR {C : Address} {S S' : State.TransactionState}
   exact hl
 
 /-- **Allowances over a sequence over both meters, deprecated or not, any reservoir.**
-`allowKept_seq_allS` for `SeqRSR`: the slot of `allowed` keyed by `y` and `z` keeps its word. -/
+`allowKept_seq_all` for `SeqRSR`: the slot of `allowed` keyed by `y` and `z` keeps its word. -/
 theorem allowKept_seq_allSR {y z : U256} {C : Address} {S S' : State.TransactionState}
     (h : SeqRSR C (AllowKept C) (@NoAllowFnS y z) S S') : AllowKeptAt y z C S S' := by
   refine seqRSR_lift (I := fun _ => True) (R := AllowKeptAt y z C) (fun hq => hq.2.2.1)
@@ -435,7 +436,7 @@ theorem allowKept_seq_allSR {y z : U256} {C : Address} {S S' : State.Transaction
   exact ⟨he.allowKept K ⟨ha, hf⟩ hk, trivial⟩
 
 /-- **Supply over a sequence over both meters, deprecated or not, any reservoir.**
-`supply_seq_allS` for `SeqRSR`: slot 1 keeps its word. -/
+`supply_seq_all` for `SeqRSR`: slot 1 keeps its word. -/
 theorem supply_seq_allSR {C : Address} {S S' : State.TransactionState}
     (h : SeqRSR C (SupplyKept C) NoSupplyFnS S S') : storageAt S' C 1 = storageAt S C 1 := by
   refine seqRSR_lift (I := fun _ => True) (R := fun X Y => storageAt Y C 1 = storageAt X C 1)

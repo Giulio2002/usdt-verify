@@ -57,9 +57,6 @@ def NoRefillN (x : Evm fork Nat) : Prop :=
 def NoRefillAtN (x : Evm fork Nat) : Prop :=
   ∀ h : x.pc < x.code.size, Op.ofByte fork x.code[x.pc] = some .sstore → NoRefillN x
 
-theorem noRefillAt_iff (m : Evm fork StateGasMeter) : NoRefillAt m ↔ NoRefillAtN (toNat m) :=
-  Iff.rfl
-
 /-- `NoRefillAtN` reads no gas. -/
 theorem noRefillAtN_sh {x : Evm fork Nat} (k : Nat) (h : NoRefillAtN (addGas k x)) : NoRefillAtN x :=
   h

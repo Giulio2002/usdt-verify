@@ -86,11 +86,6 @@ theorem UA_nat : UA.toU256.toNat = 0x1234 := by decide
 theorem hnp_UA (fork : Fork) : Precompiles.isPrecompile fork UA.toU256.toNat = false := by
   rw [UA_nat]; unfold Precompiles.isPrecompile; rfl
 
-theorem exists_hash : ∃ H : Hash32, H ≠ State.EMPTY_CODE_HASH := by
-  by_cases h : (Vector.replicate 32 (0 : UInt8)) = State.EMPTY_CODE_HASH
-  · exact ⟨Vector.replicate 32 1, fun h' => by rw [← h'] at h; exact absurd h (by decide)⟩
-  · exact ⟨_, h⟩
-
 /-- `C` and `UA` both have the slots `[(10, W)]`; `UA` holds `MIRROR` with code hash `H`. -/
 def S1 (C : Address) (H : Hash32) : State.TransactionState :=
   State.TransactionState.ofBlock

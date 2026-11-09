@@ -255,10 +255,6 @@ theorem transferOk_inv (F : FixedSep) {S : State.TransactionState} {message : Me
 
 theorem addrArg_lt (d : ByteArray) (i : Nat) : (addrArg d i).toNat < 2 ^ 160 := mask_lt _
 
-theorem nb0 (F : FixedSep) : NotBal (0 : U256) := nb_fixed F (n := 0) (by decide)
-theorem nb3 (F : FixedSep) : NotBal (3 : U256) := nb_fixed F (n := 3) (by decide)
-theorem nb4 (F : FixedSep) : NotBal (4 : U256) := nb_fixed F (n := 4) (by decide)
-theorem nb10 (F : FixedSep) : NotBal (10 : U256) := nb_fixed F (n := 10) (by decide)
 
 /-- transfer with a fee (`feeState`, the end state of `transfer_fee` over its `S`). -/
 theorem transferFee_inv (F : FixedSep) {S : State.TransactionState} {message : Message fork}
@@ -284,20 +280,6 @@ theorem transferFee_inv (F : FixedSep) {S : State.TransactionState} {message : M
   rw [toNat_add ho, toNat_add ht, toNat_sub hf, toNat_sub hv]
   · omega
   all_goals first | with_reducible assumption | exact mask_lt _ | acc
-
-/-- The allowance step of transferFrom keeps the balances and slot 1. -/
-theorem allowState_keeps {S : State.TransactionState} {C : Address}
-    (hacc : hasAccount S C) {n A v : U256} (hn : NotBal n) (h1 : n ≠ 1) :
-    sumBal C (allowState S C n A v) = sumBal C S ∧
-    tot C (allowState S C n A v) = tot C S ∧
-    hasAccount (allowState S C n A v) C ∧
-    ∀ x : U256, x.toNat < 2 ^ 160 →
-      storageAt (allowState S C n A v) C (mapSlot x 2) = storageAt S C (mapSlot x 2) := by
-  unfold allowState
-  split
-  · exact ⟨rfl, rfl, hacc, fun _ _ => rfl⟩
-  · refine ⟨sumBal_write_nb hacc hn _, tot_write_ne hacc h1 _,
-      hasAccount_writeSlot hacc, fun x hx => storageAt_writeSlot_of_ne hacc (fun e => hn x hx e.symm)⟩
 
 theorem sumBal_allowState {S : State.TransactionState} {C : Address}
     (hacc : hasAccount S C) {n A v : U256} (hn : NotBal n) :
@@ -377,10 +359,6 @@ theorem inv_write_nb {S : State.TransactionState} {C : Address} (hacc : hasAccou
     (hn : NotBal n) (h1 : n ≠ 1) (v : U256) : Inv C (writeSlot S C n v) ↔ Inv C S := by
   unfold Inv; rw [sumBal_write_nb hacc hn, tot_write_ne hacc h1]
 
-theorem one_ne0 : (0 : U256) ≠ 1 := by decide
-theorem one_ne3 : (3 : U256) ≠ 1 := by decide
-theorem one_ne4 : (4 : U256) ≠ 1 := by decide
-theorem one_ne10 : (10 : U256) ≠ 1 := by decide
 
 /-- The read-only functions: their end states only record reads (`readSlot`, and `rdSt` for the
 data slots of a long string). -/
@@ -388,65 +366,6 @@ theorem inv_rdSt {S : State.TransactionState} {C c : Address} {h : U256} :
     ∀ j, Inv C (rdSt S c h j) ↔ Inv C S
   | 0 => Iff.rfl
   | j + 1 => by rw [rdSt, inv_readSlot, inv_rdSt j]
-
-/-- approve(s, 0) (`approve_zero`'s end state). -/
-theorem approveZero_inv {S : State.TransactionState} {message : Message fork}
-    (hacc : hasAccount S message.currentTarget) (hn : NotBal (Approve.allowArg message))
-    (h1 : Approve.allowArg message ≠ 1) (hI : Inv message.currentTarget S) :
-    Inv message.currentTarget (writeSlot (readSlot S message.currentTarget 10) message.currentTarget
-      (Approve.allowArg message) 0) := by
-  rw [inv_write_nb (hasAccount_readSlot hacc) hn h1, inv_readSlot]
-  exact hI
-
-/-- approve(s, v), v ≠ 0 (`approve_set`'s end state). -/
-theorem approveSet_inv {S : State.TransactionState} {message : Message fork}
-    (hacc : hasAccount S message.currentTarget) (hn : NotBal (Approve.allowArg message))
-    (h1 : Approve.allowArg message ≠ 1) (hI : Inv message.currentTarget S) :
-    Inv message.currentTarget (writeSlot (readSlot (readSlot S message.currentTarget 10)
-      message.currentTarget (Approve.allowArg message)) message.currentTarget
-      (Approve.allowArg message) (wordArg message.data 1)) := by
-  rw [inv_write_nb (hasAccount_readSlot (hasAccount_readSlot hacc)) hn h1, inv_readSlot,
-    inv_readSlot]
-  exact hI
-
-/-- pause() / unpause() (one write of slot 0). -/
-theorem pause_inv (F : FixedSep) {S : State.TransactionState} {C : Address} (hacc : hasAccount S C)
-    (b : U256) (hI : Inv C S) : Inv C (writeSlot S C 0 (Pause.withPaused (storageAt S C 0) b)) := by
-  rw [inv_write_nb hacc (nb0 F) one_ne0]; exact hI
-
-/-- transferOwnership(a), a ≠ 0 (one write of slot 0). -/
-theorem transferOwnership_inv (F : FixedSep) {S : State.TransactionState} {C : Address}
-    (hacc : hasAccount S C) (a : U256) (hI : Inv C S) :
-    Inv C (writeSlot S C 0 (AddrWrite.withAddr (storageAt S C 0) a)) := by
-  rw [inv_write_nb hacc (nb0 F) one_ne0]; exact hI
-
-/-- addBlackList(a) / removeBlackList(a) (`listState`). -/
-theorem list_inv {S : State.TransactionState} {message : Message fork}
-    (hacc : hasAccount S message.currentTarget)
-    (hn : NotBal (BlackList.listSlot (addrArg message.data 0)))
-    (h1 : BlackList.listSlot (addrArg message.data 0) ≠ 1) (v : U256)
-    (hI : Inv message.currentTarget S) :
-    Inv message.currentTarget (BlackListSpec.listState S message v) := by
-  simp only [BlackListSpec.listState]
-  rw [inv_write_nb (hasAccount_readSlot hacc) hn h1, inv_readSlot]
-  exact hI
-
-/-- setParams(b, m) (`paramsState`: writes of slots 3 and 4). -/
-theorem params_inv (F : FixedSep) {S : State.TransactionState} {message : Message fork}
-    (hacc : hasAccount S message.currentTarget) (hI : Inv message.currentTarget S) :
-    Inv message.currentTarget (SetParamsSpec.paramsState S message) := by
-  simp only [SetParamsSpec.paramsState]
-  rw [inv_readSlot, inv_readSlot, inv_write_nb (by acc) (nb4 F) one_ne4, inv_readSlot,
-    inv_write_nb (by acc) (nb3 F) one_ne3, inv_readSlot]
-  exact hI
-
-/-- deprecate(a) (`depState`: two writes of slot 10). -/
-theorem deprecate_inv (F : FixedSep) {S : State.TransactionState} {message : Message fork}
-    (hacc : hasAccount S message.currentTarget) (hI : Inv message.currentTarget S) :
-    Inv message.currentTarget (AddrWriteSpec.depState S message) := by
-  simp only [AddrWriteSpec.depState]
-  rw [inv_write_nb (by acc) (nb10 F) one_ne10, inv_write_nb (by acc) (nb10 F) one_ne10, inv_readSlot]
-  exact hI
 
 /-! ## issue, redeem, destroyBlackFunds: the writes of slot 1 -/
 
@@ -850,18 +769,5 @@ theorem reach_destroy (K : SepOn (callKeys message state))
   .single (.destroy message rfl hacc K.uniqArg0)
 
 end Reach
-
-/-- The invariant after a successful `transfer` with fee 0, as `transfer_ok` states its end:
-`Inv` at the start (and `SepOn` of the call's keys) gives `Inv` at the end. The other paths
-follow the same way from `reach_*` and `steps_inv`. -/
-theorem transfer_ok_keeps {fork : Fork} {state : State.TransactionState}
-    {message : Message fork} (K : SepOn (callKeys message state)) (hacc : hasAccount state message.currentTarget)
-    (hbal : (wordArg message.data 1).toNat ≤ (balS (shortState state message) message).toNat)
-    (hto : (balT (shortState state message) message (wordArg message.data 1)
-      (addrArg message.data 0)).toNat + (wordArg message.data 1).toNat < 2 ^ 256)
-    (hI : Inv message.currentTarget state) :
-    Inv message.currentTarget (credited (shortState state message) message
-      (wordArg message.data 1) (addrArg message.data 0)) :=
-  steps_inv K.fixed (reach_transfer_ok K hacc hbal hto) hI
 
 end UsdtVerify.Invariant

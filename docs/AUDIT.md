@@ -1463,3 +1463,24 @@ in docs/STATUS.md, round 52). `destroy_mirror_call_auths` and `destroy_mirror_ca
 their statements. The exact theorems use EthLib's `RunsOk` (#1633), the same proposition as the
 old local one. `static_run` keeps its statement through the new `static_runFrame`, since EthLib
 #1619 removed `staticStep_runFrame`.
+
+**Note (round 53).** Round 53 prunes superseded theorems (docs/STATUS.md, round 53). Some
+resolutions above name theorems that are now removed. Each removed form is implied by a kept one,
+or was a statement about a removed old definition:
+- `X_dep_ok_iff` and `X_dep_ok_iff_gas` (findings 3 and M1): `X_dep_ok_iff_fails` gives both, with
+  the same `CallFrom` restriction of `hans` and the failure hypothesis. The `processRunner`
+  instances `X_dep_ok_iff_gas_process_stop` and `_gas_process_mirror` keep their statements and are
+  now proved from `X_dep_ok_iff_fails`. The plain instances `X_dep_ok_iff_process_stop` are implied
+  by the gas-exact ones.
+- `KeepsInv`, `KeepsInvAcc`, `KeepsInvNoAcc`, `HonestBalance` and their bridges (findings 2 and
+  T4): no theorem took them as a hypothesis since round 29. The theorems take `KeepsInvAt` and
+  `HonestBalanceAt`, as before.
+- The reservoir-0 forms over `StateGasMeter` (U1 to U3): the any-reservoir forms of
+  Invariant/DepMeterR.lean, Security/DepMeterR.lean and Sanity/ProcessMeterR.lean give them, since
+  their runner assumptions at reservoir 0 are the reservoir-0 ones by definition
+  (`keepsInvAtSR_zero`, `honestBalanceAtSR_zero`, `keepsAtSR_zero`). `dep_X_completeS`,
+  `callStep_child_res0`, `KeepsInvAtS`, `HonestBalanceAtS`, `KeepsAtS`, `process_stepDS`,
+  `process_stepSD` and `process_stepSecD` are kept.
+- The `_start` corollaries of U1: the forms for any starting meter give them.
+An independent read-only review checked that every kept constant is unchanged and that each
+removed theorem the docs named is implied by a kept one (docs/STATUS.md, round 53).

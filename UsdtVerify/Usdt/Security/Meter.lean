@@ -14,8 +14,6 @@ and `supply_seqS` take a `SeqS`, whose calls are `RunOk` (meter `Nat`) or `RunOk
   state. No hypothesis on the starting meter, on the reservoir, on refills or on the gas limit.
 - `process_stepSec`: from Paris, every such message (any value) that `processMessage` ends over
   `StateGasMeter`, from any starting meter, is a `RunOkS` step or an `Untouched` step.
-- `runOkS_process_start`, `process_stepSec_start`: the same for the fresh meter of the message,
-  which `processMessage` takes by default.
 -/
 
 namespace UsdtVerify.Security
@@ -88,30 +86,5 @@ theorem process_stepSec {fork : Fork} (hparis : .paris ≤ fork)
     · exact .inl (runOkS_process hparis hmc ht noPrecompile hsize hproc herr)
   · exact .inr fun _ =>
       getStorage_processMessage_of_error hproc (Option.isSome_iff_ne_none.mpr herr) _ _
-
-/-- `runOkS_process` for the fresh meter of the message. -/
-theorem runOkS_process_start {fork : Fork} (hparis : .paris ≤ fork)
-    {message : Message fork} {state : State.TransactionState} {substate : Substate}
-    (hmc : message.code = CODE)
-    (noValue : ¬(message.shouldTransferValue = true ∧ message.value ≠ 0))
-    (noPrecompile : precompileAddress fork message = none)
-    (hsize : message.data.size < 2 ^ 256)
-    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
-    (hproc : processMessage fork message state substate = .ok ended)
-    (hok : ended.val.error = none) :
-    RunOkS message.currentTarget state ended.val.state message :=
-  runOkS_process hparis hmc noValue noPrecompile hsize hproc hok
-
-/-- `process_stepSec` for the fresh meter of the message. -/
-theorem process_stepSec_start {fork : Fork} (hparis : .paris ≤ fork)
-    {message : Message fork} {state : State.TransactionState} {substate : Substate}
-    (hmc : message.code = CODE)
-    (noPrecompile : precompileAddress fork message = none)
-    (hsize : message.data.size < 2 ^ 256)
-    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
-    (hproc : processMessage fork message state substate = .ok ended) :
-    RunOkS message.currentTarget state ended.val.state message ∨
-      Untouched message.currentTarget state ended.val.state :=
-  process_stepSec hparis hmc noPrecompile hsize hproc
 
 end UsdtVerify.Security

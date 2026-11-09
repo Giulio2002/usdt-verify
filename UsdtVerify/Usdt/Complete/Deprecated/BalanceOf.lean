@@ -4,7 +4,7 @@ import UsdtVerify.Usdt.Spec.Deprecated.BalanceOf
 /-!
 # Completeness of deprecated balanceOf(address), for any gas and any runner
 
-`prefixG_balanceOf` (pc 0 to EXTCODESIZE at 4874, over `StepG`), `dep_balanceOf_split`, and
+`prefixG_balanceOf` (pc 0 to EXTCODESIZE at 4874, over `StepG`) and
 `dep_balanceOf_complete`: every run that ends with no error, with any gas and ANY runner, is the
 forward of `balanceOf(a)` to the upgraded address (`SendsVia … (dataB message)`), the runner gave a
 frame with no error, and the run returns the word at 0x60 after the CALL wrote the start of that
@@ -54,28 +54,6 @@ theorem prefixG_balanceOf (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data
   step fwdArgsB (state := state) hfork (by simp only [addrArg, mask_mask]) (by simp)
     (by gas_ok)
   exact Gas.reshapeG rfl rfl (by gas_ok)
-
-theorem dep_balanceOf_split (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
-    (hsel : selector message.data = 0x70a08231)
-    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    {gas : Nat} {evm s : Evm fork Nat}
-    (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
-    (hok : s.error = none) :
-    896 + slotCost (coldIn substate message.currentTarget 10) ≤ gas ∧ ∃ z' w,
-      At CODE message 4874
-        [upWord (storageAt state message.currentTarget 10),
-          upWord (storageAt state message.currentTarget 10), 0, 0x60, 0x24, 0x60, 0x20, 0x84,
-          0x70a08231, upWord (storageAt state message.currentTarget 10), 0,
-          addrArg message.data 0, 0x05e7, BitVec.ofNat 256 (selector message.data)]
-        (M2B (addrArg message.data 0))
-        (gas - (896 + slotCost (coldIn substate message.currentTarget 10)))
-        (readSlot state message.currentTarget 10) (accessSlot substate message.currentTarget 10) z' ∧
-      Evm.runFrame (step fork) (step_decreases fork) bound runChild z' w = .ok s := by
-  obtain ⟨h4, hv, -⟩ := runFrame_ok_dispatch hfork hsize' start within hrun hok
-  exact ok_split (Nat.le_refl _)
-    (fun g hg => prefixG_balanceOf hfork h4 hsize' hsel hv hdep rfl hg) start within hrun hok
 
 /-- **`dep_balanceOf_complete` over `RunC`** (round 39): for any relation `Run` of the child, a `RunC`
 from the fresh frame that ends with no error, where `EndsOk` holds (for the dispatcher and the

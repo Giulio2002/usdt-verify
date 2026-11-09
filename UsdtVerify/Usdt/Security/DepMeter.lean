@@ -19,14 +19,10 @@ reservoir is 0 when `C` is deprecated (no hypothesis on the reservoir otherwise)
   deprecated (reservoir 0) and `effect_local_any` otherwise.
 - `EffectDF.paused`, `.protKept`, `.listed`, `.allowKept`, `.supply`: the lemmas `EffectD.X` for
   `EffectDF`.
-- `paused_call_allS`, `nonOwner_call_allS`, `listed_call_allS`, `allowKept_call_allS`,
-  `supply_call_allS`: the `_call_all` theorems over `StateGasMeter`, with the runner assumptions
-  stated by `KeepsAtS` for the same relations (`BalKept`, `ProtKept`, `ListedNoDec`, `AllowKept`,
-  `SupplyKept` of `C`).
-- `owner_only_allS` (round 41): `owner_only` over `StateGasMeter`, deprecated or not, reservoir 0
-  for deprecated destroyBlackFunds.
 
-Usdt/Security/DepMeterR.lean (round 44) has the same results from any reservoir when deprecated.
+Usdt/Security/DepMeterR.lean (round 44) states the `_call_all` theorems and `owner_only` over
+`StateGasMeter` from any reservoir (`X_call_allSR`, `owner_only_allSR`); at reservoir 0 their
+runner assumption `KeepsAtSR … 0` is `KeepsAtS` (`keepsAtSR_zero`).
 -/
 
 namespace UsdtVerify.Security
@@ -276,117 +272,6 @@ theorem EffectDF.supply {S S' : State.TransactionState} (K : SepOn (callKeys mes
 section Calls
 
 variable {m s : Evm fork StateGasMeter} {within : GasMeter.gasHeld m.gas ≤ bound}
-
-/-- **Pause, one call over the EIP-8037 meter, deprecated or not.** `paused_call_all` for a run
-over `StateGasMeter` (reservoir 0 when deprecated), with `KeepsBal` stated for the runner over
-`StateGasMeter` (`KeepsAtS … BalKept`). -/
-theorem paused_call_allS (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
-    (hsize' : message.data.size < 2 ^ 256)
-    (hpaused : byte20 (storageAt state message.currentTarget 0) ≠ 0)
-    (h7 : StrForm (storageAt state message.currentTarget 7))
-    (h8 : StrForm (storageAt state message.currentTarget 8))
-    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsAtS runS message state (upAddr state message) (BalKept message.currentTarget))
-    (start : At CODE message 0 [] .empty gas state substate (toNat m))
-    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → m.gas.reservoir = 0)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runS m within = .ok s)
-    (hok : s.error = none) :
-    BalKept message.currentTarget state s.state ∨
-      (callerWord message = ownerOf state message.currentTarget ∧
-        (selector message.data = 0xcc872b66 ∨ selector message.data = 0xdb006a75 ∨
-          selector message.data = 0xf3bdc228)) :=
-  (effect_allS hfork hsize' h7 h8 start hres hrun hok).paused K hpaused
-    fun hd _ _ hf => (hkeeps hd).fwd hf
-
-/-- **Non-owner, one call over the EIP-8037 meter, deprecated or not.** `nonOwner_call_all` for a
-run over `StateGasMeter` (reservoir 0 when deprecated), with `KeepsSlots` stated for the runner
-over `StateGasMeter`. -/
-theorem nonOwner_call_allS (K : SecSep (callKeys message state)) (hfork : .berlin ≤ fork)
-    (hsize' : message.data.size < 2 ^ 256)
-    (h7 : StrForm (storageAt state message.currentTarget 7))
-    (h8 : StrForm (storageAt state message.currentTarget 8))
-    (hno : callerWord message ≠ ownerOf state message.currentTarget)
-    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsAtS runS message state (upAddr state message) (ProtKept message.currentTarget))
-    (start : At CODE message 0 [] .empty gas state substate (toNat m))
-    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → m.gas.reservoir = 0)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runS m within = .ok s)
-    (hok : s.error = none) : ProtKept message.currentTarget state s.state :=
-  (effect_allS hfork hsize' h7 h8 start hres hrun hok).protKept K hno
-    fun hd _ _ hf => (hkeeps hd).fwd hf
-
-/-- **Blacklist, one call over the EIP-8037 meter, deprecated or not.** `listed_call_all` for a
-run over `StateGasMeter` (reservoir 0 when deprecated), with `KeepsListed` stated for the runner
-over `StateGasMeter`. -/
-theorem listed_call_allS (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
-    (hsize' : message.data.size < 2 ^ 256)
-    (h7 : StrForm (storageAt state message.currentTarget 7))
-    (h8 : StrForm (storageAt state message.currentTarget 8))
-    {a : U256} (ha : a.toNat < 2 ^ 160) (hl : Listed message.currentTarget state a)
-    (hsel : (selector message.data ≠ 0xdb006a75 ∧ selector message.data ≠ 0xf3bdc228) ∨
-      callerWord message ≠ ownerOf state message.currentTarget)
-    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsAtS runS message state (upAddr state message) (ListedNoDec message.currentTarget))
-    (start : At CODE message 0 [] .empty gas state substate (toNat m))
-    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → m.gas.reservoir = 0)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runS m within = .ok s)
-    (hok : s.error = none) : NoDec message.currentTarget (mapSlot a 2) state s.state :=
-  (effect_allS hfork hsize' h7 h8 start hres hrun hok).listed K ha hl hsel
-    fun hd _ _ hf => (hkeeps hd).fwd hf
-
-/-- **Allowances, one call over the EIP-8037 meter, deprecated or not.** `allowKept_call_all`
-for a run over `StateGasMeter` (reservoir 0 when deprecated), with `KeepsAllow` stated for the
-runner over `StateGasMeter`. -/
-theorem allowKept_call_allS {y z : U256} (K : SecSep (y :: z :: callKeys message state))
-    (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
-    (h7 : StrForm (storageAt state message.currentTarget 7))
-    (h8 : StrForm (storageAt state message.currentTarget 8))
-    (hsel : selector message.data ≠ 0x095ea7b3 ∧ selector message.data ≠ 0x23b872dd)
-    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsAtS runS message state (upAddr state message) (AllowKept message.currentTarget))
-    (start : At CODE message 0 [] .empty gas state substate (toNat m))
-    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → m.gas.reservoir = 0)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runS m within = .ok s)
-    (hok : s.error = none) : AllowKeptAt y z message.currentTarget state s.state :=
-  (effect_allS hfork hsize' h7 h8 start hres hrun hok).allowKept K hsel
-    fun hd _ _ hf => (hkeeps hd).fwd hf
-
-/-- **Supply, one call over the EIP-8037 meter, deprecated or not.** `supply_call_all` for a run
-over `StateGasMeter` (reservoir 0 when deprecated), with `KeepsSupply` stated for the runner over
-`StateGasMeter`. -/
-theorem supply_call_allS (K : SepOn (callKeys message state)) (hfork : .berlin ≤ fork)
-    (hsize' : message.data.size < 2 ^ 256)
-    (h7 : StrForm (storageAt state message.currentTarget 7))
-    (h8 : StrForm (storageAt state message.currentTarget 8))
-    (hkeeps : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      KeepsAtS runS message state (upAddr state message) (SupplyKept message.currentTarget))
-    (start : At CODE message 0 [] .empty gas state substate (toNat m))
-    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 → m.gas.reservoir = 0)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runS m within = .ok s)
-    (hok : s.error = none) : SupplyStepD message state s.state :=
-  (effect_allS hfork hsize' h7 h8 start hres hrun hok).supply K
-    fun hd _ _ hf => (hkeeps hd).fwd hf
-
-/-- **Owner functions over the EIP-8037 meter, deprecated or not** (round 41). `owner_only` for a
-run of the loop over `StateGasMeter`, any gas bound and message runner, no assumption on the
-runner, from a frame `m` whose `toNat` is the fresh frame of `CODE`, with reservoir 0 when the
-call is deprecated destroyBlackFunds (any reservoir otherwise, `owner_only_any`): every run of one
-of the ten owner functions that ends with no error is a call by the owner. -/
-theorem owner_only_allS (hfork : .berlin ≤ fork) (hsize' : message.data.size < 2 ^ 256)
-    (hsel : OwnerFn (selector message.data))
-    (start : At CODE message 0 [] .empty gas state substate (toNat m))
-    (hres : byte20 (storageAt state message.currentTarget 10) ≠ 0 →
-      selector message.data = 0xf3bdc228 → m.gas.reservoir = 0)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runS m within = .ok s)
-    (hok : s.error = none) : callerWord message = ownerOf state message.currentTarget := by
-  by_cases hd : byte20 (storageAt state message.currentTarget 10) = 0 ∨
-      selector message.data ≠ 0xf3bdc228
-  · exact owner_only_any hfork hsize' hsel hd start hrun hok
-  · obtain ⟨hdep, h⟩ := not_or.mp hd
-    have hs : selector message.data = 0xf3bdc228 := Classical.byContradiction h
-    obtain ⟨_, _, -, -, howner, -⟩ :=
-      dep_destroy_completeS hfork hsize' hs hdep rfl rfl rfl rfl start (hres hdep hs) hrun hok
-    exact howner
 
 end Calls
 

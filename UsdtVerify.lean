@@ -62,7 +62,6 @@ import UsdtVerify.Usdt.Complete.Read
 import UsdtVerify.Usdt.Complete.Transfer
 import UsdtVerify.Usdt.Complete.TransferFrom
 import UsdtVerify.Usdt.Exact.Getters
-import UsdtVerify.Usdt.Sanity.Exact
 import UsdtVerify.Usdt.Exact.Deprecated
 import UsdtVerify.Usdt.Exact.TransferFrom
 import UsdtVerify.Usdt.Exact.Transfer

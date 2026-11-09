@@ -143,8 +143,4 @@ theorem SpecG.toJA {code : ByteArray} {message : Message fork} {pc : Nat}
     rw [hc.2.2.2.2.2.2.1, he.2.2.2.1, he.2.2.2.2.1, he.2.1, hc.2.2.2.2.2.2.2.2.2.2.1]
     exact ⟨hg, .inl rfl, hs⟩
 
-/-- A `StepJ` chain is a `StepI` chain. -/
-theorem reaches_JI {c e : Evm fork Nat} (h : Reaches (StepJ fork) c e) : Reaches (StepI fork) c e :=
-  h.mono fun hs => ⟨hs.1, hs.2.1⟩
-
 end UsdtVerify.Refill

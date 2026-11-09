@@ -26,6 +26,7 @@ and unused lemmas that EthLib already states are removed. The local `At`, `StepG
 and the rules over them stay (round 50 below says why).
 Round 51, same pin: the fifth audit's findings V1 to V3 are closed by new theorems (round 51
 below). No existing statement changed.
+Round 53, same pin: superseded theorems pruned (round 53 below). No kept statement changed.
 Previous pin: 0c34dc001 (master after #1608; includes #1597, #1599 and #1605; commit
 0c34dc0010f6ff1b3d5f1c7614af10faa85fb685, round 47). Re-pinned in round 47: EthLib's `At` names
 the return data of a frame (#1351), so `At` in this repository is now the local predicate of Evm/At.lean, with the same twelve
@@ -2602,6 +2603,72 @@ between the pins EthLib changed the BLS square root definitions (#1628, #1631), 
 constants reach through the step semantics; their statements are unchanged, and EthLib ships its
 own compatibility proofs, which nobody here reviewed.
 
+### Round 53: superseded theorems pruned (same pin 62dbd687d)
+
+The keep set is every theorem the public README, docs/RESULTS.md and the index of
+UsdtVerify/Summary.lean present as a result, reduced to its strongest form, plus everything those
+depend on, computed by a script over the compiled declarations (the used constants of every type
+and value). Outside that closure, the weaker forms whose stronger form is kept, the unused helpers,
+the superseded witnesses and the aliases of removed theorems are deleted.
+Lines of Lean in UsdtVerify/: 68,219 after round 52, 63,958 after round 53 (4,261 fewer); 161
+files to 160 (Usdt/Sanity/Exact.lean removed); 1311 `#print axioms` entries to 1127.
+221 constants removed, none added. Removed, by kind:
+- Weaker forms of kept theorems: the 81 `runFrame_*` wrappers that were one application of
+  EthLib's `Spec.runFrame` to a kept spec (Usdt/Spec/RunFrames.lean keeps `runFrame_issue` and
+  `runFrame_redeem`, which Usdt/Sanity/Calls.lean uses) and their 11 Summary aliases;
+  `X_dep_ok_iff` and `X_dep_ok_iff_gas` for the seven forwards (from `X_dep_ok_iff_fails`: `htail`
+  gives the gas condition, `NoFailOn` gives `hfail`); `fwd_ok_iff_fails` (from `fwd_ok_or_fails`);
+  the `_start` corollaries; the reservoir-0 forms over `StateGasMeter` that the any-reservoir
+  forms give (`keepsInvAtSR_zero`, `honestBalanceAtSR_zero`, `keepsAtSR_zero` are `Iff.rfl`, with
+  `CallsDS.toR`, `GoodCallDS.toR`, `SeqRS.toRSR`): `inv_call_depS`, `inv_call_anyD`,
+  `inv_callsDS`, `inv_goodCallDS`, `process_stepDS_inv`, `process_stepSD_inv`, the five
+  `_call_allS`, `owner_only_allS`, the five `_seq_allS`, the five `_processS`.
+- Old forms and their bridges: `KeepsInv`, `KeepsInvAcc`, `KeepsInvNoAcc`, `HonestBalance`,
+  `keepsInv_of_acc`, `keepsInv_at`, `keepsInvAt_of_acc`, `keepsInvAt_of_acc_hasAccount`,
+  `honest_at`, `NoFail`, `NoFail.on`, `AnsIff` (no kept statement names them since round 29).
+- Superseded witnesses: the plain instances `X_dep_ok_iff_process_stop` (the gas-exact
+  `X_dep_ok_iff_gas_process_stop` imply them) with `hans_process_stop`,
+  `hans_destroy_process_stop`; `keepsInvAt_process_stop` (a projection of
+  `processRunner_stop_keepsAll`); `keepsInvAtS_process_stop`, `keepsAtS_process_stop`,
+  `honestBalanceAtS_process_mirror` (the `SR` forms of Sanity/ProcessMeterR.lean at reservoir 0);
+  the mock runners `stopRunner`, `answerRunnerAt`, `failRunner` with their witnesses
+  (`stop_keeps_all`, `stop_staticKeeps`, all of Sanity/Exact.lean) and
+  `honestBalance_of_answers`, as `processRunner` instances replace them.
+- Unused helpers: `step_sub_low`, `output_addGas`, `substate_addGas`, `advance_lift`,
+  `charge_lift`, `toNat_lift`, `reaches_JI`, `noRefillAt_iff`, `extCost_ge`, the three
+  `dep_X_split`, `fromExt_found`, the KeccakSep-era per-path lemmas of Invariant/Supply.lean
+  (`allowState_keeps`, `approveZero_inv`, `approveSet_inv`, `pause_inv`, `transferOwnership_inv`,
+  `list_inv`, `params_inv`, `deprecate_inv`, `transfer_ok_keeps`, `nb0`, `nb3`, `nb4`, `nb10`,
+  `one_ne0`, `one_ne3`, `one_ne4`, `one_ne10`), `bit_setLow`, `exists_hash`, `seqRS_lift`,
+  `seqRS_process`, `keepsInvAtC_of_S`, `honestBalanceAtC_of_S`, the Runners copy of `STOP_CODE`,
+  `StopMsg`.
+Changed proofs, statements unchanged: the seven `X_dep_ok_iff_gas_process_stop` and the two
+`_gas_process_mirror` instances (now from `X_dep_ok_iff_fails`), `runner_assumptions_hold`. One
+kept Sanity lemma changed statement: `Sanity.bal_honest` states `HonestBalanceAt` in place of the
+removed `HonestBalance` (the old statement gave the new one through `honest_at`).
+Not removed, though the brief named it: `inv_call_ns`, which is stronger than `inv_call_all` (it
+covers static frames with no `hstat`), and from which `inv_call_all` is proved.
+Built and checked: clean rebuild of 84a765c (the last commit that changes a Lean file) in a
+fresh clone (empty build directory, the dependency packages copied, safe.sh 9G,
+`lake build UsdtVerify UsdtVerify.Test.Axioms`), exit 0, 1479 jobs, 0 "error:" lines, 105.16 s
+wall, 437.28 s user, 1810268160 bytes max RSS; hash check 11075 bytes, keccak256
+b44fb4e9...ea55; `#print axioms` on the 1127 entries of UsdtVerify/Test/Axioms.lean gives
+[propext, Classical.choice, Quot.sound] or a subset (1080 the three, 31 [propext, Quot.sound],
+8 [propext], 8 none), with no `sorryAx`; no `sorry`, `admit`, `axiom`, `native_decide`,
+`bv_decide` or `decide +native` in UsdtVerify/ (grep exit 1).
+Independent read-only review: PASS (a fresh reviewer; first pass FAIL on two doc lines, fixed in
+0ff8298 and the README, then PASS). It dumped every constant of the
+`UsdtVerify` modules in the BEFORE (4a2f9b4) and AFTER (84a765c) trees: 3371 before, 3150 after,
+all 3150 shared, 3149 with identical types (the one change is the declared `Sanity.bal_honest`),
+no def body changed, 11 theorem proofs changed (exactly the declared ones), 221 removed, none
+added. It restated and proved from kept AFTER theorems, with type hashes equal to the BEFORE
+ones, every removed theorem the docs named that is claimed implied (62), all other removed
+`runFrame` wrappers and the `_start` corollaries (138 in all, no failure), checked that no kept
+type mentions a removed definition other than `bal_honest`, and confirmed that `inv_call_ns`
+implies `inv_call_all`.
+Usdt/Spec/: the closure finds no unused weaker copy. The specifications over the plain `Step` that
+remain are the headline statements of Summary.lean or are used by them.
+
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
   Glamsterdam (third audit, T1; rounds 33 to 36 above). Round 36 covers, not deprecated: the
@@ -2823,6 +2890,10 @@ own compatibility proofs, which nobody here reviewed.
    Evm/Route.lean while their upstreaming is in flight.)
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+Round 53: clean project build of the tree of commit 84a765c (a fresh clone, empty build
+directory, safe.sh 9G, LEAN_NUM_THREADS not set, `lake build UsdtVerify UsdtVerify.Test.Axioms`)
+105.16 s wall, 437.28 s user, 1810268160 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:"
+lines, 1479 jobs.
 Round 52: clean project build of the tree of commit bed09ed (a fresh clone, empty build
 directory, safe.sh 9G, LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`) 156.25 s
 wall, 408.63 s user, 1772601344 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines,

@@ -9,8 +9,8 @@ Proves the Hoare triples of the code blocks that the owner functions share.
 - `hashTail7`: the mapping-lookup tail of `TransferOk.hashTail` at its other copies.
 - `entry1`: the entry of a function with one address argument (value check, argument word 0
   masked to 160 bits, jump to the body).
-- `setLow`, `lowByte_setLow`, `bit_setLow`: the word that the blacklist functions write, with its
-  low byte and its other bits.
+- `setLow`, `lowByte_setLow`: the word that the blacklist functions write, with its
+  low byte.
 -/
 
 namespace UsdtVerify.Admin
@@ -157,24 +157,5 @@ theorem lowByte_setLow (w b : U256) (hb : b = 0 ∨ b = 1) : (setLow w b).toNat 
     BitVec.getLsbD_not, hff]
   simp only [Bool.not_true, Bool.false_and, Bool.and_false, Bool.or_false]
   rfl
-
-/-- `setLow w b` keeps every bit of `w` from bit 8 on. -/
-theorem bit_setLow (w b : U256) (hb : b = 0 ∨ b = 1) {i : Nat} (hi : 8 ≤ i) :
-    (setLow w b).getLsbD i = w.getLsbD i := by
-  have hff : (0xff : U256).getLsbD i = false := by
-    rw [show (0xff : U256) = BitVec.ofNat 256 (2 ^ 8 - 1) by decide, BitVec.getLsbD_ofNat,
-      Nat.testBit_two_pow_sub_one]
-    simp; omega
-  have hbi : b.getLsbD i = false := by
-    rcases hb with rfl | rfl
-    · simp
-    · show Nat.testBit 1 i = false
-      rw [Pause.testBit_one']; simp; omega
-  by_cases h' : 256 ≤ i
-  · rw [BitVec.getLsbD_of_ge (setLow w b) i h', BitVec.getLsbD_of_ge w i h']
-  have h : i < 256 := by omega
-  simp only [setLow, bitwiseOr, bitwiseAnd, bitwiseNot, BitVec.getLsbD_or, BitVec.getLsbD_and,
-    BitVec.getLsbD_not, hff, hbi]
-  cases w.getLsbD i <;> simp [h]
 
 end UsdtVerify.Admin

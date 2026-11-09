@@ -10,8 +10,8 @@ revert), GAS, SUB and CALL. GAS and CALL are not `RunMono`, so the gas-shift arg
 through them; here each step is taken directly, for every gas, at every fork from Berlin
 (Glamsterdam included):
 
-- the steps that fail with too little gas: EXTCODESIZE (`extcodesize_low`, price `extCost`), GAS
-  (`step_gas_low`) and SUB (`step_sub_low`);
+- the steps that fail with too little gas: EXTCODESIZE (`extcodesize_low`, price `extCost`) and GAS
+  (`step_gas_low`);
 - CALL under ANY runner (`call_ok`): the step sends a message, the runner either fails (then the
   run fails) or gives a frame `child`; the loop goes on from the frame that resumes from `child`
   (`CallEnd`). No assumption on the runner.
@@ -66,16 +66,6 @@ theorem step_gas_low {stack : List U256} (hlt : pc < code.size) (hbyte : code[pc
   rw [step_of_instruction hlt (by rw [hbyte]; exact ofByte_of_decode (op := .gas) rfl (Fork.frontier_le _)) instruction_gas']
   simp [readFrame, chargeGas, GasMeter.charge, bind, Except.bind, show OPCODE_GAS = 2 from rfl,
     hg, Functor.map, Except.map]
-
-/-- SUB with less than 3 gas fails. -/
-theorem step_sub_low {x y : U256} {rest : List U256} (hlt : pc < code.size)
-    (hbyte : code[pc] = 0x03) (hg : gas < 3) {evm : Evm fork Nat}
-    (h : At code message pc (x :: y :: rest) memory gas state substate evm) :
-    step fork evm = .error .outOfGas := by
-  obtain ⟨hc, -, -, hpc, hst, -, hgas, -⟩ := h
-  subst hc hpc hgas
-  rw [step_of_instruction hlt (by rw [hbyte]; exact ofByte_of_decode (op := .sub) rfl (Fork.frontier_le _)) instruction_sub, binaryOp_cons hst]
-  simp [GasMeter.charge, show OPCODE_SUB = 3 from rfl, hg, Functor.map, Except.map]
 
 /-- EXTCODESIZE with less gas than its price fails (the code is found). -/
 theorem extcodesize_low (hfork : .berlin ≤ fork) {U : U256}

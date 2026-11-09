@@ -23,7 +23,7 @@ with a state that differs from its caller's only by reads.
 - `inv_call_all`: the invariant over every successful call, static or not. In a static frame it
   is `inv_static`, with the hypotheses `message.code = CODE`, `StaticCode` and `StaticKeeps`; in
   a frame that is not static it is `inv_call_ns` (Usdt/Invariant/All.lean), with the
-  deprecated-path assumptions `KeepsInvAt` and `HonestBalanceAt` (round 29; `KeepsInv`, `HonestBalance` before), and (since round 20) no account of
+  deprecated-path assumptions `KeepsInvAt` and `HonestBalanceAt` (round 29), and (since round 20) no account of
   the contract. The hypothesis "not static" of `inv_call_all` is gone; since round 19
   `inv_call_ns` takes it neither.
 -/

@@ -52,8 +52,6 @@ def toNat (m : Evm fork StateGasMeter) : Evm fork Nat :=
 
 theorem lift_toNat (m : Evm fork StateGasMeter) : lift m.gas (toNat m) = m := rfl
 
-theorem toNat_lift (g : StateGasMeter) (n : Evm fork Nat) : toNat (lift g n) = n := rfl
-
 theorem popWord_lift (g : StateGasMeter) (n : Evm fork Nat) :
     popWord (lift g n) = (popWord n).map (fun p => (p.1, lift g p.2)) := by
   rcases n with ⟨pc, ⟨_ | ⟨x, rest⟩, hp⟩⟩ <;> rfl
@@ -62,12 +60,6 @@ theorem pushWord_lift (g : StateGasMeter) (n : Evm fork Nat) (x : U256) :
     pushWord (lift g n) x = (pushWord n x).map (lift g) := by
   by_cases h : n.stack.val.length = STACK_LIMIT <;>
     simp [pushWord, Stack.push, h, bind, Except.bind, Except.map, pure, Except.pure, lift]
-
-theorem charge_lift (g : StateGasMeter) (x c : Nat) :
-    GasMeter.charge (Meter := StateGasMeter) { g with gasLeft := x } c =
-      (GasMeter.charge (Meter := Nat) x c).map (fun y => { g with gasLeft := y }) := by
-  simp only [GasMeter.charge, StateGasMeter.charge]
-  split <;> rfl
 
 theorem chargeGas_lift (g : StateGasMeter) (n : Evm fork Nat) (c : Nat) :
     chargeGas (lift g n) c = (chargeGas n c).map (lift g) := by
@@ -104,9 +96,6 @@ theorem chargeGasAndMemory_lift (g : StateGasMeter) (n : Evm fork Nat) (c : Nat)
   rcases chargeGas n _ with e | c
   · rfl
   rfl
-
-theorem advance_lift (g : StateGasMeter) (n : Evm fork Nat) (k : Nat) :
-    advance (lift g n) k = lift g (advance n k) := rfl
 
 /-- The instruction `runS` of the meter `StateGasMeter` on a frame with meter `g` is the
 instruction `runN` of the meter `Nat` on that frame with its execution gas, with `g` for the rest

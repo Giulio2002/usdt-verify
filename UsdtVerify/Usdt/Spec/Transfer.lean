@@ -76,24 +76,6 @@ theorem spec_paused (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
-/-- The loop of the interpreter runs a `transfer` call while paused to a revert.
-
-It holds for every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_paused (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
-    (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xa9059cbb)
-    (hv : message.value = 0) (hpaused : byte20 (storageAt state message.currentTarget 0) ≠ 0)
-    {c0 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0) {gas : Nat}
-    (hg : PAUSED_COST + slotCost c0 ≤ gas) {bound : Nat}
-    {runChild : MessageRunner fork Nat bound} {evm : Evm fork Nat}
-    (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
-      .ok stopped ∧
-      Halted true .empty (gas - (PAUSED_COST + slotCost c0))
-        (readSlot state message.currentTarget 0) (accessSlot substate message.currentTarget 0)
-        stopped :=
-  (spec_paused hfork hsize hsize' hsel hv hpaused hc0 hg).runFrame start within
-
 /-- The gas of the blacklisted path, besides the reads of slot 0 and of the blacklist slot. -/
 abbrev BLACK_COST : Nat := 913
 
@@ -144,28 +126,6 @@ theorem spec_blacklisted (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.
   refine Gas.SpecG.seq (h1.seq (h2.seq h3)) (h4.consequence (fun _ h => h) ?_)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
-
-/-- The loop of the interpreter runs a `transfer` call from a blacklisted caller to a revert.
-
-It holds for every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_blacklisted (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
-    (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xa9059cbb)
-    (hv : message.value = 0) (hnp : byte20 (storageAt state message.currentTarget 0) = 0)
-    (hblack : (storageAt state message.currentTarget (blackSlot message)).toNat % 256 ≠ 0)
-    {c0 cB : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
-    (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
-      (blackSlot message) = cB)
-    {gas : Nat} (hg : BLACK_COST + slotCost c0 + slotCost cB ≤ gas) {bound : Nat}
-    {runChild : MessageRunner fork Nat bound} {evm : Evm fork Nat}
-    (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
-      .ok stopped ∧
-      Halted true .empty (gas - (BLACK_COST + slotCost c0 + slotCost cB))
-        (readSlot (readSlot state message.currentTarget 0) message.currentTarget (blackSlot message))
-        (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
-          (blackSlot message)) stopped :=
-  (spec_blacklisted hfork hsize hsize' hsel hv hnp hblack hc0 hcB hg).runFrame start within
 
 /-- The gas of the short-payload path, besides the reads of slots 0, 10 and the blacklist slot. -/
 abbrev SHORT_COST : Nat := 1094
@@ -227,29 +187,6 @@ theorem spec_short (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
     (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
-
-/-- The loop of the interpreter runs a `transfer` call with too short call data to a revert.
-
-It holds for every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_short (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
-    (hshort : message.data.size < 68) (hsel : selector message.data = 0xa9059cbb)
-    (hv : message.value = 0) (hnp : byte20 (storageAt state message.currentTarget 0) = 0)
-    (hnb : (storageAt state message.currentTarget (blackSlot message)).toNat % 256 = 0)
-    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
-    {c0 cB c10 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
-    (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
-      (blackSlot message) = cB)
-    (hc10 : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
-      (blackSlot message)) message.currentTarget 10 = c10)
-    {gas : Nat} (hg : SHORT_COST + slotCost c0 + slotCost cB + slotCost c10 ≤ gas) {bound : Nat}
-    {runChild : MessageRunner fork Nat bound} {evm : Evm fork Nat}
-    (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
-      .ok stopped ∧
-      Halted true .empty (gas - (SHORT_COST + slotCost c0 + slotCost cB + slotCost c10))
-        (shortState state message) (shortSubstate substate message) stopped :=
-  (spec_short hfork hsize hshort hsel hv hnp hnb hdep hc0 hcB hc10 hg).runFrame start within
 
 end UsdtVerify.Transfer
 
@@ -644,41 +581,6 @@ theorem spec_low (hfork : .berlin ≤ fork)
   step Gas.reshapeG (g' := gas - (1034 + slotCost c0 + slotCost cB + slotCost c10)) rfl rfl (by gas_ok)
   exact hB
 
-/-- The loop of the interpreter runs a `transfer` call whose sender's balance is below `v` to the
-fault of `spec_low` (INVALID, no output, no gas left). It holds for every bound on the gas of
-messages and every runner of messages. -/
-theorem runFrame_low (hfork : .berlin ≤ fork)
-    (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
-    (hsel : selector message.data = 0xa9059cbb) (hv : message.value = 0)
-    (hnp : byte20 (storageAt state message.currentTarget 0) = 0)
-    (hnb : (storageAt state message.currentTarget (blackSlot message)).toNat % 256 = 0)
-    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
-    (hov : (wordArg message.data 1).toNat *
-      (storageAt (shortState state message) message.currentTarget 3).toNat < 2 ^ 256)
-    (hfv : (feeOf (shortState state message) message (wordArg message.data 1)).toNat ≤
-      (wordArg message.data 1).toNat)
-    (hlow : (balS (shortState state message) message).toNat < (wordArg message.data 1).toNat)
-    {c0 cB c10 c3 c4 cS : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
-    (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
-      (blackSlot message) = cB)
-    (hc10 : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
-      (blackSlot message)) message.currentTarget 10 = c10)
-    (hc3 : coldIn (shortSubstate substate message) message.currentTarget 3 = c3)
-    (hc4 : coldIn (accessSlot (shortSubstate substate message) message.currentTarget 3)
-      message.currentTarget 4 = c4)
-    (hcS : coldIn (accessSlot (accessSlot (shortSubstate substate message) message.currentTarget 3)
-      message.currentTarget 4) message.currentTarget (senderSlot message) = cS)
-    {gas : Nat} (hg : lowCost state message c0 cB c10 c3 c4 cS ≤ gas) {bound : Nat}
-    {runChild : MessageRunner fork Nat bound} {evm : Evm fork Nat}
-    (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
-      .ok stopped ∧
-      Faulted (.invalidOpcode 0xfe) (reads3 (shortState state message) message)
-        (access3 (shortSubstate substate message) message) stopped :=
-  (spec_low hfork hlong hsz hsel hv hnp hnb hdep hov hfv hlow hc0 hcB hc10 hc3 hc4 hcS hg).runFrame
-    start within
-
 end UsdtVerify.TransferOk
 
 end
@@ -808,57 +710,6 @@ theorem spec_fee (hfork : .berlin ≤ fork)
   refine hB.consequence (fun _ h => h) ?_
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas, Nat.sub_sub], hs, hss⟩
-
-/-- The loop of the interpreter runs a successful `transfer` call with a fee above 0 to its
-specification, for every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_fee (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
-    (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
-    (hsel : selector message.data = 0xa9059cbb) (hv : message.value = 0)
-    (hnp : byte20 (storageAt state message.currentTarget 0) = 0)
-    (hnb : (storageAt state message.currentTarget (blackSlot message)).toNat % 256 = 0)
-    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
-    (hov : (wordArg message.data 1).toNat *
-      (storageAt (shortState state message) message.currentTarget 3).toNat < 2 ^ 256)
-    (hfee : feeOf (shortState state message) message (wordArg message.data 1) ≠ 0)
-    (hfv : (feeOf (shortState state message) message (wordArg message.data 1)).toNat ≤
-      (wordArg message.data 1).toNat)
-    (hbal : (wordArg message.data 1).toNat ≤ (balS (shortState state message) message).toNat)
-    (hto : (balT (shortState state message) message (wordArg message.data 1)
-      (addrArg message.data 0)).toNat +
-      (sendOf (shortState state message) message (wordArg message.data 1)).toNat < 2 ^ 256)
-    (hown : (balO (shortState state message) message (wordArg message.data 1)
-      (addrArg message.data 0)).toNat +
-      (feeOf (shortState state message) message (wordArg message.data 1)).toNat < 2 ^ 256)
-    {c0 cB c10 c3 c4 cS cT cO : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
-    (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
-      (blackSlot message) = cB)
-    (hc10 : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
-      (blackSlot message)) message.currentTarget 10 = c10)
-    (hc3 : coldIn (shortSubstate substate message) message.currentTarget 3 = c3)
-    (hc4 : coldIn (accessSlot (shortSubstate substate message) message.currentTarget 3)
-      message.currentTarget 4 = c4)
-    (hcS : coldIn (accessSlot (accessSlot (shortSubstate substate message) message.currentTarget 3)
-      message.currentTarget 4) message.currentTarget (senderSlot message) = cS)
-    (hcT : coldIn (access3 (shortSubstate substate message) message) message.currentTarget
-      (recipientSlot (addrArg message.data 0)) = cT)
-    (hcO : coldIn (creditedSubFee fork (shortSubstate substate message) (shortState state message)
-      message (wordArg message.data 1) (addrArg message.data 0)) message.currentTarget
-      (ownerSlot (ownerWord (shortState state message) message (wordArg message.data 1)
-        (addrArg message.data 0))) = cO)
-    {gas : Nat} (hg : feeCost fork state message c0 cB c10 c3 c4 cS cT cO ≤ gas) {bound : Nat}
-    {runChild : MessageRunner fork Nat bound} {evm : Evm fork Nat}
-    (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
-      .ok stopped ∧
-      Halted false .empty (gas - feeCost fork state message c0 cB c10 c3 c4 cS cT cO)
-        (feeState (shortState state message) message (wordArg message.data 1)
-          (addrArg message.data 0))
-        (feeSub fork (shortSubstate substate message) (shortState state message) message
-          (wordArg message.data 1) (addrArg message.data 0)) stopped :=
-  (spec_fee hfork hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hfee hfv hbal hto hown hc0
-    hcB hc10 hc3 hc4 hcS hcT hcO hg).runFrame start within
 
 end UsdtVerify.TransferFee
 
@@ -1524,183 +1375,6 @@ theorem spec_ownerOv (hfork : .berlin ≤ fork)
       hc3 hc4 hcS hcT hcO
       (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hstip))
       (Nat.le_sub_of_add_le (by rw [Nat.add_comm]; exact hg)))
-
-/-- The loop of the interpreter runs the case of `spec_mulOv` to its end condition. It holds for
-every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_mulOv (hfork : .berlin ≤ fork)
-    (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
-    (hsel : selector message.data = 0xa9059cbb) (hv : message.value = 0)
-    (hnp : byte20 (storageAt state message.currentTarget 0) = 0)
-    (hnb : (storageAt state message.currentTarget (blackSlot message)).toNat % 256 = 0)
-    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
-    (hov : 2 ^ 256 ≤ (wordArg message.data 1).toNat *
-      (storageAt (shortState state message) message.currentTarget 3).toNat)
-    {c0 cB c10 c3 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
-    (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
-      (blackSlot message) = cB)
-    (hc10 : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
-      (blackSlot message)) message.currentTarget 10 = c10)
-    (hc3 : coldIn (shortSubstate substate message) message.currentTarget 3 = c3)
-    {gas : Nat} (hg : preCost c0 cB c10 + (204 + slotCost c3) ≤ gas)
-    {bound : Nat} {runChild : MessageRunner fork Nat bound} {evm : Evm fork Nat}
-    (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
-      .ok stopped ∧
-      Faulted (.invalidOpcode 0xfe) (readSlot (shortState state message) message.currentTarget 3)
-          (accessSlot (shortSubstate substate message) message.currentTarget 3) stopped :=
-  (spec_mulOv hfork hlong hsz hsel hv hnp hnb hdep hov hc0 hcB hc10 hc3 hg).runFrame start within
-
-/-- The loop of the interpreter runs the case of `spec_feeGt` to its end condition. It holds for
-every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_feeGt (hfork : .berlin ≤ fork)
-    (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
-    (hsel : selector message.data = 0xa9059cbb) (hv : message.value = 0)
-    (hnp : byte20 (storageAt state message.currentTarget 0) = 0)
-    (hnb : (storageAt state message.currentTarget (blackSlot message)).toNat % 256 = 0)
-    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
-    (hov : (wordArg message.data 1).toNat *
-      (storageAt (shortState state message) message.currentTarget 3).toNat < 2 ^ 256)
-    (hgt : (wordArg message.data 1).toNat <
-      (feeOf (shortState state message) message (wordArg message.data 1)).toNat)
-    {c0 cB c10 c3 c4 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
-    (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
-      (blackSlot message) = cB)
-    (hc10 : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
-      (blackSlot message)) message.currentTarget 10 = c10)
-    (hc3 : coldIn (shortSubstate substate message) message.currentTarget 3 = c3)
-    (hc4 : coldIn (accessSlot (shortSubstate substate message) message.currentTarget 3)
-      message.currentTarget 4 = c4)
-    {gas : Nat} (hg : preCost c0 cB c10 + (299 + slotCost c3 + slotCost c4 +
-      mulCost (wordArg message.data 1) +
-      capCost (rawFee (shortState state message) message (wordArg message.data 1))
-        (storageAt (shortState state message) message.currentTarget 4)) ≤ gas)
-    {bound : Nat} {runChild : MessageRunner fork Nat bound} {evm : Evm fork Nat}
-    (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
-      .ok stopped ∧
-      Faulted (.invalidOpcode 0xfe)
-          (readSlot (readSlot (shortState state message) message.currentTarget 3)
-            message.currentTarget 4)
-          (accessSlot (accessSlot (shortSubstate substate message) message.currentTarget 3)
-            message.currentTarget 4) stopped :=
-  (spec_feeGt hfork hlong hsz hsel hv hnp hnb hdep hov hgt hc0 hcB hc10 hc3 hc4 hg).runFrame start
-    within
-
-/-- The loop of the interpreter runs the case of `spec_toOv` to its end condition. It holds for
-every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_toOv (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
-    (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
-    (hsel : selector message.data = 0xa9059cbb) (hv : message.value = 0)
-    (hnp : byte20 (storageAt state message.currentTarget 0) = 0)
-    (hnb : (storageAt state message.currentTarget (blackSlot message)).toNat % 256 = 0)
-    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
-    (hov : (wordArg message.data 1).toNat *
-      (storageAt (shortState state message) message.currentTarget 3).toNat < 2 ^ 256)
-    (hfv : (feeOf (shortState state message) message (wordArg message.data 1)).toNat ≤
-      (wordArg message.data 1).toNat)
-    (hbal : (wordArg message.data 1).toNat ≤ (balS (shortState state message) message).toNat)
-    (hto : 2 ^ 256 ≤ (balT (shortState state message) message (wordArg message.data 1)
-      (addrArg message.data 0)).toNat +
-      (sendOf (shortState state message) message (wordArg message.data 1)).toNat)
-    {c0 cB c10 c3 c4 cS cT : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
-    (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
-      (blackSlot message) = cB)
-    (hc10 : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
-      (blackSlot message)) message.currentTarget 10 = c10)
-    (hc3 : coldIn (shortSubstate substate message) message.currentTarget 3 = c3)
-    (hc4 : coldIn (accessSlot (shortSubstate substate message) message.currentTarget 3)
-      message.currentTarget 4 = c4)
-    (hcS : coldIn (accessSlot (accessSlot (shortSubstate substate message) message.currentTarget 3)
-      message.currentTarget 4) message.currentTarget (senderSlot message) = cS)
-    (hcT : coldIn (access3 (shortSubstate substate message) message) message.currentTarget
-      (recipientSlot (addrArg message.data 0)) = cT)
-    {gas : Nat}
-    (hstip : preCost c0 cB c10 + (530 + slotCost c3 + slotCost c4 + slotCost cS +
-      mulCost (wordArg message.data 1) +
-      capCost (rawFee (shortState state message) message (wordArg message.data 1))
-        (storageAt (shortState state message) message.currentTarget 4) + 2400) ≤ gas)
-    (hg : preCost c0 cB c10 + (808 + readCost c3 c4 cS cT + mulCost (wordArg message.data 1) +
-      capCost (rawFee (shortState state message) message (wordArg message.data 1))
-        (storageAt (shortState state message) message.currentTarget 4) +
-      debitCost fork (shortState state message) message (wordArg message.data 1)) ≤ gas)
-    {bound : Nat} {runChild : MessageRunner fork Nat bound} {evm : Evm fork Nat}
-    (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
-      .ok stopped ∧
-      Faulted (.invalidOpcode 0xfe)
-          (toOvState (shortState state message) message (wordArg message.data 1)
-            (addrArg message.data 0))
-          (toOvSub fork (shortSubstate substate message) (shortState state message) message
-            (wordArg message.data 1) (addrArg message.data 0)) stopped :=
-  (spec_toOv hfork hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hfv hbal hto hc0 hcB hc10
-    hc3 hc4 hcS hcT hstip hg).runFrame start within
-
-/-- The loop of the interpreter runs the case of `spec_ownerOv` to its end condition. It holds for
-every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_ownerOv (hfork : .berlin ≤ fork)
-    (hstatic : message.isStatic = false) (hacc : hasAccount state message.currentTarget)
-    (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
-    (hsel : selector message.data = 0xa9059cbb) (hv : message.value = 0)
-    (hnp : byte20 (storageAt state message.currentTarget 0) = 0)
-    (hnb : (storageAt state message.currentTarget (blackSlot message)).toNat % 256 = 0)
-    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
-    (hov : (wordArg message.data 1).toNat *
-      (storageAt (shortState state message) message.currentTarget 3).toNat < 2 ^ 256)
-    (hfee : feeOf (shortState state message) message (wordArg message.data 1) ≠ 0)
-    (hfv : (feeOf (shortState state message) message (wordArg message.data 1)).toNat ≤
-      (wordArg message.data 1).toNat)
-    (hbal : (wordArg message.data 1).toNat ≤ (balS (shortState state message) message).toNat)
-    (hto : (balT (shortState state message) message (wordArg message.data 1)
-      (addrArg message.data 0)).toNat +
-      (sendOf (shortState state message) message (wordArg message.data 1)).toNat < 2 ^ 256)
-    (hown : 2 ^ 256 ≤ (balO (shortState state message) message (wordArg message.data 1)
-      (addrArg message.data 0)).toNat +
-      (feeOf (shortState state message) message (wordArg message.data 1)).toNat)
-    {c0 cB c10 c3 c4 cS cT cO : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
-    (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
-      (blackSlot message) = cB)
-    (hc10 : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
-      (blackSlot message)) message.currentTarget 10 = c10)
-    (hc3 : coldIn (shortSubstate substate message) message.currentTarget 3 = c3)
-    (hc4 : coldIn (accessSlot (shortSubstate substate message) message.currentTarget 3)
-      message.currentTarget 4 = c4)
-    (hcS : coldIn (accessSlot (accessSlot (shortSubstate substate message) message.currentTarget 3)
-      message.currentTarget 4) message.currentTarget (senderSlot message) = cS)
-    (hcT : coldIn (access3 (shortSubstate substate message) message) message.currentTarget
-      (recipientSlot (addrArg message.data 0)) = cT)
-    (hcO : coldIn (creditedSubFee fork (shortSubstate substate message) (shortState state message)
-      message (wordArg message.data 1) (addrArg message.data 0)) message.currentTarget
-      (ownerSlot (ownerWord (shortState state message) message (wordArg message.data 1)
-        (addrArg message.data 0))) = cO)
-    {gas : Nat}
-    (hstip : preCost c0 cB c10 + (964 + readCost c3 c4 cS cT + mulCost (wordArg message.data 1) +
-      capCost (rawFee (shortState state message) message (wordArg message.data 1))
-        (storageAt (shortState state message) message.currentTarget 4) +
-      debitCost fork (shortState state message) message (wordArg message.data 1) +
-      creditCostFee fork (shortState state message) message (wordArg message.data 1)
-        (addrArg message.data 0) + 2401) ≤ gas)
-    (hg : preCost c0 cB c10 + (964 + readCost c3 c4 cS cT + mulCost (wordArg message.data 1) +
-      capCost (rawFee (shortState state message) message (wordArg message.data 1))
-        (storageAt (shortState state message) message.currentTarget 4) +
-      debitCost fork (shortState state message) message (wordArg message.data 1) +
-      creditCostFee fork (shortState state message) message (wordArg message.data 1)
-        (addrArg message.data 0) + 313 + slotCost cO) ≤ gas)
-    {bound : Nat} {runChild : MessageRunner fork Nat bound} {evm : Evm fork Nat}
-    (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
-      .ok stopped ∧
-      Faulted (.invalidOpcode 0xfe)
-          (ownerOvState (shortState state message) message (wordArg message.data 1)
-            (addrArg message.data 0))
-          (ownerOvSub fork (shortSubstate substate message) (shortState state message) message
-            (wordArg message.data 1) (addrArg message.data 0)) stopped :=
-  (spec_ownerOv hfork hstatic hacc hlong hsz hsel hv hnp hnb hdep hov hfee hfv hbal hto hown
-    hc0 hcB hc10 hc3 hc4 hcS hcT hcO hstip hg).runFrame start within
 
 end UsdtVerify.TransferOk
 

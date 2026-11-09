@@ -1206,28 +1206,4 @@ theorem spec_depDNoCode (hfork : .berlin ≤ fork)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; simp only [extCost]; gas_ok, hs, hss⟩
 
-/-- The loop of the interpreter runs `spec_depDNoCode`'s path to its end. -/
-theorem runFrame_depDNoCode (hfork : .berlin ≤ fork)
-    (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
-    (hsel : selector message.data = 0xf3bdc228) (hv : message.value = 0)
-    (hown : callerWord message = ownerOf state message.currentTarget)
-    (hl : (storageAt state message.currentTarget (listSlot (addrArg message.data 0))).toNat % 256 ≠ 0)
-    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    (hcode : state.getCode (state.getAccount (upAddr state message)).codeHash = .ok .empty)
-    {c0 cL c10 cU : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
-    (hcL : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
-      (listSlot (addrArg message.data 0)) = cL)
-    (hc10 : coldIn (preSub substate message) message.currentTarget 10 = c10)
-    (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
-    {gas : Nat} (hg : 1497 + slotCost c0 + slotCost cL + slotCost c10 + extCost fork cU ≤ gas)
-    {bound : Nat} {runChild : MessageRunner fork Nat bound} {evm : Evm fork Nat}
-    (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
-      .ok stopped ∧
-      (Halted true .empty (gas - (1497 + slotCost c0 + slotCost cL + slotCost c10 + extCost fork cU))
-          (callStateD state message) (callSubD substate state message)) stopped :=
-  (spec_depDNoCode hfork hsize hsize' hsel hv hown hl hdep hcode hc0 hcL hc10 hcU hg).runFrame
-    start within
-
 end UsdtVerify.DeprecatedDestroy

@@ -56,12 +56,6 @@ theorem callBaseCost_eq {fork : Fork} (hfork : .berlin ≤ fork) (cold : Bool) :
     callBaseCost fork cold = accCost fork cold :=
   callBaseCost_of_berlin_le hfork cold
 
-/-- From Berlin, EXTCODESIZE costs at least 100. -/
-theorem extCost_ge {fork : Fork} (hfork : .berlin ≤ fork) (cold : Bool) : 100 ≤ extCost fork cold := by
-  unfold extCost externalBaseCost accountAccessCost
-  by_cases hg : fork ≥ .glamsterdam <;> cases cold <;>
-    simp [hg, hfork, gasSchedule, GasCosts.WARM_ACCESS]
-
 end UsdtVerify.Deprecated
 
 namespace UsdtVerify.Complete

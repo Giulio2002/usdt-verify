@@ -4,7 +4,7 @@ import UsdtVerify.Usdt.Exact.Deprecated
 /-!
 # Sanity: EthLib's `processRunner` meets the restated runner assumptions (round 29)
 
-docs/AUDIT.md, finding 2: `KeepsInv` and the `Keeps*` assumptions of rounds 15 to 28 quantified
+docs/AUDIT.md, finding 2: the runner assumptions of rounds 15 to 28 quantified
 over every caller frame and every message from `C` to the upgraded address, including its code,
 so EthLib's own runner `processRunner` met them for no upgraded address. Since round 29 the
 theorems take the `At` forms (`KeepsInvAt`, `KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`,
@@ -105,15 +105,5 @@ theorem processRunner_stop_keepsAll (hparis : .paris ≤ fork) {bound : Nat}
     processRunner_stop_keepsAt hparis hcode hnp fun _ _ _ => rfl,
     processRunner_stop_keepsAt hparis hcode hnp fun _ => rfl,
     processRunner_stop_keepsAt hparis hcode hnp fun _ h => h⟩
-
-/-- The deprecated-path hypothesis `hkeeps` of `goodCall_process` and `process_step` (round 29),
-for `processRunner fork message.gas`, holds when the upgraded address holds STOP and is no
-precompile, from Paris. -/
-theorem keepsInvAt_process_stop (hparis : .paris ≤ fork) {message : Message fork}
-    {S : State.TransactionState}
-    (hcode : S.getCode (S.getAccount (upAddr S message)).codeHash = .ok STOP_CODE)
-    (hnp : Precompiles.isPrecompile fork (upAddr S message).toU256.toNat = false) :
-    KeepsInvAt (processRunner fork message.gas) message S :=
-  (processRunner_stop_keepsAll hparis hcode hnp).2.2.2.2.2
 
 end UsdtVerify.Sanity

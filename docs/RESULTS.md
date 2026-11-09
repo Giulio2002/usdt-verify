@@ -28,8 +28,9 @@ the folders are described in `docs/LAYOUT.md`.
 
 Each theorem starts from a fresh call frame running `CODE` at pc 0. Under the stated hypotheses on
 the call data, the call value, the storage words read and the gas, every run reaches the stated
-end frame. Every theorem from pc 0 is also given for the real interpreter loop `runFrame`, for every gas
-bound and every message runner (`runFrame_*`).
+end frame. Every such specification also holds for the real interpreter loop `runFrame`, for every
+gas bound and every message runner, by EthLib's `Spec.runFrame` (round 53: the `runFrame_*`
+wrappers that were only that application are removed).
 
 The end frames are:
 - a normal halt: RETURN with the given bytes, or STOP with an empty output;
@@ -342,16 +343,17 @@ of `CODE`, deprecated, for any gas bound and message runner over `StateGasMeter`
   `StateGasMeter`, without the gas left at the end and the bound on the gas after the CALL (for
   destroyBlackFunds also without `tailCost` and `tailStip`). The gas before the CALL and the gas of
   the message are exact.
-- Invariant (Usdt/Invariant/DepMeter.lean): `inv_call_depS` under `KeepsInvAtS` and, for
-  destroyBlackFunds, `HonestBalanceAtS`. `inv_call_anyD` adds the case not deprecated at any
-  reservoir. `process_stepDS`: from Paris, a deprecated top-level message that `processMessage`
+- Invariant (Usdt/Invariant/DepMeter.lean): the runner assumptions `KeepsInvAtS` and, for
+  destroyBlackFunds, `HonestBalanceAtS` (round 53: the single-call theorems of this round,
+  `inv_call_depS` and `inv_call_anyD`, are removed, as `inv_call_depR` and `inv_call_anyDR` of
+  round 44 give them at reservoir 0). `process_stepDS`: from Paris, a deprecated top-level message that `processMessage`
   over `StateGasMeter` ends from a starting meter with reservoir 0 (round 41: any such meter, not
   only the fresh meter of the message) is a `GoodCallDS` or an `Untouched` step.
   `process_stepSD` covers every case.
 - Security (Usdt/Security/DepMeter.lean): `effect_allS` (deprecated or not, reservoir 0 when
-  deprecated), `paused_call_allS`, `nonOwner_call_allS`, `listed_call_allS`,
-  `allowKept_call_allS`, `supply_call_allS`, with the runner assumptions of the `_call_all` forms
-  stated for the runner over `StateGasMeter` (`KeepsAtS`).
+  deprecated), with the runner assumptions of the `_call_all` forms stated for the runner over
+  `StateGasMeter` (`KeepsAtS`). Round 53: the five `_call_allS` theorems of this round are removed,
+  as the `_call_allSR` theorems of round 44 give them at reservoir 0 (`keepsAtSR_zero`).
 - Route: `RunC` (Evm/RunC.lean), `runC_of_sgm` (Evm/RunCS.lean). The `dep_X_complete` theorems
   over `Nat` now follow from `dep_X_completeC` over `RunC`, with unchanged statements.
 - Not covered: a reservoir other than 0 when deprecated, the gas left after the CALL, the
@@ -366,33 +368,34 @@ of `CODE`, deprecated, for any gas bound and message runner over `StateGasMeter`
   `process_stepDS`, `process_stepSD` (Usdt/Invariant/DepMeter.lean), `runOkS_process` and
   `process_stepSec` (Usdt/Security/Meter.lean) now take `processMessage fork message state
   substate meter held = .ok ended` for any `meter : StateGasMeter`. The deprecated forms ask
-  `meter.reservoir = 0` in place of `message.reservoir = 0`. The forms for the fresh meter are the
-  `_start` corollaries. `ProcessMeter.processMessage_map_valM`, `processMessage_map_val_valueM`
+  `meter.reservoir = 0` in place of `message.reservoir = 0`. (The `_start` corollaries for the fresh
+  meter are removed in round 53.) `ProcessMeter.processMessage_map_valM`, `processMessage_map_val_valueM`
   and `at_startFrameS` take the starting meter too.
 - U3, the reservoir at the CALL. `callStep_child_res0` (Evm/CallMeter.lean): from a frame with
   reservoir 0, the CALL sends a message with reservoir 0, and the caller frame has reservoir 0.
   The runner assumptions `KeepsInvAtS`, `HonestBalanceAtS` (Usdt/Invariant/DepMeter.lean) and
   `KeepsAtS` (Usdt/Security/DepMeter.lean) ask their property only of such calls, and the seven
   `dep_X_completeS` state both facts of the call they find.
-- U2, instances of the runner assumptions over `StateGasMeter` (Usdt/Sanity/ProcessMeter.lean).
-  From Paris, EthLib's runner over `StateGasMeter` at any bound meets `KeepsInvAtS`
-  (`keepsInvAtS_process_stop`) and `KeepsAtS … R` for every reflexive `R`
-  (`keepsAtS_process_stop`) when the upgraded address holds STOP and is no precompile, and
-  `HonestBalanceAtS` (`honestBalanceAtS_process_mirror`) when it holds `MIRROR`, is no precompile,
-  and its slot `balSlot message` holds in the start state the word of USDT's `balances[a]`.
+- U2, instances of the runner assumptions over `StateGasMeter` (Usdt/Sanity/ProcessMeter.lean,
+  and since round 53 Usdt/Sanity/ProcessMeterR.lean). From Paris, EthLib's runner over
+  `StateGasMeter` at any bound meets `KeepsInvAtS` and `KeepsAtS … R` for every reflexive `R` when
+  the upgraded address holds STOP and is no precompile, and `HonestBalanceAtS` when it holds
+  `MIRROR`, is no precompile, and its slot `balSlot message` holds in the start state the word of
+  USDT's `balances[a]`: these are the instances at reservoir 0 of `keepsInvAtSR_process_stop`,
+  `keepsAtSR_process_stop` and `honestBalanceAtSR_process_mirror` (round 44).
   `process_mirrorS`: a `MIRROR` message run over `StateGasMeter` that ends with no error answers
   the word of its slot, at any reservoir.
 - Sequences deprecated or not over both meters (Usdt/Security/SeqDepMeter.lean). `SeqRS C R Q`
   has steps over `Nat` (`RunOkR`), steps over `StateGasMeter` (`RunOkRS`: reservoir 0 and a runner
-  meeting `KeepsAtS … R` when deprecated) and `Untouched` steps. `nonOwner_seq_allS`,
-  `paused_seq_allS`, `listed_seq_allS`, `allowKept_seq_allS`, `supply_seq_allS` state the five
-  `_seq_all` properties over it, with the same predicates on each call and the same runner
-  relations. `process_stepSecD`: from Paris, a top-level message over `StateGasMeter` from any
+  meeting `KeepsAtS … R` when deprecated) and `Untouched` steps. Every `SeqRS` sequence is a
+  `SeqRSR` sequence (`SeqRS.toRSR`), and the five `_seq_allSR` theorems of round 44 state the
+  `_seq_all` properties over it (round 53: the `_seq_allS` forms are removed). `process_stepSecD`: from Paris, a top-level message over `StateGasMeter` from any
   starting meter (reservoir 0 when deprecated, `KeepsAtS … R` of `processRunner` when
   deprecated) is a `RunOkRS` or an `Untouched` step.
-- `owner_only_allS` (Usdt/Security/DepMeter.lean): every run over `StateGasMeter` of one of the
+- `owner_only_allSR` (Usdt/Security/DepMeterR.lean, round 44; it replaces `owner_only_allS`, which
+  asked reservoir 0 for deprecated destroyBlackFunds): every run over `StateGasMeter` of one of the
   ten owner functions that ends with no error is a call by the owner, deprecated or not, with no
-  runner assumption, from reservoir 0 for deprecated destroyBlackFunds and any reservoir otherwise.
+  runner assumption, from any reservoir.
 - Still not covered: a reservoir other than 0 when deprecated, the gas left after the CALL
   (covered in round 42 below, the gas as execution gas left plus reservoir, exact for six paths,
   a lower bound for destroyBlackFunds).
@@ -865,7 +868,7 @@ no value, the depth and static flag of the call to `C`; its data and gas are any
 theorems give these facts for every forwarding CALL (`dep_*_local`). The old forms imply the new
 ones (`keepsInv_at`, `honest_at`, `Keeps.at`). Round 33: `KeepsInvAcc` gives `KeepsInvAt` only
 together with `KeepsInvNoAcc` (`keepsInvAt_of_acc`), since `SameView` allows a caller state where
-`C` has no account. No theorem gives `KeepsInvAt` from `KeepsInvAcc` alone.
+`C` has no account. Round 53 removes the old forms and these bridges.
 
 Round 49: `SentVia` is EthLib's (`Logic.SentVia`, #1613). The caller state reads as `state`
 (`ReadsAs`: the same account, storage and transient storage at every address, and the same code
@@ -877,21 +880,19 @@ implied by its old form. Every theorem that takes them only as hypotheses is at 
 as before. The `process_step` forms, `goodCall_process` and `runOkRS(R)_process` are
 certificate-producing lemmas: they repeat the runner hypotheses in their conclusion (`GoodCall`,
 `RunOkRS`, ...), so each one's own statement is incomparable with its old one. The end results
-about one top-level message are now stated directly: `Complete.process_step_inv` and its `DS`,
-`SD`, `DR`, `SDR` and `_start` forms (`Inv` at the end), and `Security.nonOwner_processS`,
-`paused_processS`, `listed_processS`, `allowKept_processS`, `supply_processS` and their `SR` forms
-(each security property). Their hypotheses are implied by the old ones, and they conclude what the
+about one top-level message are now stated directly: `Complete.process_step_inv` and its `DR` and
+`SDR` forms (`Inv` at the end), and `Security.nonOwner_processSR`, `paused_processSR`,
+`listed_processSR`, `allowKept_processSR`, `supply_processSR` (each security property). Round 53:
+the `DS`, `SD` and `_start` forms and the reservoir-0 `_processS` forms, which these give, are
+removed. Their hypotheses are implied by the old ones, and they conclude what the
 old certificate lemma followed by its consumer concluded, so each is at least as strong as before.
-`Complete.keepsInvAt_of_acc_hasAccount`: when `state` has an account of `C`, `KeepsInvAcc` alone
-gives `KeepsInvAt`. An independent review (round 49, PASS) checked these directions mechanically. The
+An independent review (round 49, PASS) checked these directions mechanically. The
 conclusions that name a call of `SentVia` (`LocalForward`, `FwdAt`, `EffectD`, `EffectDF`,
 `dep_destroy_local`, `inv_dep_destroy_iff`) now say more. The non-vacuity instances
 (`processRunner` with STOP or `MIRROR`) are proved for the new form. Through round 48 the caller
-state could lack the accounts of `state`, which is why `KeepsInvNoAcc` was needed. With
-`ReadsAs` it has them, so `keepsInvAt_of_acc_hasAccount` needs only `KeepsInvAcc` when `state`
-has an account of `C`. EthLib's `processRunner` meets `KeepsInvAt` (and
+state could lack the accounts of `state`. With `ReadsAs` it has them. EthLib's `processRunner` meets `KeepsInvAt` (and
 the five `Keeps*` of the security theorems) from Paris when `ua` holds the one byte STOP and is no
-precompile (`Sanity.processRunner_stop_keepsAll`, `Sanity.keepsInvAt_process_stop`).
+precompile (`Sanity.processRunner_stop_keepsAll`).
 Round 30: `processRunner` meets `HonestBalanceAt` from Paris when `ua` holds `MIRROR` (a 25-byte
 contract that answers `balanceOf(a)` with slot `keccak(a ++ 2)` of its own storage), is no
 precompile, and that slot of `ua` holds in `state` the word of `balances[a]` of `C`
@@ -930,7 +931,8 @@ need the account of `C`. (In a static frame, `hstat` of `inv_call_all` still imp
   the child's end state as its conclusion. The assumption of rounds 15 to 19 is kept as
   `KeepsInvAcc` (premise also an account of `C`, conclusion also that account), and
   `keepsInv_of_acc` proves that `KeepsInvAcc` together with its missing case `KeepsInvNoAcc` (a
-  caller state with no account of `C`) gives `KeepsInv`.
+  caller state with no account of `C`) gives `KeepsInv`. (Round 29 replaced these by `KeepsInvAt`;
+  round 53 removes `KeepsInv`, `KeepsInvAcc`, `KeepsInvNoAcc` and `keepsInv_of_acc`.)
 - A missing account of `C` does not make a step of the forwarding paths fail: no completeness
   theorem of those paths takes an account, the forward specifications of the six forwarding
   functions take none, and those of destroyBlackFunds take none in the start state (their `hkeep`
@@ -938,7 +940,7 @@ need the account of `C`. (In a static frame, `hstat` of `inv_call_all` still imp
   `finishCall` the balance check is `balance < value`, and these calls send value 0.) The missing
   account reaches the runner: `LocalForward` now states that `C` has an account in the caller
   state of the CALL iff it has one in the start state, and `localForward_noAcc` restates it for
-  the case with no account. So `KeepsInv` assumes that case of the runner; the code cannot rule
+  the case with no account. So the runner assumption covers that case; the code cannot rule
   it out.
 - destroyBlackFunds needs the account in the child's end state (for `inv_tail_iff`);
   `dep_destroy_complete` proves it for every run that ends with no error, so `dep_destroy_local`,
@@ -1195,29 +1197,21 @@ Runner assumptions (`Sanity/Runner.lean`, `Evm/Runners.lean`):
 - `keepsAll_of_same`: if every message from `C` to `ua` that the runner ends with no error
   leaves the storage of `C` as it was in the caller state, then the runner meets `KeepsSlots`,
   `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply` and `KeepsInvAt`.
-- `stop_keeps_all`: `stopRunner fork bound (upAddr S message)` meets all six, for every message
-  and state, at every fork.
-  On a message to `ua` whose code is the one byte STOP and that has a target, no value and no
-  precompile, `stopRunner` is EthLib's `processRunner`, and on a message to another address it is
-  `processRunner` too. It fails every other message to `ua`.
-  `stop_staticKeeps`: from Paris it meets `StaticKeeps`.
-  `stopRunner` is not `processRunner`; for `processRunner` itself see `Sanity/Process.lean` below.
+- Round 53: the `stopRunner` witnesses (`stop_keeps_all`, `stop_staticKeeps`) are removed:
+  `processRunner` itself meets the same assumptions (`Sanity/Process.lean` below, and
+  `staticKeeps_process` for `StaticKeeps` from Paris).
 - `balRunner` ends every message at once with no error and keeps the state. Its answer is the 32
   bytes of the word at slot `keccak(x ++ 2)` of the message's caller, where `x` is the word at
   byte 4 of the message's data. `runner_assumptions_hold`: it meets all six, `StaticKeeps` at
-  every fork, and `HonestBalanceAt` for every message and state.
-  `honestBalance_of_answers`: `HonestBalance` holds whenever each forwarded `balanceOf(a)` that
-  ends with no error answers at least 32 bytes whose first word is `balances[a]` of the contract
-  in the child's end state.
+  every fork, and `HonestBalanceAt` for every message and state (`bal_honest`).
 - `balRunner` is not the run of any code.
 - `Sanity/Process.lean` (round 29): `processRunner_stop_keepsAt`: from Paris, when the upgraded
   address of `message` in `S` holds `STOP_CODE` (the one byte STOP) and is no precompile, EthLib's
   `processRunner` at any bound meets `KeepsAt … R` (round 49: `KeepsOn … (SentVia …) R`) for
   every reflexive `R` (each call the code
   makes ends with no error in its caller state, `process_stop`). So it meets all six `At` forms
-  (`processRunner_stop_keepsAll`), and `KeepsInvAt (processRunner fork message.gas) message S`,
-  the deprecated-case hypothesis of `goodCall_process` and `process_step`
-  (`keepsInvAt_process_stop`). STOP is a real contract, though not a useful one; it answers no
+  (`processRunner_stop_keepsAll`), among them `KeepsInvAt (processRunner fork message.gas) message
+  S`, the deprecated-case hypothesis of `goodCall_process` and `process_step`. STOP is a real contract, though not a useful one; it answers no
   word, so it does not give `HonestBalanceAt`.
 - `Sanity/Mirror.lean` (round 30): `honestBalanceAt_process_mirror`: from Paris, when the upgraded
   address of `message` in `S` holds `MIRROR` (Evm/Mirror.lean: `PUSH1 2 PUSH1 32 MSTORE PUSH1 4
@@ -1349,49 +1343,45 @@ read after a write, as stated.
 
 When deprecated (`Usdt/Exact/Deprecated.lean`), the seven functions that forward to the upgraded
 address (totalSupply, balanceOf, allowance, transfer, approve, transferFrom, destroyBlackFunds)
-have `X_dep_ok_iff` and `X_dep_low`. Their hypotheses: the flag set (`hdep`), the code `c` of the
-upgraded address found in the state (and, for `X_dep_ok_iff`, `c.size < 2^256`), the route `r` of the CALL, the
-coldness flags, the gas up to the CALL (`hg`) and after its price (`htail`), and two hypotheses on
-the message runner: it fails on none of the messages the path sends (`NoFailOn`, since round 29;
-`NoFail`, a frame for every message, through round 28), and each
-message it is given that is the forward along the route ends with no error exactly when a
-condition `A` holds (`hans`; round 30: only the message the CALL sends with the gas it gives, from
-the caller frame at the CALL, whose state and substate are given, `CallFrom`). For destroyBlackFunds, `A` is instead the condition for "the forward
-ends with no error and the contract has an account in its end state".
-- `X_dep_ok_iff`: `RunsOk` holds if and only if the checks before the forward hold and `A` holds.
-  The checks: `ForwardOk` (`CallOk`, `0 < c.size`, the depth leaves room for one more frame) for
-  totalSupply, balanceOf, allowance; `TransferDepGuard` (also not paused, the caller not
+have `X_dep_ok_iff_fails`, `X_dep_ok_or_fails` and `X_dep_low`. Their hypotheses: the flag set
+(`hdep`), the code `c` of the upgraded address found in the state (`c.size < 2^256` for the forms
+that give success), the route `r` of the CALL, the coldness flags, the gas up to the CALL (`hg`),
+and hypotheses on the message runner: each message it is given that is the forward along the
+route ends with no error and with enough gas for the code after the CALL exactly when a
+condition `A` holds (`hans`), and, for `X_dep_ok_iff_fails`, a failure of the runner on such a
+message excludes `A` (`hfail`). A runner that fails on none of the messages the path sends
+(`NoFailOn`) meets `hfail`. `hans`, `hfail` and `NoFailOn` are asked only of the message the CALL
+sends with the gas it gives, from the caller frame at the CALL, whose state and substate are given
+(`CallFrom`). For destroyBlackFunds, `A` is instead the condition for "the forward ends with no
+error, the contract has an account in its end state, and enough gas is left for the tail".
+- `X_dep_ok_iff_fails`: `RunsOk` holds if and only if the checks before the forward hold and `A`
+  holds. The checks: `ForwardOk` (`CallOk`, `0 < c.size`, the depth leaves room for one more
+  frame) for totalSupply, balanceOf, allowance; `TransferDepGuard` (also not paused, the caller not
   blacklisted); `ApproveDepGuard` (also at least 68 bytes); `TransferFromDepGuard` (also not
   paused, `f` not blacklisted); `DestroyDepGuard` (also `IsOwner`, `a` blacklisted, not static).
-  Since round 27 the six other than destroyBlackFunds are derived from `X_dep_ok_iff_fails`
-  (below): with `htail` the gas after the CALL is enough, and under `NoFailOn` `hfail` holds.
-  Since round 29 they (and the six `X_dep_ok_iff_gas`, and `destroyBlackFunds_dep_ok_iff_gas`)
-  take `NoFailOn runChild (SendsVia message ua c r d)`: the runner fails on none of the messages
-  the path sends, in place of `NoFail` (it fails on no message at all). `NoFail.on` gives the new
-  form from the old. Round 30: `destroyBlackFunds_dep_ok_iff` takes `NoFailOn` too; it is derived
-  from `destroyBlackFunds_dep_ok_iff_fails` (with `htail` the tail has its gas, `tail_le_max`).
 - `X_dep_low`: if the gas is below the bound of `hg`, `RunsOk` does not hold, for every runner.
-- Audit finding 3 (docs/AUDIT.md), rounds 29 and 30. `NoFail` is false for `processRunner`, which
-  fails a message whose value exceeds the caller's balance; the messages the path sends carry no
-  value, and `NoFailOn` asks only of them. Through round 29, `hans` asked one `A` for every caller
-  frame and every gas of the forwarded message (`SendsVia` does not fix the gas); in
-  `X_dep_ok_iff_gas` and `X_dep_ok_iff_fails` the condition inside `hans` reads the child's gas
-  left, which for `processRunner` depends on the message's gas, so no `A` fit. Since round 30,
-  `hans` of `X_dep_ok_iff`, `X_dep_ok_iff_gas` and `X_dep_ok_iff_fails` (the seven paths) asks
-  only of a forwarded message `msg` from a caller frame `caller` with `CallFrom g st ss caller msg`:
+  With `X_dep_ok_iff_fails`, every gas is covered.
+- Round 53: the forms `X_dep_ok_iff` (with `htail`, a bound on the gas after the CALL, `NoFailOn`
+  and a `hans` without the gas condition) and `X_dep_ok_iff_gas` (with `NoFailOn`), which
+  `X_dep_ok_iff_fails` gives (with `htail` the gas condition holds, and `NoFailOn` gives `hfail`),
+  are removed, with the mock-runner witnesses of their hypotheses (`Sanity/Exact.lean`) and the
+  instances `X_dep_ok_iff_process_stop`.
+- Audit finding 3 (docs/AUDIT.md), rounds 29 and 30. A runner that fails on no message at all is
+  not `processRunner`, which fails a message whose value exceeds the caller's balance; the
+  messages the path sends carry no value, and `NoFailOn` asks only of them. Through round 29,
+  `hans` asked one `A` for every caller frame and every gas of the forwarded message (`SendsVia`
+  does not fix the gas); the condition inside `hans` reads the child's gas left, which for
+  `processRunner` depends on the message's gas, so no `A` fit. Since round 30, `hans` asks only of
+  a forwarded message `msg` from a caller frame `caller` with `CallFrom g st ss caller msg`:
   `msg.gas` is the gas `g` the CALL gives (`callGas…` of the path), and `caller` has the state
   `st` and substate `ss` of the frame at the CALL (`atCallState`, `atCallSub`). `A` can be a
   condition on `g`, `st` and `ss`. The specifications `spec_dep*_g` and `spec_depD_g` pass
-  `CallFrom` to their callee assumption `hcg`; `fwd_ok_iff_fails` takes a call condition `Cl`.
-  Round 31: `X_dep_ok_or_fails` takes the same `hans` (below).
+  `CallFrom` to their callee assumption `hcg`; `fwd_ok_or_fails` takes a call condition `Cl`.
   `Sanity/ProcessExact.lean`: from Paris, with the upgraded address holding STOP and no
   precompile, every message the path sends ends under `processRunner` with no error, all its
   gas, the caller's state and accesses, and no output (`process_stop_child`). So `processRunner`
-  meets `NoFailOn` and the new `hans` (`hans_process_stop`, `hans_gas_process_stop`,
-  `hans_destroy_process_stop`, `hans_destroy_gas_process_stop`), and for the seven forwards:
-  `X_dep_ok_iff_process_stop` (with `hg`, `htail`: `RunsOk` iff the checks hold; for
-  destroyBlackFunds also an account of `C` in the state at the CALL) and
-  `X_dep_ok_iff_gas_process_stop` (with `hg` only: iff the checks hold and the gas left after the
+  meets `NoFailOn` and the `hans` (`hans_gas_process_stop`, `hans_destroy_gas_process_stop`), and
+  for the seven forwards `X_dep_ok_iff_gas_process_stop` (with `hg`: iff the checks hold and the gas left after the
   CALL plus the gas it gives is at least the gas of the code after the CALL; for destroyBlackFunds
   an account of `C` and `max tailCost tailStip`, over the state and accesses at the CALL and the
   empty output).
@@ -1422,14 +1412,12 @@ ends with no error and the contract has an account in its end state".
   `keepsInvAt_process_mirror`, `process_step_dep_hyps`: `processRunner` meets `KeepsInvAt` with
   `MIRROR`, and in `S1 C H`, for a `destroyBlackFunds(a)` call, the flag, `KeepsInvAt` and
   `HonestBalanceAt` hold together.
-- `X_dep_ok_iff_gas` (round 26, the six forwards other than destroyBlackFunds): the hypotheses of
-  `X_dep_ok_iff` without `htail`, and `hans` with "ends with no error" replaced by "ends with no
-  error, and the gas the CALL keeps plus the gas left in the ended frame is at least the gas of
-  the code after the CALL" (121 for totalSupply, 126 balanceOf, 128 allowance, 51 transfer, 53
-  approve, 53 transferFrom). Then `RunsOk` holds if and only if the checks and `A` hold. With
-  `X_dep_low`, every gas is covered for these six. The specifications behind it
-  (`spec_dep_g`, `spec_depB_g`, `spec_depAl_g`, `spec_depT_g`, `spec_depA_g`, `spec_depF_g`) take
-  that bound on the callee (`hcg`) in place of `htail`; the old specifications follow from them.
+- The gas condition of `hans` for the six forwards other than destroyBlackFunds (round 26): the
+  gas the CALL keeps plus the gas left in the ended frame is at least the gas of the code after
+  the CALL (121 for totalSupply, 126 balanceOf, 128 allowance, 51 transfer, 53 approve, 53
+  transferFrom). The specifications behind it (`spec_dep_g`, `spec_depB_g`, `spec_depAl_g`,
+  `spec_depT_g`, `spec_depA_g`, `spec_depF_g`) take that bound on the callee (`hcg`); the
+  specifications with a fixed bound follow from them.
 - `X_dep_ok_or_fails` (round 31, the seven paths): the hypotheses of `X_dep_ok_iff_fails` (below)
   without `hfail`, for a runner that may fail with any error: a run that ends with no error gives
   the checks and `A`; the checks and `A` give a run that ends with no error, or a failure of the
@@ -1438,41 +1426,27 @@ ends with no error and the contract has an account in its end state".
   destroyBlackFunds had a weaker form: it took `htail`, a `hans` asked of every gas of the
   forwarded message (unsatisfiable for `processRunner` with a code that can run out of gas,
   docs/AUDIT.md finding 3) and errors that abort, and its failure was on some message, not shown to
-  be the forward. The new form implies it: the old `hans` with `htail` gives the new one, as in
-  `X_dep_ok_iff`.
-- `NoFail` excludes a runner that fails, which makes the run abort (EthLib's `Meets` allows such
-  errors). `Sanity/Exact.lean`: every `answerRunner` never fails and ends every message with no
-  error, so it meets `hans` with `A = True` for the six forwards other than destroyBlackFunds.
-  Round 26: `answerRunnerAt S f` (each message ends at once with no error, gas 0, in the state
-  `S`) never fails; with `S = sState C kvs` it meets the `hans` of deprecated destroyBlackFunds
-  with `A = True`, for a message whose current target is `C` (`answerRunnerAt_hans`); and each
-  ended frame meets the condition of the `hans` of `X_dep_ok_iff_gas` exactly when `T ≤ R`, for `T`
-  the tail gas and `R` the gas the CALL keeps (`answerRunnerAt_ans_gas`, stated per frame).
-- `destroyBlackFunds_dep_ok_iff_gas` (round 26, second part): the hypotheses of
-  `destroyBlackFunds_dep_ok_iff` without `htail`, and `hans` with its condition replaced by "ends
-  with no error, the contract has an account in the ended frame's state, and the gas the CALL
-  keeps plus the gas left in the ended frame is at least the larger of `tailCost` and `tailStip`".
+  be the forward. The new form implies it: the old `hans` with `htail` gives the new one.
+- The gas condition of `hans` for destroyBlackFunds (round 26, second part): the forward ends with
+  no error, the contract has an account in the ended frame's state, and the gas the CALL keeps
+  plus the gas left in the ended frame is at least the larger of `tailCost` and `tailStip`.
   Both are computed over the state and substate after the call (`incorporateChild` of the caller's
   frame and the ended frame): `tailCost` is the gas of the code after the CALL (the two writes at
   their prices, from the coldness and the original and current words of `balances[a]` and slot 1
   there); `tailStip = 2518 + (price of the write of balances[a]) + (price of the read of slot 1)`
   is the gas below which (from `tailCost` up) an `SSTORE` of the tail is reached with at most 2300
-  gas left (`tailMidD`: the first one when the gas is below 2485, else that of `_totalSupply`). Then `RunsOk` holds if and only
-  if `DestroyDepGuard` and `A` hold; with `destroyBlackFunds_dep_low` every gas is covered. Behind
+  gas left (`tailMidD`: the first one when the gas is below 2485, else that of `_totalSupply`). Behind
   it: `tailD_g`, `tailMidD`, `spec_depD_g` (only the forwarded messages that end with no error),
   and `dep_destroy_complete`, which now also gives the stipend bound.
-- `X_dep_ok_iff_fails` (round 26, second part, the seven paths): the hypotheses of
-  `X_dep_ok_iff_gas` with `NoFail` replaced by `hfail`: a failure of the runner (with any error,
-  aborting or not) on a message that is the forward along the route excludes `A`. Then `RunsOk`
-  holds if and only if the checks and `A` hold. So a runner may fail, on the forward or on any
-  other message, and a failure on the forward is an outcome in which `A` is false. The
-  `X_dep_ok_iff_gas` theorems are derived from these (`NoFail` gives `hfail`). Behind it: the
+- `X_dep_ok_iff_fails` (round 26, second part, the seven paths): `hfail` is a failure of the
+  runner (with any error, aborting or not) on a message that is the forward along the route that
+  excludes `A`. So a runner may fail, on the forward or on any other message, and a failure on the
+  forward is an outcome in which `A` is false. Behind it: the
   forward specifications `spec_dep*_g` and `spec_depD_g` are stated as `SpecOn` (EthLib's Logic/FailsOn.lean,
   #1605, since round 47, Evm/Sends.lean before):
   under every runner whose ended messages meet the callee assumption, with no assumption on its
   errors, the run ends in the postcondition or at a failure of the runner on a message that is the
-  forward (`SendsVia`); EthLib's `SpecUnder` follows from it (`toUnder`). `Sanity.failRunner_hans`,
-  `Sanity.failRunner_hfail`: the runner that fails on every message meets both with `A = False`.
+  forward (`SendsVia`); EthLib's `SpecUnder` follows from it (`toUnder`).
 - Since round 30, `hans` is asked only of the caller frame at the CALL (`CallFrom`). Through the
   first part of round 31, `NoFailOn`, `hfail` and the failure in the conclusion of
   `X_dep_ok_or_fails` still ranged over every caller frame (docs/AUDIT.md, second audit, M1): for
@@ -1537,12 +1511,10 @@ ends with no error and the contract has an account in its end state".
   `KeepsAllow`, `KeepsSupply` (round 23). `processRunner` with the upgraded code STOP meets them
   (round 29); no other real upgraded contract is shown to.
 - A deprecated run in the non-vacuity witnesses of round 24: no witness run is deprecated.
-- A theorem that neither `KeepsInv` nor `KeepsInvAcc` implies the other (it holds by the
-  definitions; it is not stated).
 - Runs that run out of gas below the stated bounds, except at the dispatcher (see above), every
   gas for the exact conditions not deprecated (rounds 25 and 26, `X_low`, `X_mid`, `X_iff_gas`),
-  and every gas for the seven deprecated forwards (`X_dep_low`, `X_dep_ok_iff_gas`,
-  `X_dep_ok_iff_fails`), under the runner hypotheses `hans` and `NoFailOn` or `hfail`.
+  and every gas for the seven deprecated forwards (`X_dep_low`,
+  `X_dep_ok_iff_fails`), under the runner hypotheses `hans` and `hfail`.
 - Forks before Berlin. Glamsterdam rests on EthLib's model of that fork at the pin (its prices
   and the order of its checks).
 - Runs under EthLib's EIP-8037 meter `StateGasMeter`, which EthLib's `processTransaction` uses

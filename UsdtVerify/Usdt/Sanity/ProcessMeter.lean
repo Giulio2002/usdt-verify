@@ -14,18 +14,18 @@ precompile, and the runner is EthLib's `processRunner` over `StateGasMeter`.
 - `process_stopS`: from Paris, a message that runs `STOP_CODE` at a target with no value and no
   precompile, run by `processRunner` over `StateGasMeter`, ends with no error in the state it
   starts from.
-- `keepsInvAtS_process_stop`: from Paris, `processRunner` at any bound meets `KeepsInvAtS`.
-- `keepsAtS_process_stop`: from Paris, it meets `KeepsAtS … R` for every reflexive relation `R`,
-  so the runner assumptions of the five `_call_allS` theorems (`BalKept`, `ProtKept`,
-  `ListedNoDec`, `AllowKept`, `SupplyKept`, all reflexive).
 - `process_mirrorS`: from Paris, a message that runs `MIRROR` (Evm/Mirror.lean) at a target with
   no value and no precompile, run by `processRunner` over `StateGasMeter` from any caller frame
   and any reservoir, that ends with no error, returns the word in slot `mapSlot k 2` of its
   current target in the caller's state and ends in the caller's state with that slot recorded
   read. It follows from the run over the meter `Nat` with more gas (`Shadow.shadow_ends`).
-- `honestBalanceAtS_process_mirror`: from Paris, when the upgraded address holds `MIRROR`, is no
-  precompile, and its slot `balSlot message` holds in `S` the word of USDT's `balances[a]`,
-  `processRunner` over `StateGasMeter`, at any bound, meets `HonestBalanceAtS`.
+- `sentVia_process_stopS`: the calls of `SentVia` that `processRunner` runs on STOP end in the
+  caller's state.
+
+The instances of the runner assumptions, at every reservoir, are in Sanity/ProcessMeterR.lean
+(`keepsInvAtSR_process_stop`, `keepsAtSR_process_stop`, `honestBalanceAtSR_process_mirror`); at
+reservoir 0 they are `KeepsInvAtS`, `KeepsAtS` and `HonestBalanceAtS` (`keepsInvAtSR_zero`,
+`keepsAtSR_zero`, `honestBalanceAtSR_zero`).
 
 The STOP proofs are those of the reviewer of the fourth audit.
 
@@ -105,32 +105,6 @@ theorem sentVia_process_stopS (hparis : .paris ≤ fork) {bound : Nat}
     exact process_stopS hparis caller lt hmc htg hval hpre hch
   · exact absurd hroute.2.1 (by rw [delegatedAddress_stop]; exact fun h => by cases h)
 
-/-- **`processRunner` meets `KeepsInvAtS`.** From Paris, when the upgraded address of `message`
-in `S` holds `STOP_CODE` and is no precompile, EthLib's runner over `StateGasMeter`, at any bound,
-meets `KeepsInvAtS`. -/
-theorem keepsInvAtS_process_stop (hparis : .paris ≤ fork) {bound : Nat}
-    {message : Message fork} {S : State.TransactionState}
-    (hcode : S.getCode (S.getAccount (upAddr S message)).codeHash = .ok STOP_CODE)
-    (hnp : Precompiles.isPrecompile fork (upAddr S message).toU256.toNat = false) :
-    KeepsInvAtS (processRunner (Meter := StateGasMeter) fork bound) message S := by
-  intro caller msg lt child hsv _ _ hch _ hI
-  rw [(sentVia_process_stopS hparis hcode hnp hsv hch).2]
-  exact hI
-
-/-- **`processRunner` meets `KeepsAtS`.** From Paris, when the upgraded address of `message` in
-`S` holds `STOP_CODE` and is no precompile, EthLib's runner over `StateGasMeter`, at any bound,
-meets `KeepsAtS … R` for every reflexive relation `R`. -/
-theorem keepsAtS_process_stop (hparis : .paris ≤ fork) {bound : Nat}
-    {message : Message fork} {S : State.TransactionState}
-    (hcode : S.getCode (S.getAccount (upAddr S message)).codeHash = .ok STOP_CODE)
-    (hnp : Precompiles.isPrecompile fork (upAddr S message).toU256.toNat = false)
-    {R : State.TransactionState → State.TransactionState → Prop} (hR : ∀ X, R X X) :
-    KeepsAtS (processRunner (Meter := StateGasMeter) fork bound) message S
-      (upAddr S message) R := by
-  intro caller msg lt child hsv _ _ hch _
-  rw [(sentVia_process_stopS hparis hcode hnp hsv hch).2]
-  exact hR _
-
 /-- **`MIRROR` under `processRunner` over `StateGasMeter`.** From Paris, a message that runs
 `MIRROR` at a target, with no value, no precompile and the word `k` at byte 4 of its call data,
 run by EthLib's runner over `StateGasMeter` from any caller frame, that ends with no error,
@@ -179,34 +153,5 @@ theorem process_mirrorS (hparis : .paris ≤ fork) {bound : Nat} (caller : Evm f
   rw [hc]
   rw [hst] at ho hs
   exact ⟨ho, hs⟩
-
-/-- **`HonestBalanceAtS` for `processRunner` with a real code.** From Paris, when the upgraded
-address of `message` in `S` holds `MIRROR` and is no precompile, and its slot `balSlot message`
-holds in `S` the word that USDT's `balances[a]` holds (`hmirror`), EthLib's runner over
-`StateGasMeter`, at any bound, meets `HonestBalanceAtS`. -/
-theorem honestBalanceAtS_process_mirror (hparis : .paris ≤ fork) {bound : Nat}
-    {message : Message fork} {S : State.TransactionState}
-    (hcode : S.getCode (S.getAccount (upAddr S message)).codeHash = .ok MIRROR)
-    (hnp : Precompiles.isPrecompile fork (upAddr S message).toU256.toNat = false)
-    (hmirror : storageAt S (upAddr S message) (balSlot message) =
-      storageAt S message.currentTarget (balSlot message)) :
-    HonestBalanceAtS (processRunner (Meter := StateGasMeter) fork bound) message S := by
-  intro caller msg lt child hs _ _ hch hmd he
-  obtain ⟨c, r, hc, hroute, hsv, hview⟩ := sendsVia_of_sentVia hs
-  rw [hcode] at hc
-  cases hc
-  rcases r with _ | ⟨d, c'⟩
-  · obtain ⟨-, hmt, htg, hca, hmc, -, -, hval, -, -⟩ := hsv
-    have hpre : precompileAddress fork msg = none := by
-      simp only [precompileAddress, hca, routeAddr, hnp]; rfl
-    have hk : loadWord msg.data 4 32 = addrArg message.data 0 := by
-      rw [hmd]; exact loadWord_append_wordBytes SEL_B _
-    obtain ⟨ho, hs⟩ := process_mirrorS hparis caller lt hmc htg hval hpre hk hch he
-    have hview' : ReadsAs caller.state S := hview
-    rw [ho, hs, resWord_outMemOf (size_memD message) (by rw [size_wordBytes]; omega),
-      loadWord_wordBytes_zero, storageAt_readSlot, hmt, storageAt_of_readsAs hview',
-      storageAt_of_readsAs hview']
-    exact hmirror
-  · exact absurd hroute.2.1 (by rw [delegatedAddress_mirror]; exact fun h => by cases h)
 
 end UsdtVerify.Sanity

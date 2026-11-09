@@ -6,7 +6,7 @@ import UsdtVerify.Usdt.Spec.Approve
 /-!
 # Completeness of deprecated transfer(address,uint256), for any gas and any runner
 
-`prefixG_transfer` (pc 0 to EXTCODESIZE at 5739, over `StepG`), `dep_transfer_split` and
+`prefixG_transfer` (pc 0 to EXTCODESIZE at 5739, over `StepG`) and
 `dep_transfer_complete`: every run of a deprecated `transfer` call that ends with no error, with
 any gas, any gas bound and ANY message runner, passed the paused check and the caller's
 blacklist check, and is the forward `transferByLegacy(caller, to, value)` to the upgraded address
@@ -15,7 +15,7 @@ output; gas, state and substate exact (those of `incorporateChild`).
 
 The paused and blacklisted cases are excluded by `Transfer.spec_paused` and
 `Transfer.spec_blacklisted` (both over `StepG`). Each conclusion states that the code `c` of the
-upgraded account is found in the state (`fromExt_found`) and the route of the CALL (no
+upgraded account is found in the state (`fromExt_foundC`) and the route of the CALL (no
 delegation, or an EIP-7702 delegate whose code is found). Named hypotheses: the coldness flags `c0`, `cB`, `c10`, `cU` are named by `hc0`, `hcB`, `hc10`, `hcU`.
 -/
 
@@ -83,36 +83,6 @@ theorem prefixG_transfer (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.
     (rest := [wordArg message.data 1, addrArg message.data 0, 0x078a,
       BitVec.ofNat 256 (selector message.data)]) (by simp) (by gas_ok)
   exact Gas.reshapeG rfl rfl (by gas_ok)
-
-theorem dep_transfer_split (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
-    (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0xa9059cbb)
-    (hv : message.value = 0)
-    (hnp : byte20 (storageAt state message.currentTarget 0) = 0)
-    (hnb : (storageAt state message.currentTarget (blackSlot message)).toNat % 256 = 0)
-    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    {c0 cB c10 : Bool} (hc0 : coldIn substate message.currentTarget 0 = c0)
-    (hcB : coldIn (accessSlot substate message.currentTarget 0) message.currentTarget
-      (blackSlot message) = cB)
-    (hc10 : coldIn (accessSlot (accessSlot substate message.currentTarget 0) message.currentTarget
-      (blackSlot message)) message.currentTarget 10 = c10)
-    {gas : Nat} {evm s : Evm fork Nat}
-    (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
-    (hok : s.error = none) :
-    1329 + slotCost c0 + slotCost cB + slotCost c10 ≤ gas ∧ ∃ z' w,
-      At CODE message 5739
-        [upWord (storageAt state message.currentTarget 10),
-          upWord (storageAt state message.currentTarget 10), 0, 0x60, 0x64, 0x60, 0, 0xc4,
-          0x6e18980a, upWord (storageAt state message.currentTarget 10),
-          wordArg message.data 1, addrArg message.data 0, 0x078a,
-          BitVec.ofNat 256 (selector message.data)]
-        (memT message) (gas - (1329 + slotCost c0 + slotCost cB + slotCost c10))
-        (shortState state message) (shortSubstate substate message) z' ∧
-      Evm.runFrame (step fork) (step_decreases fork) bound runChild z' w = .ok s :=
-  ok_split (Nat.le_refl _)
-    (fun _ hg => prefixG_transfer hfork hsize hsize' hsel hv hnp hnb hdep hc0 hcB hc10 hg)
-    start within hrun hok
 
 /-- **`dep_transfer_complete` over `RunC`** (round 39): for any relation `Run` of the child, a `RunC`
 from the fresh frame that ends with no error, where `EndsOk` holds (for the dispatcher and the

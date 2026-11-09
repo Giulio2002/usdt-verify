@@ -253,7 +253,6 @@ theorem process_step_inv {fork : Fork} (hparis : .paris ≤ fork)
     first
     | exact inv_goodCall h hI
     | exact inv_goodCallS h hI
-    | exact inv_goodCallDS h hI
     | exact inv_goodCallDR h hI
     | exact (DepInv.inv_congr h).mpr hI
 

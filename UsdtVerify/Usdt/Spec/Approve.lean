@@ -420,30 +420,6 @@ theorem spec_revert (hfork : .berlin ≤ fork)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
-/-- The loop of the interpreter runs `approve(spender, v)` over a nonzero allowance to a revert.
-It holds for every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_revert (hfork : .berlin ≤ fork)
-    (hlong : 68 ≤ message.data.size) (hsz : message.data.size < 2 ^ 256)
-    (hsel : selector message.data = 0x095ea7b3) (hv : message.value = 0)
-    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
-    (hnz : wordArg message.data 1 ≠ 0)
-    (hallow : storageAt state message.currentTarget (allowArg message) ≠ 0)
-    {c10 cA : Bool} (hc10 : coldIn substate message.currentTarget 10 = c10)
-    (hcA : coldIn (accessSlot substate message.currentTarget 10) message.currentTarget
-      (allowArg message) = cA) {gas : Nat}
-    (hg : 703 + slotCost c10 + slotCost cA ≤ gas) {bound : Nat}
-    {runChild : MessageRunner fork Nat bound} {evm : Evm fork Nat}
-    (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
-      .ok stopped ∧
-      Halted true .empty (gas - (703 + slotCost c10 + slotCost cA))
-        (readSlot (readSlot state message.currentTarget 10) message.currentTarget
-          (allowArg message))
-        (accessSlot (accessSlot substate message.currentTarget 10) message.currentTarget
-          (allowArg message)) stopped :=
-  (spec_revert hfork hlong hsz hsel hv hdep hnz hallow hc10 hcA hg).runFrame start within
-
 /-- At 2931, call data of fewer than 68 bytes (two argument words) makes the code revert
 (TetherToken's `onlyPayloadSize(2 * 32)`). -/
 theorem payloadRevert (hfork : .berlin ≤ fork) {rest : List U256} (hrest : rest.length ≤ 16)

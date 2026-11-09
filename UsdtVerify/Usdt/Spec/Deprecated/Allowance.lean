@@ -829,22 +829,4 @@ theorem spec_depAlNoCode (hfork : .berlin ≤ fork)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; simp only [extCost]; gas_ok, hs, hss⟩
 
-/-- `spec_depAlNoCode` for the interpreter loop. -/
-theorem runFrame_depAlNoCode (hfork : .berlin ≤ fork)
-    (hsize : 4 ≤ message.data.size) (hsize' : message.data.size < 2 ^ 256)
-    (hsel : selector message.data = 0xdd62ed3e) (hv : message.value = 0)
-    (hdep : byte20 (storageAt state message.currentTarget 10) ≠ 0)
-    (hcode : state.getCode (state.getAccount (upAddr state message)).codeHash = .ok .empty)
-    {c10 cU : Bool} (hc10 : coldIn substate message.currentTarget 10 = c10)
-    (hcU : decide (upAddr state message ∉ substate.accessedAddresses) = cU)
-    {gas : Nat} (hg : 1184 + slotCost c10 + extCost fork cU ≤ gas)
-    {bound : Nat} {runChild : MessageRunner fork Nat bound} {evm : Evm fork Nat}
-    (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
-      .ok stopped ∧
-      (Halted true .empty (gas - (1184 + slotCost c10 + extCost fork cU)) (callState state message)
-          (callSub substate state message)) stopped :=
-  (spec_depAlNoCode hfork hsize hsize' hsel hv hdep hcode hc10 hcU hg).runFrame start within
-
 end UsdtVerify.DeprecatedAllowance

@@ -273,27 +273,4 @@ theorem spec (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
   rintro evm ⟨hr, he, ho, hgas, hs, hss⟩
   exact ⟨hr, he, ho, by rw [hgas]; gas_ok, hs, hss⟩
 
-/-- The loop of the interpreter runs a `balanceOf(address)` call to its specification.
-
-It holds for every bound on the gas of messages and every runner of messages. -/
-theorem runFrame_spec (hfork : .berlin ≤ fork) (hsize : 4 ≤ message.data.size)
-    (hsize' : message.data.size < 2 ^ 256) (hsel : selector message.data = 0x70a08231)
-    (hv : message.value = 0) (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
-    {c10 cB : Bool} (hc10 : coldIn substate message.currentTarget 10 = c10)
-    (hcB : coldIn (accessSlot substate message.currentTarget 10) message.currentTarget
-      (balanceSlot message.data) = cB)
-    {gas : Nat} (hg : COST + slotCost c10 + slotCost cB ≤ gas) {bound : Nat}
-    {runChild : MessageRunner fork Nat bound} {evm : Evm fork Nat}
-    (start : At CODE message 0 [] .empty gas state substate evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound) :
-    ∃ stopped, runFrame (step fork) (step_decreases fork) bound runChild evm within =
-      .ok stopped ∧
-      Halted false (wordBytes (storageAt state message.currentTarget (balanceSlot message.data)))
-        (gas - (COST + slotCost c10 + slotCost cB))
-        (readSlot (readSlot state message.currentTarget 10) message.currentTarget
-          (balanceSlot message.data))
-        (accessSlot (accessSlot substate message.currentTarget 10) message.currentTarget
-          (balanceSlot message.data)) stopped :=
-  (spec hfork hsize hsize' hsel hv hdep hc10 hcB hg).runFrame start within
-
 end UsdtVerify.BalanceOf

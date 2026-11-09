@@ -5,33 +5,24 @@ import UsdtVerify.Usdt.Security.Supply
 # Sanity: runners that meet the runner assumptions
 
 The theorems deprecated or not take named assumptions on the message runner when deprecated:
-`KeepsInv` (`inv_call_ns`, `inv_call_all`), `HonestBalance` (deprecated destroyBlackFunds),
+`KeepsInvAt` (`inv_call_ns`, `inv_call_all`), `HonestBalanceAt` (deprecated destroyBlackFunds),
 `StaticKeeps` (static frames, `inv_call_all`), and `KeepsSlots`, `KeepsBal`, `KeepsListed`,
 `KeepsAllow`, `KeepsSupply` (the security theorems `*_call_all`, `*_seq_all`).
-This file shows that each of them holds for some runner, so none of them is false for every runner.
+This file shows that one runner meets all of them at once (`runner_assumptions_hold`).
 
 - `keeps*_of_same`: a runner whose messages from `C` to the upgraded address keep the storage of
   `C` (`SameFor`, `KeepsOn … (FromTo C ua) (SameStore C)`, over every message) meets `KeepsSlots`,
-  `KeepsBal`,
-  `KeepsListed`, `KeepsAllow`, `KeepsSupply` and `KeepsInvAt` (round 29: the assumptions are
-  about the calls the code makes, `SentVia`; `KeepsOn.mono` with `fromTo_of_sentVia` gives
-  them from the old form).
-- `stop_keeps_all`: `stopRunner fork bound ua` (Evm/Runners.lean: EthLib's `processRunner` on the
-  messages to `ua` whose code is the one byte STOP, with a target, no value and no precompile; any
-  other message to `ua` fails) meets all six, for every `C`, at every fork.
-  `stop_staticKeeps`: from Paris it meets `StaticKeeps` (EthLib's `processMessage_static`).
+  `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply` and `KeepsInvAt` (`KeepsOn.mono` with
+  `fromTo_of_sentVia`).
 - `balRunner`: the `answerRunner` that answers every message with the 32 bytes of the word at
   slot `keccak(x ++ 2)` of the message's caller in the caller's state, `x` the word at byte 4 of
   the message's data (`balances[x]` when the caller is `C`), and keeps the state.
   `bal_keeps_all`: it meets the six assumptions above; `bal_staticKeeps`: `StaticKeeps` at every
-  fork; `bal_honest`: `HonestBalance (balRunner) message state` for every message and state.
-- `honestBalance_of_answers`: `HonestBalance` holds whenever every forwarded `balanceOf(a)` that
-  the runner ends with no error answers at least 32 bytes whose first word is `balances[a]` of the
-  contract in the child's end state.
+  fork; `bal_honest`: `HonestBalanceAt (balRunner) message state` for every message and state.
 
-`stopRunner` is not EthLib's runner (its messages to `ua` with other code fail), and `balRunner`
-is not the run of any code. EthLib's own `processRunner`, with a real upgraded code (STOP), meets
-the `At` forms: Sanity/Process.lean (round 29).
+`balRunner` is not the run of any code. EthLib's own `processRunner`, with a real upgraded code,
+meets the assumptions too: Sanity/Process.lean (STOP, the six `Keeps` forms), Sanity/Mirror.lean
+(`MIRROR`, `HonestBalanceAt`) and `staticKeeps_process` (`StaticKeeps`, from Paris).
 -/
 
 namespace UsdtVerify.Sanity
@@ -91,22 +82,6 @@ theorem keepsAll_of_same {message : Message fork} {S : State.TransactionState}
 
 /-! ## The STOP runner -/
 
-/-- `stopRunner` at the upgraded address meets `KeepsSlots`, `KeepsBal`, `KeepsListed`,
-`KeepsAllow`, `KeepsSupply` and `KeepsInvAt`, for every message and state, at every fork and
-bound. -/
-theorem stop_keeps_all (message : Message fork) (S : State.TransactionState) :
-    KeepsAll (stopRunner fork bound (upAddr S message)) message S :=
-  keepsAll_of_same (stopRunner_keeps _ _)
-
-/-- From Paris, `stopRunner` meets `StaticKeeps`. -/
-theorem stop_staticKeeps (hfork : .paris ≤ fork) (ua : Address) :
-    StaticKeeps (stopRunner fork bound ua) := by
-  intro caller msg lt c used hs hm hrun
-  unfold stopRunner at hrun
-  split at hrun
-  · exact staticKeeps_process (bound := bound) hfork hs hm hrun
-  · cases hrun
-
 /-! ## The balance runner -/
 
 /-- The answer of `balRunner`: the 32 bytes of the word at slot `keccak(x ++ 2)` of the
@@ -132,26 +107,12 @@ theorem bal_staticKeeps : StaticKeeps (balRunner fork bound) := by
   rw [h]
   exact State.TransactionState.SameOutside.refl _ _
 
-/-- `HonestBalance` holds whenever every forwarded `balanceOf(a)` that the runner ends with no
-error answers at least 32 bytes whose first word is `balances[a]` of the contract in the child's
-end state. -/
-theorem honestBalance_of_answers {message : Message fork} {state : State.TransactionState}
-    (h : ∀ caller msg lt child, runChild caller msg lt = .ok child →
-      msg.caller = message.currentTarget → msg.currentTarget = upAddr state message →
-      msg.data = dataB message → child.1.error = none →
-        32 ≤ child.1.output.size ∧ loadWord child.1.output 0 32 =
-          storageAt child.1.state message.currentTarget (balSlot message)) :
-    HonestBalance runChild message state := by
-  intro caller msg lt child hch hmc hmt hmd he
-  obtain ⟨hsz, hw⟩ := h caller msg lt child hch hmc hmt hmd he
-  rw [resWord_outMemOf (size_memD _) hsz, hw]
-
 theorem size_SEL_B : SEL_B.size = 4 := by decide
 
-/-- `balRunner` meets `HonestBalance` for every message and state. -/
+/-- `balRunner` meets `HonestBalanceAt` for every message and state. -/
 theorem bal_honest (message : Message fork) (state : State.TransactionState) :
-    HonestBalance (balRunner fork bound) message state := by
-  refine honestBalance_of_answers fun caller msg lt child hch hmc _ hmd _ => ?_
+    HonestBalanceAt (balRunner fork bound) message state := by
+  intro caller msg lt child ⟨_, _, _, _, _, hmc, _, _⟩ hch hmd _
   obtain ⟨-, hst, hout⟩ := answerRunner_ok hch
   have hx : loadWord msg.data 4 32 = addrArg message.data 0 := by
     rw [hmd, dataB, ← size_SEL_B, loadWord_append_wordBytes]
@@ -160,9 +121,10 @@ theorem bal_honest (message : Message fork) (state : State.TransactionState) :
     have := loadWord_append_wordBytes .empty
       (storageAt caller.state message.currentTarget (balSlot message))
     simpa using this
-  rw [hout, hst]
+  rw [resWord_outMemOf (o := child.1.output) (size_memD _)
+    (by rw [hout, balAnswer, size_wordBytes]; exact Nat.le_refl _), hout, hst]
   simp only [balAnswer, hx, hmc]
-  exact ⟨by rw [size_wordBytes]; exact Nat.le_refl _, h0⟩
+  exact h0
 
 /-- One runner meets every runner assumption of the theorems deprecated or not at once:
 `KeepsSlots`, `KeepsBal`, `KeepsListed`, `KeepsAllow`, `KeepsSupply`, `KeepsInvAt` (for every
@@ -170,6 +132,6 @@ message and state), `StaticKeeps`, and `HonestBalanceAt` (for every message and 
 theorem runner_assumptions_hold :
     ∃ runChild : MessageRunner fork Nat bound, (∀ message S, KeepsAll runChild message S) ∧
       StaticKeeps runChild ∧ ∀ message state, HonestBalanceAt runChild message state :=
-  ⟨balRunner fork bound, bal_keeps_all, bal_staticKeeps, fun m st => honest_at (bal_honest m st)⟩
+  ⟨balRunner fork bound, bal_keeps_all, bal_staticKeeps, bal_honest⟩
 
 end UsdtVerify.Sanity

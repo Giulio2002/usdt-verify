@@ -5,14 +5,14 @@ import UsdtVerify.Usdt.Complete.Dispatch
 /-!
 # The deprecated paths of USDT from EXTCODESIZE on, for any gas and any runner
 
-The generic steps (EXTCODESIZE, GAS, SUB and CALL for any gas and any runner, `call_ok`,
+The generic steps (EXTCODESIZE, GAS and CALL for any gas and any runner, `call_ok`,
 `CallEnd`) are in Evm/Call.lean, with EthLib's `callStep_fails_of_routes`,
 `callStep_deep_of_routes` and `callStep_fails_of_missing` (round 52, EthLib #1634). Here:
 
 - `midG`, `noCodeG`, `subG`: the blocks of `CODE` between EXTCODESIZE and CALL;
-- `fromExt_found`: a successful run found the code of the upgraded address;
 - `fromExt`: from EXTCODESIZE to the frame after CALL, for any gas.
-- `fromExt_foundC`, `fromExtC` (round 39): the same over `RunC` (Evm/RunC.lean), for any relation
+- `fromExt_foundC` (round 39): a successful run over `RunC` found the code of the upgraded
+  address; `fromExtC`: `fromExt` over `RunC` (Evm/RunC.lean), for any relation
   `Run` of the child, ending in `CallEndC`.
 -/
 
@@ -87,32 +87,6 @@ theorem subG {p q : Nat} (hp : (p = 3735 ∧ q = 3736) ∨ (p = 4890 ∧ q = 489
 
 /-! ## The code of the upgraded account is found -/
 
-/-- At the EXTCODESIZE of the upgraded address (any of the six pcs), a run of the loop that ends
-with no error found the code of the address in the state. -/
-theorem fromExt_found {p : Nat}
-    (hp : p = 3719 ∨ p = 4874 ∨ p = 5739 ∨ p = 3213 ∨ p = 4200 ∨ p = 7186)
-    {U : U256} {rest : List U256} {M : ByteArray} {st : State.TransactionState} {ss : Substate}
-    {G : Nat} {evm s : Evm fork Nat}
-    (start : At CODE message p (U :: rest) M G st ss evm)
-    (within : GasMeter.gasHeld evm.gas ≤ bound)
-    (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within = .ok s)
-    (hok : s.error = none) :
-    ∃ c, st.getCode (st.getAccount (toAddressMasked U)).codeHash = .ok c := by
-  have key : ∃ (h0 : p < CODE.size), CODE[p] = 0x3b := by
-    rcases hp with rfl | rfl | rfl | rfl | rfl | rfl <;> exact ⟨by code_fact, by code_fact⟩
-  obtain ⟨h0, b0⟩ := key
-  rcases hgc : st.getCode (st.getAccount (toAddressMasked U)).codeHash with e | c
-  · exfalso
-    obtain ⟨hc, -, -, hpc, hst, -, -, hr, -, -, hs, -⟩ := start
-    have missing : accountCode evm (toAddressMasked U) = .error (.state e) := by
-      simp [accountCode, hs, hgc, Except.mapError]
-    obtain ⟨e', he'⟩ := extcodesizeStep_notFound hst missing
-    refine error_ne_none_of_stepFails hr (.inl ⟨e', ?_⟩) hrun hok
-    rw [step_of_instruction (by rw [hc, hpc]; exact h0)
-      (by simp only [hc, hpc, b0]; exact ofByte_of_decode (op := .extcodesize) rfl (Fork.frontier_le _)) instruction_extcodesize', he']
-    rfl
-  · exact ⟨c, rfl⟩
-
 /-! ## From EXTCODESIZE to the frame after CALL, for any gas -/
 
 /-- From EXTCODESIZE of the upgraded address at 3719 (totalSupply), 4874 (balanceOf), 5739
@@ -125,7 +99,7 @@ CALL's access and memory (`extCost fork + 128 + memory`, EXTCODESIZE at its pric
 The CALL follows a route `r` (`Routes`): no delegation, or, from Pectra, a delegation indicator in
 `c` to an address whose code is found (a failed lookup of that code makes the CALL fail). The gas
 covers the access to the delegate too (`routeCost`). Hypothesis: the code `c` of the address is
-found (`hcode`; `fromExt_found` proves it for a successful run). -/
+found (`hcode`; `fromExt_foundC` proves it for a successful run). -/
 theorem fromExt (hfork : .berlin ≤ fork) {p q : Nat}
     (hp : (p = 3719 ∧ q = 3736) ∨ (p = 4874 ∧ q = 4891) ∨ (p = 5739 ∧ q = 5756) ∨
       (p = 3213 ∧ q = 3230) ∨ (p = 4200 ∧ q = 4217) ∨ (p = 7186 ∧ q = 7203))
@@ -255,7 +229,7 @@ section RunC
 
 variable {Run : Evm fork Nat → Message fork → Evm fork Nat → Prop} {Tail : Evm fork Nat → Prop}
 
-/-- `fromExt_found` over `RunC`. -/
+/-- A successful run over `RunC` from EXTCODESIZE found the code of the upgraded address. -/
 theorem fromExt_foundC {p : Nat}
     (hp : p = 3719 ∨ p = 4874 ∨ p = 5739 ∨ p = 3213 ∨ p = 4200 ∨ p = 7186)
     {U : U256} {rest : List U256} {M : ByteArray} {st : State.TransactionState} {ss : Substate}

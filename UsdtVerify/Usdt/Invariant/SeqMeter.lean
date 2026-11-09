@@ -22,8 +22,6 @@ a run of the meter `Nat` with more gas that ends in the same state.
 - `process_value_failsS`: from Berlin, such a message with a nonzero value ends with an error.
 - `process_stepS`: from Paris, every such message (any value) that `processMessage` ends over
   `StateGasMeter`, from any starting meter, is a `GoodCallS` or an `Untouched` step.
-- `goodCall_processS_start`, `process_value_failsS_start`, `process_stepS_start`: the same for
-  the fresh meter of the message, which `processMessage` takes by default.
 
 The starting meter is free because EthLib's `processMessageCall` passes the meter left by the
 authorizations of the transaction, which is not a fresh meter when they pay state gas.
@@ -209,46 +207,5 @@ theorem process_stepS {fork : Fork} (hparis : .paris ≤ fork)
       getStorage_processMessage_of_error hproc (Option.isSome_iff_ne_none.mpr herr) _ _
 
 /-! ## The fresh meter of the message -/
-
-/-- `goodCall_processS` for the fresh meter of the message. -/
-theorem goodCall_processS_start {fork : Fork} (hparis : .paris ≤ fork)
-    {message : Message fork} {state : State.TransactionState} {substate : Substate}
-    (hmc : message.code = CODE)
-    (noValue : ¬(message.shouldTransferValue = true ∧ message.value ≠ 0))
-    (noPrecompile : precompileAddress fork message = none)
-    (hsize : message.data.size < 2 ^ 256) (K : SepOn (callKeys message state))
-    (h7 : StrForm (storageAt state message.currentTarget 7))
-    (h8 : StrForm (storageAt state message.currentTarget 8))
-    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
-    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
-    (hproc : processMessage fork message state substate = .ok ended)
-    (hok : ended.val.error = none) :
-    GoodCallS message.currentTarget state ended.val.state :=
-  goodCall_processS hparis hmc noValue noPrecompile hsize K h7 h8 hdep hproc hok
-
-/-- `process_value_failsS` for the fresh meter of the message. -/
-theorem process_value_failsS_start {fork : Fork} (hfork : .berlin ≤ fork)
-    {message : Message fork} {state : State.TransactionState} {substate : Substate}
-    (hmc : message.code = CODE) (noPrecompile : precompileAddress fork message = none)
-    (hsize : message.data.size < 2 ^ 256) (hv : message.value ≠ 0)
-    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
-    (hproc : processMessage fork message state substate = .ok ended) :
-    ended.val.error ≠ none :=
-  process_value_failsS hfork hmc noPrecompile hsize hv hproc
-
-/-- `process_stepS` for the fresh meter of the message. -/
-theorem process_stepS_start {fork : Fork} (hparis : .paris ≤ fork)
-    {message : Message fork} {state : State.TransactionState} {substate : Substate}
-    (hmc : message.code = CODE)
-    (noPrecompile : precompileAddress fork message = none)
-    (hsize : message.data.size < 2 ^ 256) (K : SepOn (callKeys message state))
-    (h7 : StrForm (storageAt state message.currentTarget 7))
-    (h8 : StrForm (storageAt state message.currentTarget 8))
-    (hdep : byte20 (storageAt state message.currentTarget 10) = 0)
-    {ended : { evm : Evm fork StateGasMeter // GasMeter.gasHeld evm.gas ≤ message.gas }}
-    (hproc : processMessage fork message state substate = .ok ended) :
-    GoodCallS message.currentTarget state ended.val.state ∨
-      Untouched message.currentTarget state ended.val.state :=
-  process_stepS hparis hmc noPrecompile hsize K h7 h8 hdep hproc
 
 end UsdtVerify.Complete

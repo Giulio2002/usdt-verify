@@ -5,8 +5,8 @@ import UsdtVerify.Usdt.Security.DepMeterR
 /-!
 # Sanity: EthLib's runner over the EIP-8037 meter meets the runner assumptions at any reservoir (round 44)
 
-Usdt/Sanity/ProcessMeter.lean (round 41) for the runner assumptions of round 44, stated at any
-reservoir `r` of the forwarded message. The runner is EthLib's `processRunner` over
+Usdt/Sanity/ProcessMeter.lean (round 41) gives the runs. Here the runner assumptions of round 44
+hold, stated at any reservoir `r` of the forwarded message (at `r = 0` they are those of round 41). The runner is EthLib's `processRunner` over
 `StateGasMeter`.
 
 - `keepsInvAtSR_process_stop`: from Paris, when the upgraded address holds `STOP_CODE` and is no
