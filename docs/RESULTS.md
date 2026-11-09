@@ -1509,7 +1509,7 @@ ends with no error and the contract has an account in its end state".
   `HoareG.toIW`, `sstoreWI` lift triples over `StepG` to `StepI` (steps from frames that refill
   nothing) under these conditions.
 - `Refill.ends_of_sgmN`: `ends_of_sgm` with `hnr` stated for the run of the meter `Nat` from
-  `toNat m`. `Refill.noRefill_low`: a `StepI` chain from `sh k lo` to a stopped frame gives that
+  `toNat m`. `Refill.noRefill_low`: a `StepI` chain from `addGas k lo` to a stopped frame gives that
   hypothesis for the run from `lo`. `Refill.sgm_of_reaches`: a `StepG` chain from `toNat m` to a
   stopped frame `z`, from reservoir 0 with no refill on the run, gives a run over `StateGasMeter`
   from `m`, for any gas bound and message runner, that ends in a frame whose `toNat` is `z`.

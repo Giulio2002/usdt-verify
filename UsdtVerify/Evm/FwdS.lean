@@ -27,7 +27,7 @@ namespace UsdtVerify.Complete
 open EthLib.Base (Fork U256 toAddressMasked)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding HoareG StepG
 open UsdtVerify.Gas
 open UsdtVerify.Meter
 open UsdtVerify.Refill (StepJ HoareJ NoRefillAtN NoStateAtN)

@@ -20,13 +20,21 @@ This is how the completeness theorems of the writing functions (not deprecated) 
 SSTORE, and with a static frame or no account it cannot end with no error.
 
 Round 26:
-- `sstoreStep_low`, `sstore_low_stuck`: from Istanbul, SSTORE with at most 2300 gas left fails
-  (EIP-2200), so it is `Stuck`.
+- `sstore_low_stuck`: from Istanbul, SSTORE with at most 2300 gas left fails (EIP-2200), so it
+  is `Stuck`.
 - `NoWrite message state g`: a static frame, no account for the current target, or (from
   Istanbul) at most `g ≤ 2300` gas; `sstoreNoWrite`: an SSTORE where `NoWrite` holds is `Stuck`.
 - `no_ok_stuck_at`: a run that reaches a `Stuck` frame along `StepG` from a start with its own gas
   does not end with no error (used for a gas below a stipend bound, where `no_ok_stuck`, which
   starts with more gas, does not apply).
+
+Round 48: EthLib's Logic/LessGas.lean (#1615) has `Stuck`, `not_ok_of_reaches`, `no_ok_stuck`,
+`At.stuck`, `sstore_stuck` and `sstore_low_stuck` over `Logic.StepG` and `Logic.At`. The local
+`Stuck` is EthLib's `Stuck` with `SimAt` (Evm/Gas.lean), and the local forms take `Ends` (the
+meter link uses them for a loop over `StateGasMeter`), so they stay. The SSTORE facts under them
+are now EthLib's (`sstoreStep_halts`, `sstoreStep_of_isStatic`, `sstoreStep_of_gasLeft_le`), and
+the local `sstoreStep_bad` and `sstoreStep_low` are removed. `At.stuck`: EthLib's `At.stuck` for
+the local `At` and `Stuck`.
 -/
 
 namespace UsdtVerify.Gas
@@ -41,19 +49,17 @@ variable {fork : Fork}
 
 /-- A running frame at a `simulated` opcode from which the step fails, also with any less gas. -/
 def Stuck (z : Evm fork Nat) : Prop :=
-  z.running = true ∧ SimAt z ∧ ∀ k l, z = sh k l →
-    (∃ e, step fork l = .error e) ∨
-      ∃ b, step fork l = .ok (.next b) ∧ b.running = false ∧ b.error ≠ none
+  z.running = true ∧ SimAt z ∧ ∀ k l, z = addGas k l → StepFails (step fork l)
 
 section Loop
 
 variable {bound : Nat} {runChild : MessageRunner fork Nat bound}
 
-/-- Along a chain of `StepG` from `sh k l` to a `Stuck` frame, no loop from `l` ends with no error
+/-- Along a chain of `StepG` from `addGas k l` to a `Stuck` frame, no loop from `l` ends with no error
 (`Ends`). -/
 theorem not_ok_of_reachesE {hi z : Evm fork Nat} (hr : Reaches (StepG fork) hi z)
     (hz : Stuck z) :
-    ∀ (k : Nat) (l : Evm fork Nat), hi = sh k l → ∀ {s : Evm fork Nat}, Ends fork l s →
+    ∀ (k : Nat) (l : Evm fork Nat), hi = addGas k l → ∀ {s : Evm fork Nat}, Ends fork l s →
       s.error ≠ none := by
   induction hr with
   | refl =>
@@ -69,7 +75,7 @@ theorem not_ok_of_reachesE {hi z : Evm fork Nat} (hr : Reaches (StepG fork) hi z
     rintro k l rfl s hend
     obtain ⟨hstep, hsim, hmono⟩ := hs
     have hr : l.running = true := hstep.running
-    rcases hmono k l rfl with ⟨e, he⟩ | ⟨b, hb, hbr, hbe⟩ | ⟨b, hb, hh⟩
+    rcases hmono k l rfl with (⟨e, he⟩ | ⟨b, hb, hbr, hbe⟩) | ⟨b, hb, hh⟩
     · rw [(hend.error hr hsim he).2]
       simp [exceptionalHalt]
     · rw [(hend.next hr hsim hb).stopped hbr]
@@ -83,11 +89,11 @@ theorem not_ok_of_reachesE {hi z : Evm fork Nat} (hr : Reaches (StepG fork) hi z
         rw [hh] at hn
         cases hn
 
-/-- Along a chain of `StepG` from `sh k l` to a `Stuck` frame, the loop run from `l` does not end
+/-- Along a chain of `StepG` from `addGas k l` to a `Stuck` frame, the loop run from `l` does not end
 with no error. -/
 theorem not_ok_of_reaches {hi z : Evm fork Nat} (hr : Reaches (StepG fork) hi z)
     (hz : Stuck z) :
-    ∀ (k : Nat) (l : Evm fork Nat), hi = sh k l →
+    ∀ (k : Nat) (l : Evm fork Nat), hi = addGas k l →
       ∀ (within : GasMeter.gasHeld l.gas ≤ bound) {s : Evm fork Nat},
         Evm.runFrame (step fork) (step_decreases fork) bound runChild l within = .ok s →
         s.error ≠ none :=
@@ -103,7 +109,7 @@ theorem no_ok_stuckE {B : Nat}
     (h : ∀ g, B ≤ g → HoareG fork (At code message pc stack memory g state substate) Stuck)
     {gas : Nat} (start : At code message pc stack memory gas state substate evm)
     (hrun : Ends fork evm s) (hok : s.error = none) : False := by
-  obtain ⟨z, hr, hz⟩ := h (gas + B) (by omega) _ (at_sh start B)
+  obtain ⟨z, hr, hz⟩ := h (gas + B) (by omega) _ (at_addGas start B)
   exact not_ok_of_reachesE hr hz B evm rfl hrun hok
 
 /-- No loop that ends with no error (`Ends`) from a frame that, with its own gas, reaches a
@@ -113,7 +119,7 @@ theorem no_ok_stuck_atE {gas : Nat}
     (start : At code message pc stack memory gas state substate evm)
     (hrun : Ends fork evm s) (hok : s.error = none) : False := by
   obtain ⟨z, hr, hz⟩ := h evm start
-  exact not_ok_of_reachesE hr hz 0 evm (by simp [sh]) hrun hok
+  exact not_ok_of_reachesE hr hz 0 evm (by simp [addGas]) hrun hok
 
 /-- No successful run from a frame where, with any gas from `B` on, the frames reach a `Stuck`
 frame along `StepG`. -/
@@ -136,94 +142,47 @@ theorem no_ok_stuck_at {gas : Nat}
   no_ok_stuck_atE h start (Ends.run hrun) hok
 
 end Loop
-
-/-- SSTORE in a static frame, or at an address with no account, never completes: its step fails
-or halts with an error. -/
-theorem sstoreStep_bad {l b : Evm fork Nat}
-    (hbad : l.message.isStatic = true ∨
-      ¬(l.state.getAccountOptional l.message.currentTarget).isSome = true)
-    (h : sstoreStep l = .ok b) : b.running = false ∧ b.error ≠ none := by
-  unfold sstoreStep at h
-  split at h
-  · simp [bind, Except.bind, throw, throwThe, MonadExceptOf.throw] at h
-  obtain ⟨⟨k, e1⟩, h1, h⟩ := Base.bind_ok_iff.mp h
-  obtain ⟨⟨n, e2⟩, h2, h⟩ := Base.bind_ok_iff.mp h
-  have c2 := (popWord_sameContext h1).trans (popWord_sameContext h2)
-  simp only [] at h
-  split at h
-  · simp [throw, throwThe, MonadExceptOf.throw] at h
-  · rcases hpair : accessStorageKey e2 e2.message.currentTarget (U256.toBeBytes k) with
-      ⟨cold, e3⟩
-    obtain ⟨keys, hacc⟩ := accessStorageKey_snd e2 e2.message.currentTarget (U256.toBeBytes k)
-    rw [hpair] at hacc
-    simp only [hpair] at h
-    rcases keepReads_eq_ok h with h | ⟨e, rfl⟩
-    · obtain ⟨e4, h4, h⟩ := Base.bind_ok_iff.mp h
-      obtain ⟨e5, h5, h⟩ := Base.bind_ok_iff.mp h
-      have c5 := (chargeGas_sameContext h4).trans (chargeStateGas_sameContext h5)
-      have m5 : e5.message = l.message := by
-        rw [c5.message]
-        simp only [refillStateGas, recordStorageRead]
-        cases hacc
-        exact c2.message
-      have s5 : e5.state = (l.state.recordStorageRead l.message.currentTarget
-          (U256.toBeBytes k)) := by
-        rw [c5.state]
-        simp only [refillStateGas, recordStorageRead]
-        cases hacc
-        rw [c2.state, c2.message]
-      split at h
-      · simp [throw, throwThe, MonadExceptOf.throw] at h
-      · rename_i hns
-        obtain ⟨st, hst, h⟩ := Base.bind_ok_iff.mp h
-        have hst := Base.mapError_ok_iff.mp hst
-        rw [m5] at hns
-        rw [s5, c2.message] at hst
-        rcases hbad with hb | hb
-        · rw [hb] at hns
-          exact absurd rfl hns
-        · unfold State.TransactionState.setStorage at hst
-          split at hst
-          · cases hst
-          · rename_i hsome
-            have : (l.state.getAccountOptional l.message.currentTarget).isSome = true := by
-              simpa [State.TransactionState.recordStorageRead,
-                State.TransactionState.getAccountOptional, Option.isSome_iff_ne_none] using hsome
-            exact absurd this hb
-    · exact ⟨rfl, by simp [exceptionalHalt]⟩
+/-- A frame of a code is `Stuck` at a `simulated` opcode whose instruction fails on every frame
+with the message, the stack and the state of the rule and at most its gas: EthLib's `At.stuck`,
+for `At` and this `Stuck` (with `SimAt`). -/
+theorem At.stuck {byte : UInt8} {op : Op} {run : Evm fork Nat → Except EvmError (Evm fork Nat)}
+    {gas : Nat} (hlt : pc < code.size) (hbyte : code[pc] = byte)
+    (decoded : Op.ofByte fork byte = some op) (hrun : instruction fork op = some run)
+    (fails : ∀ low : Evm fork Nat, low.message = message → low.stack.val = stack →
+      low.state = state → low.gas ≤ gas → Fails (run low))
+    (hsim : simulated op = true := by first | decide | rfl) :
+    HoareG fork (At code message pc stack memory gas state substate) Stuck := by
+  intro evm hat
+  refine ⟨evm, .refl _, hat.2.2.2.2.2.2.2.1, ?_, ?_⟩
+  · obtain ⟨hcode, -, -, hpc, -⟩ := hat
+    subst hcode hpc
+    exact simAt_of hlt (by rw [hbyte]; exact decoded) hrun hsim
+  · obtain ⟨hcode, -, hm, hpc, hst, -, hg, -, -, -, hs, -⟩ := hat
+    rintro k low rfl
+    have hc : low.code = code := hcode
+    have hp : low.pc = pc := hpc
+    subst hc hp
+    have hdec : Op.ofByte fork low.code[low.pc] = some op := by rw [hbyte]; exact decoded
+    rw [step_of_instruction hlt hdec hrun]
+    rcases fails low hm hst hs (by rw [← hg]; exact Nat.le_add_right _ _) with
+      ⟨e, he⟩ | ⟨b, hb, hbr, hbe⟩
+    · exact .inl ⟨e, by rw [he]; rfl⟩
+    · exact .inr ⟨b, by rw [hb]; rfl, hbr, hbe⟩
 
 /-- SSTORE in a static frame, or at an address with no account, is `Stuck`, at any fork and any
-gas. -/
+gas (EthLib's `sstore_stuck`, for `At` and this `Stuck`). -/
 theorem sstore_stuck {key new : U256} {rest : List U256} {gas : Nat}
     (hlt : pc < code.size) (hbyte : code[pc] = 0x55)
     (hbad : message.isStatic = true ∨
       ¬(state.getAccountOptional message.currentTarget).isSome = true) :
     HoareG fork (At code message pc (key :: new :: rest) memory gas state substate) Stuck := by
-  intro evm hat
-  obtain ⟨hcode, -, hm, hpc, -, -, -, hrun, -, -, hs, -⟩ := hat
-  refine ⟨evm, .refl _, hrun, ?_, ?_⟩
-  · have hlt' : evm.pc < evm.code.size := by rw [hpc, hcode]; exact hlt
-    refine simAt_of hlt' ?_ instruction_sstore rfl
-    have : evm.code[evm.pc] = (0x55 : UInt8) := by simp only [hcode, hpc, hbyte]
-    rw [this]
-    exact ofByte_of_decode (op := .sstore) rfl (Fork.frontier_le _)
-  rintro k l rfl
-  have hcode' : l.code = code := hcode
-  have hpc' : l.pc = pc := hpc
-  have hlt' : l.pc < l.code.size := by rw [hpc', hcode']; exact hlt
-  have hdec : Op.ofByte fork l.code[l.pc] = some .sstore := by
-    have : l.code[l.pc] = (0x55 : UInt8) := by simp only [hcode', hpc', hbyte]
-    rw [this]
-    exact ofByte_of_decode (op := .sstore) rfl (Fork.frontier_le _)
-  rw [step_of_instruction hlt' hdec instruction_sstore]
-  cases hst : sstoreStep l with
-  | error e => exact .inl ⟨e, by simp [Functor.map, Except.map]⟩
-  | ok b =>
-    refine .inr ⟨b, by simp [Functor.map, Except.map], sstoreStep_bad ?_ hst⟩
-    have hm' : l.message = message := hm
-    have hs' : l.state = state := hs
-    rw [hm', hs']
-    exact hbad
+  refine At.stuck hlt hbyte (ofByte_of_decode (op := .sstore) rfl (Fork.frontier_le _))
+    instruction_sstore fun low hm _ hs _ => ?_
+  rcases h : sstoreStep low with e | b
+  · exact .inl ⟨e, rfl⟩
+  · obtain ⟨hbr, hbe⟩ := sstoreStep_halts
+      (by rw [hm, hs]; exact hbad.imp id Option.not_isSome_iff_eq_none.mp) h
+    exact .inr ⟨b, rfl, hbr, by simpa [Option.isSome_iff_ne_none] using hbe⟩
 
 /-- `sstore_stuck` with the account stated as `hasAccount`. -/
 theorem sstoreStuckW {key new : U256} {rest : List U256} {gas : Nat}
@@ -231,60 +190,20 @@ theorem sstoreStuckW {key new : U256} {rest : List U256} {gas : Nat}
     (hbad : message.isStatic = true ∨ ¬hasAccount state message.currentTarget) :
     HoareG fork (At code message pc (key :: new :: rest) memory gas state substate) Stuck :=
   sstore_stuck hlt hbyte hbad
-
-/-- SSTORE with at most 2300 gas left fails from Istanbul on (EIP-2200): its step is an error. -/
-theorem sstoreStep_low (hist : Fork.istanbul ≤ fork) {l : Evm fork Nat} (hlow : l.gas ≤ 2300) :
-    ∃ e, sstoreStep l = .error e := by
-  cases h : sstoreStep l with
-  | error e => exact ⟨e, rfl⟩
-  | ok b =>
-    exfalso
-    unfold sstoreStep at h
-    split at h
-    · simp [bind, Except.bind, throw, throwThe, MonadExceptOf.throw] at h
-    obtain ⟨⟨k, e1⟩, h1, h⟩ := Base.bind_ok_iff.mp h
-    obtain ⟨⟨n, e2⟩, h2, h⟩ := Base.bind_ok_iff.mp h
-    have g1 : e1.gas = l.gas := by
-      unfold popWord at h1
-      obtain ⟨⟨_, _⟩, -, h1⟩ := Base.bind_ok_iff.mp h1
-      cases h1; rfl
-    have g2 : e2.gas = e1.gas := by
-      unfold popWord at h2
-      obtain ⟨⟨_, _⟩, -, h2⟩ := Base.bind_ok_iff.mp h2
-      cases h2; rfl
-    simp only [] at h
-    split at h
-    · simp [throw, throwThe, MonadExceptOf.throw] at h
-    · rename_i hn
-      exact hn ⟨hist, by rw [g2, g1]; exact hlow⟩
-
 /-- SSTORE with at most 2300 gas left is `Stuck` from Istanbul on (EIP-2200): every frame with that
-gas or less fails at it. -/
+gas or less fails at it (EthLib's `sstore_low_stuck`, for `At` and this `Stuck`). -/
 theorem sstore_low_stuck (hist : Fork.istanbul ≤ fork) {key new : U256} {rest : List U256}
     {gas : Nat} (hlt : pc < code.size) (hbyte : code[pc] = 0x55) (hlow : gas ≤ 2300) :
     HoareG fork (At code message pc (key :: new :: rest) memory gas state substate) Stuck := by
-  intro evm hat
-  obtain ⟨hcode, -, -, hpc, -, -, hg, hrun, -, -, -, -⟩ := hat
-  refine ⟨evm, .refl _, hrun, ?_, ?_⟩
-  · have hlt' : evm.pc < evm.code.size := by rw [hpc, hcode]; exact hlt
-    refine simAt_of hlt' ?_ instruction_sstore rfl
-    have : evm.code[evm.pc] = (0x55 : UInt8) := by simp only [hcode, hpc, hbyte]
-    rw [this]
-    exact ofByte_of_decode (op := .sstore) rfl (Fork.frontier_le _)
-  rintro k l rfl
-  have hcode' : l.code = code := hcode
-  have hpc' : l.pc = pc := hpc
-  have hlt' : l.pc < l.code.size := by rw [hpc', hcode']; exact hlt
-  have hdec : Op.ofByte fork l.code[l.pc] = some .sstore := by
-    have : l.code[l.pc] = (0x55 : UInt8) := by simp only [hcode', hpc', hbyte]
-    rw [this]
-    exact ofByte_of_decode (op := .sstore) rfl (Fork.frontier_le _)
-  rw [step_of_instruction hlt' hdec instruction_sstore]
-  have hl : l.gas ≤ 2300 := by
-    have : l.gas + k = gas := hg
-    omega
-  obtain ⟨e, he⟩ := sstoreStep_low hist hl
-  exact .inl ⟨e, by simp [he, Functor.map, Except.map]⟩
+  have hstip : GasCosts.CALL_STIPEND = 2300 := rfl
+  refine At.stuck hlt hbyte (ofByte_of_decode (op := .sstore) rfl (Fork.frontier_le _))
+    instruction_sstore fun l _ hst _ hg => .inl ?_
+  by_cases first : fork ≥ .glamsterdam ∧ l.message.isStatic = true
+  · exact ⟨_, sstoreStep_of_isStatic first.1 first.2⟩
+  · refine ⟨_, sstoreStep_of_gasLeft_le hist hst (by simp only [GasMeter.gasLeft]; omega) ?_⟩
+    by_cases hg : fork ≥ .glamsterdam
+    · exact .inr (by simpa [hg] using first)
+    · exact .inl (Nat.lt_of_not_le hg)
 
 /-- The SSTORE of a frame of `message` in `state` with `g` gas cannot complete: the frame is
 static, the current target has no account, or (from Istanbul) at most 2300 gas is left. -/

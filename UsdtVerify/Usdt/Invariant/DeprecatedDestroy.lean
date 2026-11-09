@@ -37,7 +37,7 @@ open EthLib.Execution.Evm
 open EthLib.Execution.Evm.Logic
 open Invariant Deprecated DeprecatedBalance DeprecatedDestroy DestroySpec Transfer TransferOk
   Owner BlackList
-open UsdtVerify.Complete (Route Routes routeState SendsVia)
+open UsdtVerify.Complete (SendsVia)
 
 theorem toNat_sub_gt {x a : U256} (h : x.toNat < a.toNat) :
     (sub x a).toNat = 2 ^ 256 - a.toNat + x.toNat := by

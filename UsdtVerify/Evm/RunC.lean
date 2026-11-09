@@ -35,7 +35,7 @@ namespace UsdtVerify.Complete
 open EthLib.Base (Fork U256 toAddressMasked Address)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding HoareG SpecG StepG
 open UsdtVerify.Gas
 open UsdtVerify.Meter (SimAtX CallX)
 open UsdtVerify.Refill (NoRefillAtN NoStateAtN StepI HoareI StepJ HoareJ)
@@ -72,7 +72,7 @@ def RunN {bound : Nat} (runChild : MessageRunner fork Nat bound) (c : Evm fork N
 
 /-- A loop with some more gas than `l` ends with no error. -/
 def EndsOk (fork : Fork) (l : Evm fork Nat) : Prop :=
-  ∃ k s, Ends fork (sh k l) s ∧ s.error = none
+  ∃ k s, Ends fork (addGas k l) s ∧ s.error = none
 
 section Nat
 
@@ -192,7 +192,7 @@ theorem RunC.not_bad {l s : Evm fork Nat} (h : RunC fork Run Tail l s) (hr : l.r
     exact hbe hok
 
 /-- A frame of a `StepJ` chain is `Fwd`, with any less gas. -/
-theorem fwd_of_stepJ {k : Nat} {l y : Evm fork Nat} (hs : StepJ fork (sh k l) y) : Fwd l :=
+theorem fwd_of_stepJ {k : Nat} {l y : Evm fork Nat} (hs : StepJ fork (addGas k l) y) : Fwd l :=
   .inl ⟨.inl hs.1.2.1, Refill.noRefillAtN_sh k hs.2.1, Refill.noStateAtN_sh k hs.2.2⟩
 
 /-- A frame at EXTCODESIZE or GAS is `Fwd`. -/
@@ -206,11 +206,11 @@ theorem fwd_of_op {x : Evm fork Nat} {op : Op} (hlt : x.pc < x.code.size)
     have e := hop.symm.trans hs
     rcases h with rfl | rfl <;> cases e
 
-/-- **A successful `RunC` follows a `StepJ` chain.** Along a chain of `StepJ` from `sh k l` to
-`z`, a `RunC` from `l` that ends with no error goes through a frame `z'` with `z = sh k z'`. -/
+/-- **A successful `RunC` follows a `StepJ` chain.** Along a chain of `StepJ` from `addGas k l` to
+`z`, a `RunC` from `l` that ends with no error goes through a frame `z'` with `z = addGas k z'`. -/
 theorem low_to_runningC {hi z : Evm fork Nat} (hr : Reaches (StepJ fork) hi z) :
-    ∀ (k : Nat) (l : Evm fork Nat), hi = sh k l → ∀ {s : Evm fork Nat}, RunC fork Run Tail l s →
-      s.error = none → ∃ z', z = sh k z' ∧ RunC fork Run Tail z' s := by
+    ∀ (k : Nat) (l : Evm fork Nat), hi = addGas k l → ∀ {s : Evm fork Nat}, RunC fork Run Tail l s →
+      s.error = none → ∃ z', z = addGas k z' ∧ RunC fork Run Tail z' s := by
   induction hr with
   | refl =>
     rintro k l rfl s hs _
@@ -220,7 +220,7 @@ theorem low_to_runningC {hi z : Evm fork Nat} (hr : Reaches (StepJ fork) hi z) :
     have hf : Fwd l := fwd_of_stepJ hs
     obtain ⟨⟨hstep, -, hmono⟩, -⟩ := hs
     have hr : l.running = true := hstep.running
-    rcases hmono k l rfl with ⟨e, he⟩ | ⟨b, hb, hbr, hbe⟩ | ⟨b, hb, hh⟩
+    rcases hmono k l rfl with (⟨e, he⟩ | ⟨b, hb, hbr, hbe⟩) | ⟨b, hb, hh⟩
     · exact (hrun.not_bad hr hf (.inl ⟨e, he⟩) hok).elim
     · exact (hrun.not_bad hr hf (.inr ⟨b, hb, hbr, hbe⟩) hok).elim
     · have hb' := hrun.next_of hr hf hb hok
@@ -235,8 +235,8 @@ theorem low_to_runningC {hi z : Evm fork Nat} (hr : Reaches (StepJ fork) hi z) :
 
 /-- `low_to_runningC` for a `HoareJ`. -/
 theorem HoareJ.lowC {P Q : Evm fork Nat → Prop} (h : HoareJ fork P Q) {k : Nat}
-    {l s : Evm fork Nat} (hp : P (sh k l)) (hs : RunC fork Run Tail l s) (hok : s.error = none) :
-    ∃ z', Q (sh k z') ∧ RunC fork Run Tail z' s := by
+    {l s : Evm fork Nat} (hp : P (addGas k l)) (hs : RunC fork Run Tail l s) (hok : s.error = none) :
+    ∃ z', Q (addGas k z') ∧ RunC fork Run Tail z' s := by
   obtain ⟨z, hr, hq⟩ := h _ hp
   obtain ⟨z', rfl, hz⟩ := low_to_runningC hr k l rfl hs hok
   exact ⟨z', hq, hz⟩
@@ -252,7 +252,7 @@ theorem ok_splitC {code : ByteArray} {message : Message fork} {pc pc' : Nat}
     (hrun : RunC fork Run Tail evm s) (hok : s.error = none) :
     c ≤ gas ∧ ∃ z', At code message pc' stack' memory' (gas - c) state' substate' z' ∧
       RunC fork Run Tail z' s := by
-  obtain ⟨z', hq, hz⟩ := HoareJ.lowC (h (gas + B) (by omega)) (at_sh start B) hrun hok
+  obtain ⟨z', hq, hz⟩ := HoareJ.lowC (h (gas + B) (by omega)) (at_addGas start B) hrun hok
   obtain ⟨hk, hat⟩ := at_unsh hq
   refine ⟨by omega, z', ?_, hz⟩
   have : gas + B - c - B = gas - c := by omega
@@ -292,9 +292,9 @@ theorem no_okC {code : ByteArray} {message : Message fork} {pc : Nat} {stack : L
       rw [hc'.2.2.2.2.2.2.1, he.2.2.2.2.1, he.2.2.2.2.2.1, hc'.2.2.2.2.2.2.2.2.2.2.1]
       have : STORAGE_SET_STATE_GAS = 97920 := rfl
       exact ⟨by omega, .inr (by omega), hst⟩
-  obtain ⟨z', ⟨hz, hh⟩, hrz⟩ := HoareJ.lowC hI (at_sh start (B + 1)) hrun hok
+  obtain ⟨z', ⟨hz, hh⟩, hrz⟩ := HoareJ.lowC hI (at_addGas start (B + 1)) hrun hok
   rw [hrz.stopped hz hok] at hok
-  rw [show z'.error = (sh (B + 1) z').error from rfl, hh.2.1] at hok
+  rw [show z'.error = (addGas (B + 1) z').error from rfl, hh.2.1] at hok
   simp at hok
 
 /-- **No refill along a cheap tail** (round 42). If, from every gas `g` from `B` on, a
@@ -311,7 +311,7 @@ theorem noRefill_of_specA {code : ByteArray} {message : Message fork} {pc : Nat}
     (start : At code message pc stack memory gas state substate evm) :
     ∀ y, Reaches (Step fork) evm y → y.running = true → NoRefillAtN y := by
   obtain ⟨z, hr, hz, -⟩ := Refill.SpecG.toIA (h (gas + B) (by omega)) (by omega) hst _
-    (at_sh start B)
+    (at_addGas start B)
   exact Refill.noRefill_low hr hz
 
 /-! ## EXTCODESIZE and GAS -/
@@ -509,6 +509,6 @@ theorem EndsOk.no_ok {code : ByteArray} {message : Message fork} {pc : Nat} {sta
     (herr : ∀ g e, Q g e → e.error ≠ none)
     {gas : Nat} (start : At code message pc stack memory gas state substate evm) : False :=
   let ⟨k, _, hs, hok⟩ := hE
-  no_okE h herr (at_sh start k) hs hok
+  no_okE h herr (at_addGas start k) hs hok
 
 end UsdtVerify.Complete

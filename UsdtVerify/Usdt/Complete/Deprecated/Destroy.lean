@@ -34,7 +34,7 @@ namespace UsdtVerify.Complete
 open EthLib.Base (Fork U256 toAddressMasked)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding HoareG StepG Stuck
 open UsdtVerify.Gas
 open GasCosts
 open Deprecated DeprecatedBalance DeprecatedTransfer DeprecatedDestroy Owner Admin Destroy BlackList
@@ -172,7 +172,7 @@ theorem dep_destroy_completeC {Run : Evm fork Nat → Message fork → Evm fork 
       (toAddressMasked (upWord (storageAt state message.currentTarget 10)))) r =
       routeCost fork (callSubD substate state message).accessedAddresses r := rfl
   rw [hRe] at hgc hCE
-  refine ⟨c, r, hcode, routes_congr (fun _ => rfl) hroute, ?_⟩
+  refine ⟨c, r, hcode, Logic.Routes.congr (fun _ => rfl) hroute, ?_⟩
   generalize hR : routeCost fork (callSubD substate state message).accessedAddresses r = R at hgc hCE ⊢
   rw [hcU', hcU] at hgc hCE
   rw [hext] at hgc

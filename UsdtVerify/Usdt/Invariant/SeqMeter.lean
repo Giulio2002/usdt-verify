@@ -59,7 +59,7 @@ theorem inv_call_any {fork : Fork} {message : Message fork} {state : State.Trans
     (hok : s.error = none) : Inv message.currentTarget s.state := by
   obtain ⟨G, hE⟩ := shadow_ends hfork hrun hok
   exact inv_call (s := { toNat s with gas := G }) K hfork hsize' hdep h7 h8 hI
-    (at_sh start (budget m)) hE hok
+    (at_addGas start (budget m)) hE hok
 
 /-- One successful run of `CODE` over `StateGasMeter` for a message to `C`, from `S` to `S'`, not
 deprecated, under the hypotheses of `inv_call_any`. -/
@@ -166,7 +166,7 @@ theorem process_value_failsS {fork : Fork} (hfork : .berlin ≤ fork) {message :
       rw [hmap]
       have hs : s.error ≠ none := fun hok => by
         obtain ⟨G, hE⟩ := shadow_ends hfork hres hok
-        exact hv (ends_ok_dispatch hfork hsize (at_sh (at_startFrameS hmc st ss meter) _) hE hok).2.1
+        exact hv (ends_ok_dispatch hfork hsize (at_addGas (at_startFrameS hmc st ss meter) _) hE hok).2.1
       unfold rollbackOnError
       split
       · exact hs

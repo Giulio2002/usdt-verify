@@ -95,7 +95,7 @@ theorem callStep_child_sim (hfork : .berlin ≤ fork)
   have hdc' : ∀ d dCode, r = some (d, dCode) → accountAccessCost fork
       (!decide (toAddressMasked a = d) && !decide (d ∈ substate.accessedAddresses)) = dc := by
     rintro d dCode rfl
-    rw [← hdc, routeCost, accCost]
+    rw [← hdc, routeCost]
     simp
   rcases r with _ | ⟨d, dCode⟩
   · simp only [routeCost] at hdc
@@ -189,7 +189,7 @@ theorem callStep_deep_sim (hfork : .berlin ≤ fork)
   have hdc' : ∀ d dCode, r = some (d, dCode) → accountAccessCost fork
       (!decide (toAddressMasked a = d) && !decide (d ∈ substate.accessedAddresses)) = dc := by
     rintro d dCode rfl
-    rw [← hdc, routeCost, accCost]
+    rw [← hdc, routeCost]
     simp
   rcases r with _ | ⟨d, dCode⟩
   · simp only [routeCost] at hdc
@@ -276,7 +276,7 @@ theorem callStep_low_rS (hfork : .berlin ≤ fork)
         simp [hpec, hdel]
       have hdc' : accountAccessCost fork
           (!decide (toAddressMasked a = d) && !decide (d ∈ substate.accessedAddresses)) = dc := by
-        rw [← hdc, routeCost, accCost]
+        rw [← hdc, routeCost]
         simp
       have hk2 : gas < cb + M + dc := by omega
       simp [hab, callStep, popCallOperands, popCallValue, CallKind.sendsValue, popWord, Stack.pop,
@@ -306,7 +306,7 @@ theorem callStep_low_rS (hfork : .berlin ≤ fork)
         simp [hpec, hdel]
       have hdc' : accountAccessCost fork
           (!decide (toAddressMasked a = d) && !decide (d ∈ substate.accessedAddresses)) = dc := by
-        rw [← hdc, routeCost, accCost]
+        rw [← hdc, routeCost]
         simp
       simp [hab, callStep, popCallOperands, popCallValue, CallKind.sendsValue, popWord, Stack.pop,
         bind, Except.bind, pure, Except.pure, accessAddress, hfork, checkGas, hG, accessDelegation,
@@ -429,7 +429,7 @@ theorem callStep_child_simR (hfork : .berlin ≤ fork)
   have hdc' : ∀ d dCode, r = some (d, dCode) → accountAccessCost fork
       (!decide (toAddressMasked a = d) && !decide (d ∈ substate.accessedAddresses)) = dc := by
     rintro d dCode rfl
-    rw [← hdc, routeCost, accCost]
+    rw [← hdc, routeCost]
     simp
   rcases r with _ | ⟨d, dCode⟩
   · simp only [routeCost] at hdc
@@ -524,7 +524,7 @@ theorem callStep_deep_simR (hfork : .berlin ≤ fork)
   have hdc' : ∀ d dCode, r = some (d, dCode) → accountAccessCost fork
       (!decide (toAddressMasked a = d) && !decide (d ∈ substate.accessedAddresses)) = dc := by
     rintro d dCode rfl
-    rw [← hdc, routeCost, accCost]
+    rw [← hdc, routeCost]
     simp
   rcases r with _ | ⟨d, dCode⟩
   · simp only [routeCost] at hdc

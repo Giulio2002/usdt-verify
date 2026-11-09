@@ -32,7 +32,7 @@ namespace UsdtVerify.Shadow
 open EthLib.Base (Fork U256)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding SpecG StepG
 open UsdtVerify.Gas
 open UsdtVerify.Meter
 open GasCosts
@@ -117,8 +117,8 @@ theorem dom_step (hfork : .berlin ≤ fork) {m : Evm fork StateGasMeter} {n n' :
       · rw [hb'] at hs; cases hs
       rw [hb'] at hs
       cases hs
-      have hk : toNat m = sh (m.gas.gasLeft - G) ({ toNat m with gas := G } : Evm fork Nat) := by
-        simp only [sh, toNat]
+      have hk : toNat m = addGas (m.gas.gasLeft - G) ({ toNat m with gas := G } : Evm fork Nat) := by
+        simp only [addGas, toNat]
         congr 1
         omega
       rcases runMono_of_simulated hsim hN ({ toNat m with gas := G } : Evm fork Nat)
@@ -133,7 +133,7 @@ theorem dom_step (hfork : .berlin ≤ fork) {m : Evm fork StateGasMeter} {n n' :
         cases he
         have e := hL m.gas (toNat m)
         rw [lift_toNat, hk, hhi] at e
-        refine ⟨lift m.gas (sh (m.gas.gasLeft - G) _), ?_, rfl, ?_⟩
+        refine ⟨lift m.gas (addGas (m.gas.gasLeft - G) _), ?_, rfl, ?_⟩
         · rw [step_of_instruction hlt hop hS, e]
           rfl
         · exact Nat.le_add_right _ _

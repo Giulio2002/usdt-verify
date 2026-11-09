@@ -25,7 +25,7 @@ facts about the two ends of the stretch only.
   `HoareG.toI` and `SpecG.toI` make a triple over `StepG` one over `StepI` when its two ends
   meet the conditions of `noRefill_cheap` (`HoareG.toIE`: of `noRefill_cheapE`). `At.ruleI` and `sstoreWI` are `At.ruleG` and
   `Gas.sstoreWG` over `StepI`; `sstoreWI` asks that the write refill nothing.
-- `noRefill_low`, `noRefill_run`: from a `StepI` chain to a stopped frame, from `sh k lo`, every
+- `noRefill_low`, `noRefill_run`: from a `StepI` chain to a stopped frame, from `addGas k lo`, every
   running frame that the run from `lo` reaches along `Step` refills nothing.
 - `ends_of_sgmN`: `Meter.ends_of_sgm` with its hypothesis on refills stated for the run of the
   meter `Nat` from `toNat m`.
@@ -39,7 +39,7 @@ namespace UsdtVerify.Refill
 open EthLib.Base (Fork U256)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding At.ruleG HoareG SpecG StepG
 open UsdtVerify.Gas
 open UsdtVerify.Meter
 open GasCosts
@@ -61,7 +61,7 @@ theorem noRefillAt_iff (m : Evm fork StateGasMeter) : NoRefillAt m ↔ NoRefillA
   Iff.rfl
 
 /-- `NoRefillAtN` reads no gas. -/
-theorem noRefillAtN_sh {x : Evm fork Nat} (k : Nat) (h : NoRefillAtN (sh k x)) : NoRefillAtN x :=
+theorem noRefillAtN_sh {x : Evm fork Nat} (k : Nat) (h : NoRefillAtN (addGas k x)) : NoRefillAtN x :=
   h
 
 /-- Before Glamsterdam no SSTORE refills. -/
@@ -892,10 +892,10 @@ theorem exponentBytes_le (x : U256) : exponentBytes x ≤ 32 := by
   · have := (Nat.log2_lt (by assumption)).mpr x.isLt
     omega
 
-/-- **The frames of a run that refill nothing.** If a `StepI` chain goes from `sh k lo` to a
+/-- **The frames of a run that refill nothing.** If a `StepI` chain goes from `addGas k lo` to a
 stopped frame, then every running frame that `lo` reaches along `Step` refills nothing. The run
 from `lo` has `k` less gas: up to where it fails, it follows the chain. -/
-theorem noRefill_low {k : Nat} {lo z : Evm fork Nat} (h : Reaches (StepI fork) (sh k lo) z)
+theorem noRefill_low {k : Nat} {lo z : Evm fork Nat} (h : Reaches (StepI fork) (addGas k lo) z)
     (hz : z.running = false) :
     ∀ y, Reaches (Step fork) lo y → y.running = true → NoRefillAtN y := by
   intro y hy
@@ -903,17 +903,17 @@ theorem noRefill_low {k : Nat} {lo z : Evm fork Nat} (h : Reaches (StepI fork) (
   | refl =>
     intro hr
     cases h with
-    | refl => rw [running_sh] at hz; rw [hz] at hr; cases hr
+    | refl => rw [running_addGas] at hz; rw [hz] at hr; cases hr
     | step hs _ => exact noRefillAtN_sh k hs.2
   | step hs1 hr1 ih =>
     rename_i lo lo1 y
     intro hyr
     have hlo : lo.running = true := hs1.running
     cases h with
-    | refl => rw [running_sh, hlo] at hz; cases hz
+    | refl => rw [running_addGas, hlo] at hz; cases hz
     | step hs hr =>
       rename_i hi1
-      rcases hs.1.2.2 k lo rfl with ⟨e, he⟩ | ⟨b, hb, hbr, -⟩ | ⟨b, hb, hhi⟩
+      rcases hs.1.2.2 k lo rfl with (⟨e, he⟩ | ⟨b, hb, hbr, -⟩) | ⟨b, hb, hhi⟩
       · cases hs1 with
         | next _ hn => rw [he] at hn; cases hn
         | halt _ _ _ =>
@@ -924,7 +924,7 @@ theorem noRefill_low {k : Nat} {lo z : Evm fork Nat} (h : Reaches (StepI fork) (
         rw [reaches_stopped hr1 hbr, hbr] at hyr
         cases hyr
       · have e1 := Step.deterministic hs1 (.next hlo hb)
-        have e2 := Step.deterministic hs.1.1 (.next (by rw [running_sh]; exact hlo) hhi)
+        have e2 := Step.deterministic hs.1.1 (.next (by rw [running_addGas]; exact hlo) hhi)
         subst e1 e2
         exact ih hr hz hyr
 
@@ -958,7 +958,8 @@ theorem At.ruleI {byte : UInt8} {op : Op}
     hI evm hp⟩, hpost⟩
   obtain ⟨hcode, -, -, hpc, -⟩ := hp
   subst hcode hpc
-  exact gasMono_of_run hlt (by rw [hbyte]; exact decoded) hrun hm hsim
+  have hdec : Op.ofByte fork evm.code[evm.pc] = some op := by rw [hbyte]; exact decoded
+  exact ⟨simAt_of hlt hdec hrun hsim, Logic.gasMono_of_run hlt hdec hrun hm⟩
 
 /-- `Gas.sstoreWG` over `StepI`, for a write that refills nothing. -/
 theorem sstoreWI (hfork : .berlin ≤ fork) {key new : U256}
@@ -1002,7 +1003,7 @@ namespace UsdtVerify.Refill
 open EthLib.Base (Fork U256)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding At.ruleG HoareG SpecG StepG
 open UsdtVerify.Gas
 open UsdtVerify.Meter
 

@@ -1,4 +1,5 @@
 import UsdtVerify.Evm.GasRules
+import EthLib.Execution.Proofs.Evm.Logic.NoAbort
 
 /-!
 # GENERIC: runs that never abort, at any gas
@@ -10,16 +11,19 @@ an error of the loop. The triples over `StepG` (Evm/Gas.lean) say how a run with
 and with less gas the step may fail with any error. Here the failures with less gas are shown
 to halt the frame.
 
-- `NoAbort r`: the result `r` is no error that aborts.
-- `noAbort_pushN`, `noAbort_mstore`, `noAbort_calldataload`, `noAbort_keccak256`,
-  `noAbort_sload`, `noAbort_return`: these instructions fail, on any frame, only with errors that
-  halt the frame (stack, gas).
-- `StepGA`: a step of `StepG` from a frame `x` such that the step from every frame with less gas
-  than `x` is no error that aborts. `HoareGA`, `SpecGA`: triples over it; they imply the triples
-  over `StepG` (`SpecGA.toG`).
+EthLib's Logic/NoAbort.lean (#1616) gives `NoAbort r` (the result `r` is no error that aborts),
+the facts `noAbort_pushN`, `noAbort_mstore`, ... (these instructions fail, on any frame, only
+with errors that halt the frame) and `NoAbortLow x` (from every frame with less gas than `x`, the
+step is no error that aborts). Round 48: the local copies of these are removed.
+
+- `StepGA`: a step of `StepG` (Evm/Gas.lean: EthLib's `Logic.StepG` with `SimAt`) from a frame
+  that is `NoAbortLow`. This is EthLib's `Logic.StepGA` with `SimAt`. `HoareGA`, `SpecGA`:
+  triples over it; they imply the triples over `StepG` (`SpecGA.toG`) and EthLib's `SpecGA`
+  (`SpecGA.toLogic`).
 - `At.ruleGA`: the rule of one opcode over `StepGA`, for an instruction that is `RunMono` and
   fails only with errors that halt. `pushGA`, `calldataloadGA`, `mstoreGA`, `keccak256GA`,
   `sloadGA`, `returnGA`: the rules of Evm/GasRules.lean over `StepGA`.
+- `no_error_of_reaches`: EthLib's `no_error_of_reaches`, for `StepGA`.
 - `no_error_ga`: if, with every gas from a bound `B` on, a `SpecGA` holds from a frame, then the
   loop run from that frame with ANY gas (also below `B`) returns a frame, never an error.
 -/
@@ -35,107 +39,7 @@ open GasCosts
 variable {fork : Fork}
 
 /-! ## Results that do not abort -/
-
-/-- The result `r` is no error that aborts the run. -/
-def NoAbort {α : Type} (r : Except EvmError α) : Prop := ∀ e, r = .error e → e.aborts = false
-
-theorem NoAbort.ok {α : Type} (a : α) : NoAbort (.ok a : Except EvmError α) :=
-  fun _ h => by cases h
-
-theorem NoAbort.bind {α β : Type} {x : Except EvmError α} {f : α → Except EvmError β}
-    (hx : NoAbort x) (hf : ∀ a, NoAbort (f a)) : NoAbort (x >>= f) := by
-  intro e h
-  cases hx' : x with
-  | error e' =>
-    have hb : (x >>= f) = .error e' := by rw [hx']; rfl
-    rw [hb] at h
-    cases h
-    exact hx _ hx'
-  | ok a =>
-    have hb : (x >>= f) = f a := by rw [hx']; rfl
-    rw [hb] at h
-    exact hf a e h
-
-theorem NoAbort.map {α β : Type} {x : Except EvmError α} (f : α → β) (hx : NoAbort x) :
-    NoAbort (f <$> x) := by
-  intro e h
-  cases hx' : x with
-  | error e' =>
-    rw [hx'] at h
-    simp only [Functor.map, Except.map, Except.error.injEq] at h
-    subst h
-    exact hx _ hx'
-  | ok a =>
-    rw [hx'] at h
-    simp [Functor.map, Except.map] at h
-
-theorem noAbort_popWord (evm : Evm fork Nat) : NoAbort (popWord evm) := by
-  rintro e h
-  rcases hs : evm.stack with ⟨_ | ⟨x, rest⟩, hp⟩ <;>
-    simp [popWord, Stack.pop, hs, bind, Except.bind, pure, Except.pure] at h
-  subst h; rfl
-
-theorem noAbort_pushWord (evm : Evm fork Nat) (x : U256) : NoAbort (pushWord evm x) := by
-  rintro e h
-  simp only [pushWord, Stack.push, bind, Except.bind] at h
-  split at h
-  · rename_i heq
-    cases h
-    split at heq
-    · cases heq; rfl
-    · cases heq
-  · cases h
-
-theorem noAbort_chargeGas (evm : Evm fork Nat) (c : Nat) : NoAbort (chargeGas evm c) := by
-  rintro e h
-  simp only [chargeGas, GasMeter.charge, bind, Except.bind] at h
-  split at h
-  · rename_i heq
-    cases h
-    split at heq
-    · cases heq; rfl
-    · cases heq
-  · cases h
-
-theorem noAbort_chargeGasAndMemory (evm : Evm fork Nat) (c : Nat) (ranges : List (U256 × U256)) :
-    NoAbort (chargeGasAndMemory evm c ranges) :=
-  NoAbort.bind (noAbort_chargeGas _ _) fun _ => NoAbort.ok _
-
-theorem noAbort_pushN (n : Fin 33) (evm : Evm fork Nat) : NoAbort (pushN n evm) :=
-  NoAbort.bind (noAbort_chargeGas _ _) fun _ =>
-    NoAbort.bind (noAbort_pushWord _ _) fun _ => NoAbort.ok _
-
-theorem noAbort_mstore (evm : Evm fork Nat) : NoAbort (mstoreStep evm) :=
-  NoAbort.bind (noAbort_popWord _) fun _ =>
-    NoAbort.bind (noAbort_popWord _) fun _ =>
-      NoAbort.bind (noAbort_chargeGasAndMemory _ _ _) fun _ => NoAbort.ok _
-
-theorem noAbort_calldataload (evm : Evm fork Nat) : NoAbort (calldataloadStep evm) :=
-  NoAbort.bind (noAbort_popWord _) fun _ =>
-    NoAbort.bind (noAbort_chargeGas _ _) fun _ =>
-      NoAbort.bind (noAbort_pushWord _ _) fun _ => NoAbort.ok _
-
-theorem noAbort_keccak256 (evm : Evm fork Nat) : NoAbort (keccak256Step evm) :=
-  NoAbort.bind (noAbort_popWord _) fun _ =>
-    NoAbort.bind (noAbort_popWord _) fun _ =>
-      NoAbort.bind (noAbort_chargeGasAndMemory _ _ _) fun _ =>
-        NoAbort.bind (noAbort_pushWord _ _) fun _ => NoAbort.ok _
-
-theorem noAbort_sload (evm : Evm fork Nat) : NoAbort (sloadStep evm) :=
-  NoAbort.bind (noAbort_popWord _) fun _ =>
-    NoAbort.bind (noAbort_chargeGas _ _) fun _ =>
-      NoAbort.bind (noAbort_pushWord _ _) fun _ => NoAbort.ok _
-
-theorem noAbort_return (evm : Evm fork Nat) : NoAbort (returnStep evm) :=
-  NoAbort.bind (noAbort_popWord _) fun _ =>
-    NoAbort.bind (noAbort_popWord _) fun _ =>
-      NoAbort.bind (noAbort_chargeGasAndMemory _ _ _) fun _ => NoAbort.ok _
-
 /-! ## Steps that do not abort with less gas -/
-
-/-- From every frame with less gas than `x`, the step is no error that aborts. -/
-def NoAbortLow (x : Evm fork Nat) : Prop := ∀ k l, x = sh k l → NoAbort (step fork l)
-
 /-- A step of `StepG` from a frame `x` such that the step from every frame with less gas than `x`
 is no error that aborts. -/
 def StepGA (fork : Fork) (x y : Evm fork Nat) : Prop := StepG fork x y ∧ NoAbortLow x
@@ -152,6 +56,13 @@ instance StepLift.stepGA : StepLift (StepGA fork) (StepG fork) := ⟨And.left⟩
 /-- A specification over `StepGA` is one over `StepG`. -/
 theorem SpecGA.toG {P Q : Evm fork Nat → Prop} (h : SpecGA fork P Q) : SpecG fork P Q :=
   Triple.lift h
+
+/-- A specification over `StepGA` is one over EthLib's `Logic.StepGA`. -/
+theorem SpecGA.toLogic {P Q : Evm fork Nat → Prop} (h : SpecGA fork P Q) :
+    Logic.SpecGA fork P Q :=
+  fun evm hp =>
+    let ⟨after, hr, hq⟩ := h evm hp
+    ⟨after, hr.mono fun hs => ⟨⟨hs.1.1, hs.1.2.2⟩, hs.2⟩, hq⟩
 
 theorem SpecGA.consequence {P P' Q Q' : Evm fork Nat → Prop} (h : SpecGA fork P Q)
     (pre : ∀ evm, P' evm → P evm) (post : ∀ evm, Q evm → Q' evm) : SpecGA fork P' Q' :=
@@ -175,7 +86,8 @@ theorem At.ruleGA {code : ByteArray} {message : Message fork} {pc : Nat} {stack 
     ?_⟩, hpost⟩
   · obtain ⟨hcode, -, -, hpc, -⟩ := hp
     subst hcode hpc
-    exact gasMono_of_run hlt (by rw [hbyte]; exact decoded) hrun hm hsim
+    have hdec : Op.ofByte fork evm.code[evm.pc] = some op := by rw [hbyte]; exact decoded
+    exact ⟨simAt_of hlt hdec hrun hsim, Logic.gasMono_of_run hlt hdec hrun hm⟩
   · obtain ⟨hcode, -, -, hpc, -⟩ := hp
     rintro k l rfl
     change l.code = code at hcode
@@ -190,36 +102,14 @@ section Loop
 
 variable {bound : Nat} {runChild : MessageRunner fork Nat bound}
 
-/-- Along a chain of `StepGA` from `sh k l` to a stopped frame, the loop run from `l` returns a
-frame, never an error: with less gas, each step halts the frame, or follows the chain. -/
+/-- Along a chain of `StepGA` from `addGas k l` to a stopped frame, the loop run from `l`
+returns a frame, never an error: EthLib's `no_error_of_reaches`, for `StepGA`. -/
 theorem no_error_of_reaches {hi z : Evm fork Nat} (hr : Reaches (StepGA fork) hi z)
     (hz : z.running = false) :
-    ∀ (k : Nat) (l : Evm fork Nat), hi = sh k l →
+    ∀ (k : Nat) (l : Evm fork Nat), hi = addGas k l →
       ∀ (within : GasMeter.gasHeld l.gas ≤ bound) (e : EvmError),
-        Evm.runFrame (step fork) (step_decreases fork) bound runChild l within ≠ .error e := by
-  induction hr with
-  | refl =>
-    rintro k l rfl within e h
-    rw [runFrame_stopped (by simpa using hz)] at h
-    cases h
-  | step hs _ ih =>
-    rintro k l rfl within e h
-    obtain ⟨⟨hstep, -, hmono⟩, hna⟩ := hs
-    have hr : l.running = true := hstep.running
-    rcases hmono k l rfl with ⟨e', he⟩ | ⟨b, hb, hbr, -⟩ | ⟨b, hb, hh⟩
-    · rw [runFrame_of_step_eq_error hr he (hna k l rfl e' he)] at h
-      cases h
-    · rw [runFrame_of_step_eq_next hr hb, runFrame_stopped hbr] at h
-      cases h
-    · rw [runFrame_of_step_eq_next hr hb] at h
-      cases hstep with
-      | next _ hn =>
-        rw [hh] at hn
-        cases hn
-        exact ih hz k b rfl _ e h
-      | halt _ hn _ =>
-        rw [hh] at hn
-        cases hn
+        Evm.runFrame (step fork) (step_decreases fork) bound runChild l within ≠ .error e :=
+  Logic.no_error_of_reaches (hr.mono fun hs => ⟨⟨hs.1.1, hs.1.2.2⟩, hs.2⟩) hz
 
 /-- If, with every gas from `B` on, a `SpecGA` holds from a frame, then the loop run from that
 frame with any gas returns a frame, never an error. -/
@@ -230,7 +120,7 @@ theorem no_error_ga {code : ByteArray} {message : Message fork} {pc : Nat} {stac
     {gas : Nat} {evm : Evm fork Nat} (start : At code message pc stack memory gas state substate evm)
     (within : GasMeter.gasHeld evm.gas ≤ bound) (e : EvmError) :
     Evm.runFrame (step fork) (step_decreases fork) bound runChild evm within ≠ .error e := by
-  obtain ⟨z, hr, hz, -⟩ := h (gas + B) (by omega) _ (at_sh start B)
+  obtain ⟨z, hr, hz, -⟩ := h (gas + B) (by omega) _ (at_addGas start B)
   exact no_error_of_reaches hr hz B evm rfl within e
 
 end Loop

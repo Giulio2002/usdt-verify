@@ -24,7 +24,7 @@ namespace UsdtVerify.Exact
 open EthLib.Base (Fork U256)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding SpecG
 open UsdtVerify.Gas
 open Complete Transfer TransferOk TransferFee SafeMath
 

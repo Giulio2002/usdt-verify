@@ -42,8 +42,7 @@ open EthLib.Execution
 open EthLib.Execution.Evm
 open EthLib.Execution.Evm.Logic
 open GasCosts
-open UsdtVerify.Complete (Route Routes routeAddr routeCode routeCost routeState routeSub SendsVia
-  CallFrom atCallState atCallSub routes_congr routeCost_insert_insert callWithR)
+open UsdtVerify.Complete (SendsVia CallFrom atCallState atCallSub routeCost_insert_insert callWithR)
 open Deprecated DeprecatedBalance Transfer TransferOk
 
 -- `Approve.entry` and `Approve.payload` are used by their full names.
@@ -562,7 +561,7 @@ theorem spec_depT_g {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
     (rest := [0xc4, 0x6e18980a, upWord (storageAt state message.currentTarget 10),
       wordArg message.data 1, addrArg message.data 0, 0x078a,
       BitVec.ofNat 256 (selector message.data)]) (cold := false)
-    h.berlin (by code_fact) (by code_fact) h.code (routes_congr (fun _ => rfl) h.route) h.depth
+    h.berlin (by code_fact) (by code_fact) h.code (Logic.Routes.congr (fun _ => rfl) h.route) h.depth
     (by simp [upAddr]) (by rw [hext, hR]; simp only [accCost_false]; omega)
   rw [hext, hR] at hcall
   simp only [accCost_false] at hcall
@@ -1007,7 +1006,7 @@ theorem spec_depA_g {c : ByteArray} {r : Route} {c10 cU : Bool}
     (rest := [0xc4, 0xaee92d33, upWord (storageAt state message.currentTarget 10), 0x40,
       wordArg message.data 1, addrArg message.data 0, 0x02a2,
       BitVec.ofNat 256 (selector message.data)]) (cold := false)
-    h.berlin (by code_fact) (by code_fact) h.code (routes_congr (fun _ => rfl) h.route) h.depth
+    h.berlin (by code_fact) (by code_fact) h.code (Logic.Routes.congr (fun _ => rfl) h.route) h.depth
     (by simp [upAddr]) (by rw [hext, hR]; simp only [accCost_false]; omega)
   rw [hext, hR] at hcall
   simp only [accCost_false] at hcall

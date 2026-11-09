@@ -24,7 +24,7 @@ namespace UsdtVerify.Refill
 open EthLib.Base (Fork U256)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding HoareG SpecG StepG
 open UsdtVerify.Gas
 open UsdtVerify.Meter
 open GasCosts
@@ -43,7 +43,7 @@ def NoStateAtN (x : Evm fork Nat) : Prop :=
   ∀ h : x.pc < x.code.size, Op.ofByte fork x.code[x.pc] = some .sstore → NoStateN x
 
 /-- `NoStateAtN` reads no gas. -/
-theorem noStateAtN_sh {x : Evm fork Nat} (k : Nat) (h : NoStateAtN (sh k x)) : NoStateAtN x :=
+theorem noStateAtN_sh {x : Evm fork Nat} (k : Nat) (h : NoStateAtN (addGas k x)) : NoStateAtN x :=
   h
 
 /-- **No state gas along a cheap stretch.** A frame `y` that a `StepG` chain passes from `c` to

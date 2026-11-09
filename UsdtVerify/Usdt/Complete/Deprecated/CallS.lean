@@ -151,7 +151,7 @@ theorem fromExtSG (hfork : .berlin ≤ fork) {p q : Nat}
   have hgS : mC.gas.gasLeft = G - (A + 28) := hg4
   have hcodeS : mC.state.getCode (mC.state.getAccount (toAddressMasked U)).codeHash = .ok c := by
     rw [hsS]; exact hcode
-  have hrouteS : Routes fork mC.state c r := by rw [hsS]; exact routes_rec hroute
+  have hrouteS : Routes fork mC.state c r := by rw [hsS]; exact Logic.Routes.recordAccountRead hroute
   have hwarm : callBaseCost fork (decide (toAddressMasked U ∉ mC.substate.accessedAddresses)) =
       100 := by
     rw [hssS, callBaseCost_eq hfork]; simp [accCost_false]

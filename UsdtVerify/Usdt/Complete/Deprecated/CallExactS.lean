@@ -28,7 +28,7 @@ namespace UsdtVerify.Complete
 open EthLib.Base (Fork U256 toAddressMasked Address)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding SpecG StepG
 open UsdtVerify.Gas
 open UsdtVerify.Meter
 open GasCosts
@@ -126,7 +126,7 @@ theorem dep_call_exactS (hfork : .berlin ≤ fork) {p q : Nat}
   obtain ⟨lt, chS, y, hch, hy, wy, hrunY⟩ := runFrame_childS hrC hstepC hrun hok
   have hat := resumeG hrest k1 k2 k3 k4 k5 k6 k8 k9 ko hy
   obtain ⟨Gs, hEnds⟩ := Shadow.shadow_ends hfork hrunY hok
-  have hatS := at_sh hat (Shadow.budget y)
+  have hatS := at_addGas hat (Shadow.budget y)
   -- the child ended with no error
   have he : chS.1.error = none := by
     refine Classical.byContradiction fun hne => ?_

@@ -108,7 +108,7 @@ theorem callStep_child_rS (hfork : .berlin ≤ fork)
   have hdc' : ∀ d dCode, r = some (d, dCode) → accountAccessCost fork
       (!decide (toAddressMasked a = d) && !decide (d ∈ substate.accessedAddresses)) = dc := by
     rintro d dCode rfl
-    rw [← hdc, routeCost, accCost]
+    rw [← hdc, routeCost]
     simp
   by_cases hG : fork ≥ .glamsterdam
   · rcases r with _ | ⟨d, dCode⟩

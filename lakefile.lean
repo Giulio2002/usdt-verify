@@ -5,7 +5,7 @@ open Lake DSL
 
 package «UsdtVerify» where
 
-require EthLib from git "https://github.com/ethereum/EthLib" @ "0c34dc0010f6ff1b3d5f1c7614af10faa85fb685"
+require EthLib from git "https://github.com/ethereum/EthLib" @ "bc16ee428baf03295ef3622c30c9c901bae1444a"
 
 @[default_target]
 lean_lib «UsdtVerify» where

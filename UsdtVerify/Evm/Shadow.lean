@@ -30,7 +30,7 @@ namespace UsdtVerify.Shadow
 open EthLib.Base (Fork U256)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding HoareG StepG
 open UsdtVerify.Gas
 open UsdtVerify.Meter
 open GasCosts
@@ -348,8 +348,8 @@ theorem shadow_step (hfork : .berlin ≤ fork) {m m' : Evm fork StateGasMeter} {
       · rw [hb'] at hs; cases hs
       rw [hb'] at hs
       cases hs
-      have hk : ({ toNat m with gas := G } : Evm fork Nat) = sh (G - m.gas.gasLeft) (toNat m) := by
-        simp only [sh, toNat]
+      have hk : ({ toNat m with gas := G } : Evm fork Nat) = addGas (G - m.gas.gasLeft) (toNat m) := by
+        simp only [addGas, toNat]
         congr 1
         omega
       rcases runMono_of_simulated hsim hN (toNat m) (G - m.gas.gasLeft) with
@@ -362,7 +362,7 @@ theorem shadow_step (hfork : .berlin ≤ fork) {m m' : Evm fork StateGasMeter} {
         · exact absurd h hbe
       · rw [hb'] at he
         cases he
-        refine ⟨sh (G - m.gas.gasLeft) b, ?_, rfl, ?_, ?_, fun _ => ?_⟩
+        refine ⟨addGas (G - m.gas.gasLeft) b, ?_, rfl, ?_, ?_, fun _ => ?_⟩
         · rw [step_of_instruction (evm := ({ toNat m with gas := G } : Evm fork Nat)) hlt hop hN,
             hk, hhi]
           rfl
@@ -519,7 +519,7 @@ namespace UsdtVerify.Shadow
 open EthLib.Base (Fork U256)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding HoareG StepG
 open UsdtVerify.Gas
 open UsdtVerify.Meter
 open UsdtVerify.Refill
@@ -535,12 +535,12 @@ def RunsOkS (fork : Fork) (bound : Nat) (runChild : MessageRunner fork StateGasM
   ∃ s, Evm.runFrame (step fork) (step_decreases fork) bound runChild m within = .ok s ∧
     s.error = none
 
-/-- `shadow_run` from the frame `sh (budget m) (toNat m)`. -/
+/-- `shadow_run` from the frame `addGas (budget m) (toNat m)`. -/
 theorem shadow_ends (hfork : .berlin ≤ fork) {m s : Evm fork StateGasMeter}
     {within : GasMeter.gasHeld m.gas ≤ bound}
     (h : Evm.runFrame (step fork) (step_decreases fork) bound runChild m within = .ok s)
-    (hok : s.error = none) : ∃ G, Ends fork (sh (budget m) (toNat m)) { toNat s with gas := G } :=
-  shadow_run hfork h hok rfl (by simp only [gas_sh]; exact Nat.le_add_left _ _)
+    (hok : s.error = none) : ∃ G, Ends fork (addGas (budget m) (toNat m)) { toNat s with gas := G } :=
+  shadow_run hfork h hok rfl (by simp only [gas_addGas]; exact Nat.le_add_left _ _)
 
 /-- **A specification over `StepI` run over `StateGasMeter`.** From a frame with reservoir 0
 whose `toNat` meets the precondition of a triple over `StepI` to stopped frames that meet `Q`, the
@@ -557,11 +557,11 @@ theorem runFrame_of_specI {P Q : Evm fork Nat → Prop}
   exact ⟨s, hs, hts ▸ hq⟩
 
 /-- **`Ends` from a specification over `StepI` with more gas.** If a triple over `StepI` to
-stopped frames holds from `sh k (toNat m)`, `m` has reservoir 0, and the loop over
+stopped frames holds from `addGas k (toNat m)`, `m` has reservoir 0, and the loop over
 `StateGasMeter` from `m` ends in `s`, then `Ends` holds from `toNat m` to `toNat s`. -/
 theorem ends_of_specI {P Q : Evm fork Nat → Prop}
     (h : HoareI fork P fun e => e.running = false ∧ Q e) {m s : Evm fork StateGasMeter} {k : Nat}
-    (hp : P (sh k (toNat m))) (hres : m.gas.reservoir = 0)
+    (hp : P (addGas k (toNat m))) (hres : m.gas.reservoir = 0)
     {within : GasMeter.gasHeld m.gas ≤ bound}
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild m within = .ok s) :
     Ends fork (toNat m) (toNat s) := by
@@ -570,9 +570,9 @@ theorem ends_of_specI {P Q : Evm fork Nat → Prop}
 
 /-! ## A run over `StateGasMeter` gives a run of the meter `Nat` -/
 
-/-- **The frames of a run are `SimAt`.** If a `StepG` chain goes from `sh k lo` to a stopped
+/-- **The frames of a run are `SimAt`.** If a `StepG` chain goes from `addGas k lo` to a stopped
 frame, then every running frame that `lo` reaches along `Step` is `SimAt`. -/
-theorem simAt_low {k : Nat} {lo z : Evm fork Nat} (h : Reaches (StepG fork) (sh k lo) z)
+theorem simAt_low {k : Nat} {lo z : Evm fork Nat} (h : Reaches (StepG fork) (addGas k lo) z)
     (hz : z.running = false) :
     ∀ y, Reaches (Step fork) lo y → y.running = true → SimAt y := by
   intro y hy
@@ -580,17 +580,17 @@ theorem simAt_low {k : Nat} {lo z : Evm fork Nat} (h : Reaches (StepG fork) (sh 
   | refl =>
     intro hr
     cases h with
-    | refl => rw [running_sh] at hz; rw [hz] at hr; cases hr
+    | refl => rw [running_addGas] at hz; rw [hz] at hr; cases hr
     | step hs _ => exact hs.2.1
   | step hs1 hr1 ih =>
     rename_i lo lo1 y
     intro hyr
     have hlo : lo.running = true := hs1.running
     cases h with
-    | refl => rw [running_sh, hlo] at hz; cases hz
+    | refl => rw [running_addGas, hlo] at hz; cases hz
     | step hs hr =>
       rename_i hi1
-      rcases hs.2.2 k lo rfl with ⟨e, he⟩ | ⟨b, hb, hbr, -⟩ | ⟨b, hb, hhi⟩
+      rcases hs.2.2 k lo rfl with (⟨e, he⟩ | ⟨b, hb, hbr, -⟩) | ⟨b, hb, hhi⟩
       · cases hs1 with
         | next _ hn => rw [he] at hn; cases hn
         | halt _ _ _ =>
@@ -601,7 +601,7 @@ theorem simAt_low {k : Nat} {lo z : Evm fork Nat} (h : Reaches (StepG fork) (sh 
         rw [reaches_stopped hr1 hbr, hbr] at hyr
         cases hyr
       · have e1 := Step.deterministic hs1 (.next hlo hb)
-        have e2 := Step.deterministic hs.1 (.next (by rw [running_sh]; exact hlo) hhi)
+        have e2 := Step.deterministic hs.1 (.next (by rw [running_addGas]; exact hlo) hhi)
         subst e1 e2
         exact ih hr hz hyr
 
@@ -622,12 +622,12 @@ theorem runFrame_of_reachesN {bound : Nat} {runChild : MessageRunner fork Nat bo
       rw [reaches_stopped hrest rfl]
 
 /-- **A run of the meter `Nat` from a run over `StateGasMeter`.** If a triple over `StepI` to
-stopped frames holds from `sh k (toNat m)`, `m` has reservoir 0, and the loop over
+stopped frames holds from `addGas k (toNat m)`, `m` has reservoir 0, and the loop over
 `StateGasMeter` from `m` ends with no error, then the loop over the meter `Nat` from `toNat m`
 ends with no error, for any gas bound and message runner. -/
 theorem runsOk_of_specI {P Q : Evm fork Nat → Prop}
     (h : HoareI fork P fun e => e.running = false ∧ Q e) {m s : Evm fork StateGasMeter} {k : Nat}
-    (hp : P (sh k (toNat m))) (hres : m.gas.reservoir = 0)
+    (hp : P (addGas k (toNat m))) (hres : m.gas.reservoir = 0)
     {within : GasMeter.gasHeld m.gas ≤ bound}
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild m within = .ok s)
     (hok : s.error = none) {bound' : Nat} (runChild' : MessageRunner fork Nat bound')
@@ -641,7 +641,7 @@ theorem runsOk_of_specI {P Q : Evm fork Nat → Prop}
 
 /-! ## The gas at any reservoir -/
 
-theorem sh_zero (e : Evm fork Nat) : sh 0 e = e := rfl
+theorem sh_zero (e : Evm fork Nat) : addGas 0 e = e := rfl
 
 /-- **The gas of a run at any reservoir, a lower bound.** If, from every gas `g` from `B` on, a
 triple over `StepG` takes the fresh frame `At ... g` to stopped frames with `g - cost` gas
@@ -661,12 +661,12 @@ theorem gas_ge_any (hfork : .berlin ≤ fork) {code : ByteArray} {message : Mess
     gas + m.gas.reservoir ≤ s.gas.gasLeft + s.gas.reservoir + cost := by
   have hg0 : (toNat m).gas = gas := start.2.2.2.2.2.2.1
   have hg1 : m.gas.gasLeft = gas := hg0
-  obtain ⟨G, hE, hle, -⟩ := shadow_runQ hfork hrun hok (n := sh (budget m + B) (toNat m)) rfl
-    (by simp only [gas_sh, budget] at *; omega)
-  obtain ⟨z, hr, hz, hzg⟩ := hspec (gas + (budget m + B)) (by omega) _ (at_sh start _)
+  obtain ⟨G, hE, hle, -⟩ := shadow_runQ hfork hrun hok (n := addGas (budget m + B) (toNat m)) rfl
+    (by simp only [gas_addGas, budget] at *; omega)
+  obtain ⟨z, hr, hz, hzg⟩ := hspec (gas + (budget m + B)) (by omega) _ (at_addGas start _)
   have hzs := low_of_reachesE hr hz 0 _ (sh_zero _).symm hE hok
   rw [hzs] at hzg
-  simp only [gas_sh, hg0] at hzg hle
+  simp only [gas_addGas, hg0] at hzg hle
   omega
 
 /-- **The gas of a run at any reservoir.** `gas_ge_any` for a triple over `StepI` (no SSTORE of
@@ -685,13 +685,13 @@ theorem gas_eq_any (hfork : .berlin ≤ fork) {code : ByteArray} {message : Mess
     s.gas.gasLeft + s.gas.reservoir + cost = gas + m.gas.reservoir := by
   have hg0 : (toNat m).gas = gas := start.2.2.2.2.2.2.1
   have hg1 : m.gas.gasLeft = gas := hg0
-  obtain ⟨G, hE, -, heq⟩ := shadow_runQ hfork hrun hok (n := sh (budget m + B) (toNat m)) rfl
-    (by simp only [gas_sh, budget] at *; omega)
-  obtain ⟨z, hr, hz, hzg⟩ := hspec (gas + (budget m + B)) (by omega) _ (at_sh start _)
+  obtain ⟨G, hE, -, heq⟩ := shadow_runQ hfork hrun hok (n := addGas (budget m + B) (toNat m)) rfl
+    (by simp only [gas_addGas, budget] at *; omega)
+  obtain ⟨z, hr, hz, hzg⟩ := hspec (gas + (budget m + B)) (by omega) _ (at_addGas start _)
   have hzs := low_of_reachesE (hr.mono fun h => h.1) hz 0 _ (sh_zero _).symm hE hok
   have hq := heq (noRefill_low (k := 0) hr hz)
   rw [hzs] at hzg
-  simp only [gas_sh, hg0] at hzg hq
+  simp only [gas_addGas, hg0] at hzg hq
   omega
 
 end UsdtVerify.Shadow

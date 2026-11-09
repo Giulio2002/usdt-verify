@@ -219,6 +219,11 @@ instances: the run succeeds iff the checks hold, the gas the CALL gives covers `
 and the gas left after the CALL plus what `MIRROR` returns covers the code after it. Only these
 two of the seven paths are instantiated with `MIRROR`.
 
+**Resolution note (round 48).** `NoAbort`, `NoAbortLow` and the no-abort facts of the instructions
+are EthLib's since #1616 (Execution/Proofs/Evm/Logic/NoAbort.lean), with the same bodies.
+`no_error_of_reaches` is EthLib's, applied to the local `StepGA` (EthLib's `StepGA` with `SimAt`),
+and `no_error_ga` and `process_mirror_sends` keep their statements.
+
 **Resolution (round 31), `X_dep_ok_or_fails`.** Moved to the gas-aware `hans`: the seven
 `X_dep_ok_or_fails` (destroyBlackFunds added) take the hypotheses of `X_dep_ok_iff_fails` without
 `hfail` (no `htail`, no requirement that the runner's errors abort), and the failure in their
@@ -518,6 +523,9 @@ result.
   `inv_X` and `inv_call` now take in place of a `runFrame` equation. `Ends.run` gives it from every
   `runFrame` end. A CALL needs no hypothesis: `GasMono` and `Stuck` now name a `simulated` opcode
   (`SimAt`), so a run that `Ends` with a CALL in it contradicts every `StepG` chain.
+  Round 48 note: `GasMono` is no longer a local definition. The local `StepG` is
+  `Step ∧ SimAt ∧ Logic.GasMono` (EthLib's `GasMono`, #1612), and `Stuck` keeps `SimAt`, so the
+  argument above holds as stated.
 - USDT (UsdtVerify/Usdt/Meter.lean): `inv_call_sgm`, `ok_transfer_sgm`, `ok_approve_sgm`,
   `ok_transferFrom_sgm`, with the hypotheses `hres` (reservoir 0) and `hnr` (no SSTORE that the
   steps reach refills). `allocateGas_reservoir`: a transaction gas limit of at most 2^24 gives the
@@ -800,6 +808,10 @@ message. The reviewer's `sendsVia_callFrom_env` and `sentVia_env` no longer hold
 environment (`SendsVia.env`). The whole repository builds with no other proof changed, and the
 STOP and `MIRROR` instances stand. `SentVia` still leaves the call data, the gas and the caller's
 substate free. No instance with an environment-reading upgraded code is proved.
+
+**Resolution note (round 48).** `callStep_child_r` keeps its statement, the environments and
+`shouldTransferValue` included. It is now proved from EthLib's `callStep_child_of_routes` (#1611)
+for CALL, whose `CallSends` states the same fields (and a message reservoir of 0, not used here).
 
 ## T3. `S1` exercises no deprecated destroyBlackFunds forward (Low)
 

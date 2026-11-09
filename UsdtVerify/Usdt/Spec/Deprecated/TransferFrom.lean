@@ -24,8 +24,7 @@ open EthLib.Execution
 open EthLib.Execution.Evm
 open EthLib.Execution.Evm.Logic
 open GasCosts
-open UsdtVerify.Complete (Route Routes routeAddr routeCode routeCost routeState routeSub SendsVia
-  CallFrom atCallState atCallSub routes_congr routeCost_insert_insert callWithR)
+open UsdtVerify.Complete (SendsVia CallFrom atCallState atCallSub routeCost_insert_insert callWithR)
 open Deprecated DeprecatedBalance DeprecatedTransfer TransferOk TransferFrom
 
 variable {fork : Fork} {message : Message fork} {state : State.TransactionState}
@@ -418,7 +417,7 @@ theorem spec_depF_g {c : ByteArray} {r : Route} {c0 cB c10 cU : Bool}
     (rest := [0xe4, 0x8b477adb, upWord (storageAt state message.currentTarget 10),
       valArg message, toArg message, fromArg message, 0x0392,
       BitVec.ofNat 256 (selector message.data)]) (cold := false)
-    h.berlin (by code_fact) (by code_fact) h.code (routes_congr (fun _ => rfl) h.route) h.depth
+    h.berlin (by code_fact) (by code_fact) h.code (Logic.Routes.congr (fun _ => rfl) h.route) h.depth
     (by simp [upAddr]) (by rw [hext, hR]; simp only [accCost_false]; omega)
   rw [hext, hR] at hcall
   simp only [accCost_false] at hcall

@@ -39,7 +39,7 @@ namespace UsdtVerify.Exact
 open EthLib.Base (Fork U256)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding SpecG
 open UsdtVerify.Gas
 open UsdtVerify.Meter
 open UsdtVerify.Refill
@@ -86,7 +86,7 @@ theorem depWord_ne : depWord state message ≠ 0 := by
 /-- The run of the meter `Nat` from `toNat m` that `runsOk_of_specI` gives, as `RunsOk`. -/
 theorem runsOk_toNat {P Q : Evm fork Nat → Prop}
     (h : HoareI fork P fun e => e.running = false ∧ Q e) {k : Nat}
-    (hp : P (sh k (toNat m))) (hres : m.gas.reservoir = 0)
+    (hp : P (addGas k (toNat m))) (hres : m.gas.reservoir = 0)
     {within : GasMeter.gasHeld m.gas ≤ bound}
     (hrun : Evm.runFrame (step fork) (step_decreases fork) bound runChild m within = .ok s)
     (hok : s.error = none) :
@@ -142,14 +142,14 @@ theorem pause_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound) :
   · rintro ⟨s, hs, hok⟩
     have hG : PauseGuard state message := by
       obtain ⟨G, hE⟩ := shadow_ends hfork hs hok
-      have st' := at_sh start (budget m)
+      have st' := at_addGas start (budget m)
       obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' st' hE hok
       obtain ⟨hst, hacc, hown, hp, -⟩ := ok_pause hfork hsize' hsel rfl st' hE hok
       exact ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hp⟩
     exact (pause_iff_gas hfork hsize' start _ hsel hc0).mp (runsOk_toNat
       (pause_specI hfork hsize' hsel hc0 hG (g := gas + max
         (PAUSE_COST + slotCost c0 + flagCost fork state message 1) (3297 + slotCost c0))
-        (Nat.le_add_left _ _)) (at_sh start _) hres hs hok)
+        (Nat.le_add_left _ _)) (at_addGas start _) hres hs hok)
   · rintro ⟨hG, hm⟩
     obtain ⟨s, hs, he, -⟩ := pause_ok_sgm hfork hsize' start hres hsel hc0 hG hm within
     exact ⟨s, hs, he⟩
@@ -205,14 +205,14 @@ theorem unpause_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound) :
   · rintro ⟨s, hs, hok⟩
     have hG : UnpauseGuard state message := by
       obtain ⟨G, hE⟩ := shadow_ends hfork hs hok
-      have st' := at_sh start (budget m)
+      have st' := at_addGas start (budget m)
       obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' st' hE hok
       obtain ⟨hst, hacc, hown, hp, -⟩ := ok_unpause hfork hsize' hsel rfl st' hE hok
       exact ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hp⟩
     exact (unpause_iff_gas hfork hsize' start _ hsel hc0).mp (runsOk_toNat
       (unpause_specI hfork hsize' hsel hc0 hnr hG (g := gas + max
         (UNPAUSE_COST + slotCost c0 + flagCost fork state message 0) (3184 + slotCost c0))
-        (Nat.le_add_left _ _)) (at_sh start _) hres hs hok)
+        (Nat.le_add_left _ _)) (at_addGas start _) hres hs hok)
   · rintro ⟨hG, hm⟩
     obtain ⟨s, hs, he, -⟩ := unpause_ok_sgm hfork hsize' start hres hsel hc0 hnr hG hm within
     exact ⟨s, hs, he⟩
@@ -269,14 +269,14 @@ theorem addBlackList_iff_gas_sgm (hsel : selector message.data = 0x0ecb93c0)
   · rintro ⟨s, hs, hok⟩
     have hG : OwnerWriteGuard state message := by
       obtain ⟨G, hE⟩ := shadow_ends hfork hs hok
-      have st' := at_sh start (budget m)
+      have st' := at_addGas start (budget m)
       obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' st' hE hok
       obtain ⟨hst, hacc, hown, -⟩ := ok_addBlackList hfork hsize' hsel rfl rfl st' hE hok
       exact ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown⟩
     exact (addBlackList_iff_gas hfork hsize' start _ hc0 hcB hsel).mp (runsOk_toNat
       (addBlackList_specI hfork hsize' hc0 hcB hsel hG (g := gas + max
         (1567 + slotCost c0 + slotCost cB + listCost fork state message 1)
-        (2779 + slotCost c0 + slotCost cB)) (Nat.le_add_left _ _)) (at_sh start _) hres hs hok)
+        (2779 + slotCost c0 + slotCost cB)) (Nat.le_add_left _ _)) (at_addGas start _) hres hs hok)
   · rintro ⟨hG, hm⟩
     obtain ⟨s, hs, he, -⟩ := addBlackList_ok_sgm hfork hsize' start hres hc0 hcB hsel hG hm
       within
@@ -331,14 +331,14 @@ theorem removeBlackList_iff_gas_sgm (hsel : selector message.data = 0xe4997dc5)
   · rintro ⟨s, hs, hok⟩
     have hG : OwnerWriteGuard state message := by
       obtain ⟨G, hE⟩ := shadow_ends hfork hs hok
-      have st' := at_sh start (budget m)
+      have st' := at_addGas start (budget m)
       obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' st' hE hok
       obtain ⟨hst, hacc, hown, -⟩ := ok_removeBlackList hfork hsize' hsel rfl rfl st' hE hok
       exact ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown⟩
     exact (removeBlackList_iff_gas hfork hsize' start _ hc0 hcB hsel).mp (runsOk_toNat
       (removeBlackList_specI hfork hsize' hc0 hcB hnr hsel hG (g := gas + max
         (2095 + slotCost c0 + slotCost cB + listCost fork state message 0)
-        (3307 + slotCost c0 + slotCost cB)) (Nat.le_add_left _ _)) (at_sh start _) hres hs hok)
+        (3307 + slotCost c0 + slotCost cB)) (Nat.le_add_left _ _)) (at_addGas start _) hres hs hok)
   · rintro ⟨hG, hm⟩
     obtain ⟨s, hs, he, -⟩ := removeBlackList_ok_sgm hfork hsize' start hres hc0 hcB hnr hsel hG
       hm within
@@ -431,7 +431,7 @@ theorem deprecate_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound) :
   · rintro ⟨s, hs, hok⟩
     have hG : OwnerWriteGuard state message := by
       obtain ⟨G, hE⟩ := shadow_ends hfork hs hok
-      have st' := at_sh start (budget m)
+      have st' := at_addGas start (budget m)
       obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' st' hE hok
       obtain ⟨hst, hacc, hown, -⟩ := ok_deprecate hfork hsize' hsel rfl rfl st' hE hok
       exact ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown⟩
@@ -441,7 +441,7 @@ theorem deprecate_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound) :
         (2840 + slotCost c0 + slotCost c10 + Gas.writeCost fork
           (originalAt state message.currentTarget 10) (storageAt state message.currentTarget 10)
           (withPaused (storageAt state message.currentTarget 10) 1) false))
-        (Nat.le_add_left _ _)) (at_sh start _) hres hs hok)
+        (Nat.le_add_left _ _)) (at_addGas start _) hres hs hok)
   · rintro ⟨hG, hm⟩
     obtain ⟨s, hs, he, -⟩ := deprecate_ok_sgm hfork hsize' start hres hsel hc0 hc10 hG hm within
     exact ⟨s, hs, he⟩
@@ -497,7 +497,7 @@ theorem transferOwnership_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound
   · rintro ⟨s, hs, hok⟩
     have hG : TransferOwnershipGuard state message := by
       obtain ⟨G, hE⟩ := shadow_ends hfork hs hok
-      have st' := at_sh start (budget m)
+      have st' := at_addGas start (budget m)
       obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' st' hE hok
       obtain ⟨hown, -, h⟩ := ok_transferOwnership hfork hsize' hsel rfl st' hE hok
       refine ⟨⟨h4, hv⟩, hown, fun hz => ?_⟩
@@ -507,7 +507,7 @@ theorem transferOwnership_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound
     exact (transferOwnership_iff_gas hfork hsize' start _ hsel hc0).mp (runsOk_toNat
       (transferOwnership_specI hfork hsize' hsel hc0 hG (g := gas + max
         (ownershipCost fork state message c0) (ownershipStip message c0))
-        (Nat.le_add_left _ _)) (at_sh start _) hres hs hok)
+        (Nat.le_add_left _ _)) (at_addGas start _) hres hs hok)
   · rintro ⟨hG, hm⟩
     obtain ⟨s, hs, he, -⟩ := transferOwnership_ok_sgm hfork hsize' start hres hsel hc0 hG hm
       within
@@ -575,7 +575,7 @@ theorem issue_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound) :
   · rintro ⟨s, hs, hok⟩
     have hG : IssueGuard state message := by
       obtain ⟨G, hE⟩ := shadow_ends hfork hs hok
-      have st' := at_sh start (budget m)
+      have st' := at_addGas start (budget m)
       obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' st' hE hok
       obtain ⟨hst, hacc, hown, h0, hT, hB, -⟩ := ok_issue hfork hsize' hsel rfl rfl rfl st' hE hok
       exact ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, h0, hT, hB⟩
@@ -584,7 +584,7 @@ theorem issue_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound) :
         (3024 + slotCost c0 + slotCost c1 + slotCost cO + issueCostO fork state message +
           issueCostT fork state message)
         (4248 + slotCost c0 + slotCost c1 + slotCost cO + issueCostO fork state message))
-        (Nat.le_add_left _ _)) (at_sh start _) hres hs hok)
+        (Nat.le_add_left _ _)) (at_addGas start _) hres hs hok)
   · rintro ⟨hG, hm⟩
     obtain ⟨s, hs, he, -⟩ := issue_ok_sgm hfork hsize' start hres hc0 hc1 hcO hsel hnrT hG hm
       within
@@ -648,7 +648,7 @@ theorem redeem_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound) :
   · rintro ⟨s, hs, hok⟩
     have hG : RedeemGuard state message := by
       obtain ⟨G, hE⟩ := shadow_ends hfork hs hok
-      have st' := at_sh start (budget m)
+      have st' := at_addGas start (budget m)
       obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' st' hE hok
       obtain ⟨hst, hacc, hown, hT, hB, -⟩ := ok_redeem hfork hsize' hsel rfl rfl rfl st' hE hok
       exact ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hown, hT, hB⟩
@@ -657,7 +657,7 @@ theorem redeem_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound) :
         (2614 + slotCost c0 + slotCost c1 + slotCost cO + redeemCostT fork state message +
           redeemCostO fork state message)
         (3838 + slotCost c0 + slotCost c1 + slotCost cO + redeemCostT fork state message))
-        (Nat.le_add_left _ _)) (at_sh start _) hres hs hok)
+        (Nat.le_add_left _ _)) (at_addGas start _) hres hs hok)
   · rintro ⟨hG, hm⟩
     obtain ⟨s, hs, he, -⟩ := redeem_ok_sgm hfork hsize' start hres hc0 hc1 hcO hsel hnrT hnrO hG
       hm within
@@ -729,7 +729,7 @@ theorem setParams_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound) :
   · rintro ⟨s, hs, hok⟩
     have hG : SetParamsGuard state message := by
       obtain ⟨G, hE⟩ := shadow_ends hfork hs hok
-      have st' := at_sh start (budget m)
+      have st' := at_addGas start (budget m)
       obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' st' hE hok
       obtain ⟨hst, hacc, hown, hb, hmm, hov, -⟩ :=
         ok_setParams hfork hsize' hsel rfl rfl rfl rfl st' hE hok
@@ -741,7 +741,7 @@ theorem setParams_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound) :
           (storageAt state message.currentTarget 3) (wordArg message.data 0) c3 + slotCost c9 +
           50 * exponentBytes (storageAt state message.currentTarget 9) +
           mulCost (wordArg message.data 1)))
-        (Nat.le_add_left _ _)) (at_sh start _) hres hs hok)
+        (Nat.le_add_left _ _)) (at_addGas start _) hres hs hok)
   · rintro ⟨hG, hm⟩
     obtain ⟨s, hs, he, -⟩ := setParams_ok_sgm hfork hsize' start hres hsel hc0 hc3 hc9 hc4 hnr3
       hnr4 hG hm within
@@ -818,7 +818,7 @@ theorem destroyBlackFunds_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound
   · rintro ⟨s, hs, hok⟩
     have hG : DestroyBlackFundsGuard state message := by
       obtain ⟨G, hE⟩ := shadow_ends hfork hs hok
-      have st' := at_sh start (budget m)
+      have st' := at_addGas start (budget m)
       obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' st' hE hok
       obtain ⟨hst, hacc, hown, hl, -⟩ :=
         ok_destroyBlackFunds hfork hsize' hsel hdep rfl rfl rfl rfl rfl st' hE hok
@@ -830,7 +830,7 @@ theorem destroyBlackFunds_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound
           (max (3763 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB)
             (3796 + slotCost c0 + slotCost cL + slotCost c10 + slotCost cB +
               costB fork state message + slotCost c1)))
-        (Nat.le_add_left _ _)) (at_sh start _) hres hs hok)
+        (Nat.le_add_left _ _)) (at_addGas start _) hres hs hok)
   · rintro ⟨hG, hm⟩
     obtain ⟨s, hs, he, -⟩ := destroyBlackFunds_ok_sgm hfork hsize' start hres hsel hdep hc0 hcL
       hc10 hcB hc1 hnrB hnrT hG hm within

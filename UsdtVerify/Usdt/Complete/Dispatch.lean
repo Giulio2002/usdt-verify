@@ -22,7 +22,7 @@ namespace UsdtVerify.Complete
 open EthLib.Base (Fork U256)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding SpecG SpecG.not_ok StepG
 open UsdtVerify.Gas
 open GasCosts
 
@@ -66,15 +66,15 @@ theorem ends_ok_dispatch (hfork : .berlin ≤ fork) (hsize' : message.data.size 
       ∃ i : Fin 32, selector message.data = ENTRIES[i].1.toNat := by
   rcases selector_cases message.data with hs | ⟨hs, hunk⟩ | ⟨hs, i, hi⟩
   · exact absurd hok (SpecG.not_okE (Fallback.spec_short hfork hs (gas := gas + 46) (by omega))
-      halted_true_error (at_sh start 46) hrun)
+      halted_true_error (at_addGas start 46) hrun)
   · exact absurd hok (SpecG.not_okE (Fallback.spec_unknown hfork hs hsize' hunk (gas := gas + 773)
-      (by omega)) halted_true_error (at_sh start 773) hrun)
+      (by omega)) halted_true_error (at_addGas start 773) hrun)
   · refine ⟨hs, ?_, i, hi⟩
     by_cases hv : message.value = 0
     · exact hv
     exact absurd hok (SpecG.not_okE (Nonpayable.spec hfork hs hsize' i hi hv
       (gas := gas + (87 + 22 * (i.val + 1))) (by omega)) halted_true_error
-      (at_sh start _) hrun)
+      (at_addGas start _) hrun)
 
 /-- From Berlin, a fresh frame of `CODE` at pc 0, with any gas, and call data of size below
 `2^256`: if the loop of the interpreter ends with no error, for any gas bound and any message

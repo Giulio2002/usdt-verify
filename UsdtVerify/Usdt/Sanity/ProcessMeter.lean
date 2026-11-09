@@ -170,7 +170,7 @@ theorem process_mirrorS (hparis : .paris ≤ fork) {bound : Nat} (caller : Evm f
     unfold rollbackOnError
     simp [hse]
   obtain ⟨G, hE⟩ := Shadow.shadow_ends hberlin hr hse
-  have start := Gas.at_sh (Meter.at_startFrameS hcode (startState fork msg caller.state)
+  have start := Gas.at_addGas (Meter.at_startFrameS hcode (startState fork msg caller.state)
     caller.substate.child (GasMeter.start msg.gas msg.reservoir))
     (Shadow.budget (startFrame msg (startState fork msg caller.state) caller.substate.child
       (GasMeter.start msg.gas msg.reservoir : StateGasMeter)))

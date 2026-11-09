@@ -25,7 +25,7 @@ namespace UsdtVerify.Complete
 open EthLib.Base (Fork U256)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding HoareG SpecG StepG
 open UsdtVerify.Gas
 open UsdtVerify.Meter
 open UsdtVerify.Refill (StepJ HoareJ)
@@ -54,13 +54,13 @@ theorem ok_exactS {code : ByteArray} {message : Message fork} {pc : Nat} {stack 
       s.gas = { m.gas with gasLeft := s.gas.gasLeft } ∧ s.state = state' ∧
       s.substate = substate' := by
   obtain ⟨z, hr, hz, hh⟩ := Refill.SpecG.toJA (h (gas + B) (by omega)) (by omega) hst _
-    (at_sh start B)
+    (at_addGas start B)
   obtain ⟨m3, rfl, hg, w3, h3⟩ := low_to_runningS hr B m rfl hrun hok
   have hr3 : m3.running = false := hz
   rw [runFrame_of_running_eq_false hr3] at h3
   cases h3
   obtain ⟨-, -, ho, hgas, hs, hss⟩ := hh
-  simp only [gas_sh] at hgas
+  simp only [gas_addGas] at hgas
   have hgl : s.gas.gasLeft + B = gas + B - c := hgas
   exact ⟨by omega, hr3, ho, by omega, hg, hs, hss⟩
 
@@ -194,8 +194,8 @@ theorem one_write_end (hfork : .berlin ≤ fork)
   rw [ho1, hcu1, hA, hS, hb1] at hN
   rw [ho1, hcu1, hcd1, hA, hS, hC, hg1, sstoreMeter_gasLeft] at hg2
   rw [hgl1] at hstip hw hg2
-  have hat2 := sstore_post_at (n := sh (sstoreBump m.gas A S) (toNat m1)) hfork hstatic hacc hcold
-    (at_sh h1 _) (by omega) (by rw [hW]; exact hw) (by exact hN)
+  have hat2 := sstore_post_at (n := addGas (sstoreBump m.gas A S) (toNat m1)) hfork hstatic hacc hcold
+    (at_addGas h1 _) (by omega) (by rw [hW]; exact hw) (by exact hN)
   rw [hW] at hat2
   obtain ⟨hT', hr, ho, hgs, hgm, hs, hsss⟩ := ok_exactS (Nat.le_refl T) hpost hT hst' hat2 hr1 hok
   refine ⟨by omega, by omega, hr, ho, hs, hsss, by omega, ?_⟩
@@ -249,8 +249,8 @@ theorem one_write_run (hfork : .berlin ≤ fork)
   obtain ⟨m2, hss, -, hN⟩ := sstoreS_of_cond hfork hk1 (by rw [hmsg1]; exact hstatic)
     (by rw [hgl1]; show 2300 < _; omega) hw hset
   rw [ho1, hcu1, hA, hS, hb1] at hN
-  have hat2 := sstore_post_at (n := sh (sstoreBump m.gas A S) (toNat m1)) hfork hstatic hacc hcold
-    (at_sh hz1 _) (by omega) (by rw [hW]; omega) (by exact hN)
+  have hat2 := sstore_post_at (n := addGas (sstoreBump m.gas A S) (toNat m1)) hfork hstatic hacc hcold
+    (at_addGas hz1 _) (by omega) (by rw [hW]; omega) (by exact hN)
   rw [hW] at hat2
   obtain ⟨z, hr, hzr, hz⟩ := Refill.SpecG.toJA (hpost _ (by omega)) (by omega) hst' _ hat2
   obtain ⟨m3, hm3z, -, hrun3⟩ := fwd_reachesJ hr (.inr hz.2.1) m2 rfl

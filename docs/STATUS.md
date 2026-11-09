@@ -3,7 +3,14 @@
 File paths in this page are those of the round-21 layout (docs/LAYOUT.md, which also maps the old
 paths to the new ones); the round entries keep the old file names only where a file no longer exists.
 
-Pinned EthLib: 0c34dc001 (master after #1608; includes #1597, #1599 and #1605; commit
+Pinned EthLib: bc16ee428 (master after #1616; includes #1611, #1612, #1613, #1615 and #1616;
+commit bc16ee428baf03295ef3622c30c9c901bae1444a, round 48). Re-pinned in round 48: EthLib's
+Logic/GasMono.lean, RunMono.lean, LessGas.lean, NoAbort.lean and Route.lean replace the local
+copies of `addGas` (was `Gas.sh`), `Fails`, `Follows` (was `Gas.Rel`), `RunMono`, `StepFollows`
+(was `Gas.RelS`), every `runMono_*` fact, `NoAbort` and its facts, `NoAbortLow`, the SSTORE stuck
+facts, and `Route`, `Routes` and the route functions. The local `StepG`, `HoareG`, `SpecG`,
+`Stuck`, `StepGA` and the rules over the local `At` stay (round 48 below says why).
+Previous pin: 0c34dc001 (master after #1608; includes #1597, #1599 and #1605; commit
 0c34dc0010f6ff1b3d5f1c7614af10faa85fb685, round 47). Re-pinned in round 47: EthLib's `At` names
 the return data of a frame (#1351), so `At` in this repository is now the local predicate of Evm/At.lean, with the same twelve
 conditions as EthLib's `At` at the previous pin and no condition on the return data. EthLib's
@@ -2181,6 +2188,69 @@ theorems use only propext, Classical.choice and Quot.sound.
 - `processRunner` is generic in the meter since #1599, so two `runFrame` equations (Evm/Mirror.lean,
   Usdt/Invariant/Seq.lean) name the meter `Nat`.
 
+### Round 48: re-pin to EthLib bc16ee428, the local copies of #1611, #1612, #1615 and #1616 removed
+
+Built and checked: clean rebuild of 4930260 in a fresh clone (empty build directory), exit 0,
+1468 jobs, 174.83 s wall, 468.17 s user; `#print axioms` on the 1329 entries of
+UsdtVerify/Test/Axioms.lean gives [propext, Classical.choice, Quot.sound] or a subset (1276 the
+three, 35 [propext, Quot.sound], 8 [propext], 10 none), with no `sorryAx`, `ofReduceBool` or
+`trustCompiler`; no `sorry`, `admit`, `axiom`, `native_decide`, `bv_decide` or `decide +native` in
+UsdtVerify/ (grep exit 1). No new USDT theorem, and no statement of a USDT theorem changed.
+Independent read-only review: PASS, no finding to fix. It dumped every constant of `UsdtVerify`
+at 67f8859 (pin6) and at 4930260 (pin7): 3352 before, 3284 after, 3276 shared, 2965 identical
+(also by expression hash). The 311 others differ only by the renamed names (`Complete.Route` and
+the route functions to EthLib's, `Gas.sh` to `addGas`), except the bodies of `Gas.StepG` (the
+disjunction grouped differently, proved equal) and `Gas.Stuck` (equal by `rfl`). Each of the 76
+removed entries was restated and proved in the new build from its EthLib replacement, or is an
+unused proof helper. No EthLib definition changed between the two pins. The trust assumptions of "What is trusted" in docs/RESULTS.md are unchanged.
+Lines of Lean in UsdtVerify/: 68,862 at the end of round 47, 68,074 after round 48 (788 fewer;
+Evm/GasRules.lean 1162 to 752, Evm/NoAbort.lean 362 to 252, Evm/Route.lean 459 to 327,
+Evm/Stuck.lean 321 to 240, Evm/Gas.lean 454 to 426).
+
+- The pin. EthLib master bc16ee428 holds the less-gas framework and the route of a call,
+  upstreamed from this repository: #1611 (`Route`, `Routes`, EIP-7702 delegation in the call
+  rules of every kind, `callStep_child_of_routes`), #1612 (`addGas`, `Fails`, `Follows`,
+  `RunMono`, `GasMono`, `StepG`, `HoareG`, `SpecG`, `SpecG.low`, `reaches_low`, `Stuck`), #1613
+  (`ReadsAs`, `SentVia`, `KeepsOn`, `CallSends.sentVia`), #1615 (a G form of every opcode rule,
+  every `runMono_*` fact, the SSTORE stuck rules) and #1616 (`NoAbort`, `NoAbortLow`, `StepGA`,
+  the GA rules, `no_error_of_reaches`).
+- Names. EthLib now declares many names that this repository declares too (`StepG`, `HoareG`,
+  `SpecG`, `Stuck`, `pushG`, ...). Each file that opens both namespaces says
+  `open EthLib.Execution.Evm.Logic hiding ...` for the names it uses, so each name means what it
+  meant at the previous pin. Inside the namespace `UsdtVerify.Gas` the local names come first.
+- Removed, now in EthLib (docs/LAYOUT.md has the table): `Gas.sh` (EthLib's `addGas`, the same
+  body), `Gas.Fails`, `Gas.Rel` (`Follows`), `Gas.RunMono`, `Gas.RelS` (`StepFollows`, the same
+  three cases with the two failures grouped first), every `Gas.runMono_*` fact and its helpers,
+  `Gas.NoAbort`, its facts and `Gas.NoAbortLow`, `Gas.sstoreStep_bad` and `Gas.sstoreStep_low`
+  (EthLib's `sstoreStep_halts`, `sstoreStep_of_isStatic`, `sstoreStep_of_gasLeft_le`), and
+  `Complete.Route`, `Routes`, `routeAddr`, `routeCode`, `routeCost`, `routeState`, `routeSub`,
+  `routes_congr`, `routes_rec`. `callStep_child_r` keeps its statement and is now proved from
+  EthLib's `callStep_child_of_routes` for CALL. `Gas.at_sh` is renamed `Gas.at_addGas`.
+- Kept local, and why.
+  `StepG` (Evm/Gas.lean) is now `Step ∧ SimAt ∧ Logic.GasMono`: EthLib's `Logic.StepG` with
+  `SimAt`. The meter link (Evm/Shadow.lean, Evm/Meter.lean) needs every frame of a run to be at a
+  `simulated` opcode, and EthLib's `StepG` does not say so. `HoareG`, `SpecG`, `StepGA`,
+  `HoareGA`, `SpecGA` and `Stuck` (EthLib's `Stuck` with `SimAt`) follow it, and they imply
+  EthLib's (`HoareG.toLogic`, `SpecG.toLogic`, `SpecGA.toLogic`). For the same reason the opcode
+  rules of Evm/GasRules.lean and Evm/NoAbort.lean stay: EthLib's `pushG`, `sstoreG`, ... are
+  triples over `Logic.StepG` from EthLib's `At` with return data, and a triple does not show
+  `SimAt` along its steps. `At.ruleG`, `At.ruleGA` and the new `At.stuck` are EthLib's rules of
+  the same names for the local `At` and `StepG`.
+  The `E` forms (`low_of_reachesE`, `SpecG.lowE`, `not_ok_of_reachesE`, `no_ok_stuckE`, ...)
+  take `Ends` in place of a `runFrame` equation, so the meter link can use them for a loop over
+  `StateGasMeter`. EthLib's `low_of_reaches`, `SpecG.low`, `no_ok_stuck` take only a `runFrame`
+  equation, so the local forms stay. `no_error_of_reaches` is now EthLib's, for the local `StepGA`.
+  Evm/Keeps.lean: EthLib's `SentVia` asks the caller state to read as `S` (`ReadsAs`: the same
+  accounts, storage and transient storage), where the local `SentVia` asks only the same storage
+  and code (`SameView`). The runner assumptions of the deprecated theorems (`KeepsAt`, `FwdAt`,
+  `HonestBalanceAt`, `KeepsInvAt`, ...) are stated with the local `SentVia`, so they stay. With
+  EthLib's `SentVia` they would quantify over fewer calls, and the theorems would be stronger. That
+  change touches about twenty files and is left open.
+  `accCost`, `extCost`, `SendsVia`, `CallFrom`, `atCallState`, `atCallSub`, `callWithRS` and
+  `callWithR` (Evm/Route.lean) are about the deprecated paths of this contract and stay. The
+  CALL steps over `StateGasMeter` (Evm/CallMeter.lean, Evm/CallSim.lean) stay, since EthLib's
+  `callStep_child_of_routes` is for the meter `Nat` only.
+
 ## Open (not proved)
 - The EIP-8037 meter (`StateGasMeter`) that EthLib's `processTransaction` uses from
   Glamsterdam (third audit, T1; rounds 33 to 36 above). Round 36 covers, not deprecated: the
@@ -2397,6 +2467,10 @@ theorems use only propext, Classical.choice and Quot.sound.
    Evm/Route.lean while their upstreaming is in flight.)
 
 ## Measurements (macOS arm64, LEAN_NUM_THREADS=2, safe.sh 9G)
+Round 48: clean project build of the tree of commit 4930260 (a fresh clone, empty build
+directory, safe.sh 9G, LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`) 174.83 s
+wall, 468.17 s user, 1832681472 bytes max RSS (`/usr/bin/time -l`), exit 0, 0 "error:" lines,
+1468 jobs.
 Round 47: clean project build of the tree of commit 4cac964 (`.lake/build` removed first, safe.sh
 9G, LEAN_NUM_THREADS=2, `lake build UsdtVerify UsdtVerify.Test.Axioms`) 156.20 s wall, 418.91 s
 user, exit 0, 1463 jobs.

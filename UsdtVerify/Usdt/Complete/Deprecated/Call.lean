@@ -20,7 +20,7 @@ namespace UsdtVerify.Complete
 open EthLib.Base (Fork U256 toAddressMasked Address)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding HoareG SpecG
 open UsdtVerify.Gas
 open GasCosts
 open Deprecated
@@ -216,7 +216,7 @@ theorem fromExt (hfork : .berlin ≤ fork) {p q : Nat}
         · exact ⟨some (d, c'), hpec, hd, hdc⟩
     · exact ⟨none, fun h => absurd h hpec⟩
   obtain ⟨r, hroute⟩ := hex
-  have hroute4 : Routes fork z4.state c r := by rw [hs4]; exact routes_rec hroute
+  have hroute4 : Routes fork z4.state c r := by rw [hs4]; exact Logic.Routes.recordAccountRead hroute
   generalize hR : routeCost fork (ss.accessedAddresses.insert (toAddressMasked U)) r = R
   have hR4 : routeCost fork (z4.substate.accessedAddresses.insert (toAddressMasked U)) r = R := by
     rw [hss4]; exact (routeCost_insert_insert _ _ r).trans hR
@@ -243,7 +243,7 @@ theorem fromExt (hfork : .berlin ≤ fork) {p q : Nat}
   refine ⟨r, hroute, hw, by omega, by omega, ?_⟩
   exact call_ok (state := st.recordAccountRead (toAddressMasked U))
     (substate := { ss with accessedAddresses := ss.accessedAddresses.insert (toAddressMasked U) })
-    hfork hqs bq hcode (routes_rec hroute) (by omega) (by simp)
+    hfork hqs bq hcode (Logic.Routes.recordAccountRead hroute) (by omega) (by simp)
     (by rw [accCost_false, routeCost_insert_insert, hR]; omega)
     ⟨hc4, hj4, hm4, hpc4, hst4, hmem4, hg4, hr4, herr4, hout4, hs4, hss4⟩ w4 hrun4
 
@@ -386,7 +386,7 @@ theorem fromExtC (hfork : .berlin ≤ fork) {p q : Nat}
         · exact ⟨some (d, c'), hpec, hd, hdc⟩
     · exact ⟨none, fun h => absurd h hpec⟩
   obtain ⟨r, hroute⟩ := hex
-  have hroute4 : Routes fork z4.state c r := by rw [hs4]; exact routes_rec hroute
+  have hroute4 : Routes fork z4.state c r := by rw [hs4]; exact Logic.Routes.recordAccountRead hroute
   generalize hR : routeCost fork (ss.accessedAddresses.insert (toAddressMasked U)) r = R
   have hR4 : routeCost fork (z4.substate.accessedAddresses.insert (toAddressMasked U)) r = R := by
     rw [hss4]; exact (routeCost_insert_insert _ _ r).trans hR
@@ -414,7 +414,7 @@ theorem fromExtC (hfork : .berlin ≤ fork) {p q : Nat}
   refine ⟨r, hroute, hw, by omega, by omega, ?_⟩
   exact call_okC (state := st.recordAccountRead (toAddressMasked U))
     (substate := { ss with accessedAddresses := ss.accessedAddresses.insert (toAddressMasked U) })
-    hfork hqs bq hcode (routes_rec hroute) (by omega) (by simp)
+    hfork hqs bq hcode (Logic.Routes.recordAccountRead hroute) (by omega) (by simp)
     (by rw [accCost_false, routeCost_insert_insert, hR]; omega)
     ⟨hc4, hj4, hm4, hpc4, hst4, hmem4, hg4, hr4, herr4, hout4, hs4, hss4⟩ hrun4 hok
 
@@ -426,7 +426,7 @@ theorem EndsOk.dispatch (hfork : .berlin ≤ fork) (hsize' : message.data.size <
     4 ≤ message.data.size ∧ message.value = 0 ∧
       ∃ i : Fin 32, selector message.data = ENTRIES[i].1.toNat :=
   let ⟨k, _, hs, hok⟩ := hE
-  ends_ok_dispatch hfork hsize' (at_sh start k) hs hok
+  ends_ok_dispatch hfork hsize' (at_addGas start k) hs hok
 
 end RunC
 

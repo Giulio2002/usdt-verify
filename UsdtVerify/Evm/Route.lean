@@ -2,19 +2,24 @@ import EthLib.Execution.Proofs.Evm.Logic.Call
 import EthLib.Execution.Proofs.Evm.Logic.Callee
 import UsdtVerify.Evm.At
 import EthLib.Execution.Proofs.Evm.Logic.FailsOn
+import EthLib.Execution.Proofs.Evm.Logic.Route
 
 /-!
 # The route of a CALL to the upgraded address
 
 A CALL runs the code of the called address, or, from Pectra, when that code is an EIP-7702
-delegation indicator to an address `d`, the code of `d` (EthLib's `accessDelegation`). This file
-names the two cases (`Route`, `Routes`), what the delegated case adds (`routeCost`, `routeState`,
-`routeSub`, `routeAddr`, `routeCode`), the step of a CALL along a route (`callStep_child_r`) and
-the CALL rule under a callee assumption along a route (`callWithR`, EthLib's `callWith` without
-its hypothesis of no delegation; round 26: `callWithRS`, the same as a `HoareOn`: the
-runner may fail with any error, and the run ends at the step after the CALL or at a failure of the
-runner on the message the CALL sends; `callWithR` follows from it). The forward specifications of the deprecated paths
-(Usdt/Spec/Deprecated/) and their completeness (Usdt/Complete/Deprecated/) use it.
+delegation indicator to an address `d`, the code of `d` (EthLib's `accessDelegation`). EthLib's
+Logic/Route.lean (#1611) names the two cases (`Route`, `Routes`), what the delegated case adds
+(`routeCost`, `routeState`, `routeSub`, `routeAddr`, `routeCode`) and the step of a call of any
+kind along a route (`callStep_child_of_routes`). Round 48: the local copies of these are removed.
+This file keeps `callStep_child_r` (EthLib's `callStep_child_of_routes` for CALL, with the
+message stated field by field as the proofs here use it), `SendsVia` (the message of a CALL from
+the deprecated paths), and the CALL rule under a callee assumption along a route (`callWithR`,
+EthLib's `callWith` without its hypothesis of no delegation; round 26: `callWithRS`, the same as
+a `HoareOn`: the runner may fail with any error, and the run ends at the step after the CALL or
+at a failure of the runner on the message the CALL sends; `callWithR` follows from it). The
+forward specifications of the deprecated paths (Usdt/Spec/Deprecated/) and their completeness
+(Usdt/Complete/Deprecated/) use it.
 -/
 
 namespace UsdtVerify.Deprecated
@@ -69,59 +74,6 @@ open Deprecated
 variable {fork : Fork}
 
 /-! ## The route of a CALL: no delegation, or an EIP-7702 delegate -/
-
-/-- How a CALL to an address reaches the code that it runs. `none`: the code of the address
-itself. `some (d, c')`: the code of the address is a delegation indicator to `d`, and the CALL
-runs `c'`, the code of `d`. -/
-abbrev Route := Option (Address × ByteArray)
-
-/-- The route of a CALL to an account with code `c`, in the state `st`. With no delegation (before
-Pectra, or `c` no indicator), the route is `none`. From Pectra, when `c` delegates to `d`, the
-route is `some (d, c')` with `c'` the code of `d` found in `st`. -/
-def Routes (fork : Fork) (st : State.TransactionState) (c : ByteArray) : Route → Prop
-  | none => .pectra ≤ fork → delegatedAddress c = none
-  | some (d, c') => .pectra ≤ fork ∧ delegatedAddress c = some d ∧
-      st.getCode (st.getAccount d).codeHash = .ok c'
-
-/-- The account whose code the CALL runs. -/
-def routeAddr (a : Address) : Route → Address
-  | none => a
-  | some (d, _) => d
-
-/-- The code that the CALL runs. -/
-def routeCode (c : ByteArray) : Route → ByteArray
-  | none => c
-  | some (_, c') => c'
-
-/-- The extra price of the route at `fork`: the access to the delegate (`accCost`, cold when it is
-not in the set of accessed addresses `acc`), or 0. -/
-def routeCost (fork : Fork) (acc : Std.ExtTreeSet Address) : Route → Nat
-  | none => 0
-  | some (d, _) => accCost fork (decide (d ∉ acc))
-
-/-- The state once the route is followed: the read of the delegate recorded. -/
-def routeState (st : State.TransactionState) : Route → State.TransactionState
-  | none => st
-  | some (d, _) => st.recordAccountRead d
-
-/-- The substate once the route is followed: the delegate accessed. -/
-def routeSub (ss : Substate) : Route → Substate
-  | none => ss
-  | some (d, _) => { ss with accessedAddresses := ss.accessedAddresses.insert d }
-
-/-- The route depends on the state only through the code that it finds at each address. -/
-theorem routes_congr {st st' : State.TransactionState} {c : ByteArray} {r : Route}
-    (hst : ∀ a, st'.getCode (st'.getAccount a).codeHash = st.getCode (st.getAccount a).codeHash)
-    (h : Routes fork st c r) : Routes fork st' c r := by
-  rcases r with _ | ⟨d, c'⟩
-  · exact h
-  · exact ⟨h.1, h.2.1, (hst d).trans h.2.2⟩
-
-/-- The route does not depend on the reads recorded in the state. -/
-theorem routes_rec {st : State.TransactionState} {u : Address} {c : ByteArray} {r : Route}
-    (h : Routes fork st c r) : Routes fork (st.recordAccountRead u) c r :=
-  routes_congr (fun _ => rfl) h
-
 /-- What the CALL of a deprecated path pays and passes on (EIP-150, EIP-2929), when the code asks
 for `asked` with `left` gas: the warm access to the upgraded address (100), plus `R`, the price of
 the route. -/
@@ -213,98 +165,14 @@ theorem callStep_child_r (hfork : .berlin ≤ fork)
       msg.value = 0 ∧ msg.depth = evm.message.depth + 1 ∧
       msg.isStatic = evm.message.isStatic ∧ msg.blockEnv = evm.message.blockEnv ∧
       msg.txEnv = evm.message.txEnv ∧ msg.shouldTransferValue = true := by
-  rcases evm with ⟨pc, ⟨l, hl⟩, memory, code, valid, gas, running, message, output, returnData,
-    state, substate, error⟩
-  simp only at hst
-  subst hst
-  have hgc : ∀ (tx : State.TransactionState) (x : Address) h,
-      (tx.recordAccountRead x).getCode h = tx.getCode h := fun _ _ _ => rfl
-  have hga : ∀ (tx : State.TransactionState) (x y : Address),
-      (tx.recordAccountRead x).getAccount y = tx.getAccount y := fun _ _ _ => rfl
-  have hal : ∀ (tx : State.TransactionState) (x y : Address),
-      (tx.recordAccountRead x).isAccountAlive y = tx.isAccountAlive y := fun _ _ _ => rfl
-  simp only at hcode hgas hdepth hroute ⊢
-  have htw : Fork.tangerineWhistle ≤ fork := Nat.le_trans (by decide) hfork
-  have hsd : Fork.spuriousDragon ≤ fork := Nat.le_trans (by decide) hfork
-  generalize hcb : callBaseCost fork (decide (toAddressMasked a ∉ substate.accessedAddresses)) =
-    cb at hgas ⊢
-  have hcb' : callBaseCost fork (!decide (toAddressMasked a ∈ substate.accessedAddresses)) = cb :=
-    by simpa using hcb
-  generalize hdc : routeCost fork (substate.accessedAddresses.insert (toAddressMasked a)) r = dc
-    at hgas ⊢
-  generalize hM : (extendMemory memory.size [(i, isz), (o, osz)]).cost = M at hgas ⊢
-  have hmx : maxMessageCallGas (gas - (cb + dc + M)) ≤ gas - (cb + dc + M) := Nat.sub_le _ _
-  have hx : gas - M - (cb + dc) = gas - (cb + dc + M) := by omega
-  have hmin : min g.toNat (maxMessageCallGas (gas - (cb + dc + M))) + (cb + dc) + M ≤ gas := by
-    omega
-  have hmin' : ¬ gas - (cb + dc + M) < min g.toNat (maxMessageCallGas (gas - (cb + dc + M))) := by
-    omega
-  have hk1 : ¬ gas < cb + M := by omega
-  have hk2 : ¬ gas < cb + M + dc := by omega
-  have hdel' : (if Fork.pectra ≤ fork then delegatedAddress calleeCode else none) =
-      r.map Prod.fst := by
-    rcases r with _ | ⟨d, dCode⟩
-    · split
-      · exact hroute ‹_›
-      · rfl
-    · simp [hroute.1, hroute.2.1]
-  have hdcode : ∀ d dCode, r = some (d, dCode) → state.getCode (state.getAccount d).codeHash = .ok dCode := by
-    rintro d dCode rfl; exact hroute.2.2
-  have hdc' : ∀ d dCode, r = some (d, dCode) → accountAccessCost fork
-      (!decide (toAddressMasked a = d) && !decide (d ∈ substate.accessedAddresses)) = dc := by
-    rintro d dCode rfl
-    rw [← hdc, routeCost, accCost]
-    simp
-  by_cases hG : fork ≥ .glamsterdam
-  · rcases r with _ | ⟨d, dCode⟩
-    · simp only [routeCost] at hdc
-      subst hdc
-      simp only [Nat.add_zero] at hgas hmin hmin' hx hk2 hmx ⊢
-      simp [callStep, popCallOperands, popCallValue, CallKind.sendsValue, popWord, Stack.pop, bind,
-        Except.bind, pure, Except.pure, accessAddress, hfork, checkGas, hG, accessDelegation,
-        accountCode, recordAccountRead, hgc, hga, hal, hcode, hdel', htw, Except.mapError,
-        callExtraGas, callNewAccountCost, callNewAccountStateGas, callValueCost,
-        payCall, messageCallGas, chargeGas, GasMeter.charge, finishCall, genericCall, keepReads,
-        GasMeter.gasLeft, GasMeter.drain, GasMeter.reservoir, hcb', Nat.not_lt.mpr hdepth, hM,
-        chargeStateGas, GasMeter.chargeState, hgas, hk1, hmin', hx, routeState, routeSub, routeAddr,
-        routeCode]
-      exact ⟨_, _, ⟨rfl, rfl, rfl⟩, rfl, rfl, rfl, rfl, rfl, rfl, by dsimp only; omega, rfl, rfl, rfl,
-        rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
-    · simp [callStep, popCallOperands, popCallValue, CallKind.sendsValue, popWord, Stack.pop, bind,
-        Except.bind, pure, Except.pure, accessAddress, hfork, checkGas, hG, accessDelegation,
-        accountCode, recordAccountRead, hgc, hga, hal, hcode, hdel', hdcode d dCode rfl, htw,
-        Except.mapError, callExtraGas, callNewAccountCost, callNewAccountStateGas, callValueCost,
-        payCall, messageCallGas, chargeGas, GasMeter.charge, finishCall, genericCall, keepReads,
-        GasMeter.gasLeft, GasMeter.drain, GasMeter.reservoir, hcb', hdc' d dCode rfl,
-        Nat.not_lt.mpr hdepth, hM, chargeStateGas, GasMeter.chargeState, hgas, Nat.not_lt.mpr hgas, hk1, hk2, hmin', hx,
-        routeState, routeSub, routeAddr, routeCode]
-      exact ⟨_, _, ⟨rfl, rfl, rfl⟩, rfl, rfl, rfl, rfl, rfl, rfl, by dsimp only; omega, rfl, rfl, rfl,
-        rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
-  · have hmin2 : ¬ gas < min g.toNat (maxMessageCallGas (gas - M - (cb + dc))) + (cb + dc) + M := by
-      rw [hx]; omega
-    rcases r with _ | ⟨d, dCode⟩
-    · simp only [routeCost] at hdc
-      subst hdc
-      simp only [Nat.add_zero] at hgas hmin2 ⊢
-      simp [callStep, popCallOperands, popCallValue, CallKind.sendsValue, popWord, Stack.pop, bind,
-        Except.bind, pure, Except.pure, accessAddress, hfork, checkGas, hG, accessDelegation,
-        accountCode, recordAccountRead, hgc, hga, hal, hcode, hdel', htw, Except.mapError,
-        callExtraGas, callNewAccountCost, callNewAccountStateGas, callValueCost,
-        payCall, messageCallGas, chargeGas, GasMeter.charge, finishCall, genericCall, keepReads,
-        GasMeter.gasLeft, GasMeter.drain, GasMeter.reservoir, hcb', Nat.not_lt.mpr hdepth, hM, hgas,
-        hmin2, hsd, routeState, routeSub, routeAddr, routeCode]
-      exact ⟨_, _, ⟨rfl, rfl, rfl⟩, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl,
-        rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
-    · simp [callStep, popCallOperands, popCallValue, CallKind.sendsValue, popWord, Stack.pop, bind,
-        Except.bind, pure, Except.pure, accessAddress, hfork, checkGas, hG, accessDelegation,
-        accountCode, recordAccountRead, hgc, hga, hal, hcode, hdel', hdcode d dCode rfl, htw,
-        Except.mapError, callExtraGas, callNewAccountCost, callNewAccountStateGas, callValueCost,
-        payCall, messageCallGas, chargeGas, GasMeter.charge, finishCall, genericCall, keepReads,
-        GasMeter.gasLeft, GasMeter.drain, GasMeter.reservoir, hcb', hdc' d dCode rfl,
-        Nat.not_lt.mpr hdepth, hM, hgas, hmin2, hsd, routeState, routeSub, routeAddr, routeCode]
-      exact ⟨_, _, ⟨rfl, rfl, rfl⟩, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl,
-        rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
-
+  obtain ⟨caller, msg, hstep, c1, c2, c3, c4, c5, c6, c7, c8, c9, co, s1, s2, g, -, mc, mct, mt,
+      mca, mcode, mdp, md, mv, mstv, mdep, mst, mb, mtx⟩ :=
+    callStep_child_of_routes (kind := .call) hfork (by simpa [CallKind.sendsValue] using hst) hcode
+      hroute hdepth hgas
+  exact ⟨caller, msg, hstep, c1, c2, c3, c4, c5, c6, c7, c8, c9, co, s1, s2, g,
+    by simpa using mc, by simpa using mct, by simpa using mt, mca, mcode, mdp, md,
+    by simpa using mv, mdep, by rw [mst]; cases evm.message.isStatic <;> decide, mb, mtx,
+    by rw [mstv]; decide⟩
 
 /-- CALL with no value along the route `r`, under a callee assumption, for a runner that may fail
 with any error: the run ends at the step after the CALL or at a failure of the runner on the

@@ -19,7 +19,7 @@ namespace UsdtVerify.Complete
 open EthLib.Base (Fork U256)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding SpecG StepG
 open UsdtVerify.Gas
 
 variable {fork : Fork} {code : ByteArray} {message : Message fork} {pc : Nat}
@@ -47,7 +47,7 @@ theorem no_okE {B : Nat} {Q : Nat → Evm fork Nat → Prop}
     (herr : ∀ g e, Q g e → e.error ≠ none)
     {gas : Nat} (start : At code message pc stack memory gas state substate evm)
     (hrun : Ends fork evm s) (hok : s.error = none) : False :=
-  SpecG.not_okE (h (gas + B) (by omega)) (herr (gas + B)) (at_sh start B) hrun hok
+  SpecG.not_okE (h (gas + B) (by omega)) (herr (gas + B)) (at_addGas start B) hrun hok
 
 /-- A successful run ends as a specification to a normal halt states, with the exact gas. -/
 theorem ok_exact {B cost : Nat} (hB : cost ≤ B) {out : ByteArray}

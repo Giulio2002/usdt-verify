@@ -190,7 +190,7 @@ theorem dep_destroy_exactR (hfork : .berlin ≤ fork)
       (ss := accessSlot (preSub substate message) message.currentTarget 10)
       (A := extCost fork cU)
       (R := routeCost fork (callSubD substate state message).accessedAddresses r)
-      hfork (by simp) hM hcode hw (routes_congr (fun _ => rfl) hroute)
+      hfork (by simp) hM hcode hw (Logic.Routes.congr (fun _ => rfl) hroute)
       hdepth (by rw [hcU']) rfl (by omega) hat1
   -- through the runner and the resume
   obtain ⟨w1, e1⟩ := hrun1 within
@@ -199,7 +199,7 @@ theorem dep_destroy_exactR (hfork : .berlin ≤ fork)
   obtain ⟨lt, chS, y, hch, hy, wy, hrunY⟩ := runFrame_childS hrC hstepC hrun hok
   have hat := resumeD (by simp) k1 k2 k3 k4 k5 k6 k8 k9 ko hy
   obtain ⟨G, hEnds⟩ := Shadow.shadow_ends hfork hrunY hok
-  have hatS := at_sh hat (Shadow.budget y)
+  have hatS := at_addGas hat (Shadow.budget y)
   -- the child ended with no error
   have he : chS.1.error = none := by
     refine Classical.byContradiction fun hne => ?_

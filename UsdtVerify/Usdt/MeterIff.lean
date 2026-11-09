@@ -88,7 +88,7 @@ theorem ok_approve_any (hfork : .berlin ≤ fork) (hsize' : message.data.size < 
             (bitwiseAnd ADDR_MASK message.caller.toU256)
             (bitwiseAnd ADDR_MASK (addrArg message.data 0)) (wordArg message.data 1)) })) := by
   obtain ⟨G, hE⟩ := shadow_ends hfork hrun hok
-  have st' := at_sh start (budget m)
+  have st' := at_addGas start (budget m)
   obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' st' hE hok
   obtain ⟨hst, hacc, hl, ho, h⟩ := ok_approve hfork hsize' hsel hdep rfl rfl st' hE hok
   refine ⟨⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hl, fun hz => ?_⟩, ho, ?_⟩
@@ -164,7 +164,7 @@ theorem approve_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound) :
     have hE : Ends fork (toNat m) (toNat s) :=
       ends_of_specI (approve_specI hfork hsize' hsel hdep hc10 hcA hnr hG
         (g := gas + max (approveCost fork state message c10 cA) (approveStip message c10 cA))
-        (Nat.le_add_left _ _)) (at_sh start _) hres hs
+        (Nat.le_add_left _ _)) (at_addGas start _) hres hs
     refine ⟨hG, Nat.max_le.mpr ⟨?_, ?_⟩⟩
     · obtain ⟨-, -, -, -, h⟩ := ok_approve hfork hsize' hsel hdep hc10 hcA start hE hok
       by_cases hz : wordArg message.data 1 = 0
@@ -229,7 +229,7 @@ theorem ok_transfer_any (hfork : .berlin ≤ fork) (hsize' : message.data.size <
         s.substate = feeSub fork (shortSubstate substate message) (shortState state message)
           message (wordArg message.data 1) (addrArg message.data 0))) := by
   obtain ⟨G, hE⟩ := shadow_ends hfork hrun hok
-  have st' := at_sh start (budget m)
+  have st' := at_addGas start (budget m)
   obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' st' hE hok
   obtain ⟨hst, hacc, hl, hp, hb, hov, hfv, hbal, hto, ho, h⟩ :=
     ok_transfer hfork hsize' hsel hdep rfl rfl rfl rfl rfl rfl rfl rfl st' hE hok
@@ -336,7 +336,7 @@ theorem transfer_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound) :
       ends_of_specI (transfer_specI hfork hsize' hsel hdep hc0 hcB hc10 hc3 hc4 hcS hcT hcO
         hnrD hG (g := gas + max (transferCost fork state message c0 cB c10 c3 c4 cS cT cO)
           (transferStip fork state message c0 cB c10 c3 c4 cS cT)) (Nat.le_add_left _ _))
-        (at_sh start _) hres hs
+        (at_addGas start _) hres hs
     obtain ⟨-, -, -, -, -, -, -, -, -, -, h⟩ :=
       ok_transfer hfork hsize' hsel hdep hc0 hcB hc10 hc3 hc4 hcS hcT hcO start hE hok
     obtain ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hl, hp, hb, hov, hfv, hbal, hto, -⟩ := id hG
@@ -405,7 +405,7 @@ theorem ok_transferFrom_any (hfork : .berlin ≤ fork) (hsize' : message.data.si
         s.substate = feeSubF fork (checkSub substate message) (checkState state message) message
           (valArg message) (toArg message) (fromArg message))) := by
   obtain ⟨G, hE⟩ := shadow_ends hfork hrun hok
-  have st' := at_sh start (budget m)
+  have st' := at_addGas start (budget m)
   obtain ⟨h4, hv, -⟩ := ends_ok_dispatch hfork hsize' st' hE hok
   obtain ⟨hst, hacc, hl, hp, hb, hov, hallow, hfv, hbal, hto, ho, h⟩ :=
     ok_transferFrom hfork hsize' hsel hdep rfl rfl rfl rfl rfl rfl rfl rfl rfl st' hE hok
@@ -520,7 +520,7 @@ theorem transferFrom_iff_gas_sgm (within : GasMeter.gasHeld m.gas ≤ bound) :
         hcO hnrA hnrD hG
         (g := gas + max (transferFromCost fork state message c0 cB c10 cA c3 c4 cF cT cO)
           (transferFromStip fork state message c0 cB c10 cA c3 c4 cF cT)) (Nat.le_add_left _ _))
-        (at_sh start _) hres hs
+        (at_addGas start _) hres hs
     obtain ⟨-, -, -, -, -, -, -, -, -, -, -, h⟩ :=
       ok_transferFrom hfork hsize' hsel hdep hc0 hcB hc10 hcA hc3 hc4 hcF hcT hcO start hE hok
     obtain ⟨⟨h4, hv⟩, ⟨hst, hacc⟩, hl, hp, hb, hov, hallow, hfv, hbal, hto, -⟩ := id hG

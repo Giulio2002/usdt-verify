@@ -51,7 +51,7 @@ namespace UsdtVerify.Exact
 open EthLib.Base (Fork U256)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding HoareG SpecG SpecG.runFrame Stuck no_ok_stuck_at
 open UsdtVerify.Gas
 
 variable {fork : Fork} {code : ByteArray} {message : Message fork} {pc : Nat}
@@ -167,7 +167,7 @@ theorem iff_max {R G : Prop} {cost stip gas : Nat}
 
 /-! ## Paths that forward a message -/
 
-open UsdtVerify.Complete (Route Routes SendsVia)
+open UsdtVerify.Complete (SendsVia)
 
 /-- The runner returns a frame for every message. -/
 def NoFail (runChild : MessageRunner fork Nat bound) : Prop :=

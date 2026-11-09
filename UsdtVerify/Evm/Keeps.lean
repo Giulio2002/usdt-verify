@@ -71,7 +71,8 @@ theorem NoDec.congr_left {k : U256} (hX : ∀ n, storageAt X C n = storageAt S C
 
 /-! ## The calls the code actually makes (round 29) -/
 
-open Complete (Routes SendsVia)
+open Complete (SendsVia)
+open Logic (Route Routes routeState)
 
 /-- `X` has the storage and the code of `S` at every address. -/
 def SameView (X S : State.TransactionState) : Prop :=
@@ -90,8 +91,8 @@ theorem sameView_readSlot {X S : State.TransactionState} (h : SameView X S) (c :
     (n : U256) : SameView (readSlot X c n) S :=
   ⟨fun a m => by rw [storageAt_readSlot]; exact h.1 a m, fun a => h.2 a⟩
 
-theorem sameView_route {X S : State.TransactionState} (h : SameView X S) (r : Complete.Route) :
-    SameView (Complete.routeState X r) S := by
+theorem sameView_route {X S : State.TransactionState} (h : SameView X S) (r : Route) :
+    SameView (routeState X r) S := by
   rcases r with _ | ⟨d, _⟩
   · exact h
   · exact sameView_recordAccountRead h d
@@ -104,7 +105,7 @@ def SentVia (message : Message fork) (S : State.TransactionState) (ua : Address)
   ∃ c r, S.getCode (S.getAccount ua).codeHash = .ok c ∧ Routes fork S c r ∧
     SendsVia message ua c r msg.data msg ∧ SameView caller.state S
 
-theorem sendsVia_data {message msg : Message fork} {c : ByteArray} {r : Complete.Route}
+theorem sendsVia_data {message msg : Message fork} {c : ByteArray} {r : Logic.Route}
     {d : ByteArray} (h : SendsVia message ua c r d msg) : SendsVia message ua c r msg.data msg := by
   obtain ⟨h1, h2, h3, h4, h5, h6, h7, h8⟩ := h
   exact ⟨h1, h2, h3, h4, h5, h6, rfl, h8⟩

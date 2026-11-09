@@ -302,7 +302,7 @@ theorem inv_call_depS {m s : Evm fork StateGasMeter}
   obtain ⟨G, hC⟩ := runC_of_sgm hfork hrun hok (.inl hres)
   have hE := endsOk_of_sgm hfork hrun hok
   obtain ⟨G', hEnds⟩ := Shadow.shadow_ends hfork hrun hok
-  have start' := at_sh start (Shadow.budget m)
+  have start' := at_addGas start (Shadow.budget m)
   have hk := keepsInvAtC_of_S hkeeps
   have hsG : ∀ g, ({ toNat s with gas := g } : Evm fork Nat).state = s.state := fun _ => rfl
   have hokG : ∀ g, ({ toNat s with gas := g } : Evm fork Nat).error = none := fun _ => hok

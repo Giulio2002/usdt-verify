@@ -34,7 +34,7 @@ namespace UsdtVerify.Complete
 open EthLib.Base (Fork U256)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding HoareG SpecG
 open UsdtVerify.Gas
 open UsdtVerify.Meter
 open UsdtVerify.Refill (StepJ HoareJ)
@@ -205,8 +205,8 @@ theorem exactS_write (hfork : .berlin ≤ fork) {code : ByteArray} {message : Me
       (by rw [hgl1]; exact hstip) hw hset
     rw [ho1, hcu1, hA, hS, hb1] at hN
     rw [ho1, hcu1, hcd1, hA, hS, hC, hg1, sstoreMeter_gasLeft, hgl1] at hg2
-    have hat2 := sstore_post_at (n := sh (sstoreBump m.gas A S) (toNat m1)) hfork hstatic hacc
-      hcold (at_sh h1 _) (by omega) (by rw [hW]; omega) (by exact hN)
+    have hat2 := sstore_post_at (n := addGas (sstoreBump m.gas A S) (toNat m1)) hfork hstatic hacc
+      hcold (at_addGas h1 _) (by omega) (by rw [hW]; omega) (by exact hN)
     rw [hW] at hat2
     refine ⟨m2, by rw [hstep1, hss]; rfl, by rw [hg2]; rfl, ?_⟩
     have hgl2 : m2.gas.gasLeft = gas - P + sstoreBump m.gas A S - (C + S) := by

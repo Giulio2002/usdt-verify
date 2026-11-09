@@ -676,7 +676,7 @@ theorem ends_any (hfork : .berlin ≤ fork)
     ∃ (g : Nat) (l e : Evm fork Nat), At CODE message 0 [] .empty g state substate l ∧
       Ends fork l e ∧ e.error = none ∧ e.state = t.state := by
   obtain ⟨G, hE⟩ := Shadow.shadow_ends hfork hrun hok
-  exact ⟨_, _, _, at_sh start (Shadow.budget m), hE, hok, rfl⟩
+  exact ⟨_, _, _, at_addGas start (Shadow.budget m), hE, hok, rfl⟩
 
 /-- **The effect of every successful call that runs locally, over `StateGasMeter`** (round 37):
 `effect_local` for a run of the loop over `StateGasMeter`, for any gas bound and message runner,

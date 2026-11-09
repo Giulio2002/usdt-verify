@@ -21,7 +21,7 @@ namespace UsdtVerify.Complete
 open EthLib.Base (Fork U256)
 open EthLib.Execution
 open EthLib.Execution.Evm
-open EthLib.Execution.Evm.Logic
+open EthLib.Execution.Evm.Logic hiding HoareG StepG
 open UsdtVerify.Gas
 open UsdtVerify.Meter
 open UsdtVerify.Refill (StepJ HoareJ NoRefillAtN NoStateAtN)
@@ -29,16 +29,16 @@ open UsdtVerify.Refill (StepJ HoareJ NoRefillAtN NoStateAtN)
 variable {fork : Fork}
 
 /-- **A successful run over `StateGasMeter` follows a `StepJ` chain.** Along a chain of `StepJ`
-from `sh k (toNat m)` to `z`, a run over `StateGasMeter` from `m` (any reservoir) that ends with
-no error goes through a frame `m'` with `z = sh k (toNat m')`, the meter of `m` but for its
+from `addGas k (toNat m)` to `z`, a run over `StateGasMeter` from `m` (any reservoir) that ends with
+no error goes through a frame `m'` with `z = addGas k (toNat m')`, the meter of `m` but for its
 execution gas left, and the same end. -/
 theorem low_to_runningS {hi z : Evm fork Nat} (hr : Reaches (StepJ fork) hi z) :
-    ∀ (k : Nat) (m : Evm fork StateGasMeter), hi = sh k (toNat m) →
+    ∀ (k : Nat) (m : Evm fork StateGasMeter), hi = addGas k (toNat m) →
     ∀ {bound : Nat} {runChild : MessageRunner fork StateGasMeter bound}
       {within : GasMeter.gasHeld m.gas ≤ bound} {s : Evm fork StateGasMeter},
       Evm.runFrame (step fork) (step_decreases fork) bound runChild m within = .ok s →
       s.error = none →
-      ∃ m', z = sh k (toNat m') ∧ m'.gas = { m.gas with gasLeft := m'.gas.gasLeft } ∧
+      ∃ m', z = addGas k (toNat m') ∧ m'.gas = { m.gas with gasLeft := m'.gas.gasLeft } ∧
         ∃ w', Evm.runFrame (step fork) (step_decreases fork) bound runChild m' w' = .ok s := by
   induction hr with
   | refl =>
@@ -51,7 +51,7 @@ theorem low_to_runningS {hi z : Evm fork Nat} (hr : Reaches (StepJ fork) hi z) :
     have hnr : NoRefillAt m := Refill.noRefillAtN_sh k hs.2.1
     have hns : NoStateAtN (toNat m) := Refill.noStateAtN_sh k hs.2.2
     have hc := step_simXR hp hnr hns
-    rcases hs.1.2.2 k (toNat m) rfl with ⟨e, he⟩ | ⟨b, hb, hbr, hbe⟩ | ⟨b, hb, hhi⟩
+    rcases hs.1.2.2 k (toNat m) rfl with (⟨e, he⟩ | ⟨b, hb, hbr, hbe⟩) | ⟨b, hb, hhi⟩
     · rcases hc with ⟨e', hS, -⟩ | ⟨m', -, hN, -⟩
       · exact absurd hok (sgm_step_error hrun hS h)
       · rw [he] at hN; cases hN
@@ -67,7 +67,7 @@ theorem low_to_runningS {hi z : Evm fork Nat} (hr : Reaches (StepJ fork) hi z) :
       · rw [hb] at hN; cases hN
       · rw [hb] at hN
         cases hN
-        have hy := Step.deterministic hs.1.1 (.next (by rw [running_sh]; exact hrun) hhi)
+        have hy := Step.deterministic hs.1.1 (.next (by rw [running_addGas]; exact hrun) hhi)
         subst hy
         rw [runFrame_of_step_eq_next hrun hS] at h
         rcases hm' with hm' | ⟨hr', he'⟩
@@ -96,7 +96,7 @@ theorem ok_splitS {code : ByteArray} {message : Message fork} {pc pc' : Nat}
     c ≤ gas ∧ ∃ m', At code message pc' stack' memory' (gas - c) state' substate' (toNat m') ∧
       m'.gas = { m.gas with gasLeft := m'.gas.gasLeft } ∧
       ∃ w', Evm.runFrame (step fork) (step_decreases fork) bound runChild m' w' = .ok s := by
-  obtain ⟨z, hr, hq⟩ := h (gas + B) (by omega) _ (at_sh start B)
+  obtain ⟨z, hr, hq⟩ := h (gas + B) (by omega) _ (at_addGas start B)
   obtain ⟨m', rfl, hg, w', h'⟩ := low_to_runningS hr B m rfl hrun hok
   obtain ⟨hk, hat⟩ := at_unsh hq
   refine ⟨by omega, m', ?_, hg, w', h'⟩
